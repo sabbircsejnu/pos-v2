@@ -1,0 +1,142 @@
+<div class="container mx-auto px-4 py-4 max-w-4xl">
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-6">
+    <button (click)="cancel()" class="btn btn-ghost">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Create Stock Transfer</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Transfer stock between locations</p>
+    </div>
+  </div>
+
+  @if (isLoadingData()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading data...</p>
+    </div>
+  } @else {
+    <form (ngSubmit)="onSubmit()">
+      <!-- Transfer Details -->
+      <div class="card p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Transfer Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- From Location -->
+          <div class="space-y-3">
+            <h3 class="font-medium text-gray-700">From Location</h3>
+            <div>
+              <label class="label">Location Type</label>
+              <select [(ngModel)]="fromLocationType" name="fromLocationType"
+                      (ngModelChange)="onFromTypeChange()" class="input">
+                <option value="outlet">Outlet</option>
+                <option value="warehouse">Warehouse</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Location <span class="text-red-500">*</span></label>
+              <select [(ngModel)]="fromLocationId" name="fromLocationId" class="input" required>
+                <option [ngValue]="null">-- Select Location --</option>
+                @for (loc of getFromLocations(); track loc.id) {
+                  <option [ngValue]="loc.id">{{ loc.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <!-- To Location -->
+          <div class="space-y-3">
+            <h3 class="font-medium text-gray-700">To Location</h3>
+            <div>
+              <label class="label">Location Type</label>
+              <select [(ngModel)]="toLocationType" name="toLocationType"
+                      (ngModelChange)="onToTypeChange()" class="input">
+                <option value="outlet">Outlet</option>
+                <option value="warehouse">Warehouse</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Location <span class="text-red-500">*</span></label>
+              <select [(ngModel)]="toLocationId" name="toLocationId" class="input" required>
+                <option [ngValue]="null">-- Select Location --</option>
+                @for (loc of getToLocations(); track loc.id) {
+                  <option [ngValue]="loc.id">{{ loc.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <!-- Transfer Date -->
+          <div>
+            <label class="label">Transfer Date <span class="text-red-500">*</span></label>
+            <input type="date" [(ngModel)]="transferDate" name="transferDate"
+                   class="input" required />
+          </div>
+        </div>
+      </div>
+
+      <!-- Items Section -->
+      <div class="card p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-900">Items</h2>
+          <button type="button" (click)="addItem()" class="btn btn-outline">
+            <i class="fas fa-plus"></i>
+            Add Item
+          </button>
+        </div>
+
+        @if (lineItems().length === 0) {
+          <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+            <i class="fas fa-box text-3xl mb-2 text-gray-300"></i>
+            <p>No items added. Click "Add Item" to begin.</p>
+          </div>
+        } @else {
+          <div class="space-y-3">
+            @for (item of lineItems(); track $index; let i = $index) {
+              <div class="grid grid-cols-12 gap-3 items-start p-3 bg-gray-50 rounded-lg">
+                <div class="col-span-8">
+                  <label class="label">Product Variant <span class="text-red-500">*</span></label>
+                  <select [ngModel]="item.variantId" (ngModelChange)="onVariantSelected(i, $event)"
+                          [name]="'variant_' + i" class="input">
+                    <option [ngValue]="0">-- Select Variant --</option>
+                    @for (v of variantOptions(); track v.id) {
+                      <option [ngValue]="v.id">{{ v.displayName }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="col-span-3">
+                  <label class="label">Quantity <span class="text-red-500">*</span></label>
+                  <input type="number" [ngModel]="item.quantity"
+                         (ngModelChange)="updateQuantity(i, $event)"
+                         [name]="'qty_' + i"
+                         min="1" class="input" />
+                </div>
+                <div class="col-span-1 pt-6">
+                  <button type="button" (click)="removeItem(i)"
+                          class="btn btn-ghost text-red-600 py-2 px-2">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3">
+        <button type="button" (click)="cancel()" class="btn btn-outline">
+          Cancel
+        </button>
+        <button type="submit" [disabled]="isSubmitting()" class="btn btn-primary">
+          @if (isSubmitting()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Creating...
+          } @else {
+            <i class="fas fa-paper-plane"></i>
+            Create Transfer
+          }
+        </button>
+      </div>
+    </form>
+  }
+</div>

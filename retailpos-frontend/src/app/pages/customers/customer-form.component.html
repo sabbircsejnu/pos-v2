@@ -1,0 +1,111 @@
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+  <div class="card p-6">
+    <div class="flex items-center gap-4 mb-6">
+      <button (click)="onCancel()" class="btn btn-ghost">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <h1 class="text-2xl font-bold text-gray-900">
+        {{ isEditMode() ? 'Edit Customer' : 'Add Customer' }}
+      </h1>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading()) {
+      <div class="text-center py-12">
+        <i class="fas fa-spinner fa-spin text-3xl text-gray-900"></i>
+        <p class="mt-3 text-gray-600">Loading customer...</p>
+      </div>
+    } @else {
+      <!-- Form -->
+      <div class="space-y-4">
+        <!-- Name -->
+        <div>
+          <label class="label">Customer Name <span class="text-red-500">*</span></label>
+          <input type="text" [(ngModel)]="name" (ngModelChange)="nameError.set('')"
+                 placeholder="Enter customer name"
+                 class="input"
+                 [class.border-red-500]="nameError()" />
+          @if (nameError()) {
+            <p class="mt-1 text-sm text-red-600">{{ nameError() }}</p>
+          }
+        </div>
+
+        <!-- Phone -->
+        <div>
+          <label class="label">Phone</label>
+          <input type="tel" [(ngModel)]="phone"
+                 placeholder="Enter phone number"
+                 class="input" />
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="label">Email</label>
+          <input type="email" [(ngModel)]="email" (ngModelChange)="emailError.set('')"
+                 placeholder="Enter email address"
+                 class="input"
+                 [class.border-red-500]="emailError()" />
+          @if (emailError()) {
+            <p class="mt-1 text-sm text-red-600">{{ emailError() }}</p>
+          }
+        </div>
+
+        <!-- Loyalty Points (read-only in edit mode) -->
+        @if (isEditMode()) {
+          <div>
+            <label class="label">Loyalty Points</label>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <i class="fas fa-star text-yellow-500"></i>
+                <span class="font-semibold text-gray-900">{{ loyaltyPoints() }}</span>
+                <span class="text-gray-500 text-sm">points</span>
+              </div>
+              <button type="button" (click)="togglePointsInput()"
+                      class="btn btn-outline py-2">
+                <i class="fas fa-plus-circle"></i>
+                Add Points
+              </button>
+            </div>
+
+            <!-- Add Points Inline -->
+            @if (showPointsInput()) {
+              <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-3">
+                <input type="number" [(ngModel)]="pointsToAdd" min="1"
+                       placeholder="Points to add"
+                       class="input w-40" />
+                <button (click)="onAddPoints()" [disabled]="isAddingPoints()"
+                        class="btn btn-primary py-2">
+                  @if (isAddingPoints()) {
+                    <i class="fas fa-spinner fa-spin"></i>
+                  } @else {
+                    <i class="fas fa-check"></i>
+                  }
+                  Add
+                </button>
+                <button (click)="togglePointsInput()" class="btn btn-ghost py-2">
+                  Cancel
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button (click)="onCancel()" class="btn btn-outline" [disabled]="isSubmitting()">
+            Cancel
+          </button>
+          <button (click)="onSubmit()" class="btn btn-primary" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <i class="fas fa-spinner fa-spin"></i>
+              Saving...
+            } @else {
+              <i class="fas fa-save"></i>
+              {{ isEditMode() ? 'Update Customer' : 'Create Customer' }}
+            }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

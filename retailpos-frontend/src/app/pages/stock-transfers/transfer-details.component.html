@@ -1,0 +1,171 @@
+<div class="container mx-auto px-4 py-4 max-w-4xl">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <button (click)="goBack()" class="btn btn-ghost">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Stock Transfer Details</h1>
+        @if (transfer()) {
+          <p class="text-sm text-gray-600 mt-0.5">Transfer #{{ transfer()!.id }}</p>
+        }
+      </div>
+    </div>
+
+    @if (transfer()) {
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1 rounded-full text-sm font-semibold"
+              [ngClass]="getStatusColor(transfer()!.status)">
+          {{ getStatusLabel(transfer()!.status) }}
+        </span>
+        @if (transfer()!.status === 'pending') {
+          <button (click)="approve()" class="btn btn-primary">
+            <i class="fas fa-check"></i> Approve
+          </button>
+          <button (click)="reject()" class="btn btn-outline text-red-600 border-red-300">
+            <i class="fas fa-times"></i> Reject
+          </button>
+          <button (click)="cancel()" class="btn btn-outline">
+            <i class="fas fa-ban"></i> Cancel
+          </button>
+        }
+        @if (transfer()!.status === 'approved') {
+          <button (click)="send()" class="btn btn-primary">
+            <i class="fas fa-truck-moving"></i> Send
+          </button>
+          <button (click)="cancel()" class="btn btn-outline">
+            <i class="fas fa-ban"></i> Cancel
+          </button>
+        }
+        @if (transfer()!.status === 'in_transit') {
+          <button (click)="receive()" class="btn btn-primary">
+            <i class="fas fa-box-open"></i> Receive
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading transfer...</p>
+    </div>
+  }
+
+  @else if (transfer()) {
+    <!-- Transfer Info -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <!-- From Location -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">From Location</h3>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-map-marker-alt text-gray-600"></i>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900">{{ transfer()!.fromLocationName }}</p>
+            <p class="text-sm text-gray-500 capitalize">{{ transfer()!.fromLocationType }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- To Location -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">To Location</h3>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-map-marker-alt text-gray-600"></i>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900">{{ transfer()!.toLocationName }}</p>
+            <p class="text-sm text-gray-500 capitalize">{{ transfer()!.toLocationType }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta Info -->
+    <div class="card p-5 mb-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Transfer Date</p>
+          <p class="font-medium text-gray-900 mt-1">{{ formatDate(transfer()!.transferDate) }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Created At</p>
+          <p class="font-medium text-gray-900 mt-1">{{ formatDateTime(transfer()!.createdAt) }}</p>
+        </div>
+        @if (transfer()!.creatorName) {
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Created By</p>
+            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.creatorName }}</p>
+          </div>
+        }
+        @if (transfer()!.approverName) {
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Approved By</p>
+            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.approverName }}</p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-200">
+        <h3 class="font-semibold text-gray-900">Transfer Items ({{ transfer()!.items.length || 0 }})</h3>
+      </div>
+      @if (transfer()!.items.length > 0) {
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="px-4 py-2.5">#</th>
+                <th class="px-4 py-2.5">Product</th>
+                <th class="px-4 py-2.5">SKU</th>
+                <th class="px-4 py-2.5 text-right">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of transfer()!.items; track item.id; let i = $index) {
+                <tr>
+                  <td class="px-4 py-2.5 text-gray-500">{{ i + 1 }}</td>
+                  <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
+                  <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.quantity }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="p-8 text-center text-gray-500">No items in this transfer</div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Reason Modal -->
+@if (showReasonModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">{{ reasonModalTitle() }}</h2>
+        <div class="mb-4">
+          <label class="label">Reason <span class="text-red-500">*</span></label>
+          <textarea [(ngModel)]="reasonText"
+                    rows="3"
+                    placeholder="Enter reason..."
+                    class="input resize-none"></textarea>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button (click)="closeReasonModal()" class="btn btn-outline">Cancel</button>
+          <button (click)="submitReason()" class="btn btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

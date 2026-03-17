@@ -1,0 +1,349 @@
+<div class="pos-wrapper">
+  <!-- LEFT PANEL: Products -->
+  <div class="pos-left">
+    <!-- Search Bar -->
+    <div class="pos-search-bar">
+      <div class="relative">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <input
+          type="text"
+          placeholder="Search products by name or SKU..."
+          class="input pl-9"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="category-tabs">
+      <button
+        class="cat-tab"
+        [class.active]="selectedCategory() === null"
+        (click)="selectCategory(null)"
+      >All</button>
+      @for (cat of categories(); track cat.id) {
+        <button
+          class="cat-tab"
+          [class.active]="selectedCategory() === cat.id"
+          (click)="selectCategory(cat.id)"
+        >{{ cat.name }}</button>
+      }
+    </div>
+
+    <!-- Product Grid -->
+    @if (isLoadingProducts()) {
+      <div class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+          <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-2"></i>
+          <p class="text-sm text-gray-500">Loading products...</p>
+        </div>
+      </div>
+    } @else if (filteredProducts().length === 0) {
+      <div class="flex-1 flex items-center justify-center">
+        <div class="text-center text-gray-400">
+          <i class="fas fa-box-open text-4xl mb-2"></i>
+          <p class="text-sm">No products found</p>
+        </div>
+      </div>
+    } @else {
+      <div class="product-grid">
+        @for (product of filteredProducts(); track product.variantId) {
+          <div
+            class="product-card"
+            [class.out-of-stock]="product.stockQty <= 0"
+            (click)="addToCart(product)"
+          >
+            <div class="product-icon">
+              <i class="fas fa-box text-gray-400"></i>
+            </div>
+            <div class="product-name">{{ product.name }}</div>
+            <div class="product-sku">{{ product.sku }}</div>
+            <div class="product-price">{{ product.price | currency }}</div>
+            <div class="product-stock" [class.low]="product.stockQty <= 5 && product.stockQty > 0" [class.out]="product.stockQty <= 0">
+              @if (product.stockQty <= 0) {
+                <span>Out of Stock</span>
+              } @else {
+                <span>Stock: {{ product.stockQty }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- RIGHT PANEL: Cart -->
+  <div class="pos-right">
+    <!-- Cart Header -->
+    <div class="cart-header">
+      <h2 class="text-lg font-bold text-gray-900">
+        <i class="fas fa-shopping-cart mr-2"></i>Cart
+        @if (cartItems().length > 0) {
+          <span class="cart-count">{{ cartItems().length }}</span>
+        }
+      </h2>
+    </div>
+
+    <!-- Customer Selection -->
+    <div class="customer-section">
+      <div class="relative">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-user text-gray-400 text-sm"></i>
+          @if (selectedCustomer()) {
+            <div class="flex-1 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5">
+              <span class="text-sm font-medium text-gray-800">{{ selectedCustomer()?.name }}</span>
+              <button (click)="clearCustomer()" class="text-gray-400 hover:text-red-500 ml-2">
+                <i class="fas fa-times text-xs"></i>
+              </button>
+            </div>
+          } @else {
+            <input
+              type="text"
+              placeholder="Search customer..."
+              class="input flex-1 text-sm"
+              [ngModel]="customerSearchQuery()"
+              (ngModelChange)="onCustomerSearch($event)"
+            />
+          }
+        </div>
+        @if (showCustomerDropdown() && customerResults().length > 0) {
+          <div class="customer-dropdown">
+            @for (c of customerResults(); track c.id) {
+              <button class="customer-option" (click)="selectCustomer(c)">
+                <span class="font-medium">{{ c.name }}</span>
+                <span class="text-xs text-gray-500 ml-2">{{ c.phone || c.email || '' }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Cart Items -->
+    <div class="cart-items">
+      @if (cartItems().length === 0) {
+        <div class="empty-cart">
+          <i class="fas fa-shopping-cart text-4xl text-gray-200 mb-3"></i>
+          <p class="text-gray-400 text-sm">Cart is empty</p>
+          <p class="text-gray-300 text-xs mt-1">Click products to add them</p>
+        </div>
+      } @else {
+        @for (item of cartItems(); track item.variantId; let i = $index) {
+          <div class="cart-item">
+            <div class="cart-item-info">
+              <div class="font-medium text-sm text-gray-900">{{ item.productName }}</div>
+              <div class="text-xs text-gray-500">{{ item.variantSku }}</div>
+              <div class="text-xs text-gray-600">{{ item.unitPrice | currency }} each</div>
+            </div>
+            <div class="cart-item-qty">
+              <button class="qty-btn" (click)="decreaseQty(i)">
+                <i class="fas fa-minus text-xs"></i>
+              </button>
+              <span class="qty-val">{{ item.quantity }}</span>
+              <button class="qty-btn" (click)="increaseQty(i)">
+                <i class="fas fa-plus text-xs"></i>
+              </button>
+            </div>
+            <div class="cart-item-total">
+              <div class="font-semibold text-sm text-gray-900">{{ item.subtotal | currency }}</div>
+              <button class="remove-btn" (click)="removeFromCart(i)">
+                <i class="fas fa-trash text-xs"></i>
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Totals -->
+    <div class="cart-totals">
+      <div class="total-row">
+        <span class="text-sm text-gray-600">Subtotal</span>
+        <span class="text-sm font-medium text-gray-900">{{ subtotal() | currency }}</span>
+      </div>
+      <div class="total-row">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600">Discount</span>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            class="w-14 border border-gray-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-gray-900"
+            [ngModel]="discountPercent()"
+            (ngModelChange)="onDiscountChange($event)"
+          />
+          <span class="text-sm text-gray-500">%</span>
+        </div>
+        <span class="text-sm text-red-600">-{{ discountAmount() | currency }}</span>
+      </div>
+      <div class="total-row">
+        <span class="text-sm text-gray-600">Tax (10%)</span>
+        <span class="text-sm text-gray-700">{{ taxAmount() | currency }}</span>
+      </div>
+      <div class="total-row border-t border-gray-200 pt-2 mt-1">
+        <span class="text-lg font-bold text-gray-900">Total</span>
+        <span class="text-xl font-bold text-gray-900">{{ totalAmount() | currency }}</span>
+      </div>
+    </div>
+
+    <!-- Payment Method -->
+    <div class="payment-section">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment Method</p>
+      <div class="flex gap-2">
+        <button
+          class="pay-method-btn"
+          [class.active]="paymentMethod() === 'cash'"
+          (click)="setPaymentMethod('cash')"
+        >
+          <i class="fas fa-money-bill-wave"></i> Cash
+        </button>
+        <button
+          class="pay-method-btn"
+          [class.active]="paymentMethod() === 'card'"
+          (click)="setPaymentMethod('card')"
+        >
+          <i class="fas fa-credit-card"></i> Card
+        </button>
+        <button
+          class="pay-method-btn"
+          [class.active]="paymentMethod() === 'mobile'"
+          (click)="setPaymentMethod('mobile')"
+        >
+          <i class="fas fa-mobile-alt"></i> Mobile
+        </button>
+      </div>
+    </div>
+
+    <!-- Cash Tendered -->
+    @if (paymentMethod() === 'cash') {
+      <div class="cash-section">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cash Tendered</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          class="input mt-1 text-lg font-medium"
+          [ngModel]="cashTendered()"
+          (ngModelChange)="onCashTenderedChange($event)"
+          placeholder="0.00"
+        />
+        <div class="flex justify-between mt-2">
+          <span class="text-sm text-gray-600">Change:</span>
+          <span class="text-lg font-bold" [class.text-green-600]="change() > 0" [class.text-gray-900]="change() === 0">
+            {{ change() | currency }}
+          </span>
+        </div>
+      </div>
+    }
+
+    <!-- Action Buttons -->
+    <div class="cart-actions">
+      <button class="btn-clear" (click)="clearCart()" [disabled]="cartItems().length === 0">
+        <i class="fas fa-trash-alt"></i> Clear
+      </button>
+      <button
+        class="btn-checkout"
+        [disabled]="cartItems().length === 0 || isProcessing()"
+        (click)="completeSale()"
+      >
+        @if (isProcessing()) {
+          <i class="fas fa-spinner fa-spin mr-2"></i>Processing...
+        } @else {
+          <i class="fas fa-check-circle mr-2"></i>Complete Sale
+        }
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+@if (showReceiptModal() && completedSale()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && startNewSale()">
+    <div class="receipt-modal" id="receipt-print">
+      <div class="receipt-header">
+        <div class="receipt-logo">
+          <i class="fas fa-store text-3xl text-gray-700"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mt-2">Receipt</h2>
+        <p class="text-sm text-gray-500">{{ completedSale()?.saleNumber }}</p>
+        <p class="text-xs text-gray-400">{{ completedSale()?.saleDate | date:'medium' }}</p>
+      </div>
+
+      @if (completedSale()?.customerName) {
+        <div class="receipt-customer">
+          <i class="fas fa-user text-gray-400 mr-1"></i>
+          <span class="text-sm text-gray-700">{{ completedSale()?.customerName }}</span>
+        </div>
+      }
+
+      <div class="receipt-items">
+        <div class="receipt-items-header">
+          <span>Item</span>
+          <span>Qty</span>
+          <span class="text-right">Total</span>
+        </div>
+        @for (item of completedSale()?.items; track item.id) {
+          <div class="receipt-item-row">
+            <div>
+              <div class="text-sm font-medium">{{ item.productName }}</div>
+              <div class="text-xs text-gray-500">{{ item.variantSku }} @ {{ item.unitPrice | currency }}</div>
+            </div>
+            <div class="text-sm text-center">{{ item.quantity }}</div>
+            <div class="text-sm font-medium text-right">{{ item.subtotal | currency }}</div>
+          </div>
+        }
+      </div>
+
+      <div class="receipt-totals">
+        <div class="receipt-total-row">
+          <span class="text-sm text-gray-600">Subtotal</span>
+          <span class="text-sm">{{ completedSale()?.totalAmount | currency }}</span>
+        </div>
+        @if (completedSale()?.discount > 0) {
+          <div class="receipt-total-row">
+            <span class="text-sm text-gray-600">Discount</span>
+            <span class="text-sm text-red-600">-{{ completedSale()?.discount | currency }}</span>
+          </div>
+        }
+        <div class="receipt-total-row">
+          <span class="text-sm text-gray-600">Tax</span>
+          <span class="text-sm">{{ completedSale()?.tax | currency }}</span>
+        </div>
+        <div class="receipt-total-row font-bold border-t border-gray-200 pt-2">
+          <span class="text-base">Total</span>
+          <span class="text-xl text-gray-900">{{ completedSale()?.netTotal | currency }}</span>
+        </div>
+        <div class="receipt-total-row mt-2">
+          <span class="text-sm text-gray-600">Payment</span>
+          <span class="text-sm font-medium capitalize">{{ completedSale()?.paymentMethod }}</span>
+        </div>
+        @if (completedSale()?.paymentMethod === 'cash') {
+          <div class="receipt-total-row">
+            <span class="text-sm text-gray-600">Cash Tendered</span>
+            <span class="text-sm">{{ cashTendered() | currency }}</span>
+          </div>
+          <div class="receipt-total-row">
+            <span class="text-sm text-gray-600">Change</span>
+            <span class="text-sm font-bold text-green-600">{{ change() | currency }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="receipt-footer">
+        <p class="text-xs text-gray-400 text-center">Thank you for your purchase!</p>
+        <p class="text-xs text-gray-400 text-center">{{ completedSale()?.cashierName }}</p>
+      </div>
+
+      <div class="receipt-actions no-print">
+        <button class="btn btn-outline" (click)="printReceipt()">
+          <i class="fas fa-print mr-2"></i>Print
+        </button>
+        <button class="btn btn-primary" (click)="startNewSale()">
+          <i class="fas fa-plus mr-2"></i>New Sale
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,33 @@
+{
+  "Company": {
+    "CompanyName": "Retail POS",
+    "Address": "",
+    "Phone": "",
+    "Email": "",
+    "Website": "",
+    "TaxNumber": "",
+    "Currency": "USD",
+    "CurrencySymbol": "$",
+    "DateFormat": "MM/dd/yyyy",
+    "TimeZone": "UTC"
+  },
+  "Tax": {
+    "TaxEnabled": true,
+    "DefaultTaxRate": 10,
+    "TaxName": "VAT",
+    "PricesIncludeTax": false
+  },
+  "Receipt": {
+    "Header": "Thank you for shopping!",
+    "Footer": "Please come again",
+    "ShowLogo": true,
+    "ShowBarcode": false,
+    "PaperSize": "80mm"
+  },
+  "Inventory": {
+    "LowStockThreshold": 10,
+    "EnableLowStockAlerts": true,
+    "AllowNegativeStock": false,
+    "AutoReorder": false
+  }
+}

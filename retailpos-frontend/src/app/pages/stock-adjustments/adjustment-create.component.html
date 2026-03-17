@@ -1,0 +1,137 @@
+<div class="container mx-auto px-4 py-4 max-w-2xl">
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-6">
+    <button (click)="cancel()" class="btn btn-ghost">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Create Stock Adjustment</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manually adjust inventory stock levels</p>
+    </div>
+  </div>
+
+  @if (isLoadingData()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading data...</p>
+    </div>
+  } @else {
+    <form (ngSubmit)="onSubmit()" class="space-y-6">
+      <div class="card p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Location</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="label">Location Type</label>
+            <select [(ngModel)]="locationType" name="locationType"
+                    (ngModelChange)="onLocationTypeChange()" class="input">
+              <option value="outlet">Outlet</option>
+              <option value="warehouse">Warehouse</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Location <span class="text-red-500">*</span></label>
+            <select [(ngModel)]="locationId" name="locationId"
+                    (ngModelChange)="onLocationChange()" class="input" required>
+              <option [ngValue]="null">-- Select Location --</option>
+              @for (loc of getLocations(); track loc.id) {
+                <option [ngValue]="loc.id">{{ loc.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Product</h2>
+        <div>
+          <label class="label">Product Variant <span class="text-red-500">*</span></label>
+          <select [(ngModel)]="variantId" name="variantId"
+                  (ngModelChange)="onVariantChange()" class="input" required>
+            <option [ngValue]="null">-- Select Product Variant --</option>
+            @for (v of variantOptions(); track v.id) {
+              <option [ngValue]="v.id">{{ v.displayName }}</option>
+            }
+          </select>
+        </div>
+
+        @if (variantId() && locationId()) {
+          <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+            <div class="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Current Stock</p>
+                @if (isLoadingStock()) {
+                  <i class="fas fa-spinner fa-spin text-gray-400 mt-1"></i>
+                } @else {
+                  <p class="text-xl font-bold text-gray-900 mt-1">{{ currentStock() ?? '-' }}</p>
+                }
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Change</p>
+                <p class="text-xl font-bold mt-1"
+                   [ngClass]="quantityChange() >= 0 ? 'text-green-600' : 'text-red-600'">
+                  {{ quantityChange() > 0 ? '+' : '' }}{{ quantityChange() }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">New Stock</p>
+                @if (newStockLevel() !== null) {
+                  <p class="text-xl font-bold mt-1"
+                     [ngClass]="(newStockLevel() ?? 0) < 0 ? 'text-red-600' : 'text-gray-900'">
+                    {{ newStockLevel() }}
+                  </p>
+                } @else {
+                  <p class="text-xl font-bold text-gray-400 mt-1">-</p>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Adjustment Details</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="label">Quantity Change <span class="text-red-500">*</span></label>
+            <p class="text-xs text-gray-500 mb-1">Positive to add stock, negative to remove stock</p>
+            <input type="number" [(ngModel)]="quantityChange" name="quantityChange"
+                   class="input" placeholder="e.g. 10 or -5" required />
+          </div>
+
+          <div>
+            <label class="label">Reason <span class="text-red-500">*</span></label>
+            <select [(ngModel)]="reason" name="reason" class="input" required>
+              <option value="">-- Select Reason --</option>
+              @for (r of ADJUSTMENT_REASONS; track r) {
+                <option [value]="r">{{ r }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="label">Notes (optional)</label>
+            <textarea [(ngModel)]="notes" name="notes"
+                      rows="3" class="input resize-none"
+                      placeholder="Additional notes..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3">
+        <button type="button" (click)="cancel()" class="btn btn-outline">
+          Cancel
+        </button>
+        <button type="submit" [disabled]="isSubmitting()" class="btn btn-primary">
+          @if (isSubmitting()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Saving...
+          } @else {
+            <i class="fas fa-save"></i>
+            Create Adjustment
+          }
+        </button>
+      </div>
+    </form>
+  }
+</div>

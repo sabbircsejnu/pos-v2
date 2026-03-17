@@ -1,0 +1,548 @@
+using Microsoft.EntityFrameworkCore;
+using RetailPOS.Core.Entities;
+
+namespace RetailPOS.Infrastructure.Data;
+
+public class RetailPOSDbContext : DbContext
+{
+    public RetailPOSDbContext(DbContextOptions<RetailPOSDbContext> options) : base(options)
+    {
+    }
+
+    // User & Role Management
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<User> Users => Set<User>();
+
+    // Locations
+    public DbSet<Outlet> Outlets => Set<Outlet>();
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
+    // Products & Inventory
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<Variation> Variations => Set<Variation>();
+    public DbSet<VariationOption> VariationOptions => Set<VariationOption>();
+    public DbSet<ProductVariation> ProductVariations => Set<ProductVariation>();
+    public DbSet<ProductVariantOption> ProductVariantOptions => Set<ProductVariantOption>();
+    public DbSet<Inventory> Inventories => Set<Inventory>();
+
+    // Suppliers & Purchase
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<Grn> Grns => Set<Grn>();
+    public DbSet<GrnItem> GrnItems => Set<GrnItem>();
+
+    // Customers & Sales
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+
+    // Stock Management
+    public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
+    public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
+    public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+
+    // Accounting
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<Bill> Bills => Set<Bill>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+
+    // Audit
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Configure PostgreSQL naming convention (snake_case)
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            // Table names to snake_case
+            entity.SetTableName(ToSnakeCase(entity.GetTableName()!));
+
+            // Column names to snake_case
+            foreach (var property in entity.GetProperties())
+            {
+                property.SetColumnName(ToSnakeCase(property.Name));
+            }
+
+            // Foreign key names to snake_case
+            foreach (var key in entity.GetKeys())
+            {
+                key.SetName(ToSnakeCase(key.GetName()!));
+            }
+
+            foreach (var key in entity.GetForeignKeys())
+            {
+                key.SetConstraintName(ToSnakeCase(key.GetConstraintName()!));
+            }
+
+            foreach (var index in entity.GetIndexes())
+            {
+                index.SetDatabaseName(ToSnakeCase(index.GetDatabaseName()!));
+            }
+        }
+
+        // Role Configuration
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Permissions).HasColumnType("jsonb").IsRequired();
+        });
+
+        // User Configuration
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
+
+            entity.HasOne(e => e.Role)
+                .WithMany(r => r.Users)
+                .HasForeignKey(e => e.RoleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany(o => o.Users)
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Outlet Configuration
+        modelBuilder.Entity<Outlet>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Address).IsRequired();
+            entity.Property(e => e.ContactNumber).HasMaxLength(20);
+
+            entity.HasOne(e => e.Manager)
+                .WithMany()
+                .HasForeignKey(e => e.ManagerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Warehouse Configuration
+        modelBuilder.Entity<Warehouse>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Address).IsRequired();
+
+            entity.HasOne(e => e.Manager)
+                .WithMany()
+                .HasForeignKey(e => e.ManagerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Category Configuration
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500);
+
+            entity.HasOne(e => e.ParentCategory)
+                .WithMany(c => c.ChildCategories)
+                .HasForeignKey(e => e.ParentCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Product Configuration
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.BasePrice).HasPrecision(10, 2);
+            entity.Property(e => e.CostPrice).HasPrecision(10, 2);
+            entity.Property(e => e.TaxRate).HasPrecision(5, 2);
+            entity.HasIndex(e => e.Barcode).IsUnique();
+            entity.Property(e => e.Barcode).HasMaxLength(50);
+
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ProductVariant Configuration
+        modelBuilder.Entity<ProductVariant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.Property(e => e.Sku).HasMaxLength(50).IsRequired();
+            entity.HasIndex(e => e.Barcode).IsUnique();
+            entity.Property(e => e.Barcode).HasMaxLength(50);
+            entity.Property(e => e.Attributes).HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.PriceAdjustment).HasPrecision(10, 2);
+            entity.Property(e => e.CostAdjustment).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.ProductVariants)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Variation Configuration
+        modelBuilder.Entity<Variation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+        });
+
+        // VariationOption Configuration
+        modelBuilder.Entity<VariationOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.PriceAdjustment).HasColumnType("decimal(18,2)");
+
+            entity.HasOne(e => e.Variation)
+                .WithMany(v => v.Options)
+                .HasForeignKey(e => e.VariationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ProductVariation Configuration
+        modelBuilder.Entity<ProductVariation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.ProductVariations)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variation)
+                .WithMany(v => v.ProductVariations)
+                .HasForeignKey(e => e.VariationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ProductVariantOption Configuration
+        modelBuilder.Entity<ProductVariantOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.ProductVariantOptions)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Option)
+                .WithMany(o => o.ProductVariantOptions)
+                .HasForeignKey(e => e.OptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Inventory Configuration
+        modelBuilder.Entity<Inventory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.BatchNumber).HasMaxLength(50);
+
+            entity.HasIndex(e => new { e.VariantId, e.LocationId, e.LocationType }).IsUnique();
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.Inventories)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Supplier Configuration
+        modelBuilder.Entity<Supplier>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Contact).HasMaxLength(255);
+            entity.Property(e => e.CreditLimit).HasPrecision(10, 2);
+        });
+
+        // PurchaseOrder Configuration
+        modelBuilder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TotalAmount).HasPrecision(10, 2);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.Supplier)
+                .WithMany(s => s.PurchaseOrders)
+                .HasForeignKey(e => e.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Warehouse)
+                .WithMany(w => w.PurchaseOrders)
+                .HasForeignKey(e => e.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany(u => u.PurchaseOrders)
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // PurchaseOrderItem Configuration
+        modelBuilder.Entity<PurchaseOrderItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.PurchaseOrder)
+                .WithMany(po => po.Items)
+                .HasForeignKey(e => e.PoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.PurchaseOrderItems)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Grn Configuration
+        modelBuilder.Entity<Grn>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.PurchaseOrder)
+                .WithMany(po => po.Grns)
+                .HasForeignKey(e => e.PoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany(u => u.Grns)
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // GrnItem Configuration
+        modelBuilder.Entity<GrnItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Grn)
+                .WithMany(g => g.Items)
+                .HasForeignKey(e => e.GrnId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PurchaseOrderItem)
+                .WithMany(poi => poi.GrnItems)
+                .HasForeignKey(e => e.PoItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Customer Configuration
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(255);
+        });
+
+        // Sale Configuration
+        modelBuilder.Entity<Sale>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TotalAmount).HasPrecision(10, 2);
+            entity.Property(e => e.Discount).HasPrecision(10, 2);
+            entity.Property(e => e.Tax).HasPrecision(10, 2);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasIndex(e => e.SaleDate);
+            entity.HasIndex(e => e.OutletId);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany(o => o.Sales)
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Customer)
+                .WithMany(c => c.Sales)
+                .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Cashier)
+                .WithMany(u => u.Sales)
+                .HasForeignKey(e => e.CashierId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // SaleItem Configuration
+        modelBuilder.Entity<SaleItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.Subtotal).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.Sale)
+                .WithMany(s => s.Items)
+                .HasForeignKey(e => e.SaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.SaleItems)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockTransfer Configuration
+        modelBuilder.Entity<StockTransfer>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FromLocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ToLocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.Approver)
+                .WithMany(u => u.StockTransfersApproved)
+                .HasForeignKey(e => e.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany(u => u.StockTransfersCreated)
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // StockTransferItem Configuration
+        modelBuilder.Entity<StockTransferItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Transfer)
+                .WithMany(t => t.Items)
+                .HasForeignKey(e => e.TransferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.StockTransferItems)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockAdjustment Configuration
+        modelBuilder.Entity<StockAdjustment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(255).IsRequired();
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.StockAdjustments)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Adjuster)
+                .WithMany(u => u.StockAdjustments)
+                .HasForeignKey(e => e.AdjustedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Account Configuration
+        modelBuilder.Entity<Account>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Type).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Balance).HasPrecision(10, 2);
+        });
+
+        // Transaction Configuration
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
+            entity.Property(e => e.Type).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50);
+
+            entity.HasOne(e => e.Account)
+                .WithMany(a => a.Transactions)
+                .HasForeignKey(e => e.AccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Bill Configuration
+        modelBuilder.Entity<Bill>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AmountDue).HasPrecision(10, 2);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.Supplier)
+                .WithMany(s => s.Bills)
+                .HasForeignKey(e => e.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.PurchaseOrder)
+                .WithMany(po => po.Bills)
+                .HasForeignKey(e => e.PoId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Expense Configuration
+        modelBuilder.Entity<Expense>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Category).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany(o => o.Expenses)
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // AuditLog Configuration
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Action).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Module).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Details).HasColumnType("jsonb");
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+
+            entity.HasIndex(e => e.Timestamp);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.AuditLogs)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    private static string ToSnakeCase(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+
+        var result = new System.Text.StringBuilder();
+        result.Append(char.ToLowerInvariant(input[0]));
+
+        for (int i = 1; i < input.Length; i++)
+        {
+            char c = input[i];
+            if (char.IsUpper(c))
+            {
+                result.Append('_');
+                result.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                result.Append(c);
+            }
+        }
+
+        return result.ToString();
+    }
+}

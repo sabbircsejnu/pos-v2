@@ -1,0 +1,147 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Customers</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manage your customer relationships and loyalty points</p>
+    </div>
+    <button (click)="createCustomer()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Customer
+    </button>
+  </div>
+
+  <!-- Search -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div class="md:col-span-2">
+        <label class="label">Search</label>
+        <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()"
+               placeholder="Search by name, phone, or email..."
+               class="input" />
+      </div>
+      <div class="flex items-end">
+        <button (click)="clearFilters()" class="btn btn-outline w-full">
+          <i class="fas fa-times"></i>
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (customerService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading customers...</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (customerService.error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle text-xl"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ customerService.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Table -->
+  @else if (customerService.customers().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Name</th>
+              <th class="px-4 py-2.5">Phone</th>
+              <th class="px-4 py-2.5">Email</th>
+              <th class="px-4 py-2.5 text-right">Loyalty Points</th>
+              <th class="px-4 py-2.5">Created At</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let customer of customerService.customers()"
+                class="cursor-pointer"
+                (click)="viewCustomer(customer.id)">
+              <td class="px-4 py-2.5">
+                <span class="font-semibold text-gray-900">{{ customer.name }}</span>
+              </td>
+              <td class="px-4 py-2.5 text-gray-600">{{ customer.phone || '-' }}</td>
+              <td class="px-4 py-2.5 text-gray-600">{{ customer.email || '-' }}</td>
+              <td class="px-4 py-2.5 text-right">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-sm font-semibold">
+                  <i class="fas fa-star text-yellow-500 text-xs"></i>
+                  {{ customer.loyaltyPoints }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-gray-600">{{ formatDate(customer.createdAt) }}</td>
+              <td class="px-4 py-2.5">
+                <div class="flex items-center justify-center gap-2">
+                  <button (click)="editCustomer(customer.id, $event)"
+                          class="btn btn-ghost py-1 px-2" title="Edit">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button (click)="deleteCustomer(customer.id, customer.name, $event)"
+                          class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Delete">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-700">
+              Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to
+              {{ Math.min(pageNumber() * pageSize(), customerService.totalCount()) }} of
+              {{ customerService.totalCount() }} customers
+            </span>
+            <select [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)"
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900">
+              <option [ngValue]="10">10 per page</option>
+              <option [ngValue]="25">25 per page</option>
+              <option [ngValue]="50">50 per page</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button [disabled]="pageNumber() === 1"
+                    (click)="changePage(pageNumber() - 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">{{ pageNumber() }}</span>
+            <button [disabled]="pageNumber() * pageSize() >= customerService.totalCount()"
+                    (click)="changePage(pageNumber() + 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Empty -->
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-user-friends text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Customers Found</h3>
+      <p class="text-gray-600 mb-6">Start by adding your first customer</p>
+      <button (click)="createCustomer()"
+              class="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-700 transition shadow-lg">
+        <i class="fas fa-plus mr-2"></i>
+        Add Customer
+      </button>
+    </div>
+  }
+</div>

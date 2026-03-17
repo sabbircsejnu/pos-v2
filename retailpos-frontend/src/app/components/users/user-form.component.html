@@ -1,0 +1,225 @@
+<div class="container mx-auto px-4 py-4 max-w-5xl">
+  <!-- Header -->
+  <div class="mb-4">
+    <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2.5">
+      <div class="p-2 bg-gray-900 rounded-lg text-white">
+        <i class="fas fa-user-plus text-sm"></i>
+      </div>
+      {{ isEditMode() ? 'Edit User' : 'Create New User' }}
+    </h1>
+    <p class="text-sm text-gray-600 mt-1 ml-11">
+      {{ isEditMode() ? 'Update user information and permissions' : 'Add a new user to the system' }}
+    </p>
+  </div>
+
+  <!-- Success Message -->
+  @if (successMessage()) {
+    <div class="alert alert-success mb-4">
+      <i class="fas fa-check-circle"></i>
+      <span>{{ successMessage() }}</span>
+    </div>
+  }
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <!-- Form -->
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="form-container">
+    <div class="form-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Name -->
+        <div class="col-span-1">
+          <label for="name" class="label label-required">
+            Full Name
+          </label>
+          <input
+            id="name"
+            type="text"
+            formControlName="name"
+            class="input"
+            [class.input-error]="userForm.get('name')?.invalid && userForm.get('name')?.touched"
+            placeholder="Enter full name"
+          />
+          @if (userForm.get('name')?.invalid && userForm.get('name')?.touched) {
+            <p class="mt-1 text-xs text-red-600 flex items-center gap-1">
+              <i class="fas fa-exclamation-circle"></i>
+              {{ getFieldError('name') }}
+            </p>
+          }
+        </div>
+
+        <!-- Email -->
+        <div class="col-span-1">
+          <label for="email" class="label label-required">
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            class="input"
+            [class.input-error]="userForm.get('email')?.invalid && userForm.get('email')?.touched"
+            placeholder="user@example.com"
+          />
+          @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+            <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+              <i class="fas fa-exclamation-circle"></i>
+              {{ getFieldError('email') }}
+            </p>
+          }
+        </div>
+
+        <!-- Password (only for create mode) -->
+        @if (!isEditMode()) {
+          <div class="col-span-1">
+            <label for="password" class="label label-required">
+              Password
+            </label>
+            <div class="relative">
+              <input
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                class="input pr-10"
+                [class.input-error]="userForm.get('password')?.invalid && userForm.get('password')?.touched"
+                placeholder="Enter secure password"
+              />
+              <button
+                type="button"
+                (click)="togglePasswordVisibility()"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <i [class]="showPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
+            @if (userForm.get('password')?.invalid && userForm.get('password')?.touched) {
+              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ getFieldError('password') }}
+              </p>
+            }
+          </div>
+
+          <div class="col-span-1">
+            <label for="confirmPassword" class="label label-required">
+              Confirm Password
+            </label>
+            <div class="relative">
+              <input
+                id="confirmPassword"
+                [type]="showConfirmPassword() ? 'text' : 'password'"
+                formControlName="confirmPassword"
+                class="input pr-10"
+                [class.input-error]="userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched"
+                placeholder="Re-enter password"
+              />
+              <button
+                type="button"
+                (click)="toggleConfirmPasswordVisibility()"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <i [class]="showConfirmPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
+            @if (userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched) {
+              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ getFieldError('confirmPassword') }}
+              </p>
+            }
+          </div>
+        }
+
+        <!-- Role -->
+        <div class="col-span-1">
+          <label for="roleId" class="label label-required">
+            User Role
+          </label>
+          <select
+            id="roleId"
+            formControlName="roleId"
+            class="select"
+            [class.input-error]="userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched"
+          >
+            <option [value]="null">Select a role</option>
+            @for (role of roles(); track role.id) {
+              <option [value]="role.id">{{ role.name }}</option>
+            }
+          </select>
+          @if (userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched) {
+            <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+              <i class="fas fa-exclamation-circle"></i>
+              Role is required
+            </p>
+          }
+        </div>
+
+        <!-- Outlet (Optional) -->
+        <div class="col-span-1">
+          <label for="outletId" class="label">
+            Outlet <span class="text-gray-400 text-xs">(Optional)</span>
+          </label>
+          <input
+            id="outletId"
+            type="number"
+            formControlName="outletId"
+            class="input"
+            placeholder="Enter outlet ID"
+          />
+          <p class="mt-1.5 text-xs text-gray-500">Leave empty if not assigned to specific outlet</p>
+        </div>
+
+        <!-- Active Status -->
+        <div class="col-span-1 md:col-span-2">
+          <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <input
+              type="checkbox"
+              formControlName="isActive"
+              id="isActive"
+              class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 transition-all"
+            />
+            <div class="flex-1">
+              <label for="isActive" class="text-sm font-medium text-gray-700 cursor-pointer">
+                Active User
+              </label>
+              <p class="mt-0.5 text-xs text-gray-500">
+                Inactive users cannot log in to the system
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Form Actions -->
+    <div class="form-actions">
+      <button
+        type="button"
+        (click)="cancel()"
+        class="btn btn-outline flex-1 md:flex-none"
+        [disabled]="isLoading()"
+      >
+        <i class="fas fa-times"></i>
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="btn btn-primary flex-1 md:flex-none"
+        [disabled]="isLoading() || userForm.invalid"
+      >
+        @if (isLoading()) {
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Processing...</span>
+        } @else {
+          <i class="fas fa-save"></i>
+          <span>{{ isEditMode() ? 'Update User' : 'Create User' }}</span>
+        }
+      </button>
+    </div>
+  </form>
+</div>

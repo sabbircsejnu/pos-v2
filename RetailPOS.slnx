@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RetailPOS.API/RetailPOS.API.csproj" />
+    <Project Path="src/RetailPOS.Core/RetailPOS.Core.csproj" />
+    <Project Path="src/RetailPOS.Infrastructure/RetailPOS.Infrastructure.csproj" />
+  </Folder>
+</Solution>

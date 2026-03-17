@@ -1,0 +1,341 @@
+<div class="container mx-auto p-6">
+  <!-- Page Header -->
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Variations Management</h1>
+      <p class="text-gray-600 mt-1">Create global variations (Color, Size, Material) and manage their options</p>
+    </div>
+    <button 
+      (click)="openCreateModal()" 
+      class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+      + Create Variation
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  @if (variationService.isLoading()) {
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  }
+
+  <!-- Error Message -->
+  @if (variationService.errorMessage()) {
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      {{ variationService.errorMessage() }}
+    </div>
+  }
+
+  <!-- Variations List -->
+  @if (!variationService.isLoading() && variationService.variations().length > 0) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @for (variation of variationService.variations(); track trackByVariationId($index, variation)) {
+        <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <!-- Variation Header -->
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <h3 class="text-xl font-semibold text-gray-800">{{ variation.name }}</h3>
+              <span 
+                class="inline-block mt-1 px-2 py-1 text-xs rounded"
+                [ngClass]="variation.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                {{ variation.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <button 
+                (click)="openEditModal(variation)" 
+                class="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                title="Edit Variation">
+                ✏️
+              </button>
+              <button 
+                (click)="deleteVariation(variation.id, variation.name)" 
+                class="p-2 text-red-600 hover:bg-red-50 rounded"
+                title="Delete Variation">
+                🗑️
+              </button>
+            </div>
+          </div>
+
+          <!-- Options List -->
+          <div class="border-t pt-4">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-medium text-gray-700">Options ({{ variation.options.length }})</h4>
+              <button 
+                (click)="openAddOptionModal(variation.id)" 
+                class="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
+                + Add Option
+              </button>
+            </div>
+            
+            @if (variation.options.length > 0) {
+              <div class="space-y-2 max-h-60 overflow-y-auto">
+                @for (option of variation.options; track trackByOptionId($index, option)) {
+                  <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div class="flex-1">
+                      <span class="font-medium text-gray-800">{{ option.name }}</span>
+                      @if (option.priceAdjustment !== 0) {
+                        <span class="ml-2 text-sm" 
+                              [ngClass]="option.priceAdjustment > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ option.priceAdjustment > 0 ? '+' : '' }}৳{{ option.priceAdjustment }}
+                        </span>
+                      }
+                      @if (!option.isActive) {
+                        <span class="ml-2 text-xs text-gray-500">(Inactive)</span>
+                      }
+                    </div>
+                    <div class="flex gap-1">
+                      <button 
+                        (click)="openEditOptionModal(variation.id, option.id, option.name, option.priceAdjustment, option.displayOrder, option.isActive)" 
+                        class="p-1 text-blue-600 hover:bg-blue-50 rounded text-sm"
+                        title="Edit Option">
+                        ✏️
+                      </button>
+                      <button 
+                        (click)="deleteOption(option.id, option.name)" 
+                        class="p-1 text-red-600 hover:bg-red-50 rounded text-sm"
+                        title="Delete Option">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-gray-500 italic">No options yet</p>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!variationService.isLoading() && variationService.variations().length === 0) {
+    <div class="text-center py-12">
+      <div class="text-6xl mb-4">📦</div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">No Variations Yet</h3>
+      <p class="text-gray-600 mb-6">Create your first variation like Color, Size, or Material</p>
+      <button 
+        (click)="openCreateModal()" 
+        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        Create First Variation
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Create/Edit Variation Modal -->
+@if (showModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-6 border-b">
+        <h2 class="text-2xl font-bold text-gray-800">
+          {{ isEditMode() ? 'Edit Variation' : 'Create New Variation' }}
+        </h2>
+        <button (click)="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6">
+        <form (ngSubmit)="saveVariation()">
+          <!-- Variation Name -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Variation Name *</label>
+            <input 
+              type="text" 
+              [(ngModel)]="variationForm().name"
+              name="name"
+              placeholder="e.g., Color, Size, Material"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required>
+          </div>
+
+          <!-- Display Order -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+            <input 
+              type="number" 
+              [(ngModel)]="variationForm().displayOrder"
+              name="displayOrder"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          </div>
+
+          <!-- Is Active -->
+          <div class="mb-6">
+            <label class="flex items-center">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="variationForm().isActive"
+                name="isActive"
+                class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+              <span class="ml-2 text-gray-700">Active</span>
+            </label>
+          </div>
+
+          <!-- Options Section (Only for Create Mode) -->
+          @if (!isEditMode()) {
+            <div class="border-t pt-6">
+              <h3 class="text-lg font-semibold mb-4">Add Options</h3>
+              
+              <!-- Option Form -->
+              <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Option Name</label>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="optionForm().name"
+                      [ngModelOptions]="{standalone: true}"
+                      placeholder="e.g., Red, Blue"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Price Adjustment (৳)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      [(ngModel)]="optionForm().priceAdjustment"
+                      [ngModelOptions]="{standalone: true}"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  (click)="addOptionToList()" 
+                  class="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                  + Add Option to List
+                </button>
+              </div>
+
+              <!-- Options List -->
+              @if (tempOptions().length > 0) {
+                <div class="space-y-2">
+                  <h4 class="font-medium text-gray-700">Options ({{ tempOptions().length }})</h4>
+                  @for (option of tempOptions(); track trackByOptionId($index, option); let i = $index) {
+                    <div class="flex justify-between items-center p-3 bg-white border rounded-lg">
+                      <div>
+                        <span class="font-medium">{{ option.name }}</span>
+                        @if (option.priceAdjustment !== 0) {
+                          <span class="ml-2 text-sm" 
+                                [ngClass]="option.priceAdjustment > 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ option.priceAdjustment > 0 ? '+' : '' }}৳{{ option.priceAdjustment }}
+                          </span>
+                        }
+                      </div>
+                      <button 
+                        type="button"
+                        (click)="removeOptionFromList(i)" 
+                        class="text-red-600 hover:bg-red-50 px-3 py-1 rounded">
+                        Remove
+                      </button>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="text-sm text-gray-500 italic">No options added yet. Add at least one option.</p>
+              }
+            </div>
+          }
+
+          <!-- Modal Footer -->
+          <div class="flex justify-end gap-3 mt-6 pt-6 border-t">
+            <button 
+              type="button"
+              (click)="closeModal()" 
+              class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              {{ isEditMode() ? 'Update' : 'Create' }} Variation
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Add/Edit Option Modal -->
+@if (showOptionModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center p-6 border-b">
+        <h2 class="text-xl font-bold text-gray-800">
+          {{ isEditOption() ? 'Edit Option' : 'Add New Option' }}
+        </h2>
+        <button (click)="closeOptionModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6">
+        <form (ngSubmit)="saveOption()">
+          <!-- Option Name -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Option Name *</label>
+            <input 
+              type="text" 
+              [(ngModel)]="optionForm().name"
+              name="optionName"
+              placeholder="e.g., Red, Large"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              required>
+          </div>
+
+          <!-- Price Adjustment -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Price Adjustment (৳)</label>
+            <input 
+              type="number" 
+              step="0.01"
+              [(ngModel)]="optionForm().priceAdjustment"
+              name="priceAdjustment"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-gray-500 mt-1">Use positive for price increase, negative for discount</p>
+          </div>
+
+          <!-- Display Order -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+            <input 
+              type="number" 
+              [(ngModel)]="optionForm().displayOrder"
+              name="optionDisplayOrder"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          </div>
+
+          <!-- Is Active -->
+          <div class="mb-6">
+            <label class="flex items-center">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="optionForm().isActive"
+                name="optionIsActive"
+                class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+              <span class="ml-2 text-gray-700">Active</span>
+            </label>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="flex justify-end gap-3">
+            <button 
+              type="button"
+              (click)="closeOptionModal()" 
+              class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              {{ isEditOption() ? 'Update' : 'Add' }} Option
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}

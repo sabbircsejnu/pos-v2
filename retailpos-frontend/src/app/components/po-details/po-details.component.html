@@ -1,0 +1,287 @@
+<div class="container mx-auto px-4 py-8">
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    </div>
+  } @else if (po()) {
+    <!-- Header -->
+    <div class="mb-6 flex justify-between items-start">
+      <div>
+        <div class="flex items-center space-x-3">
+          <h1 class="text-3xl font-bold text-gray-900">
+            Purchase Order #{{ po()!.id }}
+          </h1>
+          <span [class]="'px-3 py-1 rounded-full text-sm font-semibold ' + getStatusColor(po()!.status)">
+            {{ getStatusLabel(po()!.status) }}
+          </span>
+        </div>
+        <p class="mt-2 text-sm text-gray-600">
+          Created on {{ formatDate(po()!.createdAt.toString()) }}
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex space-x-2">
+        <button
+          (click)="backToList()"
+          class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          [disabled]="isProcessing()"
+        >
+          <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
+        </button>
+
+        @if (canEdit()) {
+          <button
+            (click)="editPo()"
+            class="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800"
+            [disabled]="isProcessing()"
+          >
+            <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+        }
+
+        <button
+          (click)="printPo()"
+          class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          [disabled]="isProcessing()"
+        >
+          <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Print
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left Column - Details -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Basic Information -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-600">Supplier</p>
+              <p class="font-medium text-gray-900">{{ po()!.supplierName }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Warehouse</p>
+              <p class="font-medium text-gray-900">{{ po()!.warehouseName }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Order Date</p>
+              <p class="font-medium text-gray-900">{{ formatDate(po()!.orderDate.toString()) }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600">Expected Delivery</p>
+              <p class="font-medium text-gray-900">
+                @if (po()!.expectedDelivery) {
+                  {{ formatDate(po()!.expectedDelivery!.toString()) }}
+                } @else {
+                  <span class="text-gray-400">Not specified</span>
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Items ({{ po()!.totalItems }})</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variant</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (item of po()!.items; track item.id) {
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ item.productName }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ item.variantName }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{{ item.quantity }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{{ formatCurrency(item.unitPrice) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      {{ formatCurrency(item.totalPrice) }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="bg-gray-50">
+                <tr>
+                  <td colspan="5" class="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                    Grand Total:
+                  </td>
+                  <td class="px-6 py-4 text-right text-lg font-bold text-gray-900">
+                    {{ formatCurrency(po()!.totalAmount) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Workflow & Audit -->
+      <div class="space-y-6">
+        <!-- Workflow Actions -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Workflow Actions</h2>
+          <div class="space-y-2">
+            @if (canSubmit()) {
+              <button
+                (click)="submitForApproval()"
+                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                [disabled]="isProcessing()"
+              >
+                Submit for Approval
+              </button>
+            }
+
+            @if (canApprove()) {
+              <button
+                (click)="approvePo()"
+                class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                [disabled]="isProcessing()"
+              >
+                Approve
+              </button>
+            }
+
+            @if (canReject()) {
+              <button
+                (click)="showRejectModal()"
+                class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                [disabled]="isProcessing()"
+              >
+                Reject
+              </button>
+            }
+
+            @if (canCancel()) {
+              <button
+                (click)="showCancelModal()"
+                class="w-full px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                [disabled]="isProcessing()"
+              >
+                Cancel
+              </button>
+            }
+
+            @if (canDelete()) {
+              <button
+                (click)="deletePo()"
+                class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                [disabled]="isProcessing()"
+              >
+                Delete
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Summary</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between">
+              <span class="text-sm text-gray-600">Total Items</span>
+              <span class="font-medium text-gray-900">{{ po()!.totalItems }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-gray-600">Total Quantity</span>
+              <span class="font-medium text-gray-900">{{ po()!.totalQuantity }}</span>
+            </div>
+            <div class="flex justify-between pt-3 border-t border-gray-200">
+              <span class="text-base font-semibold text-gray-900">Total Amount</span>
+              <span class="text-lg font-bold text-gray-900">{{ formatCurrency(po()!.totalAmount) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit Information -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Audit Information</h2>
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs text-gray-500">Created By</p>
+              <p class="text-sm font-medium text-gray-900">{{ po()!.createdByName }}</p>
+              <p class="text-xs text-gray-500">{{ formatDate(po()!.createdAt.toString()) }}</p>
+            </div>
+            @if (po()!.updatedAt !== po()!.createdAt) {
+              <div>
+                <p class="text-xs text-gray-500">Last Updated</p>
+                <p class="text-xs text-gray-500">{{ formatDate(po()!.updatedAt.toString()) }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Reason Modal -->
+  @if (showReasonModal()) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            {{ reasonAction() === 'reject' ? 'Reject Purchase Order' : 'Cancel Purchase Order' }}
+          </h3>
+          <p class="text-sm text-gray-600 mb-4">
+            Please provide a reason for {{ reasonAction() === 'reject' ? 'rejection' : 'cancellation' }}:
+          </p>
+          <textarea
+            [(ngModel)]="reason"
+            rows="4"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+            placeholder="Enter reason..."
+            [disabled]="isProcessing()"
+          ></textarea>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
+          <button
+            (click)="closeReasonModal()"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            [disabled]="isProcessing()"
+          >
+            Cancel
+          </button>
+          <button
+            (click)="confirmReasonAction()"
+            class="px-4 py-2 rounded-md text-white"
+            [class]="reasonAction() === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-yellow-600 hover:bg-yellow-700'"
+            [disabled]="isProcessing() || !reason().trim()"
+          >
+            @if (isProcessing()) {
+              <span class="inline-flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </span>
+            } @else {
+              Confirm
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

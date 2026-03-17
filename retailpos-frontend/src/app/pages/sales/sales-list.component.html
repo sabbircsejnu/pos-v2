@@ -1,0 +1,225 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Sales</h1>
+      <p class="text-sm text-gray-600 mt-0.5">View and manage all sales transactions</p>
+    </div>
+    <a href="/pos" class="btn btn-primary">
+      <i class="fas fa-cash-register"></i> POS Screen
+    </a>
+  </div>
+
+  <!-- Today's Summary -->
+  @if (isSummaryLoading()) {
+    <div class="card p-4 mb-4 text-center">
+      <i class="fas fa-spinner fa-spin text-gray-400"></i>
+    </div>
+  } @else if (todaySummary()) {
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="card p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Today's Sales</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalSales }}</p>
+        <p class="text-xs text-gray-500 mt-0.5">transactions</p>
+      </div>
+      <div class="card p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Revenue</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalAmount | currency }}</p>
+        <p class="text-xs text-gray-500 mt-0.5">gross</p>
+      </div>
+      <div class="card p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Discount</p>
+        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalDiscount | currency }}</p>
+        <p class="text-xs text-gray-500 mt-0.5">all transactions</p>
+      </div>
+      <div class="card p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Tax</p>
+        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalTax | currency }}</p>
+        <p class="text-xs text-gray-500 mt-0.5">collected</p>
+      </div>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="md:col-span-1">
+        <label class="label">Search</label>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event); onSearchChange()"
+          placeholder="Sale# or customer..."
+          class="input"
+        />
+      </div>
+      <div>
+        <label class="label">Status</label>
+        <select
+          class="select"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event); onSearchChange()"
+        >
+          <option value="">All</option>
+          <option value="completed">Completed</option>
+          <option value="void">Void</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">From Date</label>
+        <input
+          type="date"
+          class="input"
+          [ngModel]="startDate()"
+          (ngModelChange)="startDate.set($event); onSearchChange()"
+        />
+      </div>
+      <div class="flex flex-col">
+        <label class="label">To Date</label>
+        <div class="flex gap-2">
+          <input
+            type="date"
+            class="input"
+            [ngModel]="endDate()"
+            (ngModelChange)="endDate.set($event); onSearchChange()"
+          />
+          <button (click)="clearFilters()" class="btn btn-outline px-3" title="Clear filters">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (saleService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-3"></i>
+      <p class="text-sm text-gray-500">Loading sales...</p>
+    </div>
+  }
+
+  <!-- Empty -->
+  @else if (saleService.sales().length === 0) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-receipt text-4xl text-gray-200 mb-3"></i>
+      <p class="text-gray-500 font-medium">No sales found</p>
+      <p class="text-gray-400 text-sm mt-1">Try adjusting the filters or create a new sale from the POS screen</p>
+    </div>
+  }
+
+  <!-- Table -->
+  @else {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Sale #</th>
+              <th class="px-4 py-2.5">Date</th>
+              <th class="px-4 py-2.5">Customer</th>
+              <th class="px-4 py-2.5 text-center">Items</th>
+              <th class="px-4 py-2.5 text-right">Discount</th>
+              <th class="px-4 py-2.5 text-right">Tax</th>
+              <th class="px-4 py-2.5 text-right">Total</th>
+              <th class="px-4 py-2.5">Payment</th>
+              <th class="px-4 py-2.5">Cashier</th>
+              <th class="px-4 py-2.5 text-center">Status</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (sale of saleService.sales(); track sale.id) {
+              <tr class="cursor-pointer" (click)="viewSale(sale.id)">
+                <td class="px-4 py-2.5">
+                  <span class="font-mono text-sm font-semibold text-gray-900">{{ sale.saleNumber }}</span>
+                </td>
+                <td class="px-4 py-2.5 text-sm text-gray-600">
+                  {{ sale.saleDate | date:'dd/MM/yyyy HH:mm' }}
+                </td>
+                <td class="px-4 py-2.5 text-sm text-gray-700">
+                  {{ sale.customerName || '-' }}
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                  <span class="inline-flex items-center justify-center w-6 h-6 bg-gray-100 rounded-full text-xs font-semibold text-gray-700">
+                    {{ sale.itemCount }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right text-sm text-red-600">
+                  @if (sale.discount > 0) {
+                    -{{ sale.discount | currency }}
+                  } @else {
+                    <span class="text-gray-400">-</span>
+                  }
+                </td>
+                <td class="px-4 py-2.5 text-right text-sm text-gray-700">
+                  {{ sale.tax | currency }}
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <span class="font-semibold text-gray-900">{{ sale.netTotal | currency }}</span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="flex items-center gap-1.5 text-sm text-gray-700 capitalize">
+                    <i [class]="getPaymentIcon(sale.paymentMethod) + ' text-gray-400'"></i>
+                    {{ sale.paymentMethod }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-sm text-gray-600">{{ sale.cashierName }}</td>
+                <td class="px-4 py-2.5 text-center">
+                  <span [class]="'status-badge ' + getStatusClass(sale.status)">
+                    {{ sale.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-center">
+                    <button
+                      (click)="viewSale(sale.id); $event.stopPropagation()"
+                      class="btn btn-ghost py-1 px-2"
+                      title="View Details"
+                    >
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (saleService.totalCount() > pageSize()) {
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+          <p class="text-sm text-gray-600">
+            Showing {{ (pageNumber() - 1) * pageSize() + 1 }}–{{ Math.min(pageNumber() * pageSize(), saleService.totalCount()) }} of {{ saleService.totalCount() }}
+          </p>
+          <div class="flex gap-1">
+            <button
+              class="btn btn-ghost py-1 px-2 text-sm"
+              [disabled]="pageNumber() <= 1"
+              (click)="changePage(pageNumber() - 1)"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            @for (p of [].constructor(totalPages); track $index) {
+              <button
+                class="btn py-1 px-3 text-sm"
+                [class.btn-primary]="pageNumber() === $index + 1"
+                [class.btn-ghost]="pageNumber() !== $index + 1"
+                (click)="changePage($index + 1)"
+              >{{ $index + 1 }}</button>
+            }
+            <button
+              class="btn btn-ghost py-1 px-2 text-sm"
+              [disabled]="pageNumber() >= totalPages"
+              (click)="changePage(pageNumber() + 1)"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

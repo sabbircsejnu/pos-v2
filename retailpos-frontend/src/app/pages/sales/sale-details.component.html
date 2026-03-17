@@ -1,0 +1,175 @@
+<div class="container mx-auto px-4 py-4 max-w-4xl">
+  <!-- Back Button -->
+  <div class="mb-4">
+    <button (click)="goBack()" class="btn btn-ghost">
+      <i class="fas fa-arrow-left mr-2"></i>Back to Sales
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-3"></i>
+      <p class="text-sm text-gray-500">Loading sale details...</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (!sale()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-exclamation-circle text-3xl text-gray-300 mb-3"></i>
+      <p class="text-gray-500">Sale not found</p>
+    </div>
+  }
+
+  <!-- Sale Details -->
+  @else {
+    <!-- Header Card -->
+    <div class="card mb-4">
+      <div class="p-4 border-b border-gray-100">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center gap-3">
+              <h1 class="text-xl font-bold text-gray-900 font-mono">{{ sale()?.saleNumber }}</h1>
+              <span [class]="'status-badge ' + getStatusClass(sale()?.status || '')">
+                {{ sale()?.status }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">{{ sale()?.saleDate | date:'MMMM d, y HH:mm' }}</p>
+          </div>
+          @if (canVoid()) {
+            <button (click)="openVoidModal()" class="btn btn-danger">
+              <i class="fas fa-ban mr-2"></i>Void Sale
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Sale Info Grid -->
+      <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Outlet</p>
+          <p class="text-sm font-medium text-gray-900 mt-0.5">{{ sale()?.outletName }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Cashier</p>
+          <p class="text-sm font-medium text-gray-900 mt-0.5">{{ sale()?.cashierName }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Customer</p>
+          <p class="text-sm font-medium text-gray-900 mt-0.5">{{ sale()?.customerName || 'Walk-in Customer' }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Payment</p>
+          <p class="text-sm font-medium text-gray-900 mt-0.5 flex items-center gap-1.5">
+            <i [class]="getPaymentIcon(sale()?.paymentMethod || '') + ' text-gray-400'"></i>
+            <span class="capitalize">{{ sale()?.paymentMethod }}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="card mb-4">
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-900">Items</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Product</th>
+              <th class="px-4 py-2.5">SKU</th>
+              <th class="px-4 py-2.5 text-right">Unit Price</th>
+              <th class="px-4 py-2.5 text-center">Qty</th>
+              <th class="px-4 py-2.5 text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of sale()?.items; track item.id) {
+              <tr>
+                <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
+                <td class="px-4 py-2.5 font-mono text-sm text-gray-500">{{ item.variantSku }}</td>
+                <td class="px-4 py-2.5 text-right text-sm text-gray-700">{{ item.unitPrice | currency }}</td>
+                <td class="px-4 py-2.5 text-center">
+                  <span class="inline-flex items-center justify-center w-7 h-7 bg-gray-100 rounded-full text-sm font-semibold text-gray-700">
+                    {{ item.quantity }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.subtotal | currency }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Totals -->
+      <div class="p-4 border-t border-gray-100">
+        <div class="ml-auto max-w-xs space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-600">Subtotal</span>
+            <span class="font-medium text-gray-900">{{ sale()?.totalAmount | currency }}</span>
+          </div>
+          @if ((sale()?.discount ?? 0) > 0) {
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">Discount</span>
+              <span class="text-red-600 font-medium">-{{ sale()?.discount | currency }}</span>
+            </div>
+          }
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-600">Tax</span>
+            <span class="font-medium text-gray-700">{{ sale()?.tax | currency }}</span>
+          </div>
+          <div class="flex justify-between text-base font-bold border-t border-gray-200 pt-2">
+            <span class="text-gray-900">Net Total</span>
+            <span class="text-xl text-gray-900">{{ sale()?.netTotal | currency }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Void Modal -->
+@if (showVoidModal()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeVoidModal()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="text-base font-semibold text-gray-900">Void Sale</h3>
+        <button (click)="closeVoidModal()" class="text-gray-400 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+          <div class="flex items-start gap-2">
+            <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
+            <p class="text-sm text-red-700">This action cannot be undone. Please provide a reason for voiding this sale.</p>
+          </div>
+        </div>
+        <label class="label">Reason <span class="text-red-500">*</span></label>
+        <textarea
+          class="textarea"
+          rows="3"
+          placeholder="Enter reason for voiding..."
+          [ngModel]="voidReason()"
+          (ngModelChange)="voidReason.set($event)"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button (click)="closeVoidModal()" class="btn btn-outline">Cancel</button>
+        <button
+          (click)="confirmVoid()"
+          [disabled]="isVoiding() || !voidReason().trim()"
+          class="btn btn-danger"
+        >
+          @if (isVoiding()) {
+            <i class="fas fa-spinner fa-spin mr-2"></i>Voiding...
+          } @else {
+            <i class="fas fa-ban mr-2"></i>Void Sale
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

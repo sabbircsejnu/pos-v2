@@ -1,0 +1,100 @@
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600">Loading warehouse details...</p>
+    </div>
+  }
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Warehouse Details -->
+  @if (warehouse() && !isLoading()) {
+    <div>
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">{{ warehouse()!.name }}</h1>
+          <p class="text-gray-600 mt-1">Warehouse Details</p>
+        </div>
+        <div class="flex gap-3">
+          <button
+            (click)="backToList()"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-4 py-2 rounded-lg transition duration-200">
+            <i class="fas fa-arrow-left mr-2"></i>Back to List
+          </button>
+          <button
+            (click)="editWarehouse()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200">
+            <i class="fas fa-edit mr-2"></i>Edit Warehouse
+          </button>
+        </div>
+      </div>
+
+      <!-- Details Card -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Warehouse Name -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Warehouse Name</label>
+            <p class="text-lg font-semibold text-gray-800">{{ warehouse()!.name }}</p>
+          </div>
+
+          <!-- Manager -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Manager</label>
+            <p class="text-lg text-gray-800">
+              @if (warehouse()!.managerName) {
+                {{ warehouse()!.managerName }}
+              } @else {
+                <span class="text-gray-400">Not assigned</span>
+              }
+            </p>
+          </div>
+
+          <!-- Address -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-500 mb-1">Address</label>
+            <p class="text-lg text-gray-800">{{ warehouse()!.address }}</p>
+          </div>
+
+          <!-- Capacity -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Capacity</label>
+            <p class="text-lg text-gray-800">
+              @if (warehouse()!.capacity) {
+                {{ warehouse()!.capacity }} units
+              } @else {
+                <span class="text-gray-400">Not specified</span>
+              }
+            </p>
+          </div>
+
+          <!-- Purchase Orders -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Purchase Orders</label>
+            <p class="text-lg text-gray-800">{{ warehouse()!.purchaseOrderCount }} order(s)</p>
+          </div>
+
+          <!-- Created At -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Created At</label>
+            <p class="text-lg text-gray-800">{{ warehouse()!.createdAt | date:'medium' }}</p>
+          </div>
+
+          <!-- Updated At -->
+          <div>
+            <label class="block text-sm font-medium text-gray-500 mb-1">Last Updated</label>
+            <p class="text-lg text-gray-800">{{ warehouse()!.updatedAt | date:'medium' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

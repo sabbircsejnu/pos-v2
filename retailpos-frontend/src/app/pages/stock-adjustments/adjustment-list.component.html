@@ -1,0 +1,126 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Stock Adjustments</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manually adjust stock levels</p>
+    </div>
+    <button (click)="createAdjustment()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Create Adjustment
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (adjustmentService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading adjustments...</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (adjustmentService.error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle text-xl"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ adjustmentService.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Table -->
+  @else if (adjustmentService.adjustments().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">#</th>
+              <th class="px-4 py-2.5">Location</th>
+              <th class="px-4 py-2.5">Product / Variant</th>
+              <th class="px-4 py-2.5 text-right">Qty Change</th>
+              <th class="px-4 py-2.5">Reason</th>
+              <th class="px-4 py-2.5">Date</th>
+              <th class="px-4 py-2.5">Adjusted By</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (adj of adjustmentService.adjustments(); track adj.id) {
+              <tr>
+                <td class="px-4 py-2.5 font-semibold text-gray-900">#{{ adj.id }}</td>
+                <td class="px-4 py-2.5">
+                  <div class="font-medium text-gray-900">{{ adj.locationName }}</div>
+                  <div class="text-xs text-gray-500 capitalize">{{ adj.locationType }}</div>
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="font-medium text-gray-900">{{ adj.productName }}</div>
+                  <div class="text-xs text-gray-500 font-mono">{{ adj.variantSku }}</div>
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <span [ngClass]="getQtyChangeClass(adj.quantityChange)">
+                    {{ getQtyChangePrefix(adj.quantityChange) }}{{ adj.quantityChange }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                    {{ adj.reason }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-gray-600 text-sm">{{ formatDate(adj.adjustmentDate) }}</td>
+                <td class="px-4 py-2.5 text-gray-700">{{ adj.adjusterName }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-700">
+              Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to
+              {{ Math.min(pageNumber() * pageSize(), adjustmentService.totalCount()) }} of
+              {{ adjustmentService.totalCount() }} adjustments
+            </span>
+            <select [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)"
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900">
+              <option [ngValue]="10">10 per page</option>
+              <option [ngValue]="25">25 per page</option>
+              <option [ngValue]="50">50 per page</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button [disabled]="pageNumber() === 1"
+                    (click)="changePage(pageNumber() - 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">{{ pageNumber() }}</span>
+            <button [disabled]="pageNumber() * pageSize() >= adjustmentService.totalCount()"
+                    (click)="changePage(pageNumber() + 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-sliders-h text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Adjustments Found</h3>
+      <p class="text-gray-600 mb-6">Create a stock adjustment to manually update inventory levels</p>
+      <button (click)="createAdjustment()"
+              class="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition">
+        <i class="fas fa-plus mr-2"></i>
+        Create Adjustment
+      </button>
+    </div>
+  }
+</div>

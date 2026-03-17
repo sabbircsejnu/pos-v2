@@ -1,0 +1,270 @@
+<div class="container mx-auto px-4 py-4 max-w-6xl">
+  <!-- Header -->
+  <div class="mb-4">
+    <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2.5">
+      <div class="p-2 bg-gray-900 rounded-lg text-white">
+        <i class="fas fa-box text-sm"></i>
+      </div>
+      {{ isEditMode() ? 'Edit Product' : 'Create Product' }}
+    </h1>
+    <p class="text-sm text-gray-600 mt-1 ml-11">
+      {{ isEditMode() ? 'Update product information and details' : 'Add a new product to your inventory' }}
+    </p>
+  </div>
+
+  <!-- Submit Error -->
+  @if (submitError()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ submitError() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Form -->
+  <form (ngSubmit)="onSubmit()" class="form-container">
+    <div class="form-body space-y-6">
+      <!-- Basic Information Card -->
+      <div class="card-elevated p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
+          <div class="p-2 bg-primary-100 rounded-lg">
+            <i class="fas fa-info-circle text-primary-600"></i>
+          </div>
+          Basic Information
+        </h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Product Name -->
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Product Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            [(ngModel)]="name"
+            name="name"
+            placeholder="e.g., Premium Coffee Mug"
+            class="input"
+            [class.border-red-500]="errors()['name']" />
+          @if (errors()['name']) {
+            <p class="text-red-500 text-sm mt-1">{{ errors()['name'] }}</p>
+          }
+        </div>
+
+        <!-- Description -->
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            [(ngModel)]="description"
+            name="description"
+            rows="3"
+            placeholder="Product description..."
+            class="textarea"></textarea>
+        </div>
+
+        <!-- Category -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Category <span class="text-red-500">*</span>
+          </label>
+          <select
+            [(ngModel)]="categoryId"
+            name="categoryId"
+            class="select"
+            [class.border-red-500]="errors()['categoryId']">
+            <option [ngValue]="0">Select a category</option>
+            @for (category of categories(); track category.id) {
+              <option [ngValue]="category.id">{{ category.name }}</option>
+            }
+          </select>
+          @if (errors()['categoryId']) {
+            <p class="text-red-500 text-sm mt-1">{{ errors()['categoryId'] }}</p>
+          }
+        </div>
+
+        <!-- Image URL -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
+          <input
+            type="text"
+            [(ngModel)]="imageUrl"
+            name="imageUrl"
+            placeholder="https://example.com/image.jpg"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        </div>
+
+        <!-- Active Status -->
+        <div class="md:col-span-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              [(ngModel)]="isActive"
+              name="isActive"
+              class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+            <span class="text-sm font-medium text-gray-700">Active (Product is available for sale)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+      <!-- Identification Card -->
+      <div class="card-elevated p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
+          <div class="p-2 bg-secondary-100 rounded-lg">
+            <i class="fas fa-barcode text-secondary-600"></i>
+          </div>
+          Identification
+        </h2>
+      
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- SKU -->
+          <div>
+            <label class="label">SKU</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                [(ngModel)]="sku"
+                name="sku"
+                placeholder="Auto-generated if empty"
+                class="input flex-1" />
+              <button
+                type="button"
+                (click)="generateSku()"
+                class="btn btn-ghost px-4"
+                title="Generate SKU">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-1.5">Stock Keeping Unit for inventory tracking</p>
+          </div>
+
+          <!-- Barcode -->
+          <div>
+            <label class="label">Barcode</label>
+            <input
+              type="text"
+              [(ngModel)]="barcode"
+              name="barcode"
+              placeholder="e.g., 1234567890123"
+              class="input" />
+            <p class="text-xs text-gray-500 mt-1.5">For barcode scanning at POS</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing Card -->
+      <div class="card-elevated p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-5 flex items-center gap-2">
+          <div class="p-2 bg-accent-100 rounded-lg">
+            <i class="fas fa-dollar-sign text-accent-600"></i>
+          </div>
+          Pricing
+          </h2>
+      
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Base Price -->
+          <div>
+            <label class="label label-required">
+              Base Price
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-3 text-gray-500">$</span>
+              <input
+                type="number"
+                [(ngModel)]="basePrice"
+                name="basePrice"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                class="input pl-8"
+                [class.input-error]="errors()['basePrice']" />
+            </div>
+            @if (errors()['basePrice']) {
+              <p class="text-red-600 text-sm mt-1.5 flex items-center gap-1">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ errors()['basePrice'] }}
+              </p>
+            }
+          </div>
+
+          <!-- Cost Price -->
+          <div>
+            <label class="label">Cost Price</label>
+            <div class="relative">
+              <span class="absolute left-3 top-3 text-gray-500">$</span>
+              <input
+                type="number"
+                [(ngModel)]="costPrice"
+                name="costPrice"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                class="input pl-8" />
+            </div>
+            <p class="text-xs text-gray-500 mt-1.5">Your purchase cost</p>
+          </div>
+
+          <!-- Tax Rate -->
+          <div>
+            <label class="label label-required">
+              Tax Rate
+            </label>
+            <div class="relative">
+              <input
+                type="number"
+                [(ngModel)]="taxRate"
+                name="taxRate"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="0.00"
+                class="input pr-8"
+                [class.input-error]="errors()['taxRate']" />
+              <span class="absolute right-3 top-3 text-gray-500">%</span>
+            </div>
+            @if (errors()['taxRate']) {
+              <p class="text-red-600 text-sm mt-1.5 flex items-center gap-1">
+                <i class="fas fa-exclamation-circle"></i>
+                {{ errors()['taxRate'] }}
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Combination Manager (for Edit Mode with Variations) -->
+      @if (isEditMode() && productId()) {
+        <app-combination-manager
+          [productId]="productId()!"
+          [productName]="name()"
+          [basePrice]="basePrice()">
+        </app-combination-manager>
+      }
+    </div>
+
+    <!-- Sticky Action Buttons -->
+    <div class="form-actions">
+      <button
+        type="button"
+        (click)="cancel()"
+        class="btn btn-outline flex-1 md:flex-none">
+        <i class="fas fa-times"></i>
+        Cancel
+      </button>
+      <button
+        type="submit"
+        [disabled]="isSubmitting()"
+        class="btn btn-primary flex-1 md:flex-none">
+        @if (isSubmitting()) {
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Saving...</span>
+        } @else {
+          <i class="fas fa-save"></i>
+          <span>{{ isEditMode() ? 'Update Product' : 'Create Product' }}</span>
+        }
+      </button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,86 @@
+<div class="container mx-auto px-4 py-6 max-w-xl">
+  <div class="card p-6">
+    <div class="flex items-center gap-3 mb-6">
+      <button (click)="onCancel()" class="text-gray-500 hover:text-gray-700">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <h1 class="text-2xl font-bold text-gray-900">
+        {{ isEditMode() ? 'Edit Expense' : 'Add Expense' }}
+      </h1>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="text-center py-12">
+        <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+        <p class="text-gray-600">Loading expense...</p>
+      </div>
+    }
+
+    <!-- Form -->
+    @if (!isLoading()) {
+      <form [formGroup]="expenseForm" (ngSubmit)="onSubmit()">
+        <!-- Category -->
+        <div class="mb-4">
+          <label for="category" class="label">Category <span class="text-red-500">*</span></label>
+          <select id="category" formControlName="category" class="input"
+                  [class.border-red-500]="isFieldInvalid('category')">
+            <option value="">Select category...</option>
+            @for (cat of categories; track cat) {
+              <option [value]="cat">{{ cat }}</option>
+            }
+          </select>
+          @if (isFieldInvalid('category')) {
+            <p class="mt-1 text-sm text-red-600">Category is required</p>
+          }
+        </div>
+
+        <!-- Amount -->
+        <div class="mb-4">
+          <label for="amount" class="label">Amount <span class="text-red-500">*</span></label>
+          <input type="number" id="amount" formControlName="amount" class="input"
+                 min="0.01" step="0.01" placeholder="0.00"
+                 [class.border-red-500]="isFieldInvalid('amount')" />
+          @if (isFieldInvalid('amount')) {
+            <p class="mt-1 text-sm text-red-600">Valid amount is required (minimum 0.01)</p>
+          }
+        </div>
+
+        <!-- Expense Date -->
+        <div class="mb-4">
+          <label for="expenseDate" class="label">Expense Date <span class="text-red-500">*</span></label>
+          <input type="date" id="expenseDate" formControlName="expenseDate" class="input"
+                 [class.border-red-500]="isFieldInvalid('expenseDate')" />
+          @if (isFieldInvalid('expenseDate')) {
+            <p class="mt-1 text-sm text-red-600">Date is required</p>
+          }
+        </div>
+
+        <!-- Description -->
+        <div class="mb-4">
+          <label for="description" class="label">Description</label>
+          <textarea id="description" formControlName="description" rows="3" class="input"
+                    placeholder="Optional notes about this expense"></textarea>
+        </div>
+
+        <!-- Outlet ID (optional) -->
+        <div class="mb-6">
+          <label for="outletId" class="label">Outlet ID <span class="text-xs text-gray-400">(optional)</span></label>
+          <input type="number" id="outletId" formControlName="outletId" class="input"
+                 min="1" placeholder="Leave blank for all outlets" />
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 justify-end">
+          <button type="button" (click)="onCancel()" class="btn btn-outline" [disabled]="isSubmitting()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+            @if (isSubmitting()) { <i class="fas fa-spinner fa-spin mr-1"></i> }
+            {{ isEditMode() ? 'Update Expense' : 'Save Expense' }}
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+</div>

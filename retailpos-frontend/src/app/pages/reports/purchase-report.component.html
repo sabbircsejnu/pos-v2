@@ -1,0 +1,120 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Purchase Reports</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Analyze procurement and supplier performance</p>
+    </div>
+    <button (click)="loadAll()" class="btn btn-primary" [disabled]="isLoading()">
+      <i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i>
+      Refresh
+    </button>
+  </div>
+
+  <!-- Date Range -->
+  <div class="card p-3 mb-4">
+    <div class="flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="label">From</label>
+        <input type="date" class="input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input type="date" class="input" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button (click)="setThisMonth()" class="btn btn-outline text-sm">This Month</button>
+        <button (click)="setLastMonth()" class="btn btn-outline text-sm">Last Month</button>
+        <button (click)="loadAll()" class="btn btn-primary text-sm">
+          <i class="fas fa-search"></i> Apply
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+    <!-- KPI Cards -->
+    @if (reportService.purchaseSummary()) {
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-file-invoice text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Orders</p>
+              <p class="text-xl font-bold text-gray-900">{{ reportService.purchaseSummary()!.totalOrders }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-dollar-sign text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Amount</p>
+              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(reportService.purchaseSummary()!.totalAmount) }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-clock text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Pending Approvals</p>
+              <p class="text-xl font-bold text-gray-900">{{ reportService.purchaseSummary()!.pendingApprovals }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-check-circle text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Received Orders</p>
+              <p class="text-xl font-bold text-gray-900">{{ reportService.purchaseSummary()!.receivedOrders }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- By Supplier -->
+    <div class="card">
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-900">By Supplier</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Supplier</th>
+              <th>Order Count</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of reportService.purchaseBySupplier(); track s.supplierId) {
+              <tr>
+                <td class="font-medium text-gray-900">{{ s.supplierName }}</td>
+                <td>{{ s.orderCount }}</td>
+                <td class="font-medium">{{ formatCurrency(s.totalAmount) }}</td>
+              </tr>
+            }
+            @if (reportService.purchaseBySupplier().length === 0) {
+              <tr><td colspan="3" class="text-center text-gray-500 py-6">No data available</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

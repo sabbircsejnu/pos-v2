@@ -1,0 +1,219 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Bills Payable</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manage outstanding supplier bills</p>
+    </div>
+    <button (click)="openModal()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Bill
+    </button>
+  </div>
+
+  <!-- Summary Cards -->
+  @if (accountingService.billSummary()) {
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <i class="fas fa-file-invoice-dollar text-gray-700"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Total Unpaid</p>
+            <p class="text-xl font-bold text-gray-900">{{ formatCurrency(accountingService.billSummary()!.totalUnpaid) }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+            <i class="fas fa-exclamation-triangle text-red-600"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Total Overdue</p>
+            <p class="text-xl font-bold text-red-600">{{ formatCurrency(accountingService.billSummary()!.totalOverdue) }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <i class="fas fa-list text-gray-700"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Unpaid Bills</p>
+            <p class="text-xl font-bold text-gray-900">{{ accountingService.billSummary()!.unpaidCount }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+            <i class="fas fa-clock text-red-600"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Overdue Bills</p>
+            <p class="text-xl font-bold text-red-600">{{ accountingService.billSummary()!.overdueCount }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Status Filter Tabs -->
+  <div class="flex gap-1 mb-4 border-b border-gray-200">
+    @for (tab of [['all','All'], ['unpaid','Unpaid'], ['partial','Partial'], ['paid','Paid']]; track tab[0]) {
+      <button
+        (click)="setStatusFilter(tab[0])"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        [class.border-gray-900]="activeStatusFilter() === tab[0]"
+        [class.text-gray-900]="activeStatusFilter() === tab[0]"
+        [class.border-transparent]="activeStatusFilter() !== tab[0]"
+        [class.text-gray-500]="activeStatusFilter() !== tab[0]">
+        {{ tab[1] }}
+      </button>
+    }
+  </div>
+
+  <!-- Loading State -->
+  @if (accountingService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading bills...</p>
+    </div>
+  }
+
+  @else if (accountingService.bills().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Supplier</th>
+              <th class="px-4 py-2.5">PO #</th>
+              <th class="px-4 py-2.5 text-right">Amount Due</th>
+              <th class="px-4 py-2.5">Due Date</th>
+              <th class="px-4 py-2.5">Status</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (bill of accountingService.bills(); track bill.id) {
+              <tr>
+                <td class="px-4 py-2.5 font-medium text-gray-900">{{ bill.supplierName }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ bill.poNumber || '-' }}</td>
+                <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ formatCurrency(bill.amountDue) }}</td>
+                <td class="px-4 py-2.5 whitespace-nowrap"
+                    [class.text-red-600]="bill.isOverdue"
+                    [class.font-semibold]="bill.isOverdue"
+                    [class.text-gray-600]="!bill.isOverdue">
+                  @if (bill.isOverdue) { <i class="fas fa-exclamation-circle mr-1"></i> }
+                  {{ formatDate(bill.dueDate) }}
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium capitalize" [class]="getStatusBadgeClass(bill.status)">
+                    {{ bill.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-center gap-2">
+                    @if (bill.status !== 'paid') {
+                      <button (click)="markAsPaid(bill.id, $event)"
+                              class="btn btn-ghost py-1 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 text-xs"
+                              title="Mark as Paid">
+                        <i class="fas fa-check mr-1"></i> Pay
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-700">
+            Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to
+            {{ Math.min(pageNumber() * pageSize(), accountingService.billsTotalCount()) }} of
+            {{ accountingService.billsTotalCount() }} bills
+          </span>
+          <div class="flex gap-2">
+            <button [disabled]="pageNumber() === 1" (click)="changePage(pageNumber() - 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">{{ pageNumber() }}</span>
+            <button [disabled]="pageNumber() * pageSize() >= accountingService.billsTotalCount()"
+                    (click)="changePage(pageNumber() + 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-file-invoice-dollar text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Bills Found</h3>
+      <p class="text-gray-600 mb-6">Add your first supplier bill</p>
+      <button (click)="openModal()" class="btn btn-primary">
+        <i class="fas fa-plus mr-2"></i>
+        Add Bill
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Add Bill Modal -->
+@if (showModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900">Add Bill</h2>
+        <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <div>
+          <label class="label">Supplier <span class="text-red-500">*</span></label>
+          <select class="input" [ngModel]="formSupplierId()" (ngModelChange)="formSupplierId.set(+$event || undefined)">
+            <option [value]="undefined">-- Select Supplier --</option>
+            @for (supplier of supplierService.suppliers(); track supplier.id) {
+              <option [value]="supplier.id">{{ supplier.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="label">PO ID <span class="text-xs text-gray-400">(optional)</span></label>
+          <input type="number" class="input" min="1" placeholder="Purchase Order ID"
+                 [ngModel]="formPoId()" (ngModelChange)="formPoId.set(+$event || undefined)" />
+        </div>
+        <div>
+          <label class="label">Amount Due <span class="text-red-500">*</span></label>
+          <input type="number" class="input" min="0.01" step="0.01" placeholder="0.00"
+                 [ngModel]="formAmountDue()" (ngModelChange)="formAmountDue.set(+$event)" />
+        </div>
+        <div>
+          <label class="label">Due Date <span class="text-red-500">*</span></label>
+          <input type="date" class="input"
+                 [ngModel]="formDueDate()" (ngModelChange)="formDueDate.set($event)" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+        <button (click)="closeModal()" class="btn btn-outline" [disabled]="isSubmitting()">Cancel</button>
+        <button (click)="onSubmit()" class="btn btn-primary" [disabled]="isSubmitting()">
+          @if (isSubmitting()) { <i class="fas fa-spinner fa-spin mr-1"></i> }
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+}

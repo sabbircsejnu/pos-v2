@@ -1,0 +1,209 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Suppliers</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manage your supplier relationships</p>
+    </div>
+    <button
+      (click)="createSupplier()"
+      class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Supplier
+    </button>
+  </div>
+
+  <!-- Search and Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Search Query -->
+      <div class="lg:col-span-2">
+        <label class="label">Search</label>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search by name, contact, or address..."
+          class="input" />
+      </div>
+
+      <!-- Min Credit Limit -->
+      <div>
+        <label class="label">Min Credit Limit</label>
+        <input
+          type="number"
+          [(ngModel)]="minCreditLimit"
+          (ngModelChange)="onSearchChange()"
+          placeholder="0.00"
+          min="0"
+          step="0.01"
+          class="input" />
+      </div>
+
+      <!-- Max Credit Limit -->
+      <div>
+        <label class="label">Max Credit Limit</label>
+        <input
+          type="number"
+          [(ngModel)]="maxCreditLimit"
+          (ngModelChange)="onSearchChange()"
+          placeholder="999999.99"
+          min="0"
+          step="0.01"
+          class="input" />
+      </div>
+
+      <!-- Clear Filters Button -->
+      <div class="lg:col-span-4 flex items-end">
+        <button
+          (click)="clearFilters()"
+          class="btn btn-outline w-full">
+          <i class="fas fa-times"></i>
+          Clear Filters
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (supplierService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading suppliers...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (supplierService.error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle text-xl"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ supplierService.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Suppliers Table -->
+  @else if (supplierService.suppliers().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5 cursor-pointer hover:bg-gray-100" (click)="sort('name')">
+                <div class="flex items-center gap-1.5">
+                  Name
+                  <i [class]="getSortIcon('name')"></i>
+                </div>
+              </th>
+              <th class="px-4 py-2.5">Contact</th>
+              <th class="px-4 py-2.5">Address</th>
+              <th class="px-4 py-2.5 text-right cursor-pointer hover:bg-gray-100" (click)="sort('creditLimit')">
+                <div class="flex items-center justify-end gap-1.5">
+                  Credit Limit
+                  <i [class]="getSortIcon('creditLimit')"></i>
+                </div>
+              </th>
+              <th class="px-4 py-2.5 text-right">Outstanding</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let supplier of supplierService.suppliers()" 
+                class="cursor-pointer" 
+                (click)="viewSupplier(supplier.id)">
+              <td class="px-4 py-2.5">
+                <span class="font-semibold text-gray-900">{{ supplier.name }}</span>
+              </td>
+              <td class="px-4 py-2.5 text-gray-600">
+                {{ supplier.contact || '-' }}
+              </td>
+              <td class="px-4 py-2.5 text-gray-600">
+                <div class="max-w-xs truncate">
+                  {{ supplier.address || '-' }}
+                </div>
+              </td>
+              <td class="px-4 py-2.5 text-right font-medium text-gray-900">
+                {{ formatCurrency(supplier.creditLimit) }}
+              </td>
+              <td class="px-4 py-2.5 text-right font-medium" [ngClass]="getCreditUtilizationClass(supplier)">
+                {{ formatCurrency(supplier.outstandingBalance) }}
+              </td>
+              <td class="px-4 py-2.5">
+                <div class="flex items-center justify-center gap-2">
+                  <button
+                    (click)="editSupplier(supplier.id, $event)"
+                    class="btn btn-ghost py-1 px-2"
+                    title="Edit">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    (click)="deleteSupplier(supplier.id, supplier.name, $event)"
+                    class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    title="Delete">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-700">
+              Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to 
+              {{ Math.min(pageNumber() * pageSize(), supplierService.totalCount()) }} of 
+              {{ supplierService.totalCount() }} suppliers
+            </span>
+            <select
+              [(ngModel)]="pageSize"
+              (ngModelChange)="changePageSize($event)"
+              class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900">
+              <option [ngValue]="10">10 per page</option>
+              <option [ngValue]="25">25 per page</option>
+              <option [ngValue]="50">50 per page</option>
+              <option [ngValue]="100">100 per page</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button
+              [disabled]="pageNumber() === 1"
+              (click)="changePage(pageNumber() - 1)"
+              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">
+              {{ pageNumber() }}
+            </span>
+            <button
+              [disabled]="pageNumber() * pageSize() >= supplierService.totalCount()"
+              (click)="changePage(pageNumber() + 1)"
+              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-truck text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Suppliers Found</h3>
+      <p class="text-gray-600 mb-6">Start by creating your first supplier</p>
+      <button
+        (click)="createSupplier()"
+        class="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-700 transition shadow-lg">
+        <i class="fas fa-plus mr-2"></i>
+        Create Supplier
+      </button>
+    </div>
+  }
+</div>

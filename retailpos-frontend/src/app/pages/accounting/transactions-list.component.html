@@ -1,0 +1,162 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Transactions</h1>
+      <p class="text-sm text-gray-600 mt-0.5">View and record financial transactions</p>
+    </div>
+    <button (click)="openModal()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Transaction
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="label">Account</label>
+        <select class="input"
+                [ngModel]="filterAccountId()"
+                (ngModelChange)="filterAccountId.set($event ? +$event : undefined)">
+          <option [ngValue]="undefined">All Accounts</option>
+          @for (acc of accountingService.accounts(); track acc.id) {
+            <option [ngValue]="acc.id">{{ acc.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Start Date</label>
+        <input type="date" class="input"
+               [ngModel]="filterStartDate()" (ngModelChange)="filterStartDate.set($event)" />
+      </div>
+      <div>
+        <label class="label">End Date</label>
+        <input type="date" class="input"
+               [ngModel]="filterEndDate()" (ngModelChange)="filterEndDate.set($event)" />
+      </div>
+      <div class="flex items-end gap-2">
+        <button (click)="applyFilters()" class="btn btn-primary flex-1">
+          <i class="fas fa-search"></i> Search
+        </button>
+        <button (click)="clearFilters()" class="btn btn-outline">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (accountingService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading transactions...</p>
+    </div>
+  }
+
+  @else if (accountingService.transactions().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Date</th>
+              <th class="px-4 py-2.5">Account</th>
+              <th class="px-4 py-2.5">Type</th>
+              <th class="px-4 py-2.5 text-right">Amount</th>
+              <th class="px-4 py-2.5">Description</th>
+              <th class="px-4 py-2.5">Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of accountingService.transactions(); track tx.id) {
+              <tr>
+                <td class="px-4 py-2.5 text-gray-600 whitespace-nowrap">{{ formatDate(tx.transactionDate) }}</td>
+                <td class="px-4 py-2.5 font-medium text-gray-900">{{ tx.accountName }}</td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium capitalize" [class]="getTypeBadgeClass(tx.type)">
+                    {{ tx.type }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right font-semibold"
+                    [class.text-red-600]="tx.type === 'debit'"
+                    [class.text-green-600]="tx.type === 'credit'">
+                  {{ formatCurrency(tx.amount) }}
+                </td>
+                <td class="px-4 py-2.5 text-gray-600">{{ tx.description || '-' }}</td>
+                <td class="px-4 py-2.5 text-gray-500 text-sm">
+                  {{ tx.referenceType ? tx.referenceType + ' #' + tx.referenceId : '-' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-exchange-alt text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Transactions Found</h3>
+      <p class="text-gray-600 mb-6">Record your first financial transaction</p>
+      <button (click)="openModal()" class="btn btn-primary">
+        <i class="fas fa-plus mr-2"></i>
+        Add Transaction
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Add Transaction Modal -->
+@if (showModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900">Add Transaction</h2>
+        <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <div>
+          <label class="label">Account <span class="text-red-500">*</span></label>
+          <select class="input" [ngModel]="formAccountId()" (ngModelChange)="formAccountId.set(+$event)">
+            <option [ngValue]="undefined">Select account...</option>
+            @for (acc of accountingService.accounts(); track acc.id) {
+              <option [ngValue]="acc.id">{{ acc.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="label">Type <span class="text-red-500">*</span></label>
+          <select class="input" [ngModel]="formType()" (ngModelChange)="formType.set($event)">
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Amount <span class="text-red-500">*</span></label>
+          <input type="number" class="input" min="0.01" step="0.01" placeholder="0.00"
+                 [ngModel]="formAmount()" (ngModelChange)="formAmount.set(+$event)" />
+        </div>
+        <div>
+          <label class="label">Transaction Date <span class="text-red-500">*</span></label>
+          <input type="date" class="input" [ngModel]="formDate()" (ngModelChange)="formDate.set($event)" />
+        </div>
+        <div>
+          <label class="label">Description</label>
+          <input type="text" class="input" placeholder="Optional description"
+                 [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+        <button (click)="closeModal()" class="btn btn-outline" [disabled]="isSubmitting()">Cancel</button>
+        <button (click)="onSubmit()" class="btn btn-primary" [disabled]="isSubmitting()">
+          @if (isSubmitting()) { <i class="fas fa-spinner fa-spin mr-1"></i> }
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+}

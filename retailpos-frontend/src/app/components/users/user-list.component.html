@@ -1,0 +1,208 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+    <button
+      (click)="createUser()"
+      class="btn btn-primary">
+      <i class="fas fa-plus"></i>Add New User
+    </button>
+  </div>
+
+  <!-- Success/Error Messages -->
+  @if (successMessage()) {
+    <div class="alert alert-success mb-4">
+      {{ successMessage() }}
+    </div>
+  }
+  @if (error()) {
+    <div class="alert alert-error mb-4">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <!-- Search -->
+      <div>
+        <label class="label">Search</label>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="onSearch()"
+          placeholder="Name or Email..."
+          class="input"
+        />
+      </div>
+
+      <!-- Role Filter -->
+      <div>
+        <label class="label">Role</label>
+        <select
+          [(ngModel)]="selectedRoleId"
+          (change)="onFilterChange()"
+          class="select"
+        >
+          <option [ngValue]="undefined">All Roles</option>
+          @for (role of roles(); track role.id) {
+            <option [ngValue]="role.id">{{ role.name }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Status Filter -->
+      <div>
+        <label class="label">Status</label>
+        <select
+          [(ngModel)]="selectedStatus"
+          (change)="onFilterChange()"
+          class="select"
+        >
+          <option [ngValue]="undefined">All Status</option>
+          <option [ngValue]="true">Active</option>
+          <option [ngValue]="false">Inactive</option>
+        </select>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-end gap-2">
+        <button
+          (click)="onSearch()"
+          class="btn btn-primary flex-1"
+        >
+          Search
+        </button>
+        <button
+          (click)="clearFilters()"
+          class="btn btn-outline flex-1"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+      <p class="mt-3 text-sm text-gray-600">Loading users...</p>
+    </div>
+  }
+
+  <!-- Users Table -->
+  @if (!isLoading()) {
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="px-4 py-2.5">Name</th>
+            <th class="px-4 py-2.5">Email</th>
+            <th class="px-4 py-2.5">Role</th>
+            <th class="px-4 py-2.5">Outlet</th>
+            <th class="px-4 py-2.5">Status</th>
+            <th class="px-4 py-2.5 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users(); track user.id) {
+            <tr>
+              <td class="px-4 py-2.5">
+                <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
+              </td>
+              <td class="px-4 py-2.5">
+                <div class="text-sm text-gray-600">{{ user.email }}</div>
+              </td>
+              <td class="px-4 py-2.5">
+                <span class="badge badge-primary">
+                  {{ user.roleName || 'No Role' }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5">
+                <div class="text-sm text-gray-600">{{ user.outletName || 'N/A' }}</div>
+              </td>
+              <td class="px-4 py-2.5">
+                <span
+                  [class]="user.isActive ? 'badge badge-success' : 'badge badge-danger'">
+                  {{ user.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-right">
+                <button
+                  (click)="viewUser(user.id, $event)"
+                  class="text-gray-600 hover:text-gray-900 mr-2"
+                  title="View">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button
+                  (click)="editUser(user.id, $event)"
+                  class="text-gray-600 hover:text-gray-900 mr-2"
+                  title="Edit">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button
+                  (click)="toggleUserStatus(user, $event)"
+                  [class]="user.isActive ? 'text-red-600 hover:text-red-900 mr-2' : 'text-green-600 hover:text-green-900 mr-2'"
+                  [title]="user.isActive ? 'Deactivate' : 'Activate'">
+                  <i [class]="user.isActive ? 'fas fa-user-slash' : 'fas fa-user-check'"></i>
+                </button>
+                <button
+                  (click)="deleteUser(user, $event)"
+                  class="text-red-600 hover:text-red-900"
+                  title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">
+                No users found. Try adjusting your filters or create a new user.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="flex justify-between items-center mt-3">
+        <div class="text-xs text-gray-600">
+          Showing {{ ((currentPage() - 1) * pageSize()) + 1 }} to 
+          {{ Math.min(currentPage() * pageSize(), totalCount()) }} of {{ totalCount() }} results
+        </div>
+        <div class="flex gap-1">
+          <button
+            (click)="goToPage(currentPage() - 1)"
+            [disabled]="currentPage() === 1"
+            [class.opacity-50]="currentPage() === 1"
+            [class.cursor-not-allowed]="currentPage() === 1"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
+            Previous
+          </button>
+          
+          @for (page of paginationPages; track page) {
+            <button
+              (click)="goToPage(page)"
+              [class]="page === currentPage() 
+                ? 'px-3 py-1.5 text-sm bg-gray-900 text-white rounded' 
+                : 'px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50'">
+              {{ page }}
+            </button>
+          }
+          
+          <button
+            (click)="goToPage(currentPage() + 1)"
+            [disabled]="currentPage() === totalPages()"
+            [class.opacity-50]="currentPage() === totalPages()"
+            [class.cursor-not-allowed]="currentPage() === totalPages()"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50">
+            Next
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

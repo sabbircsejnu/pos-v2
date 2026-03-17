@@ -1,0 +1,144 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Goods Received Notes</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manage received goods from purchase orders</p>
+    </div>
+    <button (click)="createGrn()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Create GRN
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div>
+        <label class="label">Status</label>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" class="input">
+          <option value="">All Statuses</option>
+          <option value="full">Full</option>
+          <option value="partial">Partial</option>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button (click)="clearFilters()" class="btn btn-outline w-full">
+          <i class="fas fa-times"></i>
+          Clear Filters
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (grnService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading GRNs...</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (grnService.error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle text-xl"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ grnService.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Table -->
+  @else if (grnService.grns().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">GRN ID</th>
+              <th class="px-4 py-2.5">PO Number</th>
+              <th class="px-4 py-2.5">Supplier</th>
+              <th class="px-4 py-2.5">Warehouse</th>
+              <th class="px-4 py-2.5">Received Date</th>
+              <th class="px-4 py-2.5">Status</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let grn of grnService.grns()"
+                class="cursor-pointer"
+                (click)="viewGrn(grn.id)">
+              <td class="px-4 py-2.5 font-semibold text-gray-900">#{{ grn.id }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ grn.poNumber }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ grn.supplierName }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ grn.warehouseName }}</td>
+              <td class="px-4 py-2.5 text-gray-600">{{ formatDate(grn.receivedDate) }}</td>
+              <td class="px-4 py-2.5">
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold capitalize"
+                      [ngClass]="getStatusBadgeClass(grn.status)">
+                  {{ grn.status }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5">
+                <div class="flex items-center justify-center gap-2">
+                  <button (click)="viewGrn(grn.id); $event.stopPropagation()"
+                          class="btn btn-ghost py-1 px-2" title="View">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-700">
+              Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to
+              {{ Math.min(pageNumber() * pageSize(), grnService.totalCount()) }} of
+              {{ grnService.totalCount() }} GRNs
+            </span>
+            <select [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)"
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900">
+              <option [ngValue]="10">10 per page</option>
+              <option [ngValue]="25">25 per page</option>
+              <option [ngValue]="50">50 per page</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button [disabled]="pageNumber() === 1"
+                    (click)="changePage(pageNumber() - 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">{{ pageNumber() }}</span>
+            <button [disabled]="pageNumber() * pageSize() >= grnService.totalCount()"
+                    (click)="changePage(pageNumber() + 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-boxes text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No GRNs Found</h3>
+      <p class="text-gray-600 mb-6">Create a GRN after receiving goods from a purchase order</p>
+      <button (click)="createGrn()"
+              class="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-700 transition shadow-lg">
+        <i class="fas fa-plus mr-2"></i>
+        Create GRN
+      </button>
+    </div>
+  }
+</div>

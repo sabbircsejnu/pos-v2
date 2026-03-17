@@ -1,0 +1,247 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="mb-4">
+    <h1 class="text-2xl font-bold text-gray-900">System Settings</h1>
+    <p class="text-sm text-gray-600 mt-0.5">Configure your POS system preferences</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+    <div class="card">
+      <!-- Tab Navigation -->
+      <div class="border-b border-gray-200 px-4">
+        <nav class="flex gap-1 -mb-px">
+          <button (click)="activeTab.set('company')"
+            [class]="activeTab() === 'company' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-building mr-1"></i> Company
+          </button>
+          <button (click)="activeTab.set('tax')"
+            [class]="activeTab() === 'tax' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-percent mr-1"></i> Tax
+          </button>
+          <button (click)="activeTab.set('receipt')"
+            [class]="activeTab() === 'receipt' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-receipt mr-1"></i> Receipt
+          </button>
+          <button (click)="activeTab.set('inventory')"
+            [class]="activeTab() === 'inventory' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-boxes mr-1"></i> Inventory
+          </button>
+        </nav>
+      </div>
+
+      <!-- Company Tab -->
+      @if (activeTab() === 'company') {
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+            <div class="md:col-span-2">
+              <label class="label">Company Name</label>
+              <input type="text" class="input"
+                [ngModel]="company().companyName"
+                (ngModelChange)="updateCompanyField('companyName', $event)" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Address</label>
+              <textarea class="input" rows="2"
+                [ngModel]="company().address"
+                (ngModelChange)="updateCompanyField('address', $event)"></textarea>
+            </div>
+            <div>
+              <label class="label">Phone</label>
+              <input type="text" class="input"
+                [ngModel]="company().phone"
+                (ngModelChange)="updateCompanyField('phone', $event)" />
+            </div>
+            <div>
+              <label class="label">Email</label>
+              <input type="email" class="input"
+                [ngModel]="company().email"
+                (ngModelChange)="updateCompanyField('email', $event)" />
+            </div>
+            <div>
+              <label class="label">Website</label>
+              <input type="text" class="input"
+                [ngModel]="company().website"
+                (ngModelChange)="updateCompanyField('website', $event)" />
+            </div>
+            <div>
+              <label class="label">Tax Number</label>
+              <input type="text" class="input"
+                [ngModel]="company().taxNumber"
+                (ngModelChange)="updateCompanyField('taxNumber', $event)" />
+            </div>
+            <div>
+              <label class="label">Currency</label>
+              <input type="text" class="input"
+                [ngModel]="company().currency"
+                (ngModelChange)="updateCompanyField('currency', $event)" />
+            </div>
+            <div>
+              <label class="label">Currency Symbol</label>
+              <input type="text" class="input"
+                [ngModel]="company().currencySymbol"
+                (ngModelChange)="updateCompanyField('currencySymbol', $event)" />
+            </div>
+            <div>
+              <label class="label">Date Format</label>
+              <select class="input"
+                [ngModel]="company().dateFormat"
+                (ngModelChange)="updateCompanyField('dateFormat', $event)">
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Time Zone</label>
+              <input type="text" class="input"
+                [ngModel]="company().timeZone"
+                (ngModelChange)="updateCompanyField('timeZone', $event)" />
+            </div>
+          </div>
+          <div class="mt-6">
+            <button (click)="saveCompany()" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save"></i>
+              {{ isSaving() ? 'Saving...' : 'Save Company Settings' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Tax Tab -->
+      @if (activeTab() === 'tax') {
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="taxEnabled" class="w-4 h-4"
+                [ngModel]="tax().taxEnabled"
+                (ngModelChange)="updateTaxField('taxEnabled', $event)" />
+              <label for="taxEnabled" class="text-sm font-medium text-gray-700">Enable Tax</label>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="pricesIncludeTax" class="w-4 h-4"
+                [ngModel]="tax().pricesIncludeTax"
+                (ngModelChange)="updateTaxField('pricesIncludeTax', $event)" />
+              <label for="pricesIncludeTax" class="text-sm font-medium text-gray-700">Prices Include Tax</label>
+            </div>
+            <div>
+              <label class="label">Tax Name</label>
+              <input type="text" class="input"
+                [ngModel]="tax().taxName"
+                (ngModelChange)="updateTaxField('taxName', $event)" />
+            </div>
+            <div>
+              <label class="label">Default Tax Rate (%)</label>
+              <input type="number" class="input" min="0" max="100" step="0.01"
+                [ngModel]="tax().defaultTaxRate"
+                (ngModelChange)="updateTaxField('defaultTaxRate', +$event)" />
+            </div>
+          </div>
+          <div class="mt-6">
+            <button (click)="saveTax()" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save"></i>
+              {{ isSaving() ? 'Saving...' : 'Save Tax Settings' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Receipt Tab -->
+      @if (activeTab() === 'receipt') {
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+            <div class="md:col-span-2">
+              <label class="label">Receipt Header</label>
+              <textarea class="input" rows="3"
+                [ngModel]="receipt().header"
+                (ngModelChange)="updateReceiptField('header', $event)"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Receipt Footer</label>
+              <textarea class="input" rows="3"
+                [ngModel]="receipt().footer"
+                (ngModelChange)="updateReceiptField('footer', $event)"></textarea>
+            </div>
+            <div>
+              <label class="label">Paper Size</label>
+              <select class="input"
+                [ngModel]="receipt().paperSize"
+                (ngModelChange)="updateReceiptField('paperSize', $event)">
+                <option value="80mm">80mm</option>
+                <option value="58mm">58mm</option>
+                <option value="A4">A4</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-3 pt-5">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" id="showLogo" class="w-4 h-4"
+                  [ngModel]="receipt().showLogo"
+                  (ngModelChange)="updateReceiptField('showLogo', $event)" />
+                <label for="showLogo" class="text-sm font-medium text-gray-700">Show Logo</label>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="checkbox" id="showBarcode" class="w-4 h-4"
+                  [ngModel]="receipt().showBarcode"
+                  (ngModelChange)="updateReceiptField('showBarcode', $event)" />
+                <label for="showBarcode" class="text-sm font-medium text-gray-700">Show Barcode</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6">
+            <button (click)="saveReceipt()" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save"></i>
+              {{ isSaving() ? 'Saving...' : 'Save Receipt Settings' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Inventory Tab -->
+      @if (activeTab() === 'inventory') {
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <label class="label">Low Stock Threshold</label>
+              <input type="number" class="input" min="0"
+                [ngModel]="inventory().lowStockThreshold"
+                (ngModelChange)="updateInventoryField('lowStockThreshold', +$event)" />
+            </div>
+            <div class="flex flex-col gap-3 pt-5">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" id="enableAlerts" class="w-4 h-4"
+                  [ngModel]="inventory().enableLowStockAlerts"
+                  (ngModelChange)="updateInventoryField('enableLowStockAlerts', $event)" />
+                <label for="enableAlerts" class="text-sm font-medium text-gray-700">Enable Low Stock Alerts</label>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="checkbox" id="allowNegative" class="w-4 h-4"
+                  [ngModel]="inventory().allowNegativeStock"
+                  (ngModelChange)="updateInventoryField('allowNegativeStock', $event)" />
+                <label for="allowNegative" class="text-sm font-medium text-gray-700">Allow Negative Stock</label>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="checkbox" id="autoReorder" class="w-4 h-4"
+                  [ngModel]="inventory().autoReorder"
+                  (ngModelChange)="updateInventoryField('autoReorder', $event)" />
+                <label for="autoReorder" class="text-sm font-medium text-gray-700">Auto Reorder</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6">
+            <button (click)="saveInventory()" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save"></i>
+              {{ isSaving() ? 'Saving...' : 'Save Inventory Settings' }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

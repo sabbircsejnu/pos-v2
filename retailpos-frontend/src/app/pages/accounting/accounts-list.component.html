@@ -1,0 +1,150 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Chart of Accounts</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Manage your accounting chart of accounts</p>
+    </div>
+    <button (click)="openCreateModal()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Account
+    </button>
+  </div>
+
+  <!-- Type Filter Tabs -->
+  <div class="flex gap-1 mb-4 border-b border-gray-200">
+    @for (tab of [['all','All'], ['asset','Asset'], ['liability','Liability'], ['revenue','Revenue'], ['expense','Expense']]; track tab[0]) {
+      <button
+        (click)="setTypeFilter(tab[0])"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+        [class.border-gray-900]="activeTypeFilter() === tab[0]"
+        [class.text-gray-900]="activeTypeFilter() === tab[0]"
+        [class.border-transparent]="activeTypeFilter() !== tab[0]"
+        [class.text-gray-500]="activeTypeFilter() !== tab[0]"
+        [class.hover:text-gray-700]="activeTypeFilter() !== tab[0]">
+        {{ tab[1] }}
+      </button>
+    }
+  </div>
+
+  <!-- Loading State -->
+  @if (accountingService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading accounts...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (accountingService.error()) {
+    <div class="alert alert-error mb-4">
+      <i class="fas fa-exclamation-circle text-xl"></i>
+      <div>
+        <h3 class="font-semibold">Error</h3>
+        <p>{{ accountingService.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Accounts Table -->
+  @else if (accountingService.accounts().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Name</th>
+              <th class="px-4 py-2.5">Type</th>
+              <th class="px-4 py-2.5 text-right">Balance</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (account of accountingService.accounts(); track account.id) {
+              <tr>
+                <td class="px-4 py-2.5">
+                  <span class="font-semibold text-gray-900">{{ account.name }}</span>
+                </td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium capitalize" [class]="getTypeBadgeClass(account.type)">
+                    {{ account.type }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right font-medium"
+                    [class.text-green-600]="account.balance >= 0"
+                    [class.text-red-600]="account.balance < 0">
+                  {{ formatCurrency(account.balance) }}
+                </td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-center gap-2">
+                    <button (click)="openEditModal(account)" class="btn btn-ghost py-1 px-2" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button (click)="deleteAccount(account)"
+                            class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-book text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Accounts Found</h3>
+      <p class="text-gray-600 mb-6">Start by creating your first account</p>
+      <button (click)="openCreateModal()" class="btn btn-primary">
+        <i class="fas fa-plus mr-2"></i>
+        Add Account
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Account Modal -->
+@if (showModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900">
+          {{ isEditMode() ? 'Edit Account' : 'Add Account' }}
+        </h2>
+        <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="px-6 py-4">
+        <!-- Name -->
+        <div class="mb-4">
+          <label class="label">Account Name <span class="text-red-500">*</span></label>
+          <input type="text" class="input" placeholder="e.g. Cash on Hand"
+                 [ngModel]="formName()" (ngModelChange)="formName.set($event)" />
+        </div>
+        <!-- Type -->
+        <div class="mb-4">
+          <label class="label">Account Type <span class="text-red-500">*</span></label>
+          <select class="input" [ngModel]="formType()" (ngModelChange)="formType.set($event)">
+            @for (t of accountTypes; track t) {
+              <option [value]="t">{{ t | titlecase }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+        <button (click)="closeModal()" class="btn btn-outline" [disabled]="isSubmitting()">Cancel</button>
+        <button (click)="onSubmit()" class="btn btn-primary" [disabled]="isSubmitting()">
+          @if (isSubmitting()) { <i class="fas fa-spinner fa-spin mr-1"></i> }
+          {{ isEditMode() ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,137 @@
+<div class="container mx-auto px-4 py-4 max-w-4xl">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <button (click)="backToList()" class="btn btn-ghost">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">GRN Details</h1>
+        <p class="text-sm text-gray-600 mt-0.5">Goods Received Note</p>
+      </div>
+    </div>
+    @if (grn()) {
+      <button (click)="completeGrn()" class="btn btn-primary" [disabled]="isCompleting()">
+        @if (isCompleting()) {
+          <i class="fas fa-spinner fa-spin"></i>
+          Completing...
+        } @else {
+          <i class="fas fa-check-circle"></i>
+          Complete GRN
+        }
+      </button>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading GRN details...</p>
+    </div>
+  }
+
+  @else if (grn()) {
+    <!-- GRN Summary Card -->
+    <div class="card p-6 mb-6">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800">GRN #{{ grn()!.id }}</h2>
+        <span class="px-3 py-1 rounded-full text-sm font-semibold capitalize"
+              [ngClass]="getStatusBadgeClass(grn()!.status)">
+          {{ grn()!.status }}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">PO Number</p>
+          <p class="font-semibold text-gray-900">{{ grn()!.poNumber }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Supplier</p>
+          <p class="font-semibold text-gray-900">{{ grn()!.supplierName }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Warehouse</p>
+          <p class="font-semibold text-gray-900">{{ grn()!.warehouseName }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Received Date</p>
+          <p class="font-semibold text-gray-900">{{ formatDate(grn()!.receivedDate) }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Created By</p>
+          <p class="font-semibold text-gray-900">{{ grn()!.creatorName || '-' }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Created At</p>
+          <p class="font-semibold text-gray-900">{{ formatDate(grn()!.createdAt) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="card mb-6">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800">Received Items</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Product</th>
+              <th class="px-4 py-2.5">SKU</th>
+              <th class="px-4 py-2.5 text-right">Ordered Qty</th>
+              <th class="px-4 py-2.5 text-right">Received Qty</th>
+              <th class="px-4 py-2.5 text-right">Variance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of grn()!.items">
+              <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
+              <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">{{ item.orderedQty }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">{{ item.receivedQty }}</td>
+              <td class="px-4 py-2.5 text-right"
+                  [ngClass]="getVarianceClass(item.receivedQty - item.orderedQty)">
+                {{ item.receivedQty - item.orderedQty >= 0 ? '+' : '' }}{{ item.receivedQty - item.orderedQty }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Variance Report (if loaded) -->
+    @if (variance() && variance()!.items.length > 0) {
+      <div class="card mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-800">Variance Report</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="px-4 py-2.5">Product</th>
+                <th class="px-4 py-2.5">SKU</th>
+                <th class="px-4 py-2.5 text-right">Ordered</th>
+                <th class="px-4 py-2.5 text-right">Received</th>
+                <th class="px-4 py-2.5 text-right">Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let vi of variance()!.items">
+                <td class="px-4 py-2.5 font-medium text-gray-900">{{ vi.productName }}</td>
+                <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ vi.variantSku }}</td>
+                <td class="px-4 py-2.5 text-right">{{ vi.orderedQty }}</td>
+                <td class="px-4 py-2.5 text-right">{{ vi.receivedQty }}</td>
+                <td class="px-4 py-2.5 text-right" [ngClass]="getVarianceClass(vi.variance)">
+                  {{ vi.variance >= 0 ? '+' : '' }}{{ vi.variance }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</div>

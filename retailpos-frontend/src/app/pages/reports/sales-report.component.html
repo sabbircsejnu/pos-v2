@@ -1,0 +1,188 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Sales Reports</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Analyze sales performance and trends</p>
+    </div>
+    <button (click)="loadAll()" class="btn btn-primary" [disabled]="isLoading()">
+      <i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i>
+      Refresh
+    </button>
+  </div>
+
+  <!-- Date Range -->
+  <div class="card p-3 mb-4">
+    <div class="flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="label">From</label>
+        <input type="date" class="input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input type="date" class="input" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button (click)="setToday()" class="btn btn-outline text-sm">Today</button>
+        <button (click)="setThisWeek()" class="btn btn-outline text-sm">This Week</button>
+        <button (click)="setThisMonth()" class="btn btn-outline text-sm">This Month</button>
+        <button (click)="setLastMonth()" class="btn btn-outline text-sm">Last Month</button>
+        <button (click)="loadAll()" class="btn btn-primary text-sm">
+          <i class="fas fa-search"></i> Apply
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+    <!-- KPI Cards -->
+    @if (reportService.salesSummary()) {
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-dollar-sign text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Revenue</p>
+              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(reportService.salesSummary()!.totalRevenue) }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-receipt text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Transactions</p>
+              <p class="text-xl font-bold text-gray-900">{{ reportService.salesSummary()!.totalTransactions }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-chart-line text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Avg Order Value</p>
+              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(reportService.salesSummary()!.averageOrderValue) }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-coins text-gray-700"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Net Revenue</p>
+              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(reportService.salesSummary()!.netRevenue) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <!-- Top Products -->
+      <div class="card">
+        <div class="p-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-900">Top Products</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Qty Sold</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of reportService.topProducts(); track p.variantId; let i = $index) {
+                <tr>
+                  <td class="text-gray-500 text-sm">{{ i + 1 }}</td>
+                  <td class="font-medium text-gray-900">{{ p.productName }}</td>
+                  <td class="text-gray-500 text-sm">{{ p.sku }}</td>
+                  <td>{{ p.totalQuantity }}</td>
+                  <td class="font-medium">{{ formatCurrency(p.totalRevenue) }}</td>
+                </tr>
+              }
+              @if (reportService.topProducts().length === 0) {
+                <tr><td colspan="5" class="text-center text-gray-500 py-6">No data available</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- By Payment Method -->
+      <div class="card">
+        <div class="p-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-900">By Payment Method</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Count</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (pm of reportService.salesByPaymentMethod(); track pm.paymentMethod) {
+                <tr>
+                  <td class="font-medium text-gray-900 capitalize">{{ pm.paymentMethod }}</td>
+                  <td>{{ pm.count }}</td>
+                  <td class="font-medium">{{ formatCurrency(pm.amount) }}</td>
+                </tr>
+              }
+              @if (reportService.salesByPaymentMethod().length === 0) {
+                <tr><td colspan="3" class="text-center text-gray-500 py-6">No data available</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Trend -->
+    <div class="card">
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-900">Daily Sales Trend</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Transactions</th>
+              <th>Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (day of reportService.dailyTrend(); track day.date) {
+              <tr>
+                <td class="font-medium text-gray-900">{{ formatDate(day.date) }}</td>
+                <td>{{ day.transactionCount }}</td>
+                <td class="font-medium">{{ formatCurrency(day.revenue) }}</td>
+              </tr>
+            }
+            @if (reportService.dailyTrend().length === 0) {
+              <tr><td colspan="3" class="text-center text-gray-500 py-6">No data available</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,172 @@
+<div class="container mx-auto px-4 py-4">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Expenses</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Track and manage business expenses</p>
+    </div>
+    <button (click)="createExpense()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      Add Expense
+    </button>
+  </div>
+
+  <!-- Summary Cards -->
+  @if (accountingService.expenseSummary()) {
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <i class="fas fa-receipt text-gray-700"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Total Expenses</p>
+            <p class="text-xl font-bold text-gray-900">{{ formatCurrency(accountingService.expenseSummary()!.totalAmount) }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <i class="fas fa-list-ol text-gray-700"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500">Total Records</p>
+            <p class="text-xl font-bold text-gray-900">{{ accountingService.expenseSummary()!.count }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-gray-500 mb-2 font-medium">By Category</p>
+        <div class="space-y-1">
+          @for (cat of getSummaryCategories().slice(0, 4); track cat) {
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">{{ cat }}</span>
+              <span class="font-medium text-gray-900">{{ formatCurrency(accountingService.expenseSummary()!.byCategory[cat]) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="label">Category</label>
+        <select class="input" [ngModel]="filterCategory()" (ngModelChange)="filterCategory.set($event)">
+          <option value="">All Categories</option>
+          @for (cat of categories; track cat) {
+            <option [value]="cat">{{ cat }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Start Date</label>
+        <input type="date" class="input" [ngModel]="filterStartDate()" (ngModelChange)="filterStartDate.set($event)" />
+      </div>
+      <div>
+        <label class="label">End Date</label>
+        <input type="date" class="input" [ngModel]="filterEndDate()" (ngModelChange)="filterEndDate.set($event)" />
+      </div>
+      <div class="flex items-end gap-2">
+        <button (click)="applyFilters()" class="btn btn-primary flex-1">
+          <i class="fas fa-search"></i> Search
+        </button>
+        <button (click)="clearFilters()" class="btn btn-outline">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (accountingService.isLoading()) {
+    <div class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading expenses...</p>
+    </div>
+  }
+
+  @else if (accountingService.expenses().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2.5">Date</th>
+              <th class="px-4 py-2.5">Category</th>
+              <th class="px-4 py-2.5 text-right">Amount</th>
+              <th class="px-4 py-2.5">Description</th>
+              <th class="px-4 py-2.5">Outlet</th>
+              <th class="px-4 py-2.5 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (exp of accountingService.expenses(); track exp.id) {
+              <tr>
+                <td class="px-4 py-2.5 text-gray-600 whitespace-nowrap">{{ formatDate(exp.expenseDate) }}</td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {{ exp.category }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ formatCurrency(exp.amount) }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ exp.description || '-' }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ exp.outletName || '-' }}</td>
+                <td class="px-4 py-2.5">
+                  <div class="flex items-center justify-center gap-2">
+                    <button (click)="editExpense(exp.id, $event)" class="btn btn-ghost py-1 px-2" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button (click)="deleteExpense(exp.id, exp.category, $event)"
+                            class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-700">
+            Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to
+            {{ Math.min(pageNumber() * pageSize(), accountingService.expensesTotalCount()) }} of
+            {{ accountingService.expensesTotalCount() }} expenses
+          </span>
+          <div class="flex gap-2">
+            <button [disabled]="pageNumber() === 1" (click)="changePage(pageNumber() - 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium">{{ pageNumber() }}</span>
+            <button [disabled]="pageNumber() * pageSize() >= accountingService.expensesTotalCount()"
+                    (click)="changePage(pageNumber() + 1)"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+      <i class="fas fa-receipt text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Expenses Found</h3>
+      <p class="text-gray-600 mb-6">Start recording your business expenses</p>
+      <button (click)="createExpense()" class="btn btn-primary">
+        <i class="fas fa-plus mr-2"></i>
+        Add Expense
+      </button>
+    </div>
+  }
+</div>

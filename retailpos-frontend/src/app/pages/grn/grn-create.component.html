@@ -1,0 +1,133 @@
+<div class="container mx-auto px-4 py-4 max-w-4xl">
+  <!-- Header -->
+  <div class="flex items-center gap-4 mb-6">
+    <button (click)="cancel()" class="btn btn-ghost">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Create Goods Received Note</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Record received goods from an approved purchase order</p>
+    </div>
+  </div>
+
+  <div class="card p-6">
+    <!-- Step 1: Select PO -->
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm">1</span>
+        Select Purchase Order
+      </h2>
+
+      @if (isLoadingPOs()) {
+        <div class="text-center py-4">
+          <i class="fas fa-spinner fa-spin text-gray-900"></i>
+          <span class="ml-2 text-gray-600">Loading pending POs...</span>
+        </div>
+      } @else if (pendingPOs().length === 0) {
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+          <i class="fas fa-exclamation-triangle mr-2"></i>
+          No approved purchase orders awaiting receipt. Approve a PO first.
+        </div>
+      } @else {
+        <div>
+          <label class="label">Purchase Order <span class="text-red-500">*</span></label>
+          <select [(ngModel)]="selectedPoId" (ngModelChange)="onPoSelected($event)" class="input">
+            <option [ngValue]="null">-- Select a Purchase Order --</option>
+            <option *ngFor="let po of pendingPOs()" [ngValue]="po.id">
+              {{ po.orderNumber }} — {{ po.supplierName }} ({{ po.warehouseName }})
+            </option>
+          </select>
+        </div>
+      }
+    </div>
+
+    <!-- PO Summary -->
+    @if (selectedPO()) {
+      <div class="mb-6 bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p class="text-gray-500">Supplier</p>
+            <p class="font-semibold text-gray-900">{{ selectedPO()!.supplierName }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500">Warehouse</p>
+            <p class="font-semibold text-gray-900">{{ selectedPO()!.warehouseName }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500">Order Date</p>
+            <p class="font-semibold text-gray-900">{{ selectedPO()!.orderDate | date:'mediumDate' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500">Total Amount</p>
+            <p class="font-semibold text-gray-900">{{ formatCurrency(selectedPO()!.totalAmount) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Received Date -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <span class="w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm">2</span>
+          Received Date
+        </h2>
+        <div class="max-w-xs">
+          <label class="label">Date Received <span class="text-red-500">*</span></label>
+          <input type="date" [(ngModel)]="receivedDate" class="input" />
+        </div>
+      </div>
+
+      <!-- Step 3: Enter Received Quantities -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <span class="w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm">3</span>
+          Received Quantities
+        </h2>
+
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="px-4 py-2.5">Product</th>
+                <th class="px-4 py-2.5">SKU</th>
+                <th class="px-4 py-2.5 text-right">Unit Price</th>
+                <th class="px-4 py-2.5 text-right">Ordered Qty</th>
+                <th class="px-4 py-2.5 text-right">Received Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of lineItems(); let i = index">
+                <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
+                <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
+                <td class="px-4 py-2.5 text-right text-gray-700">{{ formatCurrency(item.unitPrice) }}</td>
+                <td class="px-4 py-2.5 text-right text-gray-700">{{ item.orderedQty }}</td>
+                <td class="px-4 py-2.5 text-right">
+                  <input type="number"
+                         [ngModel]="item.receivedQty"
+                         (ngModelChange)="updateReceivedQty(i, $event)"
+                         min="0"
+                         class="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        <button (click)="cancel()" class="btn btn-outline" [disabled]="isSubmitting()">
+          Cancel
+        </button>
+        <button (click)="onSubmit()" class="btn btn-primary" [disabled]="isSubmitting()">
+          @if (isSubmitting()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Submitting...
+          } @else {
+            <i class="fas fa-check"></i>
+            Submit GRN
+          }
+        </button>
+      </div>
+    }
+  </div>
+</div>
