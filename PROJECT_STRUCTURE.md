@@ -215,7 +215,7 @@ RetailPOS.API
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=retailpos_db;Username=postgres;Password=postgres;Port=5432"
+    "DefaultConnection": "Host=localhost;Database=retailpos_db;Username=postgres;Password=postgres;Port=5435"
   }
 }
 ```

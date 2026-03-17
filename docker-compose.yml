@@ -5,15 +5,15 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: retailpos_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: omsadmin
+      POSTGRES_PASSWORD: 123Qwe
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U omsadmin"]
       interval: 10s
       timeout: 5s
       retries: 5

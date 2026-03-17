@@ -12,7 +12,7 @@ public class RetailPOSDbContextFactory : IDesignTimeDbContextFactory<RetailPOSDb
         // Default connection string for migrations
         // You can override this with environment variable or command line
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") 
-            ?? "Host=localhost;Database=retailpos_db;Username=postgres;Password=postgres";
+            ?? "Host=127.0.0.1;Database=retailpos_db;Username=omsadmin;Password=123qwe;Port=5435";
         
         optionsBuilder.UseNpgsql(connectionString);
 

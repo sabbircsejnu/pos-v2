@@ -8,17 +8,16 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Database connection parameters
-$DB_HOST = "localhost"
-$DB_PORT = "5432"
+$DB_HOST = "127.0.0.1"
+$DB_PORT = "5435"
 $DB_NAME = "retailpos_db"
-$DB_USER = "postgres"
-$DB_PASSWORD = "postgres"
+$DB_USER = "omsadmin"
+$DB_PASSWORD = "123qwe"
 
 # Check if PostgreSQL is accessible
 Write-Host "Checking database connection..." -ForegroundColor Yellow
 
-$env:PGPASSWORD = $DB_PASSWORD
-$testConnection = & psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" 2>&1
+$testConnection = docker exec -e PGPASSWORD=$DB_PASSWORD retailpos-postgres psql -U $DB_USER -d $DB_NAME -c "SELECT 1;" 2>&1
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error: Cannot connect to database" -ForegroundColor Red
@@ -40,7 +39,7 @@ if (-not (Test-Path $scriptPath)) {
     exit 1
 }
 
-$result = & psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $scriptPath 2>&1
+$result = Get-Content $scriptPath | docker exec -i -e PGPASSWORD=$DB_PASSWORD retailpos-postgres psql -U $DB_USER -d $DB_NAME 2>&1
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error applying seed data" -ForegroundColor Red
