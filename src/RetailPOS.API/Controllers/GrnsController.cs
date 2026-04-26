@@ -62,13 +62,24 @@ public class GrnsController : ControllerBase
     }
 
     /// <summary>
-    /// Get variance report (ordered vs received quantities) for a GRN
+    /// Get variance report (ordered vs received quantities) for a single GRN
     /// </summary>
     [HttpGet("{id}/variance")]
     public async Task<ActionResult<ApiResponse<GrnVarianceDto>>> GetVariance(long id)
     {
         var variance = await _grnService.GetVarianceAsync(id);
         return Ok(ApiResponse<GrnVarianceDto>.SuccessResponse(variance));
+    }
+
+    /// <summary>
+    /// Get cumulative variance for an entire PO across all its GRNs
+    /// (shows remaining quantities outstanding per line item)
+    /// </summary>
+    [HttpGet("po/{poId}/variance")]                  // NEW
+    public async Task<ActionResult<ApiResponse<GrnPoVarianceDto>>> GetPoVariance(long poId)
+    {
+        var variance = await _grnService.GetPoVarianceAsync(poId);
+        return Ok(ApiResponse<GrnPoVarianceDto>.SuccessResponse(variance));
     }
 
     /// <summary>

@@ -545,3 +545,71 @@
     border-radius: 0;
   }
 }
+
+/* Barcode row */
+.barcode-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Cart header — flex with space-between */
+.cart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Split payment rows */
+.split-payment-rows {
+  margin-top: 4px;
+}
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Held sales modal */
+.held-sales-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 480px;
+  max-width: 95vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.held-sales-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.held-sale-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  gap: 12px;
+}
+
+.held-sale-info {
+  flex: 1;
+}
+
+/* Small button variant */
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+

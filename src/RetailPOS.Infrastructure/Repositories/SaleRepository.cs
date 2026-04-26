@@ -25,6 +25,7 @@ public class SaleRepository : ISaleRepository
             .Include(s => s.Items)
                 .ThenInclude(i => i.Variant)
                     .ThenInclude(v => v.Product)
+            .Include(s => s.Payments)          // UPDATED — load split payments
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 
@@ -101,5 +102,22 @@ public class SaleRepository : ISaleRepository
         _context.Sales.Update(sale);
         await _context.SaveChangesAsync();
         return (await GetByIdAsync(sale.Id))!;
+    }
+
+    // UPDATED — idempotency lookup
+    public async Task<Sale?> FindByIdempotencyKeyAsync(long outletId, string idempotencyKey)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey)) return null;
+        return await _context.Sales
+            .Include(s => s.Outlet)
+            .Include(s => s.Customer)
+            .Include(s => s.Cashier)
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Variant)
+                    .ThenInclude(v => v.Product)
+            .Include(s => s.Payments)
+            .FirstOrDefaultAsync(s =>
+                s.OutletId == outletId &&
+                s.IdempotencyKey == idempotencyKey);
     }
 }

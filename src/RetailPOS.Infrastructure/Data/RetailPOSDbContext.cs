@@ -38,6 +38,8 @@ public class RetailPOSDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+    public DbSet<SalePayment> SalePayments => Set<SalePayment>(); // NEW — split-payment rows
+    public DbSet<HeldSale> HeldSales => Set<HeldSale>();           // NEW — parked/held carts
 
     // Stock Management
     public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
@@ -50,8 +52,15 @@ public class RetailPOSDbContext : DbContext
     public DbSet<Bill> Bills => Set<Bill>();
     public DbSet<Expense> Expenses => Set<Expense>();
 
+    // Stock Ledger  // NEW
+    public DbSet<StockLedger> StockLedgers => Set<StockLedger>();
+
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // Pricing Engine
+    public DbSet<PriceRule> PriceRules => Set<PriceRule>();
+    public DbSet<OutletPriceOverride> OutletPriceOverrides => Set<OutletPriceOverride>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -250,6 +259,15 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
             entity.Property(e => e.BatchNumber).HasMaxLength(50);
 
+            // Optimistic concurrency token — maps to PostgreSQL's built-in xmin system column.
+            // No DDL column is required; xmin is always present on every row.
+            // EF Core includes xmin in every UPDATE's WHERE clause, causing a
+            // DbUpdateConcurrencyException on concurrent conflicting writes.
+            entity.Property(e => e.XMin)
+                .HasColumnName("xmin")
+                .HasColumnType("xid")
+                .IsConcurrencyToken();
+
             entity.HasIndex(e => new { e.VariantId, e.LocationId, e.LocationType }).IsUnique();
 
             entity.HasOne(e => e.Variant)
@@ -312,6 +330,7 @@ public class RetailPOSDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);    // NEW
 
             entity.HasOne(e => e.PurchaseOrder)
                 .WithMany(po => po.Grns)
@@ -328,6 +347,8 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<GrnItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitCost).HasPrecision(10, 2);  // NEW
+            entity.Property(e => e.Notes).HasMaxLength(500);        // NEW
 
             entity.HasOne(e => e.Grn)
                 .WithMany(g => g.Items)
@@ -353,14 +374,20 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<Sale>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.SaleNumber).HasMaxLength(30).IsRequired();    // UPDATED
             entity.Property(e => e.TotalAmount).HasPrecision(10, 2);
             entity.Property(e => e.Discount).HasPrecision(10, 2);
             entity.Property(e => e.Tax).HasPrecision(10, 2);
             entity.Property(e => e.PaymentMethod).HasMaxLength(20).IsRequired();
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(64);             // UPDATED
 
             entity.HasIndex(e => e.SaleDate);
             entity.HasIndex(e => e.OutletId);
+            // Idempotency: unique per outlet to prevent double-submission
+            entity.HasIndex(e => new { e.OutletId, e.IdempotencyKey })
+                  .IsUnique()
+                  .HasFilter("idempotency_key IS NOT NULL");                      // UPDATED
 
             entity.HasOne(e => e.Outlet)
                 .WithMany(o => o.Sales)
@@ -384,6 +411,8 @@ public class RetailPOSDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
             entity.Property(e => e.Subtotal).HasPrecision(10, 2);
+            entity.Property(e => e.DiscountAmount).HasPrecision(10, 2);
+            entity.Property(e => e.AppliedRuleName).HasMaxLength(200);           // UPDATED
 
             entity.HasOne(e => e.Sale)
                 .WithMany(s => s.Items)
@@ -394,6 +423,51 @@ public class RetailPOSDbContext : DbContext
                 .WithMany(v => v.SaleItems)
                 .HasForeignKey(e => e.VariantId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // NEW — SalePayment Configuration
+        modelBuilder.Entity<SalePayment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Method).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Amount).HasPrecision(10, 2);
+            entity.Property(e => e.Tendered).HasPrecision(10, 2);
+
+            entity.HasIndex(e => e.SaleId);
+
+            entity.HasOne(e => e.Sale)
+                .WithMany(s => s.Payments)
+                .HasForeignKey(e => e.SaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // NEW — HeldSale Configuration
+        modelBuilder.Entity<HeldSale>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ItemsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.DiscountPercent).HasPrecision(5, 2);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(300);
+
+            entity.HasIndex(e => e.OutletId);
+            entity.HasIndex(e => e.CashierId);
+            entity.HasIndex(e => e.HeldAt);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany()
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Cashier)
+                .WithMany()
+                .HasForeignKey(e => e.CashierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Customer)
+                .WithMany()
+                .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // StockTransfer Configuration
@@ -518,6 +592,70 @@ public class RetailPOSDbContext : DbContext
             entity.HasOne(e => e.User)
                 .WithMany(u => u.AuditLogs)
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // PriceRule Configuration
+        modelBuilder.Entity<PriceRule>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.RuleType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DiscountType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DiscountValue).HasPrecision(10, 2);
+            // Hot-path index: the matching query filters on IsActive + RuleType + TargetId
+            entity.HasIndex(e => new { e.IsActive, e.RuleType, e.TargetId });
+            entity.HasIndex(e => new { e.ValidFrom, e.ValidTo });
+        });
+
+        // OutletPriceOverride Configuration
+        modelBuilder.Entity<OutletPriceOverride>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OverrideType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.OverrideValue).HasPrecision(10, 2);
+            // One *active* override per outlet × variant; inactive rows are excluded so
+            // a new override can be created after the old one is deactivated.
+            entity.HasIndex(e => new { e.OutletId, e.ProductVariantId })
+                  .IsUnique()
+                  .HasFilter("is_active = true");
+            entity.HasOne(e => e.Outlet)
+                .WithMany()
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ProductVariant)
+                .WithMany()
+                .HasForeignKey(e => e.ProductVariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // =====================================================================
+        // NEW — StockLedger Configuration
+        // =====================================================================
+        modelBuilder.Entity<StockLedger>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TransactionType).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.ReferenceType).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Remarks).HasMaxLength(500);
+
+            // Core query paths: look up the full timeline for a variant+location,
+            // or jump straight to all rows belonging to one source document.
+            entity.HasIndex(e => new { e.VariantId, e.LocationId, e.LocationType, e.CreatedAt });
+            entity.HasIndex(e => new { e.ReferenceType, e.ReferenceId });
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany()
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

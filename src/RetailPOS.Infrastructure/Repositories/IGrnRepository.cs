@@ -13,5 +13,14 @@ public interface IGrnRepository
     Task<Grn> CreateAsync(Grn entity);
     Task<Grn> UpdateAsync(Grn entity);
     Task<bool> DeleteAsync(long id);
+    /// <summary>
+    /// Returns POs with status "approved" or "partial" — i.e. POs that still have
+    /// outstanding quantities to receive (supports repeat/partial receipt).
+    /// </summary>
     Task<List<PurchaseOrder>> GetPendingReceiptPOsAsync();
+    /// <summary>
+    /// Returns all GRNs (with items and variant/product nav) for a PO.
+    /// Used by the cumulative variance report.
+    /// </summary>
+    Task<List<Grn>> GetPoGrnsWithItemsAsync(long poId);  // NEW
 }

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.Sale;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
@@ -15,17 +15,26 @@ public class SaleService : ISaleService
     private readonly ICustomerRepository _customerRepository;
     private readonly RetailPOSDbContext _context;
     private readonly ILogger<SaleService> _logger;
+    private readonly IStockLedgerService _stockLedger;
+    private readonly IPosCacheService    _posCache;
+    private readonly ISaleEventPublisher _eventPublisher;  // UPDATED
 
     public SaleService(
-        ISaleRepository saleRepository,
-        ICustomerRepository customerRepository,
-        RetailPOSDbContext context,
-        ILogger<SaleService> logger)
+        ISaleRepository      saleRepository,
+        ICustomerRepository  customerRepository,
+        RetailPOSDbContext   context,
+        ILogger<SaleService> logger,
+        IStockLedgerService  stockLedger,
+        IPosCacheService     posCache,
+        ISaleEventPublisher  eventPublisher)  // UPDATED
     {
-        _saleRepository = saleRepository;
+        _saleRepository     = saleRepository;
         _customerRepository = customerRepository;
-        _context = context;
-        _logger = logger;
+        _context            = context;
+        _logger             = logger;
+        _posCache           = posCache;
+        _stockLedger        = stockLedger;
+        _eventPublisher     = eventPublisher; // UPDATED
     }
 
     /// <summary>Gets a sale by ID</summary>
@@ -60,11 +69,28 @@ public class SaleService : ISaleService
         };
     }
 
-    /// <summary>Creates a new sale, deducts stock and awards loyalty points</summary>
+    /// <summary>
+    /// Creates a new sale, deducts stock, awards loyalty points, writes ledger entries,
+    /// and publishes the SaleCompleted event.
+    /// Prevents duplicate submission via the optional IdempotencyKey field.
+    /// </summary>
     public async Task<SaleDto> CreateAsync(CreateSaleDto dto)
     {
         if (dto.Items == null || dto.Items.Count == 0)
             throw new InvalidOperationException("Sale must have at least one item");
+
+        // UPDATED â€” idempotency check: return existing sale if key was already used
+        if (!string.IsNullOrWhiteSpace(dto.IdempotencyKey))
+        {
+            var existing = await _saleRepository.FindByIdempotencyKeyAsync(dto.OutletId, dto.IdempotencyKey);
+            if (existing != null)
+            {
+                _logger.LogInformation(
+                    "Duplicate submission detected for IdempotencyKey={Key}, returning existing Sale {SaleId}",
+                    dto.IdempotencyKey, existing.Id);
+                return MapToDto(existing);
+            }
+        }
 
         // Validate customer exists (if provided)
         if (dto.CustomerId.HasValue)
@@ -74,76 +100,177 @@ public class SaleService : ISaleService
                 throw new KeyNotFoundException($"Customer with ID {dto.CustomerId.Value} not found");
         }
 
+        // UPDATED â€” validate payment split sums to total (when split payments supplied)
+        if (dto.Payments.Count > 0)
+        {
+            var itemsTotal = dto.Items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount);
+            var netTotal   = itemsTotal - dto.Discount + dto.Tax;
+            var paidTotal  = dto.Payments.Sum(p => p.Amount);
+            if (Math.Abs(paidTotal - netTotal) > 0.01m)
+                throw new InvalidOperationException(
+                    $"Payment total {paidTotal:F2} does not match sale total {netTotal:F2}. " +
+                    "Check payment split amounts.");
+        }
+
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-        // Check stock and deduct inventory for each item
-        foreach (var item in dto.Items)
-        {
-            var inventory = await _context.Inventories
-                .FirstOrDefaultAsync(i =>
-                    i.VariantId == item.VariantId &&
-                    i.LocationId == dto.OutletId &&
-                    i.LocationType == "outlet");
+            // Check stock and deduct inventory for each item
+            var inventoryLedgerMap = new List<(Inventory Inventory, CreateSaleItemDto Item)>();
 
-            if (inventory == null)
-                throw new InvalidOperationException($"No inventory found for variant ID {item.VariantId} at outlet ID {dto.OutletId}");
-
-            if (inventory.Quantity < item.Quantity)
-                throw new InvalidOperationException(
-                    $"Insufficient stock for variant ID {item.VariantId}. Available: {inventory.Quantity}, Requested: {item.Quantity}");
-
-            inventory.Quantity -= item.Quantity;
-        }
-
-        // Calculate total
-        var itemsTotal = dto.Items.Sum(i => i.Quantity * i.UnitPrice);
-        var totalAmount = itemsTotal - dto.Discount + dto.Tax;
-
-        var now = DateTime.UtcNow;
-        var sale = new Sale
-        {
-            OutletId = dto.OutletId,
-            CustomerId = dto.CustomerId,
-            CashierId = dto.CashierId,
-            SaleDate = now,
-            CreatedAt = now,
-            Discount = dto.Discount,
-            Tax = dto.Tax,
-            TotalAmount = totalAmount,
-            PaymentMethod = dto.PaymentMethod.ToLower(),
-            Status = "completed",
-            Items = dto.Items.Select(i => new SaleItem
+            foreach (var item in dto.Items)
             {
-                VariantId = i.VariantId,
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice,
-                Subtotal = i.Quantity * i.UnitPrice
-            }).ToList()
-        };
+                var inventory = await _context.Inventories
+                    .FirstOrDefaultAsync(i =>
+                        i.VariantId   == item.VariantId &&
+                        i.LocationId  == dto.OutletId &&
+                        i.LocationType == "outlet");
 
-        await _context.Sales.AddAsync(sale);
-        await _context.SaveChangesAsync();
+                if (inventory == null)
+                    throw new InvalidOperationException(
+                        $"No inventory found for variant ID {item.VariantId} at outlet ID {dto.OutletId}");
 
-        // Award loyalty points (1 point per dollar, rounded down)
-        if (dto.CustomerId.HasValue)
-        {
-            var earnedPoints = (int)Math.Floor(totalAmount);
-            if (earnedPoints > 0)
+                if (inventory.Quantity < item.Quantity)
+                    throw new InvalidOperationException(
+                        $"Insufficient stock for variant ID {item.VariantId}. " +
+                        $"Available: {inventory.Quantity}, Requested: {item.Quantity}");
+
+                inventory.Quantity -= item.Quantity;
+                inventoryLedgerMap.Add((inventory, item));
+            }
+
+            // Calculate totals
+            var lineItemsTotal = dto.Items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount);
+            var totalAmount    = lineItemsTotal - dto.Discount + dto.Tax;
+
+            // UPDATED â€” determine primary payment method
+            var primaryMethod = dto.Payments.Count > 0
+                ? dto.Payments.OrderByDescending(p => p.Amount).First().Method.ToLower()
+                : dto.PaymentMethod.ToLower();
+
+            var now        = DateTime.UtcNow;
+            var saleNumber = GenerateSaleNumber(now);  // UPDATED
+
+            var sale = new Sale
             {
-                var customer = await _context.Customers.FindAsync(dto.CustomerId.Value);
-                if (customer != null)
+                SaleNumber     = saleNumber,             // UPDATED
+                OutletId       = dto.OutletId,
+                CustomerId     = dto.CustomerId,
+                CashierId      = dto.CashierId,
+                SaleDate       = now,
+                CreatedAt      = now,
+                Discount       = dto.Discount,
+                Tax            = dto.Tax,
+                TotalAmount    = totalAmount,
+                PaymentMethod  = primaryMethod,
+                Status         = "completed",
+                IdempotencyKey = dto.IdempotencyKey,     // UPDATED
+                Items = dto.Items.Select(i => new SaleItem
                 {
-                    customer.LoyaltyPoints += earnedPoints;
-                    await _context.SaveChangesAsync();
+                    VariantId      = i.VariantId,
+                    Quantity       = i.Quantity,
+                    UnitPrice      = i.UnitPrice,
+                    Subtotal       = i.Quantity * i.UnitPrice - i.DiscountAmount,
+                    DiscountAmount = i.DiscountAmount,    // UPDATED
+                    AppliedRuleId  = i.AppliedRuleId,     // UPDATED
+                    AppliedRuleName = i.AppliedRuleName   // UPDATED
+                }).ToList()
+            };
+
+            // UPDATED â€” build payment rows (split or single)
+            if (dto.Payments.Count > 0)
+            {
+                sale.Payments = dto.Payments.Select(p => new SalePayment
+                {
+                    Method   = p.Method.ToLower(),
+                    Amount   = p.Amount,
+                    Tendered = p.Tendered
+                }).ToList();
+            }
+            else
+            {
+                sale.Payments = new List<SalePayment>
+                {
+                    new SalePayment
+                    {
+                        Method   = primaryMethod,
+                        Amount   = totalAmount,
+                        Tendered = primaryMethod == "cash" ? dto.Payments.FirstOrDefault()?.Tendered : null
+                    }
+                };
+            }
+
+            await _context.Sales.AddAsync(sale);
+            await _context.SaveChangesAsync(); // sale.Id is now populated
+
+            // Write ledger entries now that sale.Id is known
+            foreach (var (inventory, item) in inventoryLedgerMap)
+            {
+                _stockLedger.WriteEntry(
+                    variantId: item.VariantId,
+                    locationId: dto.OutletId,
+                    locationType: "outlet",
+                    transactionType: StockLedgerTransactionType.Sale,
+                    qtyIn: 0,
+                    qtyOut: item.Quantity,
+                    balanceAfter: inventory.Quantity,
+                    referenceType: StockLedgerReferenceType.Sale,
+                    referenceId: sale.Id,
+                    createdBy: dto.CashierId);
+            }
+
+            // Award loyalty points (1 point per currency unit, rounded down)
+            int earnedPoints = 0;
+            if (dto.CustomerId.HasValue)
+            {
+                earnedPoints = (int)Math.Floor(totalAmount);
+                if (earnedPoints > 0)
+                {
+                    var customer = await _context.Customers.FindAsync(dto.CustomerId.Value);
+                    if (customer != null)
+                    {
+                        customer.LoyaltyPoints += earnedPoints;
+                    }
                 }
             }
-        }
 
-        await transaction.CommitAsync();
-        _logger.LogInformation("Sale {SaleId} created for outlet {OutletId}", sale.Id, dto.OutletId);
+            // xmin optimistic concurrency token on Inventory throws DbUpdateConcurrencyException
+            // if another transaction modified the same row between our read and this write.
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await transaction.RollbackAsync();
+                throw new InvalidOperationException(
+                    "Stock was modified by another transaction. Please retry the sale.");
+            }
 
-        return await GetByIdAsync(sale.Id);
+            await transaction.CommitAsync();
+
+            _logger.LogInformation(
+                "Sale {SaleNumber} (ID={SaleId}) created for outlet {OutletId}",
+                sale.SaleNumber, sale.Id, dto.OutletId);
+
+            // Invalidate per-variant stock hint cache so the next POS scan is fresh
+            foreach (var item in dto.Items)
+                await _posCache.InvalidateStockAsync(item.VariantId, dto.OutletId);
+
+            // UPDATED â€” publish event (fire-and-forget; never block response)
+            _ = _eventPublisher.PublishSaleCompletedAsync(new SaleCompletedEvent
+            {
+                SaleId              = sale.Id,
+                SaleNumber          = sale.SaleNumber,
+                OutletId            = dto.OutletId,
+                CashierId           = dto.CashierId,
+                CustomerId          = dto.CustomerId,
+                TotalAmount         = totalAmount,
+                CompletedAt         = now,
+                LoyaltyPointsAwarded = earnedPoints
+            });
+
+            return await GetByIdAsync(sale.Id);
         }
         catch
         {
@@ -170,43 +297,74 @@ public class SaleService : ISaleService
             throw new InvalidOperationException("Sales can only be voided on the same day");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
-
-        // Restore inventory
-        foreach (var item in sale.Items)
+        try
         {
-            var inventory = await _context.Inventories
-                .FirstOrDefaultAsync(i =>
-                    i.VariantId == item.VariantId &&
-                    i.LocationId == sale.OutletId &&
-                    i.LocationType == "outlet");
+            // Restore inventory and track for ledger
+            var inventoryLedgerMap = new List<(Inventory Inventory, SaleItem Item)>();
 
-            if (inventory != null)
+            foreach (var item in sale.Items)
             {
-                inventory.Quantity += item.Quantity;
-            }
-        }
+                var inventory = await _context.Inventories
+                    .FirstOrDefaultAsync(i =>
+                        i.VariantId   == item.VariantId &&
+                        i.LocationId  == sale.OutletId &&
+                        i.LocationType == "outlet");
 
-        // Reverse loyalty points if awarded
-        if (sale.CustomerId.HasValue)
-        {
-            var earnedPoints = (int)Math.Floor(sale.TotalAmount);
-            if (earnedPoints > 0)
-            {
-                var customer = await _context.Customers.FindAsync(sale.CustomerId.Value);
-                if (customer != null)
+                if (inventory != null)
                 {
-                    customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints - earnedPoints);
+                    inventory.Quantity += item.Quantity;
+                    inventoryLedgerMap.Add((inventory, item));
                 }
             }
+
+            // Write ledger entries (void return rows)
+            foreach (var (inventory, item) in inventoryLedgerMap)
+            {
+                _stockLedger.WriteEntry(
+                    variantId: item.VariantId,
+                    locationId: sale.OutletId,
+                    locationType: "outlet",
+                    transactionType: StockLedgerTransactionType.Return,
+                    qtyIn: item.Quantity,
+                    qtyOut: 0,
+                    balanceAfter: inventory.Quantity,
+                    referenceType: StockLedgerReferenceType.Sale,
+                    referenceId: sale.Id,
+                    remarks: $"Sale voided â€” {dto.Reason}",
+                    createdBy: null);
+            }
+
+            // Reverse loyalty points if awarded
+            if (sale.CustomerId.HasValue)
+            {
+                var earnedPoints = (int)Math.Floor(sale.TotalAmount);
+                if (earnedPoints > 0)
+                {
+                    var customer = await _context.Customers.FindAsync(sale.CustomerId.Value);
+                    if (customer != null)
+                    {
+                        customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints - earnedPoints);
+                    }
+                }
+            }
+
+            sale.Status = "voided";
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // Invalidate stock hint cache for each restored item
+            foreach (var item in sale.Items)
+                await _posCache.InvalidateStockAsync(item.VariantId, sale.OutletId);
+
+            _logger.LogInformation("Sale {SaleId} voided. Reason: {Reason}", id, dto.Reason);
+
+            return MapToDto(sale);
         }
-
-        sale.Status = "voided";
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        _logger.LogInformation("Sale {SaleId} voided. Reason: {Reason}", id, dto.Reason);
-
-        return MapToDto(sale);
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     /// <summary>Refunds specific items from a sale and restores their stock</summary>
@@ -223,37 +381,70 @@ public class SaleService : ISaleService
             throw new InvalidOperationException("Refund must include at least one item");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
-
-        foreach (var refundItem in dto.Items)
+        try
         {
-            var saleItem = sale.Items.FirstOrDefault(i => i.VariantId == refundItem.VariantId);
-            if (saleItem == null)
-                throw new InvalidOperationException($"Variant ID {refundItem.VariantId} not found in this sale");
+            // Restore inventory and track for ledger
+            var inventoryLedgerMap = new List<(Inventory Inventory, int Qty, long VariantId)>();
 
-            if (refundItem.Quantity > saleItem.Quantity)
-                throw new InvalidOperationException(
-                    $"Refund quantity {refundItem.Quantity} exceeds sold quantity {saleItem.Quantity} for variant ID {refundItem.VariantId}");
-
-            // Restore inventory
-            var inventory = await _context.Inventories
-                .FirstOrDefaultAsync(i =>
-                    i.VariantId == refundItem.VariantId &&
-                    i.LocationId == sale.OutletId &&
-                    i.LocationType == "outlet");
-
-            if (inventory != null)
+            foreach (var refundItem in dto.Items)
             {
-                inventory.Quantity += refundItem.Quantity;
+                var saleItem = sale.Items.FirstOrDefault(i => i.VariantId == refundItem.VariantId);
+                if (saleItem == null)
+                    throw new InvalidOperationException(
+                        $"Variant ID {refundItem.VariantId} not found in this sale");
+
+                if (refundItem.Quantity > saleItem.Quantity)
+                    throw new InvalidOperationException(
+                        $"Refund quantity {refundItem.Quantity} exceeds sold quantity {saleItem.Quantity} " +
+                        $"for variant ID {refundItem.VariantId}");
+
+                var inventory = await _context.Inventories
+                    .FirstOrDefaultAsync(i =>
+                        i.VariantId   == refundItem.VariantId &&
+                        i.LocationId  == sale.OutletId &&
+                        i.LocationType == "outlet");
+
+                if (inventory != null)
+                {
+                    inventory.Quantity += refundItem.Quantity;
+                    inventoryLedgerMap.Add((inventory, refundItem.Quantity, refundItem.VariantId));
+                }
             }
+
+            // Write ledger entries (refund return rows)
+            foreach (var (inventory, qty, variantId) in inventoryLedgerMap)
+            {
+                _stockLedger.WriteEntry(
+                    variantId: variantId,
+                    locationId: sale.OutletId,
+                    locationType: "outlet",
+                    transactionType: StockLedgerTransactionType.Return,
+                    qtyIn: qty,
+                    qtyOut: 0,
+                    balanceAfter: inventory.Quantity,
+                    referenceType: StockLedgerReferenceType.Sale,
+                    referenceId: sale.Id,
+                    remarks: $"Sale refunded â€” {dto.Reason}",
+                    createdBy: null);
+            }
+
+            sale.Status = "refunded";
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // Invalidate stock hint cache for each refunded item
+            foreach (var (_, _, variantId) in inventoryLedgerMap)
+                await _posCache.InvalidateStockAsync(variantId, sale.OutletId);
+
+            _logger.LogInformation("Sale {SaleId} refunded. Reason: {Reason}", id, dto.Reason);
+
+            return MapToDto(sale);
         }
-
-        sale.Status = "refunded";
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        _logger.LogInformation("Sale {SaleId} refunded. Reason: {Reason}", id, dto.Reason);
-
-        return MapToDto(sale);
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     /// <summary>Gets today's sales summary</summary>
@@ -282,31 +473,60 @@ public class SaleService : ISaleService
         return await GetByIdAsync(id);
     }
 
-    private static SaleDto MapToDto(Sale s) => new SaleDto
+    // UPDATED â€” generates a human-readable sale number (e.g. "S-20260317-00042")
+    private static string GenerateSaleNumber(DateTime utcNow)
     {
-        Id = s.Id,
-        OutletId = s.OutletId,
-        OutletName = s.Outlet?.Name ?? string.Empty,
-        CustomerId = s.CustomerId,
-        CustomerName = s.Customer?.Name,
-        CashierId = s.CashierId,
-        CashierName = s.Cashier?.Name ?? string.Empty,
-        SaleDate = s.SaleDate,
-        TotalAmount = s.TotalAmount,
-        Discount = s.Discount,
-        Tax = s.Tax,
-        PaymentMethod = s.PaymentMethod,
-        Status = s.Status,
-        CreatedAt = s.CreatedAt,
-        Items = s.Items?.Select(i => new SaleItemDto
+        // Uses date + random 5-digit suffix.
+        // For strictly sequential numbers across transaction replays, persist a DB sequence.
+        var suffix = Random.Shared.NextInt64(10000, 99999);
+        return $"S-{utcNow:yyyyMMdd}-{suffix}";
+    }
+
+    private static SaleDto MapToDto(Sale s)
+    {
+        var netTotal = s.TotalAmount - s.Discount + s.Tax;  // UPDATED
+
+        return new SaleDto
         {
-            Id = i.Id,
-            VariantId = i.VariantId,
-            ProductName = i.Variant?.Product?.Name ?? string.Empty,
-            VariantSku = i.Variant?.Sku ?? string.Empty,
-            Quantity = i.Quantity,
-            UnitPrice = i.UnitPrice,
-            Subtotal = i.Subtotal
-        }).ToList() ?? new List<SaleItemDto>()
-    };
+            Id          = s.Id,
+            SaleNumber  = s.SaleNumber,                     // UPDATED
+            OutletId    = s.OutletId,
+            OutletName  = s.Outlet?.Name ?? string.Empty,
+            CustomerId  = s.CustomerId,
+            CustomerName = s.Customer?.Name,
+            CashierId   = s.CashierId,
+            CashierName = s.Cashier?.Name ?? string.Empty,
+            SaleDate    = s.SaleDate,
+            TotalAmount = s.TotalAmount,
+            Discount    = s.Discount,
+            Tax         = s.Tax,
+            NetTotal    = netTotal,                          // UPDATED
+            PaymentMethod = s.PaymentMethod,
+            Status      = s.Status,
+            CreatedAt   = s.CreatedAt,
+            Items = s.Items?.Select(i => new SaleItemDto
+            {
+                Id             = i.Id,
+                VariantId      = i.VariantId,
+                ProductName    = i.Variant?.Product?.Name ?? string.Empty,
+                VariantSku     = i.Variant?.Sku ?? string.Empty,
+                Quantity       = i.Quantity,
+                UnitPrice      = i.UnitPrice,
+                DiscountAmount = i.DiscountAmount,           // UPDATED
+                Subtotal       = i.Subtotal,
+                AppliedRuleName = i.AppliedRuleName          // UPDATED
+            }).ToList() ?? new List<SaleItemDto>(),
+            // UPDATED â€” split-payment breakdown
+            Payments = s.Payments?.Select(p => new SalePaymentDto
+            {
+                Id       = p.Id,
+                Method   = p.Method,
+                Amount   = p.Amount,
+                Tendered = p.Tendered,
+                Change   = p.Method == "cash" && p.Tendered.HasValue
+                           ? Math.Max(0, p.Tendered.Value - p.Amount)
+                           : 0
+            }).ToList() ?? new List<SalePaymentDto>()
+        };
+    }
 }

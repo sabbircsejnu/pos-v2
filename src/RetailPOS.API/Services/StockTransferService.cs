@@ -15,17 +15,23 @@ public class StockTransferService : IStockTransferService
     private readonly IProductVariantRepository _variantRepository;
     private readonly RetailPOSDbContext _context;
     private readonly ILogger<StockTransferService> _logger;
+    private readonly IStockLedgerService _stockLedger; // UPDATED
+    private readonly IPosCacheService    _posCache;    // UPDATED
 
     public StockTransferService(
         IStockTransferRepository transferRepository,
         IProductVariantRepository variantRepository,
         RetailPOSDbContext context,
-        ILogger<StockTransferService> logger)
+        ILogger<StockTransferService> logger,
+        IStockLedgerService stockLedger,  // UPDATED
+        IPosCacheService    posCache)     // UPDATED
     {
         _transferRepository = transferRepository;
         _variantRepository = variantRepository;
         _context = context;
         _logger = logger;
+        _stockLedger = stockLedger; // UPDATED
+        _posCache    = posCache;    // UPDATED
     }
 
     public async Task<StockTransferDto> GetByIdAsync(long id)
@@ -156,25 +162,36 @@ public class StockTransferService : IStockTransferService
                     $"Insufficient stock for variant {variant.Sku}. Available: {sourceInventory?.Quantity ?? 0}, Requested: {item.Quantity}");
         }
 
-        transfer.FromLocationId = dto.FromLocationId;
-        transfer.FromLocationType = dto.FromLocationType.ToLower();
-        transfer.ToLocationId = dto.ToLocationId;
-        transfer.ToLocationType = dto.ToLocationType.ToLower();
-        transfer.TransferDate = DateTime.SpecifyKind(dto.TransferDate, DateTimeKind.Utc);
-
-        // Replace items
-        _context.StockTransferItems.RemoveRange(transfer.Items);
-        transfer.Items = dto.Items.Select(i => new StockTransferItem
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            TransferId = id,
-            VariantId = i.VariantId,
-            Quantity = i.Quantity
-        }).ToList();
+            transfer.FromLocationId = dto.FromLocationId;
+            transfer.FromLocationType = dto.FromLocationType.ToLower();
+            transfer.ToLocationId = dto.ToLocationId;
+            transfer.ToLocationType = dto.ToLocationType.ToLower();
+            transfer.TransferDate = DateTime.SpecifyKind(dto.TransferDate, DateTimeKind.Utc);
 
-        var updated = await _transferRepository.UpdateAsync(transfer);
-        _logger.LogInformation("Stock transfer {TransferId} updated", id);
+            // Replace items atomically
+            _context.StockTransferItems.RemoveRange(transfer.Items);
+            transfer.Items = dto.Items.Select(i => new StockTransferItem
+            {
+                TransferId = id,
+                VariantId = i.VariantId,
+                Quantity = i.Quantity
+            }).ToList();
 
-        return await MapToDtoAsync(updated);
+            var updated = await _transferRepository.UpdateAsync(transfer);
+
+            await transaction.CommitAsync();
+            _logger.LogInformation("Stock transfer {TransferId} updated", id);
+
+            return await MapToDtoAsync(updated);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<StockTransferDto> ApproveAsync(long id, long? approverId = null)
@@ -216,8 +233,57 @@ public class StockTransferService : IStockTransferService
         if (transfer.Status.ToLower() != "approved")
             throw new InvalidOperationException($"Can only send approved transfers. Current status: {transfer.Status}");
 
-        await _transferRepository.UpdateStatusAsync(id, "in_transit");
-        _logger.LogInformation("Stock transfer {TransferId} marked as in-transit", id);
+        // Deduct source inventory at dispatch time and write transfer_out ledger entries.
+        // This ensures in-transit stock is no longer counted as available at the source.
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            foreach (var item in transfer.Items)
+            {
+                var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
+                    i.VariantId == item.VariantId &&
+                    i.LocationId == transfer.FromLocationId &&
+                    i.LocationType == transfer.FromLocationType);
+
+                if (sourceInventory == null || sourceInventory.Quantity < item.Quantity)
+                    throw new InvalidOperationException(
+                        $"Insufficient stock for variant {item.VariantId} at source. " +
+                        $"Available: {sourceInventory?.Quantity ?? 0}, Required: {item.Quantity}");
+
+                sourceInventory.Quantity -= item.Quantity;
+
+                _stockLedger.WriteEntry(
+                    variantId: item.VariantId,
+                    locationId: transfer.FromLocationId,
+                    locationType: transfer.FromLocationType,
+                    transactionType: StockLedgerTransactionType.TransferOut,
+                    qtyIn: 0,
+                    qtyOut: item.Quantity,
+                    balanceAfter: sourceInventory.Quantity,
+                    referenceType: StockLedgerReferenceType.StockTransfer,
+                    referenceId: transfer.Id,
+                    remarks: $"Dispatched to {transfer.ToLocationType} {transfer.ToLocationId}",
+                    createdBy: transfer.CreatedBy);
+            }
+
+            transfer.Status = "in_transit";
+            _context.StockTransfers.Update(transfer);
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // UPDATED — if source was an outlet, its stock hint is now stale
+            if (transfer.FromLocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase))
+                foreach (var item in transfer.Items)
+                    await _posCache.InvalidateStockAsync(item.VariantId, transfer.FromLocationId);
+
+            _logger.LogInformation("Stock transfer {TransferId} marked as in-transit; source stock deducted", id);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
 
         return await GetByIdAsync(id);
     }
@@ -231,23 +297,13 @@ public class StockTransferService : IStockTransferService
         if (transfer.Status.ToLower() != "in_transit")
             throw new InvalidOperationException($"Can only receive in-transit transfers. Current status: {transfer.Status}");
 
+        // Source stock was already deducted at SendAsync (in_transit transition).
+        // Here we only add stock to the destination and write transfer_in ledger entries.
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             foreach (var item in transfer.Items)
             {
-                // Deduct from source
-                var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
-                    i.VariantId == item.VariantId &&
-                    i.LocationId == transfer.FromLocationId &&
-                    i.LocationType == transfer.FromLocationType);
-
-                if (sourceInventory == null || sourceInventory.Quantity < item.Quantity)
-                    throw new InvalidOperationException($"Insufficient stock for variant {item.VariantId}");
-
-                sourceInventory.Quantity -= item.Quantity;
-
-                // Add to destination
                 var destInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
                     i.VariantId == item.VariantId &&
                     i.LocationId == transfer.ToLocationId &&
@@ -265,16 +321,33 @@ public class StockTransferService : IStockTransferService
                     _context.Inventories.Add(destInventory);
                 }
                 destInventory.Quantity += item.Quantity;
+
+                _stockLedger.WriteEntry(
+                    variantId: item.VariantId,
+                    locationId: transfer.ToLocationId,
+                    locationType: transfer.ToLocationType,
+                    transactionType: StockLedgerTransactionType.TransferIn,
+                    qtyIn: item.Quantity,
+                    qtyOut: 0,
+                    balanceAfter: destInventory.Quantity,
+                    referenceType: StockLedgerReferenceType.StockTransfer,
+                    referenceId: transfer.Id,
+                    remarks: $"Received from {transfer.FromLocationType} {transfer.FromLocationId}",
+                    createdBy: transfer.CreatedBy);
             }
 
-            // Update transfer status
             transfer.Status = "received";
             _context.StockTransfers.Update(transfer);
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Stock transfer {TransferId} received and stock updated", id);
+            // UPDATED — if destination is an outlet, invalidate its stock hint cache
+            if (transfer.ToLocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase))
+                foreach (var item in transfer.Items)
+                    await _posCache.InvalidateStockAsync(item.VariantId, transfer.ToLocationId);
+
+            _logger.LogInformation("Stock transfer {TransferId} received; destination stock updated", id);
         }
         catch
         {
@@ -297,7 +370,56 @@ public class StockTransferService : IStockTransferService
         if (transfer.Status.ToLower() == "cancelled")
             throw new InvalidOperationException("Transfer is already cancelled");
 
-        await _transferRepository.UpdateStatusAsync(id, "cancelled");
+        // If in_transit, source stock was already deducted at SendAsync — restore it.
+        if (transfer.Status.ToLower() == "in_transit")
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                foreach (var item in transfer.Items)
+                {
+                    var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
+                        i.VariantId == item.VariantId &&
+                        i.LocationId == transfer.FromLocationId &&
+                        i.LocationType == transfer.FromLocationType);
+
+                    if (sourceInventory != null)
+                    {
+                        sourceInventory.Quantity += item.Quantity;
+
+                        _stockLedger.WriteEntry(
+                            variantId: item.VariantId,
+                            locationId: transfer.FromLocationId,
+                            locationType: transfer.FromLocationType,
+                            transactionType: StockLedgerTransactionType.TransferIn,
+                            qtyIn: item.Quantity,
+                            qtyOut: 0,
+                            balanceAfter: sourceInventory.Quantity,
+                            referenceType: StockLedgerReferenceType.StockTransfer,
+                            referenceId: transfer.Id,
+                            remarks: $"Transfer cancelled — stock returned to source. Reason: {reason}",
+                            createdBy: transfer.CreatedBy);
+                    }
+                }
+
+                transfer.Status = "cancelled";
+                _context.StockTransfers.Update(transfer);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+        else
+        {
+            // pending or approved — no inventory was touched, just update status
+            await _transferRepository.UpdateStatusAsync(id, "cancelled");
+        }
+
         _logger.LogInformation("Stock transfer {TransferId} cancelled. Reason: {Reason}", id, reason);
 
         return await GetByIdAsync(id);

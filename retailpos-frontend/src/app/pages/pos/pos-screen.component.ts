@@ -8,10 +8,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 
 import { AuthService } from '../../services/auth.service';
 import { SaleService } from '../../services/sale.service';
+import { PosService } from '../../services/pos.service';
 import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { CartItem, CreateSaleDto, PosProduct } from '../../models/sale.model';
+import {
+  CartItem, CreateSaleDto, CreateSalePaymentDto, HeldSaleDto, PosProduct
+} from '../../models/sale.model';
 import { CustomerDto } from '../../models/customer.model';
 import { environment } from '../../../environments/environment';
 
@@ -30,6 +33,7 @@ interface Category {
 export class PosScreenComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private saleService = inject(SaleService);
+  private posService  = inject(PosService);
   private settingsService = inject(SettingsService);
   private alertService = inject(AlertService);
   private errorHandler = inject(ErrorHandlerService);
@@ -45,17 +49,30 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   selectedCategory = signal<number | null>(null);
   isLoadingProducts = signal(false);
 
+  // Barcode scan
+  barcodeInput = signal('');
+  isBarcodeScanning = signal(false);
+
   // Cart state
   cartItems = signal<CartItem[]>([]);
   discountPercent = signal<number>(0);
   paymentMethod = signal<string>('cash');
   cashTendered = signal<number>(0);
 
+  // Split payment state
+  splitPayments = signal<CreateSalePaymentDto[]>([]);
+  useSplitPayment = signal(false);
+
   // Customer state
   selectedCustomer = signal<CustomerDto | null>(null);
   customerSearchQuery = signal('');
   customerResults = signal<CustomerDto[]>([]);
   showCustomerDropdown = signal(false);
+
+  // Hold/park state
+  showHeldSalesPanel = signal(false);
+  heldSales = this.posService.heldSales;
+  isLoadingHeld = this.posService.isLoadingHeld;
 
   // Processing
   isProcessing = signal(false);
@@ -99,6 +116,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     Math.max(0, Math.round((this.cashTendered() - this.totalAmount()) * 100) / 100)
   );
 
+  splitTotal = computed(() =>
+    this.splitPayments().reduce((s, p) => s + (p.amount || 0), 0)
+  );
+
+  splitRemaining = computed(() =>
+    Math.max(0, Math.round((this.totalAmount() - this.splitTotal()) * 100) / 100)
+  );
+
   private customerSearchSubject = new Subject<string>();
   private subs: Subscription[] = [];
 
@@ -106,6 +131,10 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.loadCategories();
     this.loadProducts();
     this.loadTaxSettings();
+    const user = this.authService.getUserValue();
+    if (user?.outletId) {
+      this.posService.loadHeldSales(user.outletId);
+    }
     this.subs.push(
       this.customerSearchSubject.pipe(
         debounceTime(400),
@@ -208,6 +237,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         variantSku: product.sku,
         quantity: 1,
         unitPrice: product.price,
+        discountAmount: 0,
         subtotal: product.price
       }]);
     }
@@ -250,6 +280,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.selectedCustomer.set(null);
     this.customerSearchQuery.set('');
     this.paymentMethod.set('cash');
+    this.splitPayments.set([]);
+    this.useSplitPayment.set(false);
   }
 
   onCustomerSearch(query: string): void {
@@ -305,10 +337,20 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.paymentMethod() === 'cash' && this.cashTendered() < this.totalAmount()) {
+    if (this.paymentMethod() === 'cash' && !this.useSplitPayment() && this.cashTendered() < this.totalAmount()) {
       this.alertService.error('Cash tendered is less than total amount');
       return;
     }
+
+    if (this.useSplitPayment()) {
+      if (Math.abs(this.splitTotal() - this.totalAmount()) > 0.01) {
+        this.alertService.error(`Split payment total (${this.splitTotal().toFixed(2)}) must equal sale total (${this.totalAmount().toFixed(2)})`);
+        return;
+      }
+    }
+
+    // Generate one-time idempotency key per checkout attempt to prevent double-submit
+    const idempotencyKey = crypto.randomUUID();
 
     const dto: CreateSaleDto = {
       outletId: user.outletId!,
@@ -317,11 +359,15 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       items: this.cartItems().map(i => ({
         variantId: i.variantId,
         quantity: i.quantity,
-        unitPrice: i.unitPrice
+        unitPrice: i.unitPrice,
+        discountAmount: i.discountAmount,
+        appliedRuleName: i.appliedRuleName
       })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
-      paymentMethod: this.paymentMethod()
+      paymentMethod: this.paymentMethod(),
+      idempotencyKey,
+      payments: this.useSplitPayment() ? this.splitPayments() : undefined
     };
 
     this.isProcessing.set(true);
@@ -330,6 +376,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         this.completedSale.set(res.data || res);
         this.showReceiptModal.set(true);
         this.isProcessing.set(false);
+        // Refresh held sales count after a successful sale
+        this.posService.loadHeldSales(user.outletId!);
       },
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -360,5 +408,205 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   onCashTenderedChange(val: string): void {
     const n = parseFloat(val);
     this.cashTendered.set(isNaN(n) ? 0 : n);
+  }
+
+  // ── Barcode Scan ──────────────────────────────────────────────────────────
+
+  onBarcodeInputChange(val: string): void {
+    this.barcodeInput.set(val);
+  }
+
+  /** Called when user presses Enter in the barcode input field. */
+  onBarcodeScan(): void {
+    const code = this.barcodeInput().trim();
+    if (!code) return;
+
+    const user = this.authService.getUserValue();
+    if (!user?.outletId) return;
+
+    this.isBarcodeScanning.set(true);
+    this.posService.lookup(code, user.outletId, 'barcode').subscribe({
+      next: (res) => {
+        const result = res?.data ?? res;
+        if (!result) {
+          this.alertService.error(`Product not found for barcode: ${code}`);
+          this.isBarcodeScanning.set(false);
+          return;
+        }
+        // Inject into cart using the lookup result
+        const product: PosProduct = {
+          variantId: result.variantId,
+          productId: result.productId,
+          name: result.productName + (result.variantName ? ` - ${result.variantName}` : ''),
+          sku: result.sku,
+          price: result.effectivePrice,
+          stockQty: result.stockQty
+        };
+
+        if (!result.inStock) {
+          this.alertService.error(`${product.name} is out of stock`);
+          this.isBarcodeScanning.set(false);
+          return;
+        }
+
+        const items = this.cartItems();
+        const idx = items.findIndex(i => i.variantId === product.variantId);
+        if (idx >= 0) {
+          const updated = [...items];
+          updated[idx] = {
+            ...updated[idx],
+            quantity: updated[idx].quantity + 1,
+            subtotal: (updated[idx].quantity + 1) * updated[idx].unitPrice
+          };
+          this.cartItems.set(updated);
+        } else {
+          this.cartItems.set([...items, {
+            variantId: product.variantId,
+            productName: product.name,
+            variantSku: product.sku,
+            quantity: 1,
+            unitPrice: product.price,
+            discountAmount: 0,
+            subtotal: product.price,
+            appliedRuleName: result.appliedRuleName
+          }]);
+        }
+
+        this.barcodeInput.set('');
+        this.isBarcodeScanning.set(false);
+      },
+      error: () => {
+        this.alertService.error(`No product found for: ${code}`);
+        this.isBarcodeScanning.set(false);
+      }
+    });
+  }
+
+  // ── Hold / Park ───────────────────────────────────────────────────────────
+
+  toggleHeldSalesPanel(): void {
+    const user = this.authService.getUserValue();
+    if (user?.outletId) {
+      this.posService.loadHeldSales(user.outletId);
+    }
+    this.showHeldSalesPanel.update(v => !v);
+  }
+
+  holdSale(): void {
+    if (this.cartItems().length === 0) {
+      this.alertService.error('Cart is empty — nothing to hold');
+      return;
+    }
+    const user = this.authService.getUserValue();
+    if (!user?.outletId) return;
+
+    this.posService.holdSale({
+      outletId: user.outletId,
+      cashierId: user.id,
+      customerId: this.selectedCustomer()?.id,
+      items: this.cartItems().map(i => ({
+        variantId: i.variantId,
+        productName: i.productName,
+        variantSku: i.variantSku,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        discountAmount: i.discountAmount,
+        appliedRuleName: i.appliedRuleName
+      })),
+      discountPercent: this.discountPercent(),
+      paymentMethod: this.paymentMethod()
+    }).subscribe({
+      next: () => {
+        this.alertService.success('Sale held — cart cleared');
+        this.clearCart();
+        this.posService.loadHeldSales(user.outletId!);
+      },
+      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
+    });
+  }
+
+  recallHeldSale(held: HeldSaleDto): void {
+    this.posService.recallHeldSale(held.id).subscribe({
+      next: (res) => {
+        const data: HeldSaleDto = res?.data ?? res;
+        // Restore cart from held sale
+        this.cartItems.set(data.items.map(i => ({
+          variantId: i.variantId,
+          productName: i.productName,
+          variantSku: i.variantSku,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          discountAmount: i.discountAmount,
+          subtotal: i.quantity * i.unitPrice - i.discountAmount,
+          appliedRuleName: i.appliedRuleName
+        })));
+        this.discountPercent.set(data.discountPercent);
+        this.paymentMethod.set(data.paymentMethod);
+        this.showHeldSalesPanel.set(false);
+
+        // Delete the held sale now that it's been recalled
+        this.posService.discardHeldSale(held.id).subscribe();
+        const user = this.authService.getUserValue();
+        if (user?.outletId) this.posService.loadHeldSales(user.outletId);
+      },
+      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
+    });
+  }
+
+  discardHeldSale(held: HeldSaleDto): void {
+    this.posService.discardHeldSale(held.id).subscribe({
+      next: () => {
+        const user = this.authService.getUserValue();
+        if (user?.outletId) this.posService.loadHeldSales(user.outletId);
+      },
+      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
+    });
+  }
+
+  // ── Split Payment ─────────────────────────────────────────────────────────
+
+  toggleSplitPayment(): void {
+    this.useSplitPayment.update(v => !v);
+    if (this.useSplitPayment()) {
+      // Seed with single full payment as a starting point
+      this.splitPayments.set([{ method: this.paymentMethod(), amount: this.totalAmount() }]);
+    } else {
+      this.splitPayments.set([]);
+    }
+  }
+
+  addSplitRow(): void {
+    const remaining = this.splitRemaining();
+    this.splitPayments.update(rows => [...rows, { method: 'cash', amount: remaining }]);
+  }
+
+  removeSplitRow(index: number): void {
+    this.splitPayments.update(rows => rows.filter((_, i) => i !== index));
+  }
+
+  updateSplitMethod(index: number, method: string): void {
+    this.splitPayments.update(rows => {
+      const updated = [...rows];
+      updated[index] = { ...updated[index], method };
+      return updated;
+    });
+  }
+
+  updateSplitAmount(index: number, val: string): void {
+    const n = parseFloat(val);
+    this.splitPayments.update(rows => {
+      const updated = [...rows];
+      updated[index] = { ...updated[index], amount: isNaN(n) ? 0 : n };
+      return updated;
+    });
+  }
+
+  updateSplitTendered(index: number, val: string): void {
+    const n = parseFloat(val);
+    this.splitPayments.update(rows => {
+      const updated = [...rows];
+      updated[index] = { ...updated[index], tendered: isNaN(n) ? undefined : n };
+      return updated;
+    });
   }
 }

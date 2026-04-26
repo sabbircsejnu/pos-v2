@@ -15,17 +15,20 @@ public class GrnService : IGrnService
     private readonly IPurchaseOrderRepository _purchaseOrderRepository;
     private readonly RetailPOSDbContext _context;
     private readonly ILogger<GrnService> _logger;
+    private readonly IStockLedgerService _stockLedger; // UPDATED
 
     public GrnService(
         IGrnRepository grnRepository,
         IPurchaseOrderRepository purchaseOrderRepository,
         RetailPOSDbContext context,
-        ILogger<GrnService> logger)
+        ILogger<GrnService> logger,
+        IStockLedgerService stockLedger) // UPDATED
     {
         _grnRepository = grnRepository;
         _purchaseOrderRepository = purchaseOrderRepository;
         _context = context;
         _logger = logger;
+        _stockLedger = stockLedger; // UPDATED
     }
 
     public async Task<GrnDto> GetByIdAsync(long id)
@@ -71,25 +74,50 @@ public class GrnService : IGrnService
         if (po == null)
             throw new KeyNotFoundException($"Purchase order with ID {dto.PoId} not found");
 
-        if (po.Status.ToLower() != "approved")
-            throw new InvalidOperationException($"Can only create GRN for approved purchase orders. Current status: {po.Status}");
+        // UPDATED: allow repeat GRNs on partially-received POs
+        var poStatus = po.Status.ToLower();
+        if (poStatus != "approved" && poStatus != "partial")
+            throw new InvalidOperationException(
+                $"Can only create a GRN for an approved or partially-received purchase order. " +
+                $"Current status: {po.Status}");
 
         // Validate each PO item exists in this PO
-        var poItemIds = po.Items.Select(i => i.Id).ToHashSet();
+        var poItemMap = po.Items.ToDictionary(i => i.Id);
         foreach (var item in dto.Items)
         {
-            if (!poItemIds.Contains(item.PoItemId))
-                throw new InvalidOperationException($"PO item with ID {item.PoItemId} does not belong to purchase order {dto.PoId}");
+            if (!poItemMap.ContainsKey(item.PoItemId))
+                throw new InvalidOperationException(
+                    $"PO item with ID {item.PoItemId} does not belong to purchase order {dto.PoId}");
 
             if (item.ReceivedQty <= 0)
-                throw new InvalidOperationException($"Received quantity for PO item {item.PoItemId} must be greater than zero");
+                throw new InvalidOperationException(
+                    $"Received quantity for PO item {item.PoItemId} must be greater than zero");
         }
 
-        // Determine status: partial if any item received less than ordered, full otherwise
+        // UPDATED: over-receive guard — total received (previous completed GRNs + this GRN)
+        //  must not exceed the ordered quantity per PO item.
+        var previouslyReceivedByPoItem = await _context.GrnItems
+            .Where(gi => gi.Grn.PoId == dto.PoId && gi.Grn.Status == "completed")
+            .GroupBy(gi => gi.PoItemId)
+            .ToDictionaryAsync(g => g.Key, g => g.Sum(gi => gi.ReceivedQty));
+
+        foreach (var item in dto.Items)
+        {
+            var poItem = poItemMap[item.PoItemId];
+            var previously = previouslyReceivedByPoItem.GetValueOrDefault(item.PoItemId, 0);
+            var totalAfter = previously + item.ReceivedQty;
+            if (totalAfter > poItem.Quantity)
+                throw new InvalidOperationException(
+                    $"Over-receiving not allowed for PO item {item.PoItemId} " +
+                    $"(ordered: {poItem.Quantity}, already received: {previously}, " +
+                    $"this GRN: {item.ReceivedQty}, total would be: {totalAfter})");
+        }
+
+        // Determine status: partial if any item received less than ordered in this receipt
         var status = "full";
         foreach (var item in dto.Items)
         {
-            var poItem = po.Items.First(i => i.Id == item.PoItemId);
+            var poItem = poItemMap[item.PoItemId];
             if (item.ReceivedQty < poItem.Quantity)
             {
                 status = "partial";
@@ -102,11 +130,15 @@ public class GrnService : IGrnService
             PoId = dto.PoId,
             ReceivedDate = DateTime.SpecifyKind(dto.ReceivedDate, DateTimeKind.Utc),
             Status = status,
+            Notes = dto.Notes,                              // NEW
             CreatedBy = userId,
             Items = dto.Items.Select(i => new GrnItem
             {
                 PoItemId = i.PoItemId,
-                ReceivedQty = i.ReceivedQty
+                ReceivedQty = i.ReceivedQty,
+                // UPDATED: use caller-supplied cost or fall back to PO item price
+                UnitCost = i.UnitCost ?? poItemMap[i.PoItemId].UnitPrice,  // NEW
+                Notes = i.Notes                                              // NEW
             }).ToList()
         };
 
@@ -134,7 +166,7 @@ public class GrnService : IGrnService
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            // Update inventory for each received item
+            // UPDATED — Update inventory + write ledger entry for each received item
             foreach (var item in grn.Items)
             {
                 var variantId = item.PurchaseOrderItem.VariantId;
@@ -160,6 +192,20 @@ public class GrnService : IGrnService
                 {
                     inventory.Quantity += item.ReceivedQty;
                 }
+
+                // NEW — ledger entry (queued; saved atomically with SaveChangesAsync below)
+                _stockLedger.WriteEntry(
+                    variantId: variantId,
+                    locationId: warehouseId,
+                    locationType: "warehouse",
+                    transactionType: RetailPOS.Core.Entities.StockLedgerTransactionType.Grn,
+                    qtyIn: item.ReceivedQty,
+                    qtyOut: 0,
+                    balanceAfter: inventory.Quantity,
+                    referenceType: RetailPOS.Core.Entities.StockLedgerReferenceType.Grn,
+                    referenceId: grn.Id,
+                    remarks: $"GRN completion — PO-{grn.PoId:D6}",
+                    createdBy: grn.CreatedBy);
             }
 
             // Mark GRN as completed
@@ -263,6 +309,51 @@ public class GrnService : IGrnService
         };
     }
 
+    // NEW: cumulative variance across ALL GRNs for a PO
+    public async Task<GrnPoVarianceDto> GetPoVarianceAsync(long poId)
+    {
+        var po = await _purchaseOrderRepository.GetByIdAsync(poId);
+        if (po == null)
+            throw new KeyNotFoundException($"Purchase order with ID {poId} not found");
+
+        var allGrns = await _grnRepository.GetPoGrnsWithItemsAsync(poId);
+
+        // Aggregate received quantities and cost across all completed GRNs per PO item
+        var receivedByPoItem = allGrns
+            .Where(g => g.Status == "completed")
+            .SelectMany(g => g.Items)
+            .GroupBy(i => i.PoItemId)
+            .ToDictionary(
+                g => g.Key,
+                g => (Qty: g.Sum(i => i.ReceivedQty), Cost: g.Sum(i => i.ReceivedQty * i.UnitCost)));
+
+        var varianceItems = po.Items.Select(poItem =>
+        {
+            receivedByPoItem.TryGetValue(poItem.Id, out var received);
+            return new GrnPoVarianceItemDto
+            {
+                PoItemId = poItem.Id,
+                VariantId = poItem.VariantId,
+                ProductName = poItem.Variant?.Product?.Name ?? string.Empty,
+                VariantName = poItem.Variant?.Name ?? string.Empty,
+                OrderedQty = poItem.Quantity,
+                TotalReceivedQty = received.Qty,
+                UnitPrice = poItem.UnitPrice,
+                TotalReceivedCost = received.Cost
+            };
+        }).ToList();
+
+        return new GrnPoVarianceDto
+        {
+            PoId = po.Id,
+            PoOrderNumber = $"PO-{po.Id:D6}",
+            PoStatus = po.Status,
+            TotalGrns = allGrns.Count,
+            CompletedGrns = allGrns.Count(g => g.Status == "completed"),
+            Items = varianceItems
+        };
+    }
+
     private static GrnDto MapToDto(Grn grn)
     {
         return new GrnDto
@@ -276,6 +367,7 @@ public class GrnService : IGrnService
             WarehouseName = grn.PurchaseOrder?.Warehouse?.Name ?? string.Empty,
             ReceivedDate = grn.ReceivedDate,
             Status = grn.Status,
+            Notes = grn.Notes,                             // NEW
             CreatedBy = grn.CreatedBy,
             CreatedByName = grn.Creator?.Name,
             CreatedAt = grn.CreatedAt,
@@ -289,7 +381,9 @@ public class GrnService : IGrnService
                 VariantAttributes = i.PurchaseOrderItem?.Variant?.Attributes,
                 OrderedQty = i.PurchaseOrderItem?.Quantity ?? 0,
                 ReceivedQty = i.ReceivedQty,
-                UnitPrice = i.PurchaseOrderItem?.UnitPrice ?? 0
+                UnitPrice = i.PurchaseOrderItem?.UnitPrice ?? 0,
+                UnitCost = i.UnitCost,                     // NEW
+                Notes = i.Notes                            // NEW
             }).ToList() ?? new List<GrnItemDto>()
         };
     }

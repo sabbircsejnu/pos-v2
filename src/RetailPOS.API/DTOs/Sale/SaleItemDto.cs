@@ -8,5 +8,7 @@ public class SaleItemDto
     public string VariantSku { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
+    public decimal DiscountAmount { get; set; }      // UPDATED — line-level discount
     public decimal Subtotal { get; set; }
+    public string? AppliedRuleName { get; set; }     // UPDATED — winning discount rule name
 }

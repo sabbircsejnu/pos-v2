@@ -87,11 +87,22 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.ISaleRepository, RetailPOS.Infrastructure.Repositories.SaleRepository>();
 builder.Services.AddScoped<ISaleService, SaleService>();
 
+// NEW — Hold/Park Sale
+builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IHeldSaleRepository, RetailPOS.Infrastructure.Repositories.HeldSaleRepository>();
+builder.Services.AddScoped<IHeldSaleService, HeldSaleService>();
+
+// NEW — Sale event hook (default in-process publisher; extend by registering ISaleCompletedHandler)
+builder.Services.AddScoped<ISaleEventPublisher, LoggingSaleEventPublisher>();
+
 // Stock Movement
 builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IStockTransferRepository, RetailPOS.Infrastructure.Repositories.StockTransferRepository>();
 builder.Services.AddScoped<IStockTransferService, StockTransferService>();
 builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IStockAdjustmentRepository, RetailPOS.Infrastructure.Repositories.StockAdjustmentRepository>();
 builder.Services.AddScoped<IStockAdjustmentService, StockAdjustmentService>();
+
+// Stock Ledger  // NEW
+builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IStockLedgerRepository, RetailPOS.Infrastructure.Repositories.StockLedgerRepository>();
+builder.Services.AddScoped<IStockLedgerService, StockLedgerService>();
 
 // Accounting
 builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IAccountRepository, RetailPOS.Infrastructure.Repositories.AccountRepository>();
@@ -106,6 +117,33 @@ builder.Services.AddScoped<IBillService, BillService>();
 // Reports
 builder.Services.AddScoped<ISalesReportService, SalesReportService>();
 builder.Services.AddScoped<IInventoryReportService, InventoryReportService>();
+
+// Pricing Engine
+builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IPriceRuleRepository, RetailPOS.Infrastructure.Repositories.PriceRuleRepository>();
+builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IOutletPriceOverrideRepository, RetailPOS.Infrastructure.Repositories.OutletPriceOverrideRepository>();
+builder.Services.AddScoped<IPricingService, PricingService>();
+
+// NEW — POS Performance & Concurrency Layer
+// Register IDistributedCache: Redis when a connection string is configured,
+// in-memory distributed cache otherwise (safe fallback for local dev / CI).
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration  = redisConnectionString;
+        options.InstanceName   = "pos:";
+    });
+}
+else
+{
+    // Fallback: in-memory distributed cache — functionally identical, not shared across
+    // API instances. Sufficient for single-instance dev/CI; use Redis in production.
+    builder.Services.AddDistributedMemoryCache();
+}
+
+builder.Services.AddSingleton<IPosCacheService, PosCacheService>();
+builder.Services.AddScoped<IPosLookupService,  PosLookupService>();
 
 // Settings
 builder.Services.AddSingleton<ISettingsService, SettingsService>();

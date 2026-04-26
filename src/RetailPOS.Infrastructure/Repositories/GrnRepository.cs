@@ -129,6 +129,7 @@ public class GrnRepository : IGrnRepository
         return true;
     }
 
+    // UPDATED: also returns "partial" POs so a second GRN can be raised on partially received POs
     public async Task<List<PurchaseOrder>> GetPendingReceiptPOsAsync()
     {
         return await _context.PurchaseOrders
@@ -137,8 +138,21 @@ public class GrnRepository : IGrnRepository
             .Include(po => po.Items)
                 .ThenInclude(i => i.Variant)
                     .ThenInclude(v => v.Product)
-            .Where(po => po.Status.ToLower() == "approved")
+            .Where(po => po.Status.ToLower() == "approved" || po.Status.ToLower() == "partial")
             .OrderBy(po => po.OrderDate)
+            .ToListAsync();
+    }
+
+    // NEW: all GRNs for a PO with full item navigation (for cumulative variance report)
+    public async Task<List<Grn>> GetPoGrnsWithItemsAsync(long poId)
+    {
+        return await _context.Grns
+            .Include(g => g.Items)
+                .ThenInclude(i => i.PurchaseOrderItem)
+                    .ThenInclude(poi => poi.Variant)
+                        .ThenInclude(v => v.Product)
+            .Where(g => g.PoId == poId)
+            .OrderBy(g => g.CreatedAt)
             .ToListAsync();
     }
 }

@@ -12,4 +12,7 @@ public interface ISaleRepository
     Task<IEnumerable<Sale>> GetTodaysSalesAsync(long? outletId = null);
     Task<Sale> CreateAsync(Sale sale);
     Task<Sale> UpdateAsync(Sale sale);
+
+    // UPDATED — idempotency check: returns the existing sale if the key was already used
+    Task<Sale?> FindByIdempotencyKeyAsync(long outletId, string idempotencyKey);
 }

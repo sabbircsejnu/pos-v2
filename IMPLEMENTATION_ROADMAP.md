@@ -30,22 +30,26 @@
 
 ### Current Phase Status
 ```
-Foundation:          ✅ Complete (Models & Migrations)
-Authentication:      ✅ Complete (Phase 1.1)
-User & Role Mgmt:    ✅ Complete (Phase 1.2 + 1.3)
-Navigation System:   ✅ Complete (Phase 1.4)
-Modern UI Design:    ✅ Complete (Black & White Theme, Compact Layout)
-Master Data:         ✅ Complete (Phase 2 - Outlets/Warehouses/Categories/Suppliers)
-Product Management:  ✅ Complete (Phase 3.1 - Products with Basic Variants)
-Inventory:           ✅ Complete (Phase 3.2 - Stock Tracking, Alerts, Valuation)
-Advanced Variations: ✅ Complete (Phase 3.3 - Variation Templates & Options)
-Supplier Management: ✅ Complete (Phase 2.3 - Credit Health, Performance Metrics)
-Purchase Orders:     🟦 In Progress (Phase 4.1 - Backend Complete, Frontend In Progress)
-POS & Sales:         ⬜ Not Started (Phase 5)
-Stock Movement:      ⬜ Not Started (Phase 6)
-Accounting:          ⬜ Not Started (Phase 7)
-Reporting:           ⬜ Not Started (Phase 8)
-Testing:             ⬜ Not Started (Phase 10)
+Foundation:              ✅ Complete
+Authentication:          ✅ Complete
+User & Role Mgmt:        ✅ Complete
+Navigation System:       ✅ Complete
+Master Data:             ✅ Complete
+Product Management:      ✅ Complete
+Inventory:               ✅ Complete
+Advanced Variations:     ✅ Complete
+Purchase Orders:         🟦 In Progress
+Pricing Engine:          ⬜ Not Started (NEW)
+Stock Ledger:            ⬜ Not Started (NEW)
+GRN & Receiving:         ⬜ Not Started
+POS Performance Layer:   ⬜ Not Started (NEW)
+POS & Sales:             ⬜ Not Started
+Returns & Exchanges:     ⬜ Not Started (NEW)
+Stock Movement:          ⬜ Not Started
+Accounting:              ⬜ Not Started
+Reporting & Dashboard:   ⬜ Not Started
+Audit & Settings:        ⬜ Not Started
+Testing & Deployment:    ⬜ Not Started
 ```
 
 ---
@@ -272,6 +276,9 @@ Implemented a modern, responsive navigation system with:
 - Top menu bar with parent menus and dropdowns
 - Left sidebar showing child menus
 - Persistent across all authenticated pages
+- [ ] Permission-based menu filtering
+- [ ] Button-level permission directives/components
+- [ ] Route + component-level permission enforcement consistency check
 
 #### Components Created
 - [x] `LayoutComponent` - Main wrapper combining navbar, sidebar, and content
@@ -506,6 +513,23 @@ Implemented a modern, responsive navigation system with:
 
 #### Documentation
 - [x] Complete documentation in `PHASE_2_3_COMPLETE.md` (850 LOC)
+
+### ⬜ Priority 2.4: Role-Based UI Permission Layer (NEW)
+**Status:** Not Started  
+**Duration:** 2 days  
+**Priority:** 🔴 Critical
+
+#### Frontend Tasks
+- [ ] Hide menus based on permission map
+- [ ] Hide action buttons (create/edit/delete/approve)
+- [ ] Add reusable permission directive/helper
+- [ ] Prevent unauthorized view rendering even if route is manually accessed
+- [ ] Align UI permissions with backend policies
+
+#### Testing Checklist
+- [ ] Cashier cannot access admin routes
+- [ ] Stock manager sees only relevant actions
+- [ ] Direct URL navigation blocked correctly
 
 ---
 
@@ -757,6 +781,93 @@ This phase focused on creating a sophisticated system for managing product varia
 - Reusable across multiple products
 - Navigation menu integration
 
+
+### ⬜ Priority 3.4: Pricing Engine (NEW)
+**Status:** Not Started  
+**Duration:** 1 week  
+**Priority:** 🔴 Critical
+
+#### Objective
+Centralize all pricing logic so POS, reporting, offers, and outlet-based pricing use the same rules.
+
+#### Backend Tasks
+- [ ] Create `IPriceService` and implementation
+- [ ] Create pricing rule entities/tables:
+  - [ ] `PriceRule`
+  - [ ] `OutletPriceOverride`
+  - [ ] `CampaignPriceRule`
+  - [ ] `CustomerTypePriceRule` (optional for wholesale/future)
+- [ ] Support pricing inputs:
+  - [ ] Base price
+  - [ ] Variant adjustment
+  - [ ] Outlet override/margin
+  - [ ] Discount rule
+  - [ ] Campaign/seasonal offer
+- [ ] Create DTOs:
+  - [ ] `PriceCalculationRequestDto`
+  - [ ] `PriceCalculationResponseDto`
+  - [ ] `PriceRuleDto`
+- [ ] Add APIs:
+  - [ ] `GET /api/pricing/calculate`
+  - [ ] `GET /api/pricing/product/{variantId}`
+  - [ ] `POST /api/pricing/rules`
+  - [ ] `PUT /api/pricing/rules/{id}`
+- [ ] Add validity range support (`ValidFrom`, `ValidTo`)
+- [ ] Add rule priority resolution
+- [ ] Add pricing cache with Redis
+
+#### Frontend Tasks
+- [ ] Create pricing rule management page
+- [ ] Show effective price breakdown in product/POS screens
+- [ ] Show campaign badge / override label where applicable
+
+#### Testing Checklist
+- [ ] Base + variant price works
+- [ ] Outlet-specific pricing works
+- [ ] Campaign price overrides standard price
+- [ ] Expired discount no longer applies
+- [ ] Same pricing result returned across POS and reports
+
+### ⬜ Priority 3.5: Stock Ledger System (NEW)
+**Status:** Not Started  
+**Duration:** 4 days  
+**Priority:** 🔴 Critical
+
+#### Objective
+Maintain a full transaction-level history of all stock movement.
+
+#### Backend Tasks
+- [ ] Create `StockLedger` entity/table with fields:
+  - [ ] `Id`
+  - [ ] `ProductVariantId`
+  - [ ] `LocationId`
+  - [ ] `LocationType`
+  - [ ] `TransactionType` (GRN, Sale, TransferOut, TransferIn, Adjustment, Return, Exchange)
+  - [ ] `QtyIn`
+  - [ ] `QtyOut`
+  - [ ] `BalanceAfter`
+  - [ ] `ReferenceType`
+  - [ ] `ReferenceId`
+  - [ ] `Remarks`
+  - [ ] `CreatedBy`
+  - [ ] `CreatedAt`
+- [ ] Create `IStockLedgerRepository` and service
+- [ ] Insert ledger rows from all stock-affecting modules
+- [ ] Add stock movement query APIs
+- [ ] Add reconciliation helpers
+
+#### Frontend Tasks
+- [ ] Create stock ledger viewer
+- [ ] Add filters by product, location, type, date
+- [ ] Add movement history tab from inventory detail page
+
+#### Testing Checklist
+- [ ] GRN inserts ledger rows
+- [ ] Sale inserts ledger rows
+- [ ] Adjustment inserts ledger rows
+- [ ] Transfer inserts both outbound and inbound rows
+- [ ] BalanceAfter matches inventory state
+
 ---
 
 ## 🗺️ PHASE 4: Procurement & Receiving (Week 7-8)
@@ -855,26 +966,31 @@ This phase focused on creating a sophisticated system for managing product varia
 
 #### Backend Tasks
 - [ ] Create repositories:
-  - [ ] `IGrnRepository` and implementation
-  - [ ] `IGrnItemRepository` and implementation
+- [ ] `IGrnRepository` and implementation
+- [ ] `IGrnItemRepository` and implementation
 - [ ] Create `IGrnService` and implementation
 - [ ] Implement stock auto-update on GRN completion
 - [ ] Create DTOs:
-  - [ ] `GrnDto`
-  - [ ] `CreateGrnDto`
-  - [ ] `GrnItemDto`
-  - [ ] `VarianceReportDto`
+- [ ] `GrnDto`
+- [ ] `CreateGrnDto`
+- [ ] `GrnItemDto`
+- [ ] `VarianceReportDto`
 - [ ] Create `GrnsController`:
-  - [ ] `GET /api/grns`
-  - [ ] `GET /api/grns/{id}`
-  - [ ] `POST /api/grns` (from PO)
-  - [ ] `PUT /api/grns/{id}`
-  - [ ] `POST /api/grns/{id}/complete`
-  - [ ] `GET /api/grns/pending-pos` (POs awaiting receipt)
-  - [ ] `GET /api/grns/{id}/variance` (ordered vs received)
+- [ ] `GET /api/grns`
+- [ ] `GET /api/grns/{id}`
+- [ ] `POST /api/grns` (from PO)
+- [ ] `PUT /api/grns/{id}`
+- [ ] `POST /api/grns/{id}/complete`
+- [ ] `GET /api/grns/pending-pos` (POs awaiting receipt)
+- [ ] `GET /api/grns/{id}/variance` (ordered vs received)
 - [ ] Handle partial receipts (update PO status accordingly)
 - [ ] Update inventory on GRN completion
 - [ ] Create bill from GRN
+- [ ] Insert Stock Ledger records on GRN completion
+- [ ] Support partial receipt and backorder tracking
+- [ ] Recalculate PO status accurately (Partial Received / Fully Received)
+- [ ] Trigger inventory cache invalidation
+- [ ] Publish `GRNCompleted` event for accounting integration
 
 #### Frontend Tasks
 - [ ] Create models: `grn.model.ts`
@@ -950,12 +1066,45 @@ This phase focused on creating a sophisticated system for managing product varia
 
 ---
 
-### ⬜ Priority 5.2: POS Sales Module (Core Feature)
+### ⬜ Priority 5.2: POS Performance & Concurrency Layer (NEW)
+**Status:** Not Started  
+**Duration:** 4 days  
+**Priority:** 🔴 Critical
+
+#### Objective
+Prepare the system for real POS load before building the main sales screen.
+
+#### Backend Tasks
+- [ ] Add Redis cache for barcode/product lookup
+- [ ] Add Redis cache for effective price lookup
+- [ ] Define stock concurrency strategy:
+  - [ ] Optimistic concurrency token OR row version
+  - [ ] Reservation-based approach for cart/hold sale if needed
+- [ ] Add cache invalidation rules on stock or price changes
+- [ ] Add POS-focused lightweight product lookup endpoint
+
+#### Frontend Tasks
+- [ ] Preload fast-moving products/categories
+- [ ] Optimize cart with in-memory Angular Signals
+- [ ] Reduce unnecessary API chatter during scanning
+- [ ] Add graceful retry messaging for concurrency conflicts
+
+#### Testing Checklist
+- [ ] Same item scanned rapidly by multiple terminals
+- [ ] Concurrency conflict handled without silent oversell
+- [ ] Barcode lookup returns under target response time
+- [ ] Cache refresh works after stock changes
+
+### ⬜ Priority 5.3: POS Sales Module (Core Feature)
 **Status:** Not Started  
 **Duration:** 2 weeks  
 **Priority:** 🔴 CRITICAL
 
 #### Backend Tasks
+- [ ] Insert Stock Ledger rows on sale
+- [ ] Publish `SaleCompleted` event
+- [ ] Create accounting transaction trigger via event, not direct hard coupling
+- [ ] Add held/parked sale entity if needed
 - [ ] Create repositories:
   - [ ] `ISaleRepository` and implementation
   - [ ] `ISaleItemRepository` and implementation
@@ -1046,6 +1195,8 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Create receipt template (HTML)
 
 #### Testing Checklist
+- [ ] Duplicate submit prevention works
+- [ ] Sale creates stock ledger + accounting event
 - [ ] Scan product barcode
 - [ ] Add product to cart manually
 - [ ] Select variant (size/color)
@@ -1061,6 +1212,67 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Run end-of-day report
 
 ---
+
+### ⬜ Priority 5.4: Offline POS Support (NEW)
+**Status:** Not Started  
+**Duration:** 4 days  
+**Priority:** 🟠 High
+
+#### Objective
+Allow limited POS operation during temporary connectivity issues.
+
+#### Frontend Tasks
+- [ ] Store offline cart/sales queue in IndexedDB
+- [ ] Add online/offline indicator
+- [ ] Add sync queue status
+- [ ] Prevent unsupported actions when offline
+
+#### Backend / Sync Tasks
+- [ ] Add sale sync endpoint for offline-created transactions
+- [ ] Add conflict handling rules
+- [ ] Add duplicate sync protection with client transaction ID
+
+#### Testing Checklist
+- [ ] Create sale offline
+- [ ] Restore connection and sync successfully
+- [ ] Duplicate sync prevented
+- [ ] Out-of-stock conflict handled visibly
+
+### ⬜ Priority 5.5: Return & Exchange Module (NEW)
+**Status:** Not Started  
+**Duration:** 1 week  
+**Priority:** 🔴 Critical
+
+#### Objective
+Support apparel retail workflows such as size exchange and partial return.
+
+#### Backend Tasks
+- [ ] Create `SalesReturn` and related items entity
+- [ ] Create exchange workflow logic
+- [ ] APIs:
+  - [ ] `POST /api/sales/{id}/return`
+  - [ ] `POST /api/sales/{id}/exchange`
+  - [ ] `GET /api/sales/{id}/return-history`
+- [ ] Support:
+  - [ ] Partial return
+  - [ ] Full return
+  - [ ] Size/color exchange
+  - [ ] Refund to original / store credit
+  - [ ] Optional restocking fee
+- [ ] Insert Stock Ledger rows
+- [ ] Publish return/exchange accounting events
+
+#### Frontend Tasks
+- [ ] Return UI from sale details
+- [ ] Exchange flow with variant selector
+- [ ] Refund summary preview
+- [ ] Restocking fee entry if applicable
+
+#### Testing Checklist
+- [ ] Partial return updates stock and totals
+- [ ] Exchange deducts new item and re-adds old item
+- [ ] Return affects reports correctly
+- [ ] Ledger reflects return/exchange correctly
 
 ## 🗺️ PHASE 6: Stock Movement (Week 12-13)
 
@@ -1158,6 +1370,26 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Create negative adjustment
 - [ ] Verify stock updated immediately
 - [ ] View adjustment history
+
+### ⬜ Priority 6.3: Multi-Outlet Sync Strategy (NEW)
+**Status:** Not Started  
+**Duration:** 3 days  
+**Priority:** 🟠 High
+
+#### Objective
+Ensure stock and movement consistency across multiple outlets and warehouse nodes.
+
+#### Tasks
+- [ ] Define source-of-truth rules for outlet/warehouse inventory
+- [ ] Publish stock change events from all movement modules
+- [ ] Add eventual consistency design note
+- [ ] Add retry/reconciliation background jobs
+- [ ] Add mismatch detection report
+
+#### Testing Checklist
+- [ ] Transfer updates destination visibility correctly
+- [ ] Delayed event processing reconciles successfully
+- [ ] Stock mismatch report identifies broken cases
 
 ---
 
@@ -1274,6 +1506,31 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Create expense
 - [ ] View overdue bills
 
+
+### ⬜ Priority 7.4: Event-Based Accounting Integration (NEW)
+**Status:** Not Started  
+**Duration:** 3 days  
+**Priority:** 🔴 Critical
+
+#### Objective
+Keep sales/procurement operational modules decoupled from accounting through asynchronous events.
+
+#### Tasks
+- [ ] Add Outbox table/process if not already present in this solution
+- [ ] Publish events:
+  - [ ] `SaleCompleted`
+  - [ ] `GRNCompleted`
+  - [ ] `SalesReturnCompleted`
+  - [ ] `PaymentReceived`
+  - [ ] `StockAdjustmentCompleted`
+- [ ] Create accounting event consumer
+- [ ] Map business events to journal entries
+- [ ] Add idempotency handling for duplicate message delivery
+
+#### Testing Checklist
+- [ ] Sale creates journal entries asynchronously
+- [ ] GRN creates inventory/payable entry
+- [ ] Duplicate message does not create duplicate accounting entries
 ---
 
 ## 🗺️ PHASE 8: Reporting & Analytics (Week 16-17)
@@ -1397,6 +1654,29 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Analyze supplier performance
 - [ ] View pending transfers
 
+### ⬜ Priority 8.5: Real-Time Operations Dashboard (NEW)
+**Status:** Not Started  
+**Duration:** 3 days  
+**Priority:** 🟠 High
+
+#### Features
+- [ ] Today sales summary
+- [ ] Sales by outlet (today)
+- [ ] Top products today
+- [ ] Active POS terminals / cashiers
+- [ ] Low stock alerts
+- [ ] Pending approvals / pending GRNs
+- [ ] Stock mismatch warnings (future)
+
+#### Backend Tasks
+- [ ] Lightweight summary endpoints
+- [ ] Aggregated cache strategy for dashboard widgets
+
+#### Frontend Tasks
+- [ ] Dashboard cards
+- [ ] Mini charts
+- [ ] Auto-refresh logic
+
 ---
 
 ## 🗺️ PHASE 9: Audit & System Settings (Week 18)
@@ -1407,6 +1687,8 @@ This phase focused on creating a sophisticated system for managing product varia
 **Priority:** 🟠 High
 
 #### Backend Tasks
+- [ ] Include request correlation / trace ID
+- [ ] Add stock and pricing changes to audit scope
 - [ ] Create `IAuditLogRepository` and implementation
 - [ ] Implement audit logging interceptor/middleware
 - [ ] Create `AuditLogsController`:
@@ -1470,6 +1752,9 @@ This phase focused on creating a sophisticated system for managing product varia
   - [ ] Printer configuration
   - [ ] Barcode scanner settings
   - [ ] Cash drawer settings
+  - [ ] Hardware settings per outlet/device
+  - [ ] Receipt layout versioning
+  - [ ] Barcode scanner profiles
 
 #### Testing Checklist
 - [ ] Update company profile
@@ -1518,6 +1803,11 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] E2E critical flows tested
 - [ ] Performance benchmarks met
 - [ ] Security vulnerabilities addressed
+- [ ] Load testing for POS endpoints
+- [ ] Concurrency testing for stock deduction
+- [ ] Duplicate submit testing
+- [ ] Offline sync conflict testing
+- [ ] Security testing for permission bypass attempts
 
 ---
 
@@ -1580,6 +1870,20 @@ This phase focused on creating a sophisticated system for managing product varia
 - [ ] Backups scheduled
 - [ ] Monitoring active
 - [ ] Documentation complete
+
+
+### ⬜ Priority 10.3: Security Hardening (NEW)
+**Status:** Not Started  
+**Duration:** 2 days  
+**Priority:** 🔴 Critical
+
+#### Tasks
+- [ ] Move secrets to secure storage
+- [ ] Device/IP restrictions for POS terminals where applicable
+- [ ] Tighten token lifetime and refresh flow
+- [ ] Review CORS and origin restrictions
+- [ ] Add rate limiting for auth and critical endpoints
+- [ ] Mask sensitive data in logs
 
 ---
 
@@ -1703,5 +2007,7 @@ This phase focused on creating a sophisticated system for managing product varia
 ---
 
 **Next Action:** 
-- **Option 1:** Phase 2.3 - Supplier Management (3 days, needed for Purchase Orders)
-- **Option 2:** Phase 3.1 - Product Management (1.5 weeks, CRITICAL for POS - **RECOMMENDED**)
+- **Immediate:** Finish Phase 4.1 frontend and complete Phase 4.2 GRN
+- **Then:** Implement Phase 3.5 Pricing Engine + Phase 3.6 Stock Ledger
+- **Then:** Build Phase 5.2 POS Performance Layer
+- **Then:** Start Phase 5.3 POS Sales Module

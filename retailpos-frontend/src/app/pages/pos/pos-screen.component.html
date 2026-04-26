@@ -1,6 +1,25 @@
 <div class="pos-wrapper">
   <!-- LEFT PANEL: Products -->
   <div class="pos-left">
+    <!-- Barcode Scan Input -->
+    <div class="barcode-row">
+      <div class="relative flex-1">
+        <i class="fas fa-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <input
+          type="text"
+          placeholder="Scan barcode or enter SKU + Enter..."
+          class="input pl-9"
+          [ngModel]="barcodeInput()"
+          (ngModelChange)="onBarcodeInputChange($event)"
+          (keydown.enter)="onBarcodeScan()"
+          [disabled]="isBarcodeScanning()"
+        />
+      </div>
+      @if (isBarcodeScanning()) {
+        <i class="fas fa-spinner fa-spin text-gray-400 ml-2"></i>
+      }
+    </div>
+
     <!-- Search Bar -->
     <div class="pos-search-bar">
       <div class="relative">
@@ -83,6 +102,31 @@
           <span class="cart-count">{{ cartItems().length }}</span>
         }
       </h2>
+      <div class="flex items-center gap-2">
+        <!-- Hold sale button (only when cart has items) -->
+        @if (cartItems().length > 0) {
+          <button
+            class="btn btn-sm btn-outline text-xs"
+            title="Hold / Park cart"
+            (click)="holdSale()"
+          >
+            <i class="fas fa-pause-circle mr-1"></i>Hold
+          </button>
+        }
+        <!-- Parked sales panel toggle -->
+        <button
+          class="btn btn-sm btn-outline text-xs relative"
+          title="Parked sales"
+          (click)="toggleHeldSalesPanel()"
+        >
+          <i class="fas fa-layer-group mr-1"></i>Parked
+          @if (heldSales().length > 0) {
+            <span class="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+              {{ heldSales().length }}
+            </span>
+          }
+        </button>
+      </div>
     </div>
 
     <!-- Customer Selection -->
@@ -190,34 +234,94 @@
 
     <!-- Payment Method -->
     <div class="payment-section">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment Method</p>
-      <div class="flex gap-2">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Method</p>
         <button
-          class="pay-method-btn"
-          [class.active]="paymentMethod() === 'cash'"
-          (click)="setPaymentMethod('cash')"
-        >
-          <i class="fas fa-money-bill-wave"></i> Cash
-        </button>
-        <button
-          class="pay-method-btn"
-          [class.active]="paymentMethod() === 'card'"
-          (click)="setPaymentMethod('card')"
-        >
-          <i class="fas fa-credit-card"></i> Card
-        </button>
-        <button
-          class="pay-method-btn"
-          [class.active]="paymentMethod() === 'mobile'"
-          (click)="setPaymentMethod('mobile')"
-        >
-          <i class="fas fa-mobile-alt"></i> Mobile
-        </button>
+          class="text-xs text-blue-600 hover:underline"
+          (click)="toggleSplitPayment()"
+        >{{ useSplitPayment() ? 'Single Payment' : 'Split Payment' }}</button>
       </div>
+
+      @if (!useSplitPayment()) {
+        <div class="flex gap-2">
+          <button
+            class="pay-method-btn"
+            [class.active]="paymentMethod() === 'cash'"
+            (click)="setPaymentMethod('cash')"
+          >
+            <i class="fas fa-money-bill-wave"></i> Cash
+          </button>
+          <button
+            class="pay-method-btn"
+            [class.active]="paymentMethod() === 'card'"
+            (click)="setPaymentMethod('card')"
+          >
+            <i class="fas fa-credit-card"></i> Card
+          </button>
+          <button
+            class="pay-method-btn"
+            [class.active]="paymentMethod() === 'mobile'"
+            (click)="setPaymentMethod('mobile')"
+          >
+            <i class="fas fa-mobile-alt"></i> Mobile
+          </button>
+        </div>
+      } @else {
+        <!-- Split Payment Rows -->
+        <div class="split-payment-rows">
+          @for (row of splitPayments(); track $index; let i = $index) {
+            <div class="split-row flex items-center gap-2 mb-1">
+              <select
+                class="border border-gray-300 rounded px-2 py-1 text-sm flex-shrink-0 w-24"
+                [ngModel]="row.method"
+                (ngModelChange)="updateSplitMethod(i, $event)"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mobile">Mobile</option>
+                <option value="loyalty">Loyalty</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Amount"
+                class="input text-sm flex-1"
+                [ngModel]="row.amount"
+                (ngModelChange)="updateSplitAmount(i, $event)"
+              />
+              @if (row.method === 'cash') {
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Tendered"
+                  class="input text-sm w-20"
+                  [ngModel]="row.tendered"
+                  (ngModelChange)="updateSplitTendered(i, $event)"
+                />
+              }
+              @if (splitPayments().length > 1) {
+                <button class="text-red-400 hover:text-red-600" (click)="removeSplitRow(i)">
+                  <i class="fas fa-times text-xs"></i>
+                </button>
+              }
+            </div>
+          }
+          <div class="flex justify-between text-xs mt-1">
+            <button class="text-blue-600 hover:underline" (click)="addSplitRow()">
+              <i class="fas fa-plus mr-1"></i>Add method
+            </button>
+            <span [class.text-red-600]="splitRemaining() > 0.01" [class.text-green-600]="splitRemaining() <= 0.01">
+              Remaining: {{ splitRemaining() | currency }}
+            </span>
+          </div>
+        </div>
+      }
     </div>
 
-    <!-- Cash Tendered -->
-    @if (paymentMethod() === 'cash') {
+    <!-- Cash Tendered (single cash payment only) -->
+    @if (paymentMethod() === 'cash' && !useSplitPayment()) {
       <div class="cash-section">
         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cash Tendered</label>
         <input
@@ -344,6 +448,72 @@
           <i class="fas fa-plus mr-2"></i>New Sale
         </button>
       </div>
+    </div>
+  </div>
+}
+
+<!-- Held Sales Panel -->
+@if (showHeldSalesPanel()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && showHeldSalesPanel.set(false)">
+    <div class="held-sales-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">
+          <i class="fas fa-layer-group mr-2"></i>Parked Sales
+        </h3>
+        <button class="text-gray-400 hover:text-gray-600" (click)="showHeldSalesPanel.set(false)">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      @if (isLoadingHeld()) {
+        <div class="text-center py-8 text-gray-400">
+          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <p class="text-sm">Loading parked sales...</p>
+        </div>
+      } @else if (heldSales().length === 0) {
+        <div class="text-center py-8 text-gray-400">
+          <i class="fas fa-layer-group text-4xl mb-3"></i>
+          <p class="text-sm">No parked sales</p>
+        </div>
+      } @else {
+        <div class="held-sales-list">
+          @for (held of heldSales(); track held.id) {
+            <div class="held-sale-row">
+              <div class="held-sale-info">
+                <div class="font-medium text-sm text-gray-900">
+                  {{ held.cashierName }}
+                  @if (held.customerName) {
+                    <span class="text-gray-500 ml-1">· {{ held.customerName }}</span>
+                  }
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ held.items.length }} item(s) · {{ held.subtotal | currency }}
+                </div>
+                <div class="text-xs text-gray-400">{{ held.heldAt | date:'short' }}</div>
+                @if (held.note) {
+                  <div class="text-xs text-yellow-700 italic">{{ held.note }}</div>
+                }
+              </div>
+              <div class="flex flex-col gap-1">
+                <button
+                  class="btn btn-sm btn-primary text-xs"
+                  (click)="recallHeldSale(held)"
+                  title="Recall into cart"
+                >
+                  <i class="fas fa-redo-alt mr-1"></i>Recall
+                </button>
+                <button
+                  class="btn btn-sm btn-outline text-xs text-red-600 border-red-300 hover:bg-red-50"
+                  (click)="discardHeldSale(held)"
+                  title="Discard held sale"
+                >
+                  <i class="fas fa-trash-alt mr-1"></i>Discard
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 }
