@@ -90,13 +90,13 @@
               <tr>
                 <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
                 <td class="px-4 py-2.5 font-mono text-sm text-gray-500">{{ item.variantSku }}</td>
-                <td class="px-4 py-2.5 text-right text-sm text-gray-700">{{ item.unitPrice | currency }}</td>
+                <td class="px-4 py-2.5 text-right text-sm text-gray-700">{{ item.unitPrice | appCurrency }}</td>
                 <td class="px-4 py-2.5 text-center">
                   <span class="inline-flex items-center justify-center w-7 h-7 bg-gray-100 rounded-full text-sm font-semibold text-gray-700">
                     {{ item.quantity }}
                   </span>
                 </td>
-                <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.subtotal | currency }}</td>
+                <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.subtotal | appCurrency }}</td>
               </tr>
             }
           </tbody>
@@ -108,21 +108,21 @@
         <div class="ml-auto max-w-xs space-y-2">
           <div class="flex justify-between text-sm">
             <span class="text-gray-600">Subtotal</span>
-            <span class="font-medium text-gray-900">{{ sale()?.totalAmount | currency }}</span>
+            <span class="font-medium text-gray-900">{{ sale()?.totalAmount | appCurrency }}</span>
           </div>
           @if ((sale()?.discount ?? 0) > 0) {
             <div class="flex justify-between text-sm">
               <span class="text-gray-600">Discount</span>
-              <span class="text-red-600 font-medium">-{{ sale()?.discount | currency }}</span>
+              <span class="text-red-600 font-medium">-{{ sale()?.discount | appCurrency }}</span>
             </div>
           }
           <div class="flex justify-between text-sm">
             <span class="text-gray-600">Tax</span>
-            <span class="font-medium text-gray-700">{{ sale()?.tax | currency }}</span>
+            <span class="font-medium text-gray-700">{{ sale()?.tax | appCurrency }}</span>
           </div>
           <div class="flex justify-between text-base font-bold border-t border-gray-200 pt-2">
             <span class="text-gray-900">Net Total</span>
-            <span class="text-xl text-gray-900">{{ sale()?.netTotal | currency }}</span>
+            <span class="text-xl text-gray-900">{{ sale()?.netTotal | appCurrency }}</span>
           </div>
         </div>
       </div>

@@ -12,7 +12,8 @@ export interface Product {
   costPrice: number;
   taxRate: number;
   hasVariants: boolean;
-  imageUrl?: string;
+  primaryImageThumb?: string;
+  primaryImageMedium?: string;
   isActive: boolean;
   variantCount: number;
   totalStock: number;
@@ -44,7 +45,6 @@ export interface CreateProductRequest {
   costPrice: number;
   taxRate: number;
   hasVariants: boolean;
-  imageUrl?: string;
   isActive: boolean;
   variants?: CreateProductVariantRequest[];
 }
@@ -66,7 +66,6 @@ export interface UpdateProductRequest {
   basePrice: number;
   costPrice: number;
   taxRate: number;
-  imageUrl?: string;
   isActive: boolean;
 }
 

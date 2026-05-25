@@ -138,6 +138,7 @@ public class GrnRepository : IGrnRepository
             .Include(po => po.Items)
                 .ThenInclude(i => i.Variant)
                     .ThenInclude(v => v.Product)
+                        .ThenInclude(p => p.Images.Where(img => img.IsPrimary))
             .Where(po => po.Status.ToLower() == "approved" || po.Status.ToLower() == "partial")
             .OrderBy(po => po.OrderDate)
             .ToListAsync();

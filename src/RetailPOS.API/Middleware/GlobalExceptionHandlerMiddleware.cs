@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using RetailPOS.API.Exceptions;
 using RetailPOS.API.Models;
+using RetailPOS.Core.Entities.Audit;
+using RetailPOS.Infrastructure.Audit;
 
 namespace RetailPOS.API.Middleware;
 
@@ -29,7 +32,35 @@ public class GlobalExceptionHandlerMiddleware
         }
         catch (Exception ex)
         {
+            await TryRecordFailureAuditAsync(context, ex);
             await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private async Task TryRecordFailureAuditAsync(HttpContext context, Exception ex)
+    {
+        try
+        {
+            var method = context.Request.Method;
+            if (method != HttpMethods.Post && method != HttpMethods.Put
+                && method != HttpMethods.Patch && method != HttpMethods.Delete)
+                return;
+
+            var auditService = context.RequestServices.GetService(typeof(IAuditService)) as IAuditService;
+            if (auditService is null) return;
+
+            var path = context.Request.Path.Value ?? "";
+            await auditService.RecordFailureAsync(
+                actionType: AuditActionType.Update,
+                module: AuditModule.System,
+                summary: $"{method} {path} failed",
+                entityType: null,
+                entityId: null,
+                errorMessage: ex.Message);
+        }
+        catch (Exception auditEx)
+        {
+            _logger.LogWarning(auditEx, "Failed to record failure audit event");
         }
     }
 
@@ -44,6 +75,14 @@ public class GlobalExceptionHandlerMiddleware
 
         switch (exception)
         {
+            case ResourceInUseException inUse:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = inUse.Message;
+                errorResponse.Errors = new List<string> { inUse.Message };
+                errorResponse.Data = inUse.References;
+                break;
+
             case KeyNotFoundException:
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 errorResponse.Success = false;

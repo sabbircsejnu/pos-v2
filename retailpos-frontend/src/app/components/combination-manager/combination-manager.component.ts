@@ -1,6 +1,7 @@
-import { Component, Input, OnInit, signal } from '@angular/core';
+﻿import { Component, Input, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ProductVariationService, CombinationDto, ProductVariationDto } from '../../services/product-variation.service';
 import { VariationService } from '../../services/variation.service';
 import { Variation } from '../../models/variation.model';
@@ -10,7 +11,7 @@ import { ErrorHandlerService } from '../../services/error-handler.service';
 @Component({
   selector: 'app-combination-manager',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './combination-manager.component.html',
   styleUrls: ['./combination-manager.component.css']
 })
@@ -22,8 +23,13 @@ export class CombinationManagerComponent implements OnInit {
   availableVariations = signal<Variation[]>([]);
   assignedVariations = signal<ProductVariationDto[]>([]);
   selectedVariationIds = signal<number[]>([]);
+  /**
+   * Tracks which options are checked for each selected variation type.
+   * Key = variationId, Value = Set of selected optionIds.
+   */
+  selectedOptionsByVariation = signal<{ [variationId: number]: number[] }>({});
   combinations = signal<CombinationDto[]>([]);
-  
+
   showManualModal = signal(false);
   showEditModal = signal(false);
   isLoading = signal(false);
@@ -52,12 +58,21 @@ export class CombinationManagerComponent implements OnInit {
   loadData(): void {
     this.isLoading.set(true);
     this.variationService.loadVariations();
-    
-    // Load assigned variations
+
+    // Load assigned variations (includes selectedOptionIds per variation)
     this.productVariationService.getProductVariations(this.productId).subscribe({
       next: (variations) => {
         this.assignedVariations.set(variations);
         this.selectedVariationIds.set(variations.map(v => v.variationId));
+
+        // Restore per-variation selected options from server state
+        const optionsMap: { [variationId: number]: number[] } = {};
+        for (const v of variations) {
+          optionsMap[v.variationId] = v.selectedOptionIds?.length
+            ? [...v.selectedOptionIds]
+            : v.options.map(o => o.id); // default to all if nothing saved
+        }
+        this.selectedOptionsByVariation.set(optionsMap);
       },
       error: () => {
         this.assignedVariations.set([]);
@@ -77,23 +92,107 @@ export class CombinationManagerComponent implements OnInit {
     });
   }
 
-  get unassignedVariations(): Variation[] {
-    const assigned = this.selectedVariationIds();
-    return this.variationService.variations().filter(v => !assigned.includes(v.id));
-  }
+  // â”€â”€ Variation type toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   toggleVariation(variationId: number): void {
     const current = this.selectedVariationIds();
+    const optionsMap = { ...this.selectedOptionsByVariation() };
+
     if (current.includes(variationId)) {
+      // Deselecting the variation type â€” remove it
       this.selectedVariationIds.set(current.filter(id => id !== variationId));
+      delete optionsMap[variationId];
     } else {
+      // Selecting the variation type â€” pre-select all its options
       this.selectedVariationIds.set([...current, variationId]);
+      const variation = this.variationService.variations().find(v => v.id === variationId);
+      optionsMap[variationId] = variation ? variation.options.map(o => o.id) : [];
+    }
+
+    this.selectedOptionsByVariation.set(optionsMap);
+  }
+
+  // â”€â”€ Option toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  toggleOption(variationId: number, optionId: number): void {
+    const map = { ...this.selectedOptionsByVariation() };
+    const current = map[variationId] ?? [];
+
+    map[variationId] = current.includes(optionId)
+      ? current.filter(id => id !== optionId)
+      : [...current, optionId];
+
+    this.selectedOptionsByVariation.set(map);
+  }
+
+  isOptionSelected(variationId: number, optionId: number): boolean {
+    return (this.selectedOptionsByVariation()[variationId] ?? []).includes(optionId);
+  }
+
+  getSelectedOptionsCount(variationId: number): number {
+    return (this.selectedOptionsByVariation()[variationId] ?? []).length;
+  }
+
+  getTotalOptionsCount(variationId: number): number {
+    const variation = this.variationService.variations().find(v => v.id === variationId);
+    return variation?.options.length ?? 0;
+  }
+
+  /**
+   * Returns true only when every selected variation type has at least one option selected.
+   * Used to disable the Generate Combinations buttons.
+   */
+  canGenerateCombinations(): boolean {
+    const selectedIds = this.selectedVariationIds();
+    if (selectedIds.length === 0) return false;
+    const map = this.selectedOptionsByVariation();
+    return selectedIds.every(id => (map[id] ?? []).length > 0);
+  }
+
+  /**
+   * Returns combinations that use options no longer selected for this product.
+   * Used to warn the user before regenerating.
+   */
+  getInvalidCombinations(): CombinationDto[] {
+    const map = this.selectedOptionsByVariation();
+    const allSelectedOptions = new Set(Object.values(map).flat());
+    return this.combinations().filter(combo =>
+      combo.optionIds.some(oid => !allSelectedOptions.has(oid))
+    );
+  }
+
+  // â”€â”€ Save variation assignment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  saveVariationAssignment(): void {
+    // Validate: each selected variation must have at least one option selected
+    const map = this.selectedOptionsByVariation();
+    const invalidVariations = this.selectedVariationIds().filter(id => (map[id] ?? []).length === 0);
+    if (invalidVariations.length > 0) {
+      this.alertService.warning('Each selected variation type must have at least one option selected.');
+      return;
+    }
+
+    // Warn if existing combinations will become invalid
+    const invalid = this.getInvalidCombinations();
+    if (invalid.length > 0) {
+      this.alertService.confirm(
+        `${invalid.length} existing combination(s) use options that are no longer selected. ` +
+        `They will be kept but won't be regenerated. Do you want to continue?`,
+        () => this.doSaveVariationAssignment(),
+        'Save Variation Assignment'
+      );
+    } else {
+      this.doSaveVariationAssignment();
     }
   }
 
-  saveVariationAssignment(): void {
+  private doSaveVariationAssignment(): void {
     this.isLoading.set(true);
-    this.productVariationService.assignVariations(this.productId, this.selectedVariationIds()).subscribe({
+    this.productVariationService.assignVariations(
+      this.productId,
+      this.selectedVariationIds(),
+      this.selectedOptionsByVariation()
+    ).subscribe({
       next: () => {
         this.alertService.success('Variations assigned successfully');
         this.loadData();
@@ -105,9 +204,11 @@ export class CombinationManagerComponent implements OnInit {
     });
   }
 
+  // â”€â”€ Generate combinations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
   generateAllCombinations(): void {
     this.alertService.confirm(
-      'This will generate all possible combinations. Continue?',
+      'This will generate all combinations using the currently selected options. Continue?',
       () => {
         this.isLoading.set(true);
         this.productVariationService.generateAllCombinations(this.productId).subscribe({
@@ -144,6 +245,8 @@ export class CombinationManagerComponent implements OnInit {
       }
     });
   }
+
+  // â”€â”€ Manual combination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   openManualModal(): void {
     this.manualForm.set({
@@ -182,6 +285,8 @@ export class CombinationManagerComponent implements OnInit {
       }
     });
   }
+
+  // â”€â”€ Edit / Delete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   openEditModal(combination: CombinationDto): void {
     this.editingCombination.set(combination);

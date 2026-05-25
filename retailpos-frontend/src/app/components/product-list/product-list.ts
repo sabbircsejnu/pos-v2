@@ -1,22 +1,40 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
+import { ProductImageService } from '../../services/product-image.service';
 import { Product, ProductSearchRequest } from '../../models/product.model';
 import { Category } from '../../models/category.model';
+import { ImageLightboxComponent } from '../product-form/image-lightbox.component';
+import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, ImageLightboxComponent, AppCurrencyPipe],
   templateUrl: './product-list.html',
   styleUrl: './product-list.css',
 })
 export class ProductList implements OnInit, OnDestroy {
+  private imageSvc = inject(ProductImageService);
+  lightboxImage = signal<{ medium: string; original: string } | null>(null);
+
+  resolveImage(path?: string | null): string {
+    return this.imageSvc.resolveUrl(path);
+  }
+
+  openLightbox(p: Product) {
+    if (!p.primaryImageMedium) return;
+    this.lightboxImage.set({
+      medium: this.imageSvc.resolveUrl(p.primaryImageMedium),
+      original: this.imageSvc.resolveUrl(p.primaryImageMedium),
+    });
+  }
+
   // Expose Math to template
   Math = Math;
   

@@ -10,6 +10,7 @@ import { WarehouseService } from '../../services/warehouse.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { PurchaseOrder, PurchaseOrderSearchRequest, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-po-list',
@@ -50,7 +51,8 @@ export class PoListComponent implements OnInit, OnDestroy {
     public warehouseService: WarehouseService,
     private router: Router,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -263,9 +265,6 @@ export class PoListComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return this.currencyService.format(amount);
   }
 }

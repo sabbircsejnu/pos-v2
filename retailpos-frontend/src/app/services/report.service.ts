@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 import {
   SalesReportDto, TopProductDto, SalesByOutletDto, SalesByPaymentMethodDto,
   DailySalesTrendDto, StockLevelDto, InventoryValuationDto, SlowMovingItemDto,
-  PurchaseSummaryDto, PurchaseBySupplierDto
+  PurchaseSummaryDto, PurchaseBySupplierDto, StockTransactionReportDto
 } from '../models/report.model';
 
 @Injectable({ providedIn: 'root' })
@@ -26,6 +26,8 @@ export class ReportService {
 
   purchaseSummary = signal<PurchaseSummaryDto | null>(null);
   purchaseBySupplier = signal<PurchaseBySupplierDto[]>([]);
+
+  stockTransactionReport = signal<StockTransactionReportDto | null>(null);
 
   constructor(private http: HttpClient) {}
 
@@ -106,6 +108,25 @@ export class ReportService {
     const params = this.buildDateParams(startDate, endDate);
     return this.http.get<any>(`${this.reportsUrl}/purchases/by-supplier`, { params }).pipe(
       tap({ next: (res) => this.purchaseBySupplier.set(res.data || []) })
+    );
+  }
+
+  getStockTransactionReport(
+    productId: number,
+    variantId?: number,
+    outletId?: number,
+    locationType?: string,
+    dateFrom?: string,
+    dateTo?: string
+  ): Observable<any> {
+    let params = new HttpParams().set('productId', productId.toString());
+    if (variantId) params = params.set('variantId', variantId.toString());
+    if (outletId) params = params.set('outletId', outletId.toString());
+    if (locationType) params = params.set('locationType', locationType);
+    if (dateFrom) params = params.set('dateFrom', dateFrom);
+    if (dateTo) params = params.set('dateTo', dateTo);
+    return this.http.get<any>(`${this.reportsUrl}/stock-transactions`, { params }).pipe(
+      tap({ next: (res) => this.stockTransactionReport.set(res.data) })
     );
   }
 }

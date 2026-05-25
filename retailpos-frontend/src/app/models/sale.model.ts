@@ -105,6 +105,7 @@ export interface CartItem {
   discountAmount: number;
   subtotal: number;
   appliedRuleName?: string;
+  primaryImageThumb?: string;
 }
 
 export interface PosProduct {
@@ -116,6 +117,7 @@ export interface PosProduct {
   stockQty: number;
   categoryId?: number;
   categoryName?: string;
+  primaryImageThumb?: string;
 }
 
 // NEW — Result of GET /api/pos/lookup (barcode/SKU scan)

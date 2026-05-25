@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { LoginRequest, LoginResponse, RegisterRequest, User } from '../models/auth.models';
+import { LoginRequest, LoginResponse, RegisterRequest, RoleSwitchRequest, User } from '../models/auth.models';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -85,6 +85,26 @@ export class AuthService {
   hasRole(role: string): boolean {
     const user = this.getUserValue();
     return user?.roleName === role;
+  }
+
+  isBusinessOwner(): boolean {
+    return this.getUserValue()?.isBusinessOwner === true;
+  }
+
+  isRoleSwitched(): boolean {
+    return this.getUserValue()?.isRoleSwitched === true;
+  }
+
+  switchRole(request: RoleSwitchRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.API_URL}/switch-role`, request).pipe(
+      tap(response => this.handleAuthResponse(response))
+    );
+  }
+
+  returnOwnerMode(): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.API_URL}/return-owner`, {}).pipe(
+      tap(response => this.handleAuthResponse(response))
+    );
   }
 
   private handleAuthResponse(response: LoginResponse): void {

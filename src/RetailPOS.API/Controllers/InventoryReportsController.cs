@@ -12,10 +12,14 @@ namespace RetailPOS.API.Controllers;
 public class InventoryReportsController : ControllerBase
 {
     private readonly IInventoryReportService _inventoryReportService;
+    private readonly IUserOutletAccessService _outletAccess;
 
-    public InventoryReportsController(IInventoryReportService inventoryReportService)
+    public InventoryReportsController(
+        IInventoryReportService inventoryReportService,
+        IUserOutletAccessService outletAccess)
     {
         _inventoryReportService = inventoryReportService;
+        _outletAccess = outletAccess;
     }
 
     /// <summary>Returns current stock levels, optionally filtered by location or low-stock status</summary>
@@ -25,7 +29,10 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? locationType,
         [FromQuery] bool lowStockOnly = false)
     {
-        var result = await _inventoryReportService.GetStockLevelsAsync(locationId, locationType, lowStockOnly);
+        var (resolvedId, resolvedType) =
+            await _outletAccess.ResolveAndAuthorizeLocationAsync(locationId, locationType);
+
+        var result = await _inventoryReportService.GetStockLevelsAsync(resolvedId, resolvedType, lowStockOnly);
         return Ok(ApiResponse<List<StockLevelDto>>.SuccessResponse(result));
     }
 
@@ -33,6 +40,11 @@ public class InventoryReportsController : ControllerBase
     [HttpGet("valuation")]
     public async Task<ActionResult<ApiResponse<InventoryValuationDto>>> GetValuation()
     {
+        // Inventory valuation is whole-business; restrict to BusinessOwner.
+        var auth = await _outletAccess.GetAuthorizedOutletsAsync();
+        if (!auth.IsBusinessOwner)
+            throw new UnauthorizedAccessException("Inventory valuation is restricted to Business Admin.");
+
         var result = await _inventoryReportService.GetInventoryValuationAsync();
         return Ok(ApiResponse<InventoryValuationDto>.SuccessResponse(result));
     }
@@ -42,6 +54,11 @@ public class InventoryReportsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<SlowMovingItemDto>>>> GetSlowMoving(
         [FromQuery] int days = 90)
     {
+        // Slow-moving aggregates across the whole business; restrict to BusinessOwner.
+        var auth = await _outletAccess.GetAuthorizedOutletsAsync();
+        if (!auth.IsBusinessOwner)
+            throw new UnauthorizedAccessException("Slow-moving inventory report is restricted to Business Admin.");
+
         var result = await _inventoryReportService.GetSlowMovingItemsAsync(days);
         return Ok(ApiResponse<List<SlowMovingItemDto>>.SuccessResponse(result));
     }

@@ -54,6 +54,286 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("accounts");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActingRoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("acting_role_id");
+
+                    b.Property<long?>("ActingUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("acting_user_id");
+
+                    b.Property<string>("ActionSummary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("action_summary");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("action_type");
+
+                    b.Property<string>("Browser")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("browser");
+
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("device_name");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsLocalRequest")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_local_request");
+
+                    b.Property<string>("LocalMachineIp")
+                        .HasColumnType("text")
+                        .HasColumnName("local_machine_ip");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("module");
+
+                    b.Property<string>("Os")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("os");
+
+                    b.Property<long?>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<string>("PrimaryEntityId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("primary_entity_id");
+
+                    b.Property<string>("PrimaryEntityType")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("primary_entity_type");
+
+                    b.Property<string>("RawIp")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_ip");
+
+                    b.Property<long?>("RealRoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("real_role_id");
+
+                    b.Property<long?>("RealUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("real_user_id");
+
+                    b.Property<string>("RequestMethod")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("request_method");
+
+                    b.Property<string>("RequestPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("request_path");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_audit_events");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("OutletId", "CreatedAt");
+
+                    b.HasIndex("PrimaryEntityType", "PrimaryEntityId");
+
+                    b.HasIndex("RealUserId", "CreatedAt");
+
+                    b.HasIndex("Module", "ActionType", "CreatedAt");
+
+                    b.ToTable("audit_events");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AuditEventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("audit_event_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<int>("FieldsChangedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("fields_changed_count");
+
+                    b.Property<string>("InternalOperationName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("internal_operation_name");
+
+                    b.Property<bool>("IsInternalOperation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_internal_operation");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("operation_type");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_audit_event_entities");
+
+                    b.HasIndex("AuditEventId")
+                        .HasDatabaseName("i_x_audit_event_entities_audit_event_id");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("audit_event_entities");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventFieldChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AuditEventEntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("audit_event_entity_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("field_name");
+
+                    b.Property<bool>("IsReferenceField")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_reference_field");
+
+                    b.Property<string>("NewDisplayValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("new_display_value");
+
+                    b.Property<string>("NewValue")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("new_value");
+
+                    b.Property<string>("OldDisplayValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("old_display_value");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("old_value");
+
+                    b.Property<string>("ReferenceEntityType")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("reference_entity_type");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_audit_event_field_changes");
+
+                    b.HasIndex("AuditEventEntityId")
+                        .HasDatabaseName("i_x_audit_event_field_changes_audit_event_entity_id");
+
+                    b.ToTable("audit_event_field_changes");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.AuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -705,10 +985,6 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("has_variants");
 
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("image_url");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -742,6 +1018,90 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_products_category_id");
 
                     b.ToTable("products");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ProductImage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
+
+                    b.Property<string>("MediumPath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("medium_path");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("original_name");
+
+                    b.Property<string>("OriginalPath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("original_path");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Size")
+                        .HasColumnType("integer")
+                        .HasColumnName("size");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("ThumbPath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("thumb_path");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_product_images");
+
+                    b.HasIndex("ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_product_images_one_primary_per_product")
+                        .HasFilter("is_primary = true");
+
+                    b.HasIndex("ProductId", "SortOrder");
+
+                    b.ToTable("product_images");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.ProductVariant", b =>
@@ -879,6 +1239,46 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_product_variations_variation_id");
 
                     b.ToTable("product_variations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ProductVariationSelectedOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("OptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("option_id");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_id");
+
+                    b.Property<long>("VariationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variation_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_product_variation_selected_options");
+
+                    b.HasIndex("OptionId")
+                        .HasDatabaseName("i_x_product_variation_selected_options_option_id");
+
+                    b.HasIndex("VariationId")
+                        .HasDatabaseName("i_x_product_variation_selected_options_variation_id");
+
+                    b.HasIndex("ProductId", "VariationId", "OptionId")
+                        .IsUnique();
+
+                    b.ToTable("product_variation_selected_options");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.PurchaseOrder", b =>
@@ -1709,6 +2109,30 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("warehouses");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Audit.AuditEvent", "AuditEvent")
+                        .WithMany("Entities")
+                        .HasForeignKey("AuditEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_audit_event_entities_audit_events_audit_event_id");
+
+                    b.Navigation("AuditEvent");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventFieldChange", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Audit.AuditEventEntity", "AuditEventEntity")
+                        .WithMany("FieldChanges")
+                        .HasForeignKey("AuditEventEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_audit_event_field_changes_audit_event_entities_audit_event_~");
+
+                    b.Navigation("AuditEventEntity");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.AuditLog", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.User", "User")
@@ -1887,6 +2311,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.ProductImage", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Product", "Product")
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_product_images_products_product_id");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.ProductVariant", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Product", "Product")
@@ -1935,6 +2371,36 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_product_variations_variations_variation_id");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Variation");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ProductVariationSelectedOption", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.VariationOption", "Option")
+                        .WithMany()
+                        .HasForeignKey("OptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_product_variation_selected_options_variation_options_option~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_product_variation_selected_options_products_product_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Variation", "Variation")
+                        .WithMany()
+                        .HasForeignKey("VariationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_product_variation_selected_options_variations_variation_id");
+
+                    b.Navigation("Option");
 
                     b.Navigation("Product");
 
@@ -2190,6 +2656,16 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Transactions");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEvent", b =>
+                {
+                    b.Navigation("Entities");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
+                {
+                    b.Navigation("FieldChanges");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Category", b =>
                 {
                     b.Navigation("ChildCategories");
@@ -2218,6 +2694,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Product", b =>
                 {
+                    b.Navigation("Images");
+
                     b.Navigation("ProductVariants");
 
                     b.Navigation("ProductVariations");

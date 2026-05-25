@@ -33,12 +33,12 @@ public class ProductVariationsController : ControllerBase
     }
 
     /// <summary>
-    /// Assign variations to a product
+    /// Assign variations to a product (with per-variation selected options)
     /// </summary>
     [HttpPost("assign")]
     public async Task<ActionResult<ApiResponse>> AssignVariations(long productId, [FromBody] AssignVariationsRequest request)
     {
-        await _service.AssignVariationsToProductAsync(productId, request.VariationIds);
+        await _service.AssignVariationsToProductAsync(productId, request.VariationIds, request.SelectedOptionsByVariation);
         return Ok(ApiResponse.SuccessResponse("Variations assigned successfully"));
     }
 

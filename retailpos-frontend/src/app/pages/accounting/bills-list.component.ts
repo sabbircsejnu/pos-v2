@@ -6,6 +6,7 @@ import { SupplierService } from '../../services/supplier.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CreateBillDto } from '../../models/accounting.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-bills-list',
@@ -35,7 +36,8 @@ export class BillsListComponent implements OnInit {
     public accountingService: AccountingService,
     public supplierService: SupplierService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -142,7 +144,7 @@ export class BillsListComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    return this.currencyService.format(amount);
   }
 
   formatDate(dateStr: string): string {

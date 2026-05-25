@@ -25,6 +25,7 @@ public class SettingsService : ISettingsService
 
     public async Task<SystemSettings> GetAllSettingsAsync() => await LoadSettingsAsync();
     public async Task<CompanySettings> GetCompanySettingsAsync() => (await LoadSettingsAsync()).Company;
+    public async Task<CurrencySettings> GetCurrencySettingsAsync() => (await LoadSettingsAsync()).Currency;
     public async Task<TaxSettings> GetTaxSettingsAsync() => (await LoadSettingsAsync()).Tax;
     public async Task<ReceiptSettings> GetReceiptSettingsAsync() => (await LoadSettingsAsync()).Receipt;
     public async Task<InventorySettings> GetInventorySettingsAsync() => (await LoadSettingsAsync()).Inventory;
@@ -52,12 +53,33 @@ public class SettingsService : ISettingsService
         if (File.Exists(_settingsFilePath))
         {
             var json = await File.ReadAllTextAsync(_settingsFilePath);
-            return JsonSerializer.Deserialize<SystemSettings>(json, _jsonOptions) ?? new SystemSettings();
+            var loaded = JsonSerializer.Deserialize<SystemSettings>(json, _jsonOptions) ?? new SystemSettings();
+            BackfillCurrencyFromCompany(loaded);
+            return loaded;
         }
 
         var defaults = new SystemSettings();
         await WriteToFileAsync(defaults);
         return defaults;
+    }
+
+    // Migrates legacy company-level currency fields into the dedicated currency block when needed.
+    private static void BackfillCurrencyFromCompany(SystemSettings settings)
+    {
+        if (settings.Currency == null)
+        {
+            settings.Currency = new CurrencySettings();
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Currency.CurrencyCode) && !string.IsNullOrWhiteSpace(settings.Company.Currency))
+        {
+            settings.Currency.CurrencyCode = settings.Company.Currency;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Currency.CurrencySymbol) && !string.IsNullOrWhiteSpace(settings.Company.CurrencySymbol))
+        {
+            settings.Currency.CurrencySymbol = settings.Company.CurrencySymbol;
+        }
     }
 
     // Writes settings to file without acquiring the lock (call only while holding _lock).
@@ -74,6 +96,23 @@ public class SettingsService : ISettingsService
         {
             var current = _cachedSettings ?? await ReadFromFileAsync();
             current.Company = settings;
+            await WriteToFileAsync(current);
+            _cachedSettings = current;
+            return current;
+        }
+        finally { _lock.Release(); }
+    }
+
+    public async Task<SystemSettings> UpdateCurrencySettingsAsync(CurrencySettings settings)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var current = _cachedSettings ?? await ReadFromFileAsync();
+            current.Currency = settings;
+            // Mirror back to legacy company fields for any consumers still reading them.
+            current.Company.Currency = settings.CurrencyCode;
+            current.Company.CurrencySymbol = settings.CurrencySymbol;
             await WriteToFileAsync(current);
             _cachedSettings = current;
             return current;

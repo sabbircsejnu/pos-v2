@@ -45,3 +45,8 @@ export interface UpdateVariationOptionDto {
   displayOrder: number;
   isActive: boolean;
 }
+
+export interface ProductReference {
+  id: number;
+  name: string;
+}

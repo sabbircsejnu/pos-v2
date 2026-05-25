@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+﻿import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -16,7 +16,10 @@ export interface ProductVariationDto {
   variationId: number;
   variationName: string;
   isRequired: boolean;
+  /** All globally available options for this variation type. */
   options: VariationOptionInfo[];
+  /** Which option IDs are currently selected for this specific product. */
+  selectedOptionIds: number[];
 }
 
 export interface VariationOptionInfo {
@@ -46,6 +49,12 @@ export interface CombinationOptionInfo {
 
 export interface AssignVariationsRequest {
   variationIds: number[];
+  /**
+   * Key = variationId, Value = array of selected optionIds for that variation.
+   * When a variation is assigned but its entry is absent/empty, the backend
+   * defaults to all active options for that variation.
+   */
+  selectedOptionsByVariation: { [variationId: number]: number[] };
 }
 
 export interface GenerateCombinationsRequest {
@@ -75,15 +84,20 @@ export class ProductVariationService {
 
   constructor(private http: HttpClient) {}
 
-  // Get variations assigned to product
+  // Get variations assigned to product (includes selectedOptionIds per variation)
   getProductVariations(productId: number): Observable<ProductVariationDto[]> {
     return this.http.get<ApiResponse<ProductVariationDto[]>>(`${this.apiUrl}/products/${productId}/variations`)
       .pipe(map(response => response.data || []));
   }
 
-  // Assign variations to product
-  assignVariations(productId: number, variationIds: number[]): Observable<string> {
-    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/products/${productId}/variations/assign`, { variationIds })
+  // Assign variations to product with selected options per variation
+  assignVariations(
+    productId: number,
+    variationIds: number[],
+    selectedOptionsByVariation: { [variationId: number]: number[] }
+  ): Observable<string> {
+    const body: AssignVariationsRequest = { variationIds, selectedOptionsByVariation };
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/products/${productId}/variations/assign`, body)
       .pipe(map(response => response.message || 'Success'));
   }
 
@@ -93,7 +107,7 @@ export class ProductVariationService {
       .pipe(map(response => response.data || []));
   }
 
-  // Generate all combinations
+  // Generate all combinations (uses product-saved selected options)
   generateAllCombinations(productId: number): Observable<{ data: CombinationDto[], message: string }> {
     return this.http.post<ApiResponse<CombinationDto[]>>(
       `${this.apiUrl}/products/${productId}/variations/combinations/generate-all`,
@@ -101,7 +115,7 @@ export class ProductVariationService {
     ).pipe(map(response => ({ data: response.data || [], message: response.message || 'Success' })));
   }
 
-  // Generate selected combinations
+  // Generate combinations for selected variation types (uses product-saved selected options)
   generateSelectedCombinations(productId: number, variationIds: number[]): Observable<{ data: CombinationDto[], message: string }> {
     return this.http.post<ApiResponse<CombinationDto[]>>(
       `${this.apiUrl}/products/${productId}/variations/combinations/generate-selected`,

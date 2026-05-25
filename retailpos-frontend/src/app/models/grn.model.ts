@@ -29,6 +29,7 @@ export interface PurchaseOrderItemForGrn {
   variantSku: string;
   orderedQty: number;
   unitPrice: number;
+  primaryImageThumb?: string;
 }
 
 export interface PurchaseOrderForGrn {

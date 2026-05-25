@@ -72,6 +72,96 @@
 
       <!-- Right Side: User Menu -->
       <div class="flex items-center space-x-2">
+        <!-- Role Switch (BusinessOwner only) -->
+        @if (currentUser()?.isBusinessOwner) {
+          <div class="relative">
+            <button
+              (click)="toggleRoleSwitchMenu($event)"
+              class="flex items-center space-x-2 text-gray-300 hover:bg-gray-800 px-2 py-1.5 rounded transition-colors"
+              title="Role Switch"
+            >
+              <i class="fas fa-user-shield text-sm"></i>
+              <span class="hidden md:inline text-xs font-medium">
+                @if (currentUser()?.isRoleSwitched) {
+                  Acting as {{ currentUser()?.actingRoleName }}
+                  @if (currentUser()?.actingOutletName) { @ {{ currentUser()?.actingOutletName }} }
+                } @else {
+                  Owner Mode
+                }
+              </span>
+              <i class="fas fa-chevron-down text-xs"></i>
+            </button>
+
+            @if (showRoleSwitchMenu) {
+              <div class="absolute top-full right-0 mt-1 w-72 bg-white rounded-md shadow-lg py-2 z-50 border border-gray-200" (click)="$event.stopPropagation()">
+                <div class="px-3.5 py-2 border-b border-gray-200">
+                  <div class="text-xs uppercase tracking-wide text-gray-500">Current Mode</div>
+                  <div class="text-sm font-semibold text-gray-900">
+                    @if (currentUser()?.isRoleSwitched) {
+                      {{ currentUser()?.actingRoleName }}
+                      @if (currentUser()?.actingOutletName) { @ {{ currentUser()?.actingOutletName }} }
+                    } @else {
+                      Owner Mode (full access)
+                    }
+                  </div>
+                </div>
+
+                <div class="px-3.5 py-2 space-y-2">
+                  <label class="block text-xs font-medium text-gray-600">Switch to role</label>
+                  <select
+                    [(ngModel)]="selectedActingRole"
+                    class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">— Select role —</option>
+                    @for (r of switchableRoles; track r) {
+                      <option [value]="r">{{ r }}</option>
+                    }
+                  </select>
+
+                  <label class="block text-xs font-medium text-gray-600">Outlet</label>
+                  <select
+                    [(ngModel)]="selectedActingOutletId"
+                    class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option [ngValue]="null">— All outlets —</option>
+                    @for (o of outlets(); track o.id) {
+                      <option [ngValue]="o.id">{{ o.name }}</option>
+                    }
+                  </select>
+
+                  @if (switchError()) {
+                    <div class="text-xs text-red-600">{{ switchError() }}</div>
+                  }
+
+                  <button
+                    type="button"
+                    (click)="confirmSwitchRole($event)"
+                    [disabled]="switchingRole() || !selectedActingRole"
+                    class="w-full text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-1.5 rounded transition-colors"
+                  >
+                    <i class="fas fa-exchange-alt text-xs mr-1"></i>
+                    Switch Role
+                  </button>
+                </div>
+
+                @if (currentUser()?.isRoleSwitched) {
+                  <div class="border-t border-gray-200 mt-1 pt-1">
+                    <button
+                      type="button"
+                      (click)="returnOwnerMode($event)"
+                      [disabled]="switchingRole()"
+                      class="w-full flex items-center space-x-2 px-3.5 py-2 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                    >
+                      <i class="fas fa-undo text-xs"></i>
+                      <span class="font-medium">Return Owner Mode</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
         <!-- Notifications -->
         <button class="relative text-gray-300 hover:bg-gray-800 p-2 rounded transition-colors">
           <i class="fas fa-bell text-base"></i>

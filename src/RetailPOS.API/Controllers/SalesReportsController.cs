@@ -12,10 +12,14 @@ namespace RetailPOS.API.Controllers;
 public class SalesReportsController : ControllerBase
 {
     private readonly ISalesReportService _salesReportService;
+    private readonly IUserOutletAccessService _outletAccess;
 
-    public SalesReportsController(ISalesReportService salesReportService)
+    public SalesReportsController(
+        ISalesReportService salesReportService,
+        IUserOutletAccessService outletAccess)
     {
         _salesReportService = salesReportService;
+        _outletAccess = outletAccess;
     }
 
     /// <summary>Returns aggregated sales summary</summary>
@@ -26,6 +30,7 @@ public class SalesReportsController : ControllerBase
         [FromQuery] long? outletId,
         [FromQuery] string? paymentMethod)
     {
+        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var filter = new SalesReportFilterDto
         {
             StartDate     = startDate,
@@ -45,6 +50,7 @@ public class SalesReportsController : ControllerBase
         [FromQuery] long? outletId,
         [FromQuery] int limit = 10)
     {
+        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var filter = new SalesReportFilterDto
         {
             StartDate = startDate,
@@ -61,8 +67,12 @@ public class SalesReportsController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate)
     {
+        // Cross-outlet aggregation. Non-BusinessOwner only sees their own outlet's row.
+        var scopedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(null);
         var filter = new SalesReportFilterDto { StartDate = startDate, EndDate = endDate };
         var result = await _salesReportService.GetSalesByOutletAsync(filter);
+        if (scopedOutletId.HasValue)
+            result = result.Where(r => r.OutletId == scopedOutletId.Value).ToList();
         return Ok(ApiResponse<List<SalesByOutletDto>>.SuccessResponse(result));
     }
 
@@ -73,6 +83,7 @@ public class SalesReportsController : ControllerBase
         [FromQuery] DateTime? endDate,
         [FromQuery] long? outletId)
     {
+        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var filter = new SalesReportFilterDto
         {
             StartDate = startDate,
@@ -90,6 +101,7 @@ public class SalesReportsController : ControllerBase
         [FromQuery] DateTime? endDate,
         [FromQuery] long? outletId)
     {
+        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var filter = new SalesReportFilterDto
         {
             StartDate = startDate,

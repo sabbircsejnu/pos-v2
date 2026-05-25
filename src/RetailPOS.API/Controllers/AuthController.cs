@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Services;
+using RetailPOS.Core.Entities.Audit;
+using RetailPOS.Infrastructure.Audit;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,11 +13,16 @@ namespace RetailPOS.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IRoleSwitchService _roleSwitch;
+    private readonly IAuditService _audit;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IRoleSwitchService roleSwitch,
+        IAuditService audit, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _roleSwitch = roleSwitch;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -25,10 +32,30 @@ public class AuthController : ControllerBase
         try
         {
             var response = await _authService.LoginAsync(request);
+
+            try
+            {
+                await _audit.RecordAsync(new AuditEventInput
+                {
+                    ActionType = AuditActionType.Login,
+                    Module = AuditModule.Auth,
+                    Summary = $"Login successful for {request.Email}",
+                    PrimaryEntity = ("User", response.User?.Id.ToString() ?? ""),
+                });
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit login success"); }
+
             return Ok(response);
         }
         catch (UnauthorizedAccessException ex)
         {
+            try
+            {
+                await _audit.RecordFailureAsync(AuditActionType.Login, AuditModule.Auth,
+                    $"Login failed for {request.Email}", "User", null, ex.Message);
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit login failure"); }
+
             return Unauthorized(new { message = ex.Message });
         }
         catch (Exception ex)
@@ -88,12 +115,104 @@ public class AuthController : ControllerBase
         {
             var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _authService.LogoutAsync(userId);
+
+            try
+            {
+                await _audit.RecordAsync(new AuditEventInput
+                {
+                    ActionType = AuditActionType.Logout,
+                    Module = AuditModule.Auth,
+                    Summary = $"Logout for user {userId}",
+                    PrimaryEntity = ("User", userId.ToString()),
+                });
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit logout"); }
+
             return Ok(new { message = "Logged out successfully" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during logout");
             return StatusCode(500, new { message = "An error occurred during logout" });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("switch-role")]
+    public async Task<ActionResult<LoginResponseDto>> SwitchRole([FromBody] RoleSwitchRequestDto request)
+    {
+        var realUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        try
+        {
+            var response = await _roleSwitch.SwitchRoleAsync(realUserId, request);
+
+            try
+            {
+                await _audit.RecordAsync(new AuditEventInput
+                {
+                    ActionType = AuditActionType.RoleSwitch,
+                    Module = AuditModule.Auth,
+                    Summary = $"User {realUserId} switched to {request.ActingRole}" +
+                              (request.ActingOutletId.HasValue ? $" @ outlet {request.ActingOutletId}" : ""),
+                    PrimaryEntity = ("User", realUserId.ToString()),
+                });
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit role switch"); }
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            try
+            {
+                await _audit.RecordFailureAsync(AuditActionType.RoleSwitch, AuditModule.Auth,
+                    $"Role switch denied for user {realUserId}", "User", realUserId.ToString(), ex.Message);
+            }
+            catch { }
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error switching role");
+            return StatusCode(500, new { message = "An error occurred while switching role" });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("return-owner")]
+    public async Task<ActionResult<LoginResponseDto>> ReturnOwner()
+    {
+        var realUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        try
+        {
+            var response = await _roleSwitch.ReturnOwnerAsync(realUserId);
+
+            try
+            {
+                await _audit.RecordAsync(new AuditEventInput
+                {
+                    ActionType = AuditActionType.RoleSwitch,
+                    Module = AuditModule.Auth,
+                    Summary = $"User {realUserId} returned to Owner Mode",
+                    PrimaryEntity = ("User", realUserId.ToString()),
+                });
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit return-owner"); }
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error returning to owner mode");
+            return StatusCode(500, new { message = "An error occurred while returning to owner mode" });
         }
     }
 

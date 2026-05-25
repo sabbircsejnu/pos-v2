@@ -74,11 +74,17 @@
             (click)="addToCart(product)"
           >
             <div class="product-icon">
-              <i class="fas fa-box text-gray-400"></i>
+              @if (product.primaryImageThumb) {
+                <img [src]="resolveImage(product.primaryImageThumb)"
+                     [alt]="product.name" loading="lazy" decoding="async"
+                     class="w-12 h-12 object-cover rounded" />
+              } @else {
+                <i class="fas fa-box text-gray-400"></i>
+              }
             </div>
             <div class="product-name">{{ product.name }}</div>
             <div class="product-sku">{{ product.sku }}</div>
-            <div class="product-price">{{ product.price | currency }}</div>
+            <div class="product-price">{{ product.price | appCurrency }}</div>
             <div class="product-stock" [class.low]="product.stockQty <= 5 && product.stockQty > 0" [class.out]="product.stockQty <= 0">
               @if (product.stockQty <= 0) {
                 <span>Out of Stock</span>
@@ -175,10 +181,19 @@
       } @else {
         @for (item of cartItems(); track item.variantId; let i = $index) {
           <div class="cart-item">
+            @if (item.primaryImageThumb) {
+              <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName"
+                   loading="lazy" decoding="async"
+                   class="w-8 h-8 rounded object-cover border border-gray-200 flex-shrink-0" />
+            } @else {
+              <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-box text-gray-400 text-xs"></i>
+              </div>
+            }
             <div class="cart-item-info">
               <div class="font-medium text-sm text-gray-900">{{ item.productName }}</div>
               <div class="text-xs text-gray-500">{{ item.variantSku }}</div>
-              <div class="text-xs text-gray-600">{{ item.unitPrice | currency }} each</div>
+              <div class="text-xs text-gray-600">{{ item.unitPrice | appCurrency }} each</div>
             </div>
             <div class="cart-item-qty">
               <button class="qty-btn" (click)="decreaseQty(i)">
@@ -190,7 +205,7 @@
               </button>
             </div>
             <div class="cart-item-total">
-              <div class="font-semibold text-sm text-gray-900">{{ item.subtotal | currency }}</div>
+              <div class="font-semibold text-sm text-gray-900">{{ item.subtotal | appCurrency }}</div>
               <button class="remove-btn" (click)="removeFromCart(i)">
                 <i class="fas fa-trash text-xs"></i>
               </button>
@@ -204,7 +219,7 @@
     <div class="cart-totals">
       <div class="total-row">
         <span class="text-sm text-gray-600">Subtotal</span>
-        <span class="text-sm font-medium text-gray-900">{{ subtotal() | currency }}</span>
+        <span class="text-sm font-medium text-gray-900">{{ subtotal() | appCurrency }}</span>
       </div>
       <div class="total-row">
         <div class="flex items-center gap-2">
@@ -220,15 +235,15 @@
           />
           <span class="text-sm text-gray-500">%</span>
         </div>
-        <span class="text-sm text-red-600">-{{ discountAmount() | currency }}</span>
+        <span class="text-sm text-red-600">-{{ discountAmount() | appCurrency }}</span>
       </div>
       <div class="total-row">
         <span class="text-sm text-gray-600">Tax (10%)</span>
-        <span class="text-sm text-gray-700">{{ taxAmount() | currency }}</span>
+        <span class="text-sm text-gray-700">{{ taxAmount() | appCurrency }}</span>
       </div>
       <div class="total-row border-t border-gray-200 pt-2 mt-1">
         <span class="text-lg font-bold text-gray-900">Total</span>
-        <span class="text-xl font-bold text-gray-900">{{ totalAmount() | currency }}</span>
+        <span class="text-xl font-bold text-gray-900">{{ totalAmount() | appCurrency }}</span>
       </div>
     </div>
 
@@ -313,7 +328,7 @@
               <i class="fas fa-plus mr-1"></i>Add method
             </button>
             <span [class.text-red-600]="splitRemaining() > 0.01" [class.text-green-600]="splitRemaining() <= 0.01">
-              Remaining: {{ splitRemaining() | currency }}
+              Remaining: {{ splitRemaining() | appCurrency }}
             </span>
           </div>
         </div>
@@ -336,7 +351,7 @@
         <div class="flex justify-between mt-2">
           <span class="text-sm text-gray-600">Change:</span>
           <span class="text-lg font-bold" [class.text-green-600]="change() > 0" [class.text-gray-900]="change() === 0">
-            {{ change() | currency }}
+            {{ change() | appCurrency }}
           </span>
         </div>
       </div>
@@ -392,10 +407,10 @@
           <div class="receipt-item-row">
             <div>
               <div class="text-sm font-medium">{{ item.productName }}</div>
-              <div class="text-xs text-gray-500">{{ item.variantSku }} @ {{ item.unitPrice | currency }}</div>
+              <div class="text-xs text-gray-500">{{ item.variantSku }} @ {{ item.unitPrice | appCurrency }}</div>
             </div>
             <div class="text-sm text-center">{{ item.quantity }}</div>
-            <div class="text-sm font-medium text-right">{{ item.subtotal | currency }}</div>
+            <div class="text-sm font-medium text-right">{{ item.subtotal | appCurrency }}</div>
           </div>
         }
       </div>
@@ -403,21 +418,21 @@
       <div class="receipt-totals">
         <div class="receipt-total-row">
           <span class="text-sm text-gray-600">Subtotal</span>
-          <span class="text-sm">{{ completedSale()?.totalAmount | currency }}</span>
+          <span class="text-sm">{{ completedSale()?.totalAmount | appCurrency }}</span>
         </div>
         @if (completedSale()?.discount > 0) {
           <div class="receipt-total-row">
             <span class="text-sm text-gray-600">Discount</span>
-            <span class="text-sm text-red-600">-{{ completedSale()?.discount | currency }}</span>
+            <span class="text-sm text-red-600">-{{ completedSale()?.discount | appCurrency }}</span>
           </div>
         }
         <div class="receipt-total-row">
           <span class="text-sm text-gray-600">Tax</span>
-          <span class="text-sm">{{ completedSale()?.tax | currency }}</span>
+          <span class="text-sm">{{ completedSale()?.tax | appCurrency }}</span>
         </div>
         <div class="receipt-total-row font-bold border-t border-gray-200 pt-2">
           <span class="text-base">Total</span>
-          <span class="text-xl text-gray-900">{{ completedSale()?.netTotal | currency }}</span>
+          <span class="text-xl text-gray-900">{{ completedSale()?.netTotal | appCurrency }}</span>
         </div>
         <div class="receipt-total-row mt-2">
           <span class="text-sm text-gray-600">Payment</span>
@@ -426,11 +441,11 @@
         @if (completedSale()?.paymentMethod === 'cash') {
           <div class="receipt-total-row">
             <span class="text-sm text-gray-600">Cash Tendered</span>
-            <span class="text-sm">{{ cashTendered() | currency }}</span>
+            <span class="text-sm">{{ cashTendered() | appCurrency }}</span>
           </div>
           <div class="receipt-total-row">
             <span class="text-sm text-gray-600">Change</span>
-            <span class="text-sm font-bold text-green-600">{{ change() | currency }}</span>
+            <span class="text-sm font-bold text-green-600">{{ change() | appCurrency }}</span>
           </div>
         }
       </div>
@@ -487,7 +502,7 @@
                   }
                 </div>
                 <div class="text-xs text-gray-500">
-                  {{ held.items.length }} item(s) · {{ held.subtotal | currency }}
+                  {{ held.items.length }} item(s) · {{ held.subtotal | appCurrency }}
                 </div>
                 <div class="text-xs text-gray-400">{{ held.heldAt | date:'short' }}</div>
                 @if (held.note) {

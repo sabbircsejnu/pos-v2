@@ -161,8 +161,11 @@
               <tr class="cursor-pointer" (click)="viewProduct(product.id)">
                 <td class="px-4 py-2.5">
                   <div class="flex items-center gap-2.5">
-                    @if (product.imageUrl) {
-                      <img [src]="product.imageUrl" [alt]="product.name" class="w-10 h-10 rounded object-cover border border-gray-200" />
+                    @if (product.primaryImageThumb) {
+                      <img [src]="resolveImage(product.primaryImageThumb)"
+                           [alt]="product.name" loading="lazy" decoding="async"
+                           (click)="$event.stopPropagation(); openLightbox(product)"
+                           class="w-10 h-10 rounded object-cover border border-gray-200 cursor-zoom-in" />
                     } @else {
                       <div class="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
                         <i class="fas fa-box text-gray-400 text-base"></i>
@@ -192,9 +195,9 @@
                   </span>
                 </td>
                 <td class="px-4 py-2.5 text-right">
-                  <div class="font-semibold text-gray-900 text-sm">${{ product.basePrice.toFixed(2) }}</div>
+                  <div class="font-semibold text-gray-900 text-sm">{{ product.basePrice | appCurrency }}</div>
                   @if (product.costPrice > 0) {
-                    <div class="text-xs text-gray-600">Cost: ${{ product.costPrice.toFixed(2) }}</div>
+                    <div class="text-xs text-gray-600">Cost: {{ product.costPrice | appCurrency }}</div>
                   }
                 </td>
                 <td class="px-4 py-2.5 text-center">
@@ -230,6 +233,13 @@
                 </td>
                 <td class="px-4 py-2.5 text-center" (click)="$event.stopPropagation()">
                   <div class="flex items-center justify-center gap-1.5">
+                    <a
+                      [routerLink]="['/reports/stock-transactions']"
+                      [queryParams]="{ productId: product.id }"
+                      class="text-blue-600 hover:text-blue-900"
+                      title="Stock Transactions">
+                      <i class="fas fa-list-alt"></i>
+                    </a>
                     <button
                       (click)="editProduct(product.id)"
                       class="text-gray-600 hover:text-gray-900"
@@ -306,3 +316,8 @@
     </div>
   }
 </div>
+
+@if (lightboxImage(); as lb) {
+  <app-image-lightbox [src]="lb.medium" [originalUrl]="lb.original"
+                      (closed)="lightboxImage.set(null)"></app-image-lightbox>
+}

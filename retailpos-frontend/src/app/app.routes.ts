@@ -49,7 +49,9 @@ import { BillsListComponent } from './pages/accounting/bills-list.component';
 import { SalesReportComponent } from './pages/reports/sales-report.component';
 import { InventoryReportComponent } from './pages/reports/inventory-report.component';
 import { PurchaseReportComponent } from './pages/reports/purchase-report.component';
+import { StockTransactionReportComponent } from './pages/reports/stock-transaction-report.component';
 import { SettingsPageComponent } from './pages/settings/settings-page.component';
+import { AuditListComponent } from './pages/audit/audit-list.component';
 import { authGuard, loginGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -146,6 +148,10 @@ export const routes: Routes = [
       { path: 'reports/sales', component: SalesReportComponent },
       { path: 'reports/inventory', component: InventoryReportComponent },
       { path: 'reports/purchases', component: PurchaseReportComponent },
+      { path: 'reports/stock-transactions', component: StockTransactionReportComponent },
+
+      // Audit Log Route
+      { path: 'audit-logs', component: AuditListComponent },
 
       // Settings Routes
       { path: 'settings', component: SettingsPageComponent },

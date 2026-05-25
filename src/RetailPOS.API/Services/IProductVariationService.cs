@@ -5,7 +5,11 @@ namespace RetailPOS.API.Services;
 public interface IProductVariationService
 {
     Task<List<ProductVariationDto>> GetProductVariationsAsync(long productId);
-    Task AssignVariationsToProductAsync(long productId, List<long> variationIds);
+    /// <param name="selectedOptionsByVariation">
+    /// Key = VariationId, Value = selected OptionIds for that variation.
+    /// If empty or absent for a variation, all active options are pre-selected.
+    /// </param>
+    Task AssignVariationsToProductAsync(long productId, List<long> variationIds, Dictionary<long, List<long>> selectedOptionsByVariation);
     Task<List<CombinationDto>> GenerateAllCombinationsAsync(long productId);
     Task<List<CombinationDto>> GenerateSelectedCombinationsAsync(long productId, List<long> variationIds);
     Task<CombinationDto> CreateManualCombinationAsync(long productId, CreateCombinationRequest request);

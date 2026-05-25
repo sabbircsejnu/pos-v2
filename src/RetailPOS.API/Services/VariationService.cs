@@ -1,4 +1,5 @@
 using RetailPOS.API.DTOs.Variation;
+using RetailPOS.API.Exceptions;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Core.Entities;
 
@@ -90,6 +91,21 @@ namespace RetailPOS.API.Services
 
         public async Task DeleteVariationAsync(long id)
         {
+            var variation = await _variationRepo.GetByIdAsync(id);
+            if (variation == null)
+                throw new KeyNotFoundException("Variation not found");
+
+            var products = await _variationRepo.GetProductsUsingVariationAsync(id);
+            if (products.Count > 0)
+            {
+                var refs = products
+                    .Select(p => new ResourceReference { Id = p.Id, Name = p.Name })
+                    .ToList();
+                throw new ResourceInUseException(
+                    $"Cannot delete variation '{variation.Name}' because it is used by {products.Count} product(s).",
+                    refs);
+            }
+
             await _variationRepo.DeleteAsync(id);
         }
 

@@ -10,6 +10,7 @@ namespace RetailPOS.Infrastructure.Repositories
         Task<Variation> UpdateAsync(Variation variation);
         Task DeleteAsync(long id);
         Task<bool> NameExistsAsync(string name, long? excludeId = null);
+        Task<List<Product>> GetProductsUsingVariationAsync(long variationId);
     }
 
     public interface IVariationOptionRepository

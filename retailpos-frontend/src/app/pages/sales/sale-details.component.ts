@@ -1,5 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -11,7 +12,7 @@ import { SaleDto } from '../../models/sale.model';
 @Component({
   selector: 'app-sale-details',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe],
+  imports: [CommonModule, FormsModule, AppCurrencyPipe, DatePipe],
   templateUrl: './sale-details.component.html',
   styleUrls: ['./sale-details.component.css']
 })

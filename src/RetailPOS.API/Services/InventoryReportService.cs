@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.Reports;
+using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.API.Services;
@@ -151,5 +152,216 @@ public class InventoryReportService : IInventoryReportService
             })
             .OrderByDescending(x => x.DaysSinceLastSale)
             .ToList();
+    }
+
+    /// <summary>
+    /// Builds a stock-card style report from the unified StockLedger:
+    /// - Opening balance is computed from rows strictly before <paramref name="dateFrom"/>.
+    /// - In-window rows are returned chronologically with running balance.
+    /// - Closing = Opening + StockIn - StockOut for the window.
+    /// </summary>
+    public async Task<StockTransactionReportDto> GetStockTransactionReportAsync(
+        long productId,
+        long? variantId,
+        long? locationId,
+        string? locationType,
+        DateTime? dateFrom,
+        DateTime? dateTo)
+    {
+        var product = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productId);
+
+        if (product == null)
+            throw new KeyNotFoundException($"Product {productId} not found");
+
+        // Variant IDs in scope: a single variant or every variant of the product.
+        var variantIdsInScope = variantId.HasValue
+            ? new List<long> { variantId.Value }
+            : await _context.ProductVariants
+                .AsNoTracking()
+                .Where(v => v.ProductId == productId)
+                .Select(v => v.Id)
+                .ToListAsync();
+
+        ProductVariant? singleVariant = null;
+        if (variantId.HasValue)
+        {
+            singleVariant = await _context.ProductVariants
+                .AsNoTracking()
+                .FirstOrDefaultAsync(v => v.Id == variantId.Value && v.ProductId == productId);
+
+            if (singleVariant == null)
+                throw new KeyNotFoundException($"Variant {variantId.Value} does not belong to product {productId}");
+        }
+
+        // Inclusive end-of-day for the supplied DateTo
+        var rangeStart = dateFrom;
+        var rangeEnd = dateTo.HasValue
+            ? dateTo.Value.Date.AddDays(1).AddTicks(-1)
+            : (DateTime?)null;
+
+        var baseQuery = _context.StockLedgers
+            .AsNoTracking()
+            .Where(sl => variantIdsInScope.Contains(sl.VariantId));
+
+        if (locationId.HasValue)
+            baseQuery = baseQuery.Where(sl => sl.LocationId == locationId.Value);
+
+        if (!string.IsNullOrWhiteSpace(locationType))
+            baseQuery = baseQuery.Where(sl => sl.LocationType == locationType);
+
+        // Opening balance = NET movement strictly before the window starts.
+        int opening = 0;
+        if (rangeStart.HasValue)
+        {
+            opening = await baseQuery
+                .Where(sl => sl.CreatedAt < rangeStart.Value)
+                .SumAsync(sl => (int?)(sl.QtyIn - sl.QtyOut)) ?? 0;
+        }
+
+        var inWindowQuery = baseQuery;
+        if (rangeStart.HasValue)
+            inWindowQuery = inWindowQuery.Where(sl => sl.CreatedAt >= rangeStart.Value);
+        if (rangeEnd.HasValue)
+            inWindowQuery = inWindowQuery.Where(sl => sl.CreatedAt <= rangeEnd.Value);
+
+        var ledgerRows = await inWindowQuery
+            .OrderBy(sl => sl.CreatedAt)
+            .ThenBy(sl => sl.Id)
+            .Select(sl => new
+            {
+                sl.Id,
+                sl.CreatedAt,
+                sl.LocationId,
+                sl.LocationType,
+                sl.TransactionType,
+                sl.ReferenceType,
+                sl.ReferenceId,
+                sl.VariantId,
+                VariantSku = sl.Variant.Sku,
+                VariantAttributes = sl.Variant.Attributes,
+                sl.QtyIn,
+                sl.QtyOut,
+                sl.Remarks,
+                CreatedByName = sl.Creator != null ? sl.Creator.Name : null
+            })
+            .ToListAsync();
+
+        // Resolve location, sale, grn, transfer reference numbers up front (one round-trip each)
+        var outletIds = ledgerRows.Where(r => r.LocationType == "outlet").Select(r => r.LocationId).Distinct().ToList();
+        var warehouseIds = ledgerRows.Where(r => r.LocationType == "warehouse").Select(r => r.LocationId).Distinct().ToList();
+
+        var outletNames = await _context.Outlets.AsNoTracking()
+            .Where(o => outletIds.Contains(o.Id))
+            .ToDictionaryAsync(o => o.Id, o => o.Name);
+
+        var warehouseNames = await _context.Warehouses.AsNoTracking()
+            .Where(w => warehouseIds.Contains(w.Id))
+            .ToDictionaryAsync(w => w.Id, w => w.Name);
+
+        var saleIds = ledgerRows.Where(r => r.ReferenceType == StockLedgerReferenceType.Sale).Select(r => r.ReferenceId).Distinct().ToList();
+        var grnIds = ledgerRows.Where(r => r.ReferenceType == StockLedgerReferenceType.Grn).Select(r => r.ReferenceId).Distinct().ToList();
+        var transferIds = ledgerRows.Where(r => r.ReferenceType == StockLedgerReferenceType.StockTransfer).Select(r => r.ReferenceId).Distinct().ToList();
+        var adjustmentIds = ledgerRows.Where(r => r.ReferenceType == StockLedgerReferenceType.StockAdjustment).Select(r => r.ReferenceId).Distinct().ToList();
+
+        var saleNumbers = await _context.Sales.AsNoTracking()
+            .Where(s => saleIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.SaleNumber);
+
+        var grnNumbers = await _context.Grns.AsNoTracking()
+            .Where(g => grnIds.Contains(g.Id))
+            .Select(g => new { g.Id, g.PoId })
+            .ToDictionaryAsync(g => g.Id, g => $"GRN-{g.Id} (PO-{g.PoId})");
+
+        var transferNumbers = transferIds.ToDictionary(id => id, id => $"TRF-{id}");
+        var adjustmentNumbers = adjustmentIds.ToDictionary(id => id, id => $"ADJ-{id}");
+
+        // Walk chronologically, accumulating running balance from opening.
+        int running = opening;
+        int totalIn = 0;
+        int totalOut = 0;
+        var rows = new List<StockTransactionReportRowDto>(ledgerRows.Count);
+
+        foreach (var r in ledgerRows)
+        {
+            running += r.QtyIn - r.QtyOut;
+            totalIn += r.QtyIn;
+            totalOut += r.QtyOut;
+
+            var locationName = r.LocationType == "outlet"
+                ? (outletNames.TryGetValue(r.LocationId, out var n1) ? n1 : $"Outlet {r.LocationId}")
+                : r.LocationType == "warehouse"
+                    ? (warehouseNames.TryGetValue(r.LocationId, out var n2) ? n2 : $"Warehouse {r.LocationId}")
+                    : $"Location {r.LocationId}";
+
+            var referenceNo = r.ReferenceType switch
+            {
+                StockLedgerReferenceType.Sale            => saleNumbers.TryGetValue(r.ReferenceId, out var sn) ? sn : $"SALE-{r.ReferenceId}",
+                StockLedgerReferenceType.Grn             => grnNumbers.TryGetValue(r.ReferenceId, out var gn) ? gn : $"GRN-{r.ReferenceId}",
+                StockLedgerReferenceType.StockTransfer   => transferNumbers.TryGetValue(r.ReferenceId, out var tn) ? tn : $"TRF-{r.ReferenceId}",
+                StockLedgerReferenceType.StockAdjustment => adjustmentNumbers.TryGetValue(r.ReferenceId, out var an) ? an : $"ADJ-{r.ReferenceId}",
+                _ => $"{r.ReferenceType}-{r.ReferenceId}"
+            };
+
+            rows.Add(new StockTransactionReportRowDto
+            {
+                Id                = r.Id,
+                TransactionDate   = r.CreatedAt,
+                LocationId        = r.LocationId,
+                LocationType      = r.LocationType,
+                LocationName      = locationName,
+                TransactionType   = r.TransactionType,
+                ReferenceType     = r.ReferenceType,
+                ReferenceId       = r.ReferenceId,
+                ReferenceNo       = referenceNo,
+                VariantId         = r.VariantId,
+                VariantCode       = r.VariantSku,
+                VariantAttributes = r.VariantAttributes,
+                QuantityIn        = r.QtyIn,
+                QuantityOut       = r.QtyOut,
+                RunningBalance    = running,
+                Remarks           = r.Remarks,
+                CreatedByName     = r.CreatedByName
+            });
+        }
+
+        // Current stock across the same scope (for validation).
+        var currentStockQuery = _context.Inventories.AsNoTracking()
+            .Where(i => variantIdsInScope.Contains(i.VariantId));
+        if (locationId.HasValue)
+            currentStockQuery = currentStockQuery.Where(i => i.LocationId == locationId.Value);
+        if (!string.IsNullOrWhiteSpace(locationType))
+            currentStockQuery = currentStockQuery.Where(i => i.LocationType == locationType);
+
+        var currentStock = await currentStockQuery.SumAsync(i => (int?)i.Quantity) ?? 0;
+
+        var displaySku = singleVariant?.Sku ?? product.Sku ?? string.Empty;
+
+        return new StockTransactionReportDto
+        {
+            ProductId         = product.Id,
+            ProductName       = product.Name,
+            ProductCode       = product.Sku,
+            Level             = singleVariant != null ? "variant" : "product",
+            VariantId         = singleVariant?.Id,
+            VariantCode       = singleVariant?.Sku,
+            VariantName       = singleVariant?.Name,
+            VariantAttributes = singleVariant?.Attributes,
+            Sku               = displaySku,
+            OutletId          = locationId,
+            LocationType      = locationType,
+            DateFrom          = dateFrom,
+            DateTo            = dateTo,
+            Summary = new StockTransactionReportSummaryDto
+            {
+                OpeningStock = opening,
+                StockIn      = totalIn,
+                StockOut     = totalOut,
+                ClosingStock = opening + totalIn - totalOut,
+                CurrentStock = currentStock
+            },
+            Rows = rows
+        };
     }
 }

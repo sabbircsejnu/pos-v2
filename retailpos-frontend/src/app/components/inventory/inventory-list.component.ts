@@ -9,11 +9,12 @@ import { OutletService } from '../../services/outlet.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { Outlet } from '../../models/outlet.model';
 import { Warehouse } from '../../models/warehouse.model';
+import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 
 @Component({
   selector: 'app-inventory-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppCurrencyPipe],
   template: `
     <div class="py-4">
       <div class="mb-4 flex justify-between items-center">
@@ -157,9 +158,9 @@ import { Warehouse } from '../../models/warehouse.model';
                       <span class="badge badge-success">In Stock</span>
                     }
                   </td>
-                  <td>{{ item.costPrice | number:'1.2-2' }}</td>
-                  <td>{{ item.retailPrice | number:'1.2-2' }}</td>
-                  <td class="font-medium">{{ item.totalValue | number:'1.2-2' }}</td>
+                  <td>{{ item.costPrice | appCurrency }}</td>
+                  <td>{{ item.retailPrice | appCurrency }}</td>
+                  <td class="font-medium">{{ item.totalValue | appCurrency }}</td>
                   <td>
                     <button
                       type="button"

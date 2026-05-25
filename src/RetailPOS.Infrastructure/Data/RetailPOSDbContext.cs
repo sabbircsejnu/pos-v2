@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Core.Entities;
+using RetailPOS.Core.Entities.Audit;
 
 namespace RetailPOS.Infrastructure.Data;
 
@@ -25,7 +26,9 @@ public class RetailPOSDbContext : DbContext
     public DbSet<VariationOption> VariationOptions => Set<VariationOption>();
     public DbSet<ProductVariation> ProductVariations => Set<ProductVariation>();
     public DbSet<ProductVariantOption> ProductVariantOptions => Set<ProductVariantOption>();
+    public DbSet<ProductVariationSelectedOption> ProductVariationSelectedOptions => Set<ProductVariationSelectedOption>();
     public DbSet<Inventory> Inventories => Set<Inventory>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
 
     // Suppliers & Purchase
     public DbSet<Supplier> Suppliers => Set<Supplier>();
@@ -55,8 +58,13 @@ public class RetailPOSDbContext : DbContext
     // Stock Ledger  // NEW
     public DbSet<StockLedger> StockLedgers => Set<StockLedger>();
 
-    // Audit
+    // Audit (legacy — kept for backward compat during transition)
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // Audit (v2)
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<AuditEventEntity> AuditEventEntities => Set<AuditEventEntity>();
+    public DbSet<AuditEventFieldChange> AuditEventFieldChanges => Set<AuditEventFieldChange>();
 
     // Pricing Engine
     public DbSet<PriceRule> PriceRules => Set<PriceRule>();
@@ -249,6 +257,54 @@ public class RetailPOSDbContext : DbContext
             entity.HasOne(e => e.Option)
                 .WithMany(o => o.ProductVariantOptions)
                 .HasForeignKey(e => e.OptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ProductVariationSelectedOption Configuration
+        // Stores which specific options are selected for each variation type on a product.
+        modelBuilder.Entity<ProductVariationSelectedOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Each (product, variation, option) triple must be unique.
+            entity.HasIndex(e => new { e.ProductId, e.VariationId, e.OptionId }).IsUnique();
+
+            entity.HasOne(e => e.Product)
+                .WithMany()
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variation)
+                .WithMany()
+                .HasForeignKey(e => e.VariationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Option)
+                .WithMany()
+                .HasForeignKey(e => e.OptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ProductImage Configuration
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OriginalName).HasMaxLength(260).IsRequired();
+            entity.Property(e => e.MimeType).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.OriginalPath).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.MediumPath).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.ThumbPath).HasMaxLength(300).IsRequired();
+
+            entity.HasIndex(e => new { e.ProductId, e.SortOrder });
+            // exactly one primary per product — partial unique index on Postgres
+            entity.HasIndex(e => e.ProductId)
+                .IsUnique()
+                .HasFilter("is_primary = true")
+                .HasDatabaseName("ux_product_images_one_primary_per_product");
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Images)
+                .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -595,6 +651,74 @@ public class RetailPOSDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // AuditEvent Configuration
+        modelBuilder.Entity<AuditEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ActionType).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.ActionSummary).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Module).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.Source).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PrimaryEntityType).HasMaxLength(80);
+            entity.Property(e => e.PrimaryEntityId).HasMaxLength(80);
+            entity.Property(e => e.RequestMethod).HasMaxLength(10);
+            entity.Property(e => e.RequestPath).HasMaxLength(500);
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.Property(e => e.UserAgent).HasMaxLength(500);
+            entity.Property(e => e.DeviceName).HasMaxLength(120);
+            entity.Property(e => e.Browser).HasMaxLength(60);
+            entity.Property(e => e.Os).HasMaxLength(60);
+            entity.Property(e => e.Status).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Metadata).HasColumnType("jsonb");
+
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.CorrelationId);
+            entity.HasIndex(e => new { e.RealUserId, e.CreatedAt });
+            entity.HasIndex(e => new { e.Module, e.ActionType, e.CreatedAt });
+            entity.HasIndex(e => new { e.PrimaryEntityType, e.PrimaryEntityId });
+            entity.HasIndex(e => new { e.OutletId, e.CreatedAt });
+        });
+
+        // AuditEventEntity Configuration
+        modelBuilder.Entity<AuditEventEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EntityType).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.EntityId).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.OperationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Metadata).HasColumnType("jsonb");
+            entity.Property(e => e.IsInternalOperation).HasDefaultValue(false);
+            entity.Property(e => e.InternalOperationName).HasMaxLength(120);
+
+            entity.HasIndex(e => e.AuditEventId);
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
+
+            entity.HasOne(e => e.AuditEvent)
+                .WithMany(a => a.Entities)
+                .HasForeignKey(e => e.AuditEventId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // AuditEventFieldChange Configuration
+        modelBuilder.Entity<AuditEventFieldChange>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FieldName).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.OldValue).HasColumnType("jsonb");
+            entity.Property(e => e.NewValue).HasColumnType("jsonb");
+            entity.Property(e => e.OldDisplayValue).HasMaxLength(500);
+            entity.Property(e => e.NewDisplayValue).HasMaxLength(500);
+            entity.Property(e => e.ReferenceEntityType).HasMaxLength(80);
+            entity.Property(e => e.IsReferenceField).HasDefaultValue(false);
+
+            entity.HasIndex(e => e.AuditEventEntityId);
+
+            entity.HasOne(e => e.AuditEventEntity)
+                .WithMany(a => a.FieldChanges)
+                .HasForeignKey(e => e.AuditEventEntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // PriceRule Configuration
         modelBuilder.Entity<PriceRule>(entity =>
         {
@@ -658,6 +782,33 @@ public class RetailPOSDbContext : DbContext
                 .HasForeignKey(e => e.CreatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        GuardAuditImmutability();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        GuardAuditImmutability();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void GuardAuditImmutability()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.Entity is AuditEvent or AuditEventEntity or AuditEventFieldChange)
+            {
+                if (entry.State is EntityState.Modified or EntityState.Deleted)
+                {
+                    throw new InvalidOperationException(
+                        $"Audit records are immutable; cannot {entry.State} {entry.Entity.GetType().Name}.");
+                }
+            }
+        }
     }
 
     private static string ToSnakeCase(string input)

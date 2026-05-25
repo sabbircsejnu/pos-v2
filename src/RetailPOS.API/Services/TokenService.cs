@@ -19,7 +19,7 @@ public class TokenService : ITokenService
         _jwtSettings = jwtSettings.Value;
     }
 
-    public string GenerateAccessToken(User user, Role? role)
+    public string GenerateAccessToken(User user, Role? role, ActingRoleClaims? acting = null)
     {
         var claims = new List<Claim>
         {
@@ -29,12 +29,37 @@ public class TokenService : ITokenService
             new("userId", user.Id.ToString())
         };
 
+        // Real role always present in token (used for "Return Owner Mode")
         if (role != null)
         {
-            claims.Add(new Claim(ClaimTypes.Role, role.Name));
             claims.Add(new Claim("roleId", role.Id.ToString()));
-            
-            // Parse permissions from JSONB
+            claims.Add(new Claim(RoleSwitchClaims.RealRoleId, role.Id.ToString()));
+            claims.Add(new Claim(RoleSwitchClaims.RealRoleName, role.Name));
+        }
+
+        if (user.OutletId.HasValue)
+        {
+            claims.Add(new Claim("outletId", user.OutletId.Value.ToString()));
+        }
+
+        // Effective role/permissions: acting role wins when present
+        if (acting != null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, acting.ActingRoleName));
+            claims.Add(new Claim(RoleSwitchClaims.ActingRoleId, acting.ActingRoleId.ToString()));
+            claims.Add(new Claim(RoleSwitchClaims.ActingRoleName, acting.ActingRoleName));
+            claims.Add(new Claim(RoleSwitchClaims.IsRoleSwitched, "true"));
+            if (acting.ActingOutletId.HasValue)
+                claims.Add(new Claim(RoleSwitchClaims.ActingOutletId, acting.ActingOutletId.Value.ToString()));
+            if (!string.IsNullOrEmpty(acting.ActingOutletName))
+                claims.Add(new Claim(RoleSwitchClaims.ActingOutletName, acting.ActingOutletName));
+
+            foreach (var p in acting.ActingPermissions)
+                claims.Add(new Claim("permission", p));
+        }
+        else if (role != null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role.Name));
             try
             {
                 var permissions = JsonSerializer.Deserialize<List<string>>(role.Permissions) ?? new List<string>();
@@ -43,15 +68,7 @@ public class TokenService : ITokenService
                     claims.Add(new Claim("permission", permission));
                 }
             }
-            catch
-            {
-                // Handle JSON parsing error
-            }
-        }
-
-        if (user.OutletId.HasValue)
-        {
-            claims.Add(new Claim("outletId", user.OutletId.Value.ToString()));
+            catch { }
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));

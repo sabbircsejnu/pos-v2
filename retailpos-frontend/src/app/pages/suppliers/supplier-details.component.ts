@@ -5,6 +5,7 @@ import { SupplierService } from '../../services/supplier.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { Supplier, SupplierPerformanceDto } from '../../models/supplier.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-supplier-details',
@@ -24,7 +25,8 @@ export class SupplierDetailsComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -115,10 +117,7 @@ export class SupplierDetailsComponent implements OnInit {
   }
 
   formatCurrency(amount: number | undefined): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return this.currencyService.format(amount ?? 0);
   }
 
   formatDate(date: Date | string | undefined): string {

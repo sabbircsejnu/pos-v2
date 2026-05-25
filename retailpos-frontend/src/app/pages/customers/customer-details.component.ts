@@ -6,6 +6,7 @@ import { CustomerService } from '../../services/customer.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CustomerDto } from '../../models/customer.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-customer-details',
@@ -26,7 +27,8 @@ export class CustomerDetailsComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +104,6 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   formatCurrency(amount: number | undefined): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    return this.currencyService.format(amount ?? 0);
   }
 }

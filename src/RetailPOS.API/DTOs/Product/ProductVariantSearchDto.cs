@@ -15,4 +15,5 @@ public class ProductVariantSearchDto
     public decimal FinalPrice { get; set; }
     public decimal? CostPrice { get; set; }
     public int? StockQuantity { get; set; }
+    public string? PrimaryImageThumb { get; set; }
 }

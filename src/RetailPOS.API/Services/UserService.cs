@@ -68,6 +68,15 @@ public class UserService : IUserService
             throw new KeyNotFoundException($"Role with ID {dto.RoleId} not found");
         }
 
+        // Outlet-bound users (everything below SuperAdmin / BusinessOwner) MUST have
+        // a default outlet — every transaction they perform is scoped to it. Skipping
+        // this would leave them unable to sell, adjust stock, etc.
+        if (!RoleSwitchClaims.IsOutletExempt(role.Name) && !dto.OutletId.HasValue)
+        {
+            throw new InvalidOperationException(
+                "OutletId is required for users below Business Admin. Assign a default outlet.");
+        }
+
         // Hash password
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 11);
 
@@ -107,6 +116,12 @@ public class UserService : IUserService
         if (role == null)
         {
             throw new KeyNotFoundException($"Role with ID {dto.RoleId} not found");
+        }
+
+        if (!RoleSwitchClaims.IsOutletExempt(role.Name) && !dto.OutletId.HasValue)
+        {
+            throw new InvalidOperationException(
+                "OutletId is required for users below Business Admin. Assign a default outlet.");
         }
 
         user.Name = dto.Name;

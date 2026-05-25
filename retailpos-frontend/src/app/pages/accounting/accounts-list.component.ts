@@ -5,6 +5,7 @@ import { AccountingService } from '../../services/accounting.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { AccountDto, CreateAccountDto } from '../../models/accounting.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-accounts-list',
@@ -28,7 +29,8 @@ export class AccountsListComponent implements OnInit {
   constructor(
     public accountingService: AccountingService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -131,6 +133,6 @@ export class AccountsListComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    return this.currencyService.format(amount);
   }
 }

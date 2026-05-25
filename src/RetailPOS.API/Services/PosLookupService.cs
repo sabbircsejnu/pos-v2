@@ -127,7 +127,7 @@ public sealed class PosLookupService : IPosLookupService
                 VariantName = v.Name,
                 Barcode     = v.Barcode,
                 Sku         = v.Sku,
-                ImageUrl    = v.Product.ImageUrl,
+                ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
                 IsActive    = v.Product.IsActive
@@ -149,7 +149,7 @@ public sealed class PosLookupService : IPosLookupService
                         VariantName = v.Name,
                         Barcode     = p.Barcode,
                         Sku         = v.Sku,
-                        ImageUrl    = p.ImageUrl,
+                        ImageUrl    = p.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                         BasePrice   = p.BasePrice + v.PriceAdjustment,
                         TaxRate     = p.TaxRate,
                         IsActive    = p.IsActive
@@ -173,7 +173,7 @@ public sealed class PosLookupService : IPosLookupService
                 VariantName = v.Name,
                 Barcode     = v.Barcode,
                 Sku         = v.Sku,
-                ImageUrl    = v.Product.ImageUrl,
+                ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
                 IsActive    = v.Product.IsActive
@@ -196,7 +196,7 @@ public sealed class PosLookupService : IPosLookupService
                 VariantName = v.Name,
                 Barcode     = v.Barcode,
                 Sku         = v.Sku,
-                ImageUrl    = v.Product.ImageUrl,
+                ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
                 IsActive    = v.Product.IsActive

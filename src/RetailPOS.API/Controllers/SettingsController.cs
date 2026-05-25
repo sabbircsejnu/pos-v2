@@ -42,6 +42,62 @@ public class SettingsController : ControllerBase
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Company settings updated"));
     }
 
+    /// <summary>Gets currency settings.</summary>
+    [HttpGet("currency")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<CurrencySettings>>> GetCurrency()
+    {
+        var settings = await _settingsService.GetCurrencySettingsAsync();
+        return Ok(ApiResponse<CurrencySettings>.SuccessResponse(settings));
+    }
+
+    /// <summary>Updates currency settings.</summary>
+    [HttpPut("currency")]
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCurrency([FromBody] CurrencySettings settings)
+    {
+        var validation = ValidateCurrency(settings);
+        if (validation != null) return BadRequest(validation);
+
+        var result = await _settingsService.UpdateCurrencySettingsAsync(settings);
+        return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Currency settings updated"));
+    }
+
+    private static ApiResponse<SystemSettings>? ValidateCurrency(CurrencySettings settings)
+    {
+        if (settings == null)
+        {
+            return ApiResponse<SystemSettings>.ErrorResponse("Currency settings are required");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.CurrencyCode))
+        {
+            return ApiResponse<SystemSettings>.ErrorResponse("Currency code is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.CurrencySymbol))
+        {
+            return ApiResponse<SystemSettings>.ErrorResponse("Currency symbol is required");
+        }
+
+        if (settings.DecimalPlaces < 0 || settings.DecimalPlaces > 4)
+        {
+            return ApiResponse<SystemSettings>.ErrorResponse("Decimal places must be between 0 and 4");
+        }
+
+        var pos = (settings.SymbolPosition ?? string.Empty).Trim().ToLowerInvariant();
+        if (pos != "before" && pos != "after")
+        {
+            return ApiResponse<SystemSettings>.ErrorResponse("Symbol position must be either 'before' or 'after'");
+        }
+
+        settings.CurrencyCode = settings.CurrencyCode.Trim().ToUpperInvariant();
+        settings.SymbolPosition = pos;
+        settings.ThousandsSeparator ??= string.Empty;
+        settings.DecimalSeparator = string.IsNullOrEmpty(settings.DecimalSeparator) ? "." : settings.DecimalSeparator;
+
+        return null;
+    }
+
     /// <summary>Gets tax settings.</summary>
     [HttpGet("tax")]
     public async Task<ActionResult<ApiResponse<TaxSettings>>> GetTax()

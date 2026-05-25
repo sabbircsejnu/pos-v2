@@ -20,6 +20,7 @@ public class ProductRepository : IProductRepository
     {
         var query = _context.Products
             .Include(p => p.Category)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .AsQueryable();
 
         if (includeVariants)
@@ -35,6 +36,7 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .FirstOrDefaultAsync(p => p.Sku == sku);
     }
 
@@ -43,6 +45,7 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .FirstOrDefaultAsync(p => p.Barcode == barcode);
     }
 
@@ -51,6 +54,7 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .OrderBy(p => p.Name)
             .ToListAsync();
     }
@@ -70,6 +74,7 @@ public class ProductRepository : IProductRepository
         var query = _context.Products
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .AsQueryable();
 
         // Apply filters
@@ -143,6 +148,7 @@ public class ProductRepository : IProductRepository
         return await _context.Products
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
+            .Include(p => p.Images.Where(i => i.IsPrimary))
             .Where(p => p.CategoryId == categoryId)
             .OrderBy(p => p.Name)
             .ToListAsync();

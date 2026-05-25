@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.PurchaseOrder;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Core.Audit;
+using RetailPOS.Core.Entities.Audit;
+using RetailPOS.Infrastructure.Audit;
 using System.Security.Claims;
 
 namespace RetailPOS.API.Controllers;
@@ -13,10 +16,15 @@ namespace RetailPOS.API.Controllers;
 public class PurchaseOrdersController : ControllerBase
 {
     private readonly IPurchaseOrderService _purchaseOrderService;
+    private readonly IAuditContext _auditCtx;
+    private readonly IAuditService _auditSvc;
 
-    public PurchaseOrdersController(IPurchaseOrderService purchaseOrderService)
+    public PurchaseOrdersController(IPurchaseOrderService purchaseOrderService,
+        IAuditContext auditCtx, IAuditService auditSvc)
     {
         _purchaseOrderService = purchaseOrderService;
+        _auditCtx = auditCtx;
+        _auditSvc = auditSvc;
     }
 
     /// <summary>
@@ -117,7 +125,13 @@ public class PurchaseOrdersController : ControllerBase
     [HttpPost("{id}/submit")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Submit(long id)
     {
+        _auditCtx.BeginScope(
+            "Submit Purchase Order", AuditActionType.Submit,
+            AuditModule.Purchase, "PurchaseOrder", id.ToString());
+
         var po = await _purchaseOrderService.SubmitForApprovalAsync(id);
+        await _auditSvc.FlushScopeAsync();
+
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order submitted for approval"));
     }
 
@@ -127,7 +141,13 @@ public class PurchaseOrdersController : ControllerBase
     [HttpPost("{id}/approve")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Approve(long id)
     {
+        _auditCtx.BeginScope(
+            "Approve Purchase Order", AuditActionType.Approve,
+            AuditModule.Purchase, "PurchaseOrder", id.ToString());
+
         var po = await _purchaseOrderService.ApproveAsync(id);
+        await _auditSvc.FlushScopeAsync();
+
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order approved"));
     }
 
@@ -137,7 +157,13 @@ public class PurchaseOrdersController : ControllerBase
     [HttpPost("{id}/reject")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Reject(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
     {
+        _auditCtx.BeginScope(
+            "Reject Purchase Order", AuditActionType.Reject,
+            AuditModule.Purchase, "PurchaseOrder", id.ToString());
+
         var po = await _purchaseOrderService.RejectAsync(id, dto.Reason ?? "No reason provided");
+        await _auditSvc.FlushScopeAsync();
+
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order rejected"));
     }
 
@@ -147,7 +173,13 @@ public class PurchaseOrdersController : ControllerBase
     [HttpPost("{id}/cancel")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Cancel(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
     {
+        _auditCtx.BeginScope(
+            "Cancel Purchase Order", AuditActionType.Cancel,
+            AuditModule.Purchase, "PurchaseOrder", id.ToString());
+
         var po = await _purchaseOrderService.CancelAsync(id, dto.Reason ?? "No reason provided");
+        await _auditSvc.FlushScopeAsync();
+
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order cancelled"));
     }
 }

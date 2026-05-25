@@ -148,7 +148,6 @@ public class ProductService : IProductService
             CostPrice = createDto.CostPrice ?? 0,
             TaxRate = createDto.TaxRate,
             HasVariants = createDto.HasVariants,
-            ImageUrl = createDto.ImageUrl,
             IsActive = createDto.IsActive
         };
 
@@ -236,7 +235,6 @@ public class ProductService : IProductService
         product.BasePrice = updateDto.BasePrice;
         product.CostPrice = updateDto.CostPrice ?? 0;
         product.TaxRate = updateDto.TaxRate;
-        product.ImageUrl = updateDto.ImageUrl;
         product.IsActive = updateDto.IsActive;
 
         await _productRepository.UpdateAsync(product);
@@ -329,7 +327,8 @@ public class ProductService : IProductService
             CostPrice = product.CostPrice,
             TaxRate = product.TaxRate,
             HasVariants = product.HasVariants,
-            ImageUrl = product.ImageUrl,
+            PrimaryImageThumb = product.Images?.FirstOrDefault(i => i.IsPrimary)?.ThumbPath,
+            PrimaryImageMedium = product.Images?.FirstOrDefault(i => i.IsPrimary)?.MediumPath,
             IsActive = product.IsActive,
             VariantCount = variants.Count,
             TotalStock = totalStock,
@@ -370,7 +369,8 @@ public class ProductService : IProductService
                 Attributes = variant.Attributes,
                 FinalPrice = product.BasePrice + variant.PriceAdjustment,
                 CostPrice = product.CostPrice,
-                StockQuantity = 0 // TODO: Implement when Inventory module is ready
+                StockQuantity = 0, // TODO: Implement when Inventory module is ready
+                PrimaryImageThumb = product.Images?.FirstOrDefault(i => i.IsPrimary)?.ThumbPath,
             });
         }
         

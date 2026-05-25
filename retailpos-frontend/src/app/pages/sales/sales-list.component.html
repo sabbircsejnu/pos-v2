@@ -24,17 +24,17 @@
       </div>
       <div class="card p-3">
         <p class="text-xs text-gray-500 uppercase tracking-wide">Total Revenue</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalAmount | currency }}</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalAmount | appCurrency }}</p>
         <p class="text-xs text-gray-500 mt-0.5">gross</p>
       </div>
       <div class="card p-3">
         <p class="text-xs text-gray-500 uppercase tracking-wide">Total Discount</p>
-        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalDiscount | currency }}</p>
+        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalDiscount | appCurrency }}</p>
         <p class="text-xs text-gray-500 mt-0.5">all transactions</p>
       </div>
       <div class="card p-3">
         <p class="text-xs text-gray-500 uppercase tracking-wide">Total Tax</p>
-        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalTax | currency }}</p>
+        <p class="text-xl font-bold text-gray-900 mt-1">{{ todaySummary()?.totalTax | appCurrency }}</p>
         <p class="text-xs text-gray-500 mt-0.5">collected</p>
       </div>
     </div>
@@ -148,16 +148,16 @@
                 </td>
                 <td class="px-4 py-2.5 text-right text-sm text-red-600">
                   @if (sale.discount > 0) {
-                    -{{ sale.discount | currency }}
+                    -{{ sale.discount | appCurrency }}
                   } @else {
                     <span class="text-gray-400">-</span>
                   }
                 </td>
                 <td class="px-4 py-2.5 text-right text-sm text-gray-700">
-                  {{ sale.tax | currency }}
+                  {{ sale.tax | appCurrency }}
                 </td>
                 <td class="px-4 py-2.5 text-right">
-                  <span class="font-semibold text-gray-900">{{ sale.netTotal | currency }}</span>
+                  <span class="font-semibold text-gray-900">{{ sale.netTotal | appCurrency }}</span>
                 </td>
                 <td class="px-4 py-2.5">
                   <span class="flex items-center gap-1.5 text-sm text-gray-700 capitalize">

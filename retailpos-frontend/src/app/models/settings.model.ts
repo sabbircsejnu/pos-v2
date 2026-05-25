@@ -11,6 +11,40 @@ export interface CompanySettings {
   timeZone: string;
 }
 
+export type CurrencySymbolPosition = 'before' | 'after';
+
+export interface CurrencySettings {
+  currencyCode: string;
+  currencySymbol: string;
+  currencyName: string;
+  symbolPosition: CurrencySymbolPosition;
+  decimalPlaces: number;
+  thousandsSeparator: string;
+  decimalSeparator: string;
+}
+
+export interface CurrencyOption {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
+export const SUPPORTED_CURRENCIES: CurrencyOption[] = [
+  { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+];
+
+export const DEFAULT_CURRENCY_SETTINGS: CurrencySettings = {
+  currencyCode: 'BDT',
+  currencySymbol: '৳',
+  currencyName: 'Bangladeshi Taka',
+  symbolPosition: 'before',
+  decimalPlaces: 2,
+  thousandsSeparator: ',',
+  decimalSeparator: '.',
+};
+
 export interface TaxSettings {
   taxEnabled: boolean;
   defaultTaxRate: number;
@@ -35,6 +69,7 @@ export interface InventorySettings {
 
 export interface SystemSettings {
   company: CompanySettings;
+  currency: CurrencySettings;
   tax: TaxSettings;
   receipt: ReceiptSettings;
   inventory: InventorySettings;

@@ -68,6 +68,16 @@ namespace RetailPOS.Infrastructure.Repositories
             }
             return await query.AnyAsync();
         }
+
+        public async Task<List<Product>> GetProductsUsingVariationAsync(long variationId)
+        {
+            return await _context.Set<ProductVariation>()
+                .Where(pv => pv.VariationId == variationId)
+                .Select(pv => pv.Product)
+                .Distinct()
+                .OrderBy(p => p.Name)
+                .ToListAsync();
+        }
     }
 
     public class VariationOptionRepository : IVariationOptionRepository

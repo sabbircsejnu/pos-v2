@@ -32,10 +32,7 @@ public class CreateProductDto
     
     [Range(0, 100, ErrorMessage = "Tax rate must be between 0 and 100")]
     public decimal TaxRate { get; set; } = 0;
-    
-    [StringLength(500, ErrorMessage = "Image URL cannot exceed 500 characters")]
-    public string? ImageUrl { get; set; }
-    
+
     public bool IsActive { get; set; } = true;
     
     public bool HasVariants { get; set; } = false;

@@ -12,7 +12,6 @@ public class Product
     public decimal CostPrice { get; set; } = 0;
     public decimal TaxRate { get; set; } = 0;
     public bool HasVariants { get; set; } = false;
-    public string? ImageUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -21,4 +20,5 @@ public class Product
     public virtual Category Category { get; set; } = null!;
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();
     public virtual ICollection<ProductVariation> ProductVariations { get; set; } = new List<ProductVariation>();
+    public virtual ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
 }

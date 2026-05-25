@@ -39,6 +39,15 @@ public class ProductVariationService : IProductVariationService
         if (product == null)
             throw new KeyNotFoundException($"Product with ID {productId} not found");
 
+        // Load which specific options are selected for this product
+        var selectedOptions = await _context.ProductVariationSelectedOptions
+            .Where(s => s.ProductId == productId)
+            .ToListAsync();
+
+        var selectedByVariation = selectedOptions
+            .GroupBy(s => s.VariationId)
+            .ToDictionary(g => g.Key, g => g.Select(s => s.OptionId).ToList());
+
         return product.ProductVariations.Select(pv => new ProductVariationDto
         {
             VariationId = pv.VariationId,
@@ -49,11 +58,18 @@ public class ProductVariationService : IProductVariationService
                 Id = o.Id,
                 Name = o.Name,
                 PriceAdjustment = o.PriceAdjustment
-            }).ToList()
+            }).ToList(),
+            // If no specific options saved yet, default to all options being selected
+            SelectedOptionIds = selectedByVariation.TryGetValue(pv.VariationId, out var selIds) && selIds.Count > 0
+                ? selIds
+                : pv.Variation.Options.Select(o => o.Id).ToList()
         }).ToList();
     }
 
-    public async Task AssignVariationsToProductAsync(long productId, List<long> variationIds)
+    public async Task AssignVariationsToProductAsync(
+        long productId,
+        List<long> variationIds,
+        Dictionary<long, List<long>> selectedOptionsByVariation)
     {
         var product = await _context.Products
             .Include(p => p.ProductVariations)
@@ -65,17 +81,15 @@ public class ProductVariationService : IProductVariationService
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            // Remove existing assignments not in the new list
-            var existingIds = product.ProductVariations.Select(pv => pv.VariationId).ToList();
+            // ── Variation-type assignment ─────────────────────────────────────────────
+            var existingVariationIds = product.ProductVariations.Select(pv => pv.VariationId).ToList();
             var toRemove = product.ProductVariations
                 .Where(pv => !variationIds.Contains(pv.VariationId))
                 .ToList();
-
             _context.RemoveRange(toRemove);
 
-            // Add new assignments
             var toAdd = variationIds
-                .Where(id => !existingIds.Contains(id))
+                .Where(id => !existingVariationIds.Contains(id))
                 .Select(id => new ProductVariation
                 {
                     ProductId = productId,
@@ -83,17 +97,53 @@ public class ProductVariationService : IProductVariationService
                     IsRequired = false,
                     CreatedAt = DateTime.UtcNow
                 });
-
             await _context.AddRangeAsync(toAdd);
 
-            // Update product to enable variants
             product.HasVariants = variationIds.Any();
             product.UpdatedAt = DateTime.UtcNow;
+
+            // ── Selected options per variation ────────────────────────────────────────
+            // Remove all existing selected-option rows for this product
+            var existingSelected = await _context.ProductVariationSelectedOptions
+                .Where(s => s.ProductId == productId)
+                .ToListAsync();
+            _context.RemoveRange(existingSelected);
+
+            // Add newly selected options for each assigned variation
+            foreach (var variationId in variationIds)
+            {
+                List<long> optionIds;
+
+                if (selectedOptionsByVariation.TryGetValue(variationId, out var provided) && provided.Count > 0)
+                {
+                    optionIds = provided;
+                }
+                else
+                {
+                    // Default: select all active options for this variation
+                    optionIds = await _context.VariationOptions
+                        .Where(o => o.VariationId == variationId && o.IsActive)
+                        .Select(o => o.Id)
+                        .ToListAsync();
+                }
+
+                var newSelected = optionIds.Select(optId => new ProductVariationSelectedOption
+                {
+                    ProductId = productId,
+                    VariationId = variationId,
+                    OptionId = optId,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _context.AddRangeAsync(newSelected);
+            }
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Assigned {Count} variations to product {ProductId}", variationIds.Count, productId);
+            _logger.LogInformation(
+                "Assigned {Count} variations to product {ProductId} with {OptionCount} total selected options",
+                variationIds.Count, productId,
+                selectedOptionsByVariation.Values.Sum(v => v.Count));
         }
         catch
         {
@@ -102,12 +152,15 @@ public class ProductVariationService : IProductVariationService
         }
     }
 
+    /// <summary>
+    /// Generates combinations using only the product-selected options for each
+    /// assigned variation type (not all global options).
+    /// </summary>
     public async Task<List<CombinationDto>> GenerateAllCombinationsAsync(long productId)
     {
         var product = await _context.Products
             .Include(p => p.ProductVariations)
                 .ThenInclude(pv => pv.Variation)
-                    .ThenInclude(v => v.Options.Where(o => o.IsActive))
             .FirstOrDefaultAsync(p => p.Id == productId);
 
         if (product == null)
@@ -116,33 +169,88 @@ public class ProductVariationService : IProductVariationService
         if (!product.ProductVariations.Any())
             throw new InvalidOperationException("No variations assigned to this product");
 
-        var variationOptions = product.ProductVariations
-            .Select(pv => pv.Variation.Options.ToList())
-            .ToList();
+        var variationOptions = await GetSelectedOptionsForProduct(productId, null);
+
+        if (variationOptions.Any(opts => opts.Count == 0))
+            throw new InvalidOperationException(
+                "One or more selected variations have no options selected. " +
+                "Please select at least one option per variation before generating combinations.");
 
         return await GenerateCombinations(product, variationOptions);
     }
 
+    /// <summary>
+    /// Generates combinations for the specified variation types using only the
+    /// product-selected options.
+    /// </summary>
     public async Task<List<CombinationDto>> GenerateSelectedCombinationsAsync(long productId, List<long> variationIds)
     {
         var product = await _context.Products
             .Include(p => p.ProductVariations)
-                .ThenInclude(pv => pv.Variation)
-                    .ThenInclude(v => v.Options.Where(o => o.IsActive))
             .FirstOrDefaultAsync(p => p.Id == productId);
 
         if (product == null)
             throw new KeyNotFoundException($"Product with ID {productId} not found");
 
-        var variationOptions = product.ProductVariations
-            .Where(pv => variationIds.Contains(pv.VariationId))
-            .Select(pv => pv.Variation.Options.ToList())
-            .ToList();
+        var variationOptions = await GetSelectedOptionsForProduct(productId, variationIds);
 
         if (!variationOptions.Any())
             throw new InvalidOperationException("No valid variations selected");
 
+        if (variationOptions.Any(opts => opts.Count == 0))
+            throw new InvalidOperationException(
+                "One or more selected variations have no options selected for this product.");
+
         return await GenerateCombinations(product, variationOptions);
+    }
+
+    /// <summary>
+    /// Loads the product-selected options (from product_variation_selected_options) grouped
+    /// by variation. Each inner list contains the VariationOption entities to use for Cartesian
+    /// product generation.
+    /// </summary>
+    private async Task<List<List<VariationOption>>> GetSelectedOptionsForProduct(
+        long productId,
+        List<long>? filterVariationIds)
+    {
+        var query = _context.ProductVariationSelectedOptions
+            .Include(s => s.Option)
+                .ThenInclude(o => o.Variation)
+            .Where(s => s.ProductId == productId);
+
+        if (filterVariationIds != null && filterVariationIds.Count > 0)
+            query = query.Where(s => filterVariationIds.Contains(s.VariationId));
+
+        var selected = await query.ToListAsync();
+
+        if (!selected.Any())
+        {
+            // Fallback for products that haven't gone through the new assignment flow:
+            // load all assigned variation types and use ALL their active options.
+            _logger.LogWarning(
+                "Product {ProductId} has no selected options recorded; falling back to all active options.",
+                productId);
+
+            var fallbackQuery = _context.ProductVariations
+                .Include(pv => pv.Variation)
+                    .ThenInclude(v => v.Options.Where(o => o.IsActive))
+                .Where(pv => pv.ProductId == productId);
+
+            if (filterVariationIds != null && filterVariationIds.Count > 0)
+                fallbackQuery = fallbackQuery.Where(pv => filterVariationIds.Contains(pv.VariationId));
+
+            var assigned = await fallbackQuery.ToListAsync();
+            return assigned.Select(pv => pv.Variation.Options.ToList()).ToList();
+        }
+
+        // Group by variation, preserving the option display order
+        return selected
+            .GroupBy(s => s.VariationId)
+            .OrderBy(g => g.Key)
+            .Select(g => g.Select(s => s.Option)
+                          .OrderBy(o => o.DisplayOrder)
+                          .ToList())
+            .ToList();
     }
 
     private async Task<List<CombinationDto>> GenerateCombinations(Product product, List<List<VariationOption>> variationOptions)
@@ -158,14 +266,13 @@ public class ProductVariationService : IProductVariationService
         {
             foreach (var combination in combinations)
             {
-                // Check if combination already exists
                 var optionIds = combination.Select(o => o.Id).OrderBy(id => id).ToList();
-                var existingVariant = await _context.ProductVariants
+                var existingVariants = await _context.ProductVariants
                     .Include(pv => pv.ProductVariantOptions)
                     .Where(pv => pv.ProductId == product.Id && pv.ProductVariantOptions.Count == optionIds.Count)
                     .ToListAsync();
 
-                var exists = existingVariant.Any(ev =>
+                var exists = existingVariants.Any(ev =>
                     ev.ProductVariantOptions.Select(pvo => pvo.OptionId).OrderBy(id => id).SequenceEqual(optionIds));
 
                 if (exists)
@@ -174,7 +281,6 @@ public class ProductVariationService : IProductVariationService
                     continue;
                 }
 
-                // Create new variant
                 var combinationName = string.Join(" - ", combination.Select(o => o.Name));
                 var priceAdjustment = combination.Sum(o => o.PriceAdjustment);
 
@@ -182,7 +288,7 @@ public class ProductVariationService : IProductVariationService
                 {
                     ProductId = product.Id,
                     Name = combinationName,
-                    Sku = $"{product.Sku}-{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}",
+                    Sku = $"{product.Sku}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                     PriceAdjustment = priceAdjustment,
                     CostAdjustment = 0,
                     Attributes = "{}",
@@ -191,9 +297,8 @@ public class ProductVariationService : IProductVariationService
                 };
 
                 _context.ProductVariants.Add(variant);
-                await _context.SaveChangesAsync(); // Save to get variant ID
+                await _context.SaveChangesAsync();
 
-                // Add variant-option mappings
                 foreach (var option in combination)
                 {
                     _context.Add(new ProductVariantOption
@@ -226,7 +331,8 @@ public class ProductVariationService : IProductVariationService
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Generated {CreatedCount} new combinations for product {ProductId}, skipped {SkippedCount} duplicates", 
+            _logger.LogInformation(
+                "Generated {CreatedCount} new combinations for product {ProductId}, skipped {SkippedCount} duplicates",
                 result.Count, product.Id, skippedCount);
             return result;
         }
@@ -237,7 +343,7 @@ public class ProductVariationService : IProductVariationService
         }
     }
 
-    private void GenerateCombinationsRecursive(
+    private static void GenerateCombinationsRecursive(
         List<List<VariationOption>> variationOptions,
         int currentIndex,
         List<VariationOption> currentCombination,
@@ -267,14 +373,13 @@ public class ProductVariationService : IProductVariationService
         if (options.Count != request.OptionIds.Count)
             throw new InvalidOperationException("Some options not found");
 
-        // Check if combination already exists
         var optionIds = request.OptionIds.OrderBy(id => id).ToList();
-        var existingVariant = await _context.ProductVariants
+        var existingVariants = await _context.ProductVariants
             .Include(pv => pv.ProductVariantOptions)
             .Where(pv => pv.ProductId == productId && pv.ProductVariantOptions.Count == optionIds.Count)
             .ToListAsync();
 
-        var exists = existingVariant.Any(ev =>
+        var exists = existingVariants.Any(ev =>
             ev.ProductVariantOptions.Select(pvo => pvo.OptionId).OrderBy(id => id).SequenceEqual(optionIds));
 
         if (exists)
@@ -290,7 +395,7 @@ public class ProductVariationService : IProductVariationService
             {
                 ProductId = productId,
                 Name = combinationName,
-                Sku = request.Sku ?? $"{product.Sku}-{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}",
+                Sku = request.Sku ?? $"{product.Sku}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 Barcode = request.Barcode,
                 PriceAdjustment = priceAdjustment,
                 CostAdjustment = request.CostAdjustment,
@@ -398,3 +503,4 @@ public class ProductVariationService : IProductVariationService
         await _context.SaveChangesAsync();
     }
 }
+

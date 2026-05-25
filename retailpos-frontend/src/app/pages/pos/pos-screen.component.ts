@@ -1,7 +1,9 @@
 import {
   Component, OnInit, OnDestroy, signal, computed, inject
 } from '@angular/core';
-import { CommonModule, CurrencyPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
+import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
+import { CurrencyService } from '../../services/currency.service';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -16,6 +18,7 @@ import {
   CartItem, CreateSaleDto, CreateSalePaymentDto, HeldSaleDto, PosProduct
 } from '../../models/sale.model';
 import { CustomerDto } from '../../models/customer.model';
+import { ProductImageService } from '../../services/product-image.service';
 import { environment } from '../../../environments/environment';
 
 interface Category {
@@ -26,7 +29,7 @@ interface Category {
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe],
+  imports: [CommonModule, FormsModule, AppCurrencyPipe],
   templateUrl: './pos-screen.component.html',
   styleUrls: ['./pos-screen.component.css']
 })
@@ -38,6 +41,12 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   private alertService = inject(AlertService);
   private errorHandler = inject(ErrorHandlerService);
   private http = inject(HttpClient);
+  private imageSvc = inject(ProductImageService);
+  private currencyService = inject(CurrencyService);
+
+  resolveImage(path?: string | null): string {
+    return this.imageSvc.resolveUrl(path);
+  }
 
   // Tax rate loaded from settings (default 10%)
   taxRate = signal<number>(0.10);
@@ -188,7 +197,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
                 price: v.sellingPrice ?? v.price ?? p.sellingPrice ?? 0,
                 stockQty: v.stockQuantity ?? v.stock ?? 0,
                 categoryId: p.categoryId,
-                categoryName: p.categoryName
+                categoryName: p.categoryName,
+                primaryImageThumb: p.primaryImageThumb,
               });
             }
           } else {
@@ -200,7 +210,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
               price: p.sellingPrice ?? p.price ?? 0,
               stockQty: p.stockQuantity ?? p.stock ?? 0,
               categoryId: p.categoryId,
-              categoryName: p.categoryName
+              categoryName: p.categoryName,
+              primaryImageThumb: p.primaryImageThumb,
             });
           }
         }
@@ -238,7 +249,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         quantity: 1,
         unitPrice: product.price,
         discountAmount: 0,
-        subtotal: product.price
+        subtotal: product.price,
+        primaryImageThumb: product.primaryImageThumb,
       }]);
     }
   }
@@ -344,7 +356,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
     if (this.useSplitPayment()) {
       if (Math.abs(this.splitTotal() - this.totalAmount()) > 0.01) {
-        this.alertService.error(`Split payment total (${this.splitTotal().toFixed(2)}) must equal sale total (${this.totalAmount().toFixed(2)})`);
+        this.alertService.error(`Split payment total (${this.currencyService.format(this.splitTotal())}) must equal sale total (${this.currencyService.format(this.totalAmount())})`);
         return;
       }
     }
@@ -440,7 +452,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
           name: result.productName + (result.variantName ? ` - ${result.variantName}` : ''),
           sku: result.sku,
           price: result.effectivePrice,
-          stockQty: result.stockQty
+          stockQty: result.stockQty,
+          primaryImageThumb: result.imageUrl,
         };
 
         if (!result.inStock) {
@@ -468,7 +481,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
             unitPrice: product.price,
             discountAmount: 0,
             subtotal: product.price,
-            appliedRuleName: result.appliedRuleName
+            appliedRuleName: result.appliedRuleName,
+            primaryImageThumb: product.primaryImageThumb,
           }]);
         }
 

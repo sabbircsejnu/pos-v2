@@ -8,6 +8,7 @@ import { SupplierService } from '../../services/supplier.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { Supplier, SupplierSearchRequest } from '../../models/supplier.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-supplier-list',
@@ -39,7 +40,8 @@ export class SupplierListComponent implements OnInit, OnDestroy {
     public supplierService: SupplierService,
     private router: Router,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -160,9 +162,6 @@ export class SupplierListComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number | undefined): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
+    return this.currencyService.format(amount ?? 0);
   }
 }

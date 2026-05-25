@@ -1,7 +1,7 @@
 <div class="container mx-auto px-4 py-4">
   <!-- Header -->
   <div class="mb-4">
-    <h1 class="text-2xl font-bold text-gray-900">System Settings</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Company &amp; System Settings</h1>
     <p class="text-sm text-gray-600 mt-0.5">Configure your POS system preferences</p>
   </div>
 
@@ -18,6 +18,11 @@
             [class]="activeTab() === 'company' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
             class="py-3 px-3 text-sm transition-colors">
             <i class="fas fa-building mr-1"></i> Company
+          </button>
+          <button (click)="activeTab.set('currency')"
+            [class]="activeTab() === 'currency' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-coins mr-1"></i> Currency
           </button>
           <button (click)="activeTab.set('tax')"
             [class]="activeTab() === 'tax' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
@@ -78,24 +83,13 @@
                 (ngModelChange)="updateCompanyField('taxNumber', $event)" />
             </div>
             <div>
-              <label class="label">Currency</label>
-              <input type="text" class="input"
-                [ngModel]="company().currency"
-                (ngModelChange)="updateCompanyField('currency', $event)" />
-            </div>
-            <div>
-              <label class="label">Currency Symbol</label>
-              <input type="text" class="input"
-                [ngModel]="company().currencySymbol"
-                (ngModelChange)="updateCompanyField('currencySymbol', $event)" />
-            </div>
-            <div>
               <label class="label">Date Format</label>
               <select class="input"
                 [ngModel]="company().dateFormat"
                 (ngModelChange)="updateCompanyField('dateFormat', $event)">
                 <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                 <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="dd/MM/yyyy">dd/MM/yyyy</option>
                 <option value="YYYY-MM-DD">YYYY-MM-DD</option>
               </select>
             </div>
@@ -105,11 +99,107 @@
                 [ngModel]="company().timeZone"
                 (ngModelChange)="updateCompanyField('timeZone', $event)" />
             </div>
+            <div class="md:col-span-2 text-xs text-gray-500 -mt-1">
+              Currency for this company is configured in the
+              <button type="button" class="text-blue-600 hover:underline" (click)="activeTab.set('currency')">Currency</button>
+              tab.
+            </div>
           </div>
           <div class="mt-6">
             <button (click)="saveCompany()" class="btn btn-primary" [disabled]="isSaving()">
               <i class="fas fa-save"></i>
               {{ isSaving() ? 'Saving...' : 'Save Company Settings' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Currency Tab -->
+      @if (activeTab() === 'currency') {
+        <div class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Currency Settings</h2>
+            <p class="text-xs text-gray-500 mt-0.5">
+              Controls how monetary values are displayed everywhere in the system — products,
+              sales, purchase orders, accounting, reports, invoices and exports.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+            <div class="md:col-span-2">
+              <label class="label">Currency</label>
+              <select class="input"
+                [ngModel]="currency().currencyCode"
+                (ngModelChange)="onCurrencyDropdownChange($event)">
+                @for (opt of supportedCurrencies; track opt.code) {
+                  <option [value]="opt.code">{{ opt.code }} / {{ opt.symbol }} / {{ opt.name }}</option>
+                }
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Currency Code</label>
+              <input type="text" class="input" maxlength="3"
+                [ngModel]="currency().currencyCode"
+                (ngModelChange)="updateCurrencyField('currencyCode', $event)" />
+            </div>
+            <div>
+              <label class="label">Currency Symbol</label>
+              <input type="text" class="input" maxlength="4"
+                [ngModel]="currency().currencySymbol"
+                (ngModelChange)="updateCurrencyField('currencySymbol', $event)" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label">Currency Name</label>
+              <input type="text" class="input"
+                [ngModel]="currency().currencyName"
+                (ngModelChange)="updateCurrencyField('currencyName', $event)" />
+            </div>
+
+            <div>
+              <label class="label">Symbol Position</label>
+              <select class="input"
+                [ngModel]="currency().symbolPosition"
+                (ngModelChange)="updateCurrencyField('symbolPosition', $event)">
+                <option value="before">Before amount (e.g. ৳1,200.00)</option>
+                <option value="after">After amount (e.g. 1,200.00৳)</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Decimal Places</label>
+              <input type="number" class="input" min="0" max="4" step="1"
+                [ngModel]="currency().decimalPlaces"
+                (ngModelChange)="updateCurrencyField('decimalPlaces', +$event)" />
+            </div>
+            <div>
+              <label class="label">Thousands Separator</label>
+              <input type="text" class="input" maxlength="1"
+                [ngModel]="currency().thousandsSeparator"
+                (ngModelChange)="updateCurrencyField('thousandsSeparator', $event)" />
+            </div>
+            <div>
+              <label class="label">Decimal Separator</label>
+              <input type="text" class="input" maxlength="1"
+                [ngModel]="currency().decimalSeparator"
+                (ngModelChange)="updateCurrencyField('decimalSeparator', $event)" />
+            </div>
+
+            <div class="md:col-span-2">
+              <div class="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
+                <div class="text-xs text-gray-500 mb-1">Preview</div>
+                <div class="font-semibold text-gray-900">{{ currencyPreview() }}</div>
+                <div class="text-xs text-gray-500 mt-1">
+                  Active formatter sample:
+                  <span class="font-medium text-gray-700">{{ currencyPreviewAmount | appCurrency }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <button (click)="saveCurrency()" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save"></i>
+              {{ isSaving() ? 'Saving...' : 'Save Currency Settings' }}
             </button>
           </div>
         </div>

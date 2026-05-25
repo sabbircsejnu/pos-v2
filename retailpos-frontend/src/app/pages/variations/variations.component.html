@@ -259,6 +259,41 @@
   </div>
 }
 
+<!-- Variation In-Use Modal -->
+@if (showInUseModal()) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center p-6 border-b">
+        <h2 class="text-xl font-bold text-red-600">Cannot Delete Variation</h2>
+        <button (click)="closeInUseModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+      <div class="p-6">
+        <p class="text-gray-700 mb-4">
+          The variation <span class="font-semibold">"{{ inUseVariationName() }}"</span>
+          is currently used by {{ inUseProducts().length }} product(s).
+          Remove it from the following product(s) before deleting:
+        </p>
+        <div class="border rounded-lg max-h-72 overflow-y-auto divide-y">
+          @for (product of inUseProducts(); track product.id) {
+            <div class="px-4 py-2 flex justify-between items-center">
+              <span class="text-gray-800">{{ product.name }}</span>
+              <span class="text-xs text-gray-500">#{{ product.id }}</span>
+            </div>
+          }
+        </div>
+        <div class="flex justify-end mt-6">
+          <button
+            type="button"
+            (click)="closeInUseModal()"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Add/Edit Option Modal -->
 @if (showOptionModal()) {
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

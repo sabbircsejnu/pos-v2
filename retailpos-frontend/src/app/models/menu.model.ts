@@ -32,6 +32,13 @@ export const MENU_ITEMS: MenuItem[] = [
         icon: 'fas fa-user-tag',
         route: '/roles',
         permission: 'roles.view'
+      },
+      {
+        id: 'audit-logs',
+        label: 'Audit Log',
+        icon: 'fas fa-history',
+        route: '/audit-logs',
+        permission: 'audit_log.view'
       }
     ]
   },
@@ -222,6 +229,13 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Inventory Reports',
         icon: 'fas fa-chart-pie',
         route: '/reports/inventory',
+        permission: 'reports.inventory'
+      },
+      {
+        id: 'stock-transaction-report',
+        label: 'Stock Transactions',
+        icon: 'fas fa-exchange-alt',
+        route: '/reports/stock-transactions',
         permission: 'reports.inventory'
       },
       {

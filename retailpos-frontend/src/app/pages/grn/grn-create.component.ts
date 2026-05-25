@@ -1,10 +1,12 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { GrnService } from '../../services/grn.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ProductImageService } from '../../services/product-image.service';
+import { CurrencyService } from '../../services/currency.service';
 import {
   PurchaseOrderForGrn,
   PurchaseOrderItemForGrn,
@@ -24,6 +26,9 @@ interface GrnLineItem extends PurchaseOrderItemForGrn {
   styleUrls: ['./grn-create.component.css']
 })
 export class GrnCreateComponent implements OnInit {
+  private imageSvc = inject(ProductImageService);
+  resolveImage(path?: string | null): string { return this.imageSvc.resolveUrl(path); }
+
   pendingPOs = signal<PurchaseOrderForGrn[]>([]);
   selectedPO = signal<PurchaseOrderForGrn | null>(null);
   lineItems = signal<GrnLineItem[]>([]);
@@ -36,7 +41,8 @@ export class GrnCreateComponent implements OnInit {
     private grnService: GrnService,
     private router: Router,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -121,6 +127,6 @@ export class GrnCreateComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return this.currencyService.format(amount);
   }
 }

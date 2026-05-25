@@ -6,14 +6,23 @@
     "Email": "",
     "Website": "",
     "TaxNumber": "",
-    "Currency": "USD",
-    "CurrencySymbol": "$",
-    "DateFormat": "MM/dd/yyyy",
-    "TimeZone": "UTC"
+    "Currency": "BDT",
+    "CurrencySymbol": "\u09F3",
+    "DateFormat": "dd/MM/yyyy",
+    "TimeZone": "Asia/Dhaka"
+  },
+  "Currency": {
+    "CurrencyCode": "BDT",
+    "CurrencySymbol": "\u09F3",
+    "CurrencyName": "Bangladeshi Taka",
+    "SymbolPosition": "before",
+    "DecimalPlaces": 2,
+    "ThousandsSeparator": ",",
+    "DecimalSeparator": "."
   },
   "Tax": {
     "TaxEnabled": true,
-    "DefaultTaxRate": 10,
+    "DefaultTaxRate": 0,
     "TaxName": "VAT",
     "PricesIncludeTax": false
   },

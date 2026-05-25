@@ -6,6 +6,7 @@ import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { PurchaseOrder, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-po-details',
@@ -30,7 +31,8 @@ export class PoDetailsComponent implements OnInit {
     private router: Router,
     private poService: PurchaseOrderService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -47,8 +49,8 @@ export class PoDetailsComponent implements OnInit {
   loadPurchaseOrder(id: number): void {
     this.isLoading.set(true);
     this.poService.getById(id).subscribe({
-      next: (po) => {
-        this.po.set(po);
+      next: (response) => {
+        this.po.set(response.data);
         this.isLoading.set(false);
       },
       error: (err: any) => {
@@ -199,10 +201,7 @@ export class PoDetailsComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return this.currencyService.format(amount);
   }
 
   formatDate(dateString: string): string {

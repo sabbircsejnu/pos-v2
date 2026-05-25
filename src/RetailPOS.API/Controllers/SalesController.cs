@@ -12,16 +12,19 @@ namespace RetailPOS.API.Controllers;
 public class SalesController : ControllerBase
 {
     private readonly ISaleService _saleService;
+    private readonly IUserOutletAccessService _outletAccess;
 
-    public SalesController(ISaleService saleService)
+    public SalesController(ISaleService saleService, IUserOutletAccessService outletAccess)
     {
         _saleService = saleService;
+        _outletAccess = outletAccess;
     }
 
     /// <summary>List sales with filters (query string)</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<SaleListDto>>> GetAll([FromQuery] SaleSearchDto searchDto)
     {
+        searchDto.OutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(searchDto.OutletId);
         var result = await _saleService.SearchAsync(searchDto);
         return Ok(ApiResponse<SaleListDto>.SuccessResponse(result));
     }
@@ -31,6 +34,7 @@ public class SalesController : ControllerBase
     public async Task<ActionResult<ApiResponse<SaleDto>>> GetById(long id)
     {
         var sale = await _saleService.GetByIdAsync(id);
+        await EnsureSaleOutletAuthorizedAsync(sale);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(sale));
     }
 
@@ -39,6 +43,7 @@ public class SalesController : ControllerBase
     public async Task<ActionResult<ApiResponse<SaleDto>>> GetReceipt(long id)
     {
         var sale = await _saleService.GetReceiptAsync(id);
+        await EnsureSaleOutletAuthorizedAsync(sale);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(sale));
     }
 
@@ -46,6 +51,7 @@ public class SalesController : ControllerBase
     [HttpGet("today/summary")]
     public async Task<ActionResult<ApiResponse<SaleSummaryDto>>> TodaysSummary([FromQuery] long? outletId = null)
     {
+        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var summary = await _saleService.GetTodaysSummaryAsync(outletId);
         return Ok(ApiResponse<SaleSummaryDto>.SuccessResponse(summary));
     }
@@ -54,6 +60,7 @@ public class SalesController : ControllerBase
     [HttpPost("search")]
     public async Task<ActionResult<ApiResponse<SaleListDto>>> Search([FromBody] SaleSearchDto searchDto)
     {
+        searchDto.OutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(searchDto.OutletId);
         var result = await _saleService.SearchAsync(searchDto);
         return Ok(ApiResponse<SaleListDto>.SuccessResponse(result));
     }
@@ -62,6 +69,11 @@ public class SalesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Create([FromBody] CreateSaleDto dto)
     {
+        // Server-side outlet enforcement: never trust the client-supplied OutletId.
+        // Non-BusinessOwner is pinned to their default outlet; BusinessOwner can use
+        // any outlet in their authorized set.
+        dto.OutletId = await _outletAccess.EnforceWriteOutletAsync(dto.OutletId);
+
         var sale = await _saleService.CreateAsync(dto);
         return CreatedAtAction(
             nameof(GetById),
@@ -73,6 +85,9 @@ public class SalesController : ControllerBase
     [HttpPost("{id}/void")]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Void(long id, [FromBody] VoidSaleDto dto)
     {
+        var existing = await _saleService.GetByIdAsync(id);
+        await EnsureSaleOutletAuthorizedAsync(existing);
+
         var sale = await _saleService.VoidAsync(id, dto);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(sale, "Sale voided successfully"));
     }
@@ -81,7 +96,17 @@ public class SalesController : ControllerBase
     [HttpPost("{id}/refund")]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Refund(long id, [FromBody] RefundSaleDto dto)
     {
+        var existing = await _saleService.GetByIdAsync(id);
+        await EnsureSaleOutletAuthorizedAsync(existing);
+
         var sale = await _saleService.RefundAsync(id, dto);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(sale, "Sale refunded successfully"));
+    }
+
+    private async Task EnsureSaleOutletAuthorizedAsync(SaleDto sale)
+    {
+        // Throws UnauthorizedAccessException for non-BusinessOwner trying to touch
+        // a sale that belongs to an outlet outside their authorized set.
+        await _outletAccess.ResolveAndAuthorizeLocationAsync(sale.OutletId, "outlet");
     }
 }

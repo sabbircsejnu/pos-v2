@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, Subscription, debounceTime } from 'rxjs';
@@ -12,7 +13,7 @@ import { SaleListDto, SaleSummaryDto } from '../../models/sale.model';
 @Component({
   selector: 'app-sales-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe],
+  imports: [CommonModule, FormsModule, AppCurrencyPipe, DatePipe],
   templateUrl: './sales-list.component.html',
   styleUrls: ['./sales-list.component.css']
 })

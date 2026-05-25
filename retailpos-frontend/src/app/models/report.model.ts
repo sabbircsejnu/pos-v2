@@ -82,3 +82,62 @@ export interface PurchaseBySupplierDto {
   orderCount: number;
   totalAmount: number;
 }
+
+export interface StockTransactionReportRowDto {
+  id: number;
+  transactionDate: string;
+  locationId: number;
+  locationType: string;
+  locationName: string;
+  transactionType: string;
+  referenceType: string;
+  referenceId: number;
+  referenceNo: string;
+  variantId: number;
+  variantCode?: string;
+  variantAttributes?: string;
+  quantityIn: number;
+  quantityOut: number;
+  runningBalance: number;
+  remarks?: string;
+  createdByName?: string;
+}
+
+export interface StockTransactionReportSummaryDto {
+  openingStock: number;
+  stockIn: number;
+  stockOut: number;
+  closingStock: number;
+  currentStock: number;
+}
+
+export interface AuthorizedLocationDto {
+  id: number;
+  name: string;
+  type: 'outlet' | 'warehouse';
+}
+
+export interface AuthorizedOutletsDto {
+  outlets: AuthorizedLocationDto[];
+  warehouses: AuthorizedLocationDto[];
+  defaultOutletId?: number | null;
+  isBusinessOwner: boolean;
+}
+
+export interface StockTransactionReportDto {
+  productId: number;
+  productName: string;
+  productCode?: string;
+  level: 'product' | 'variant';
+  variantId?: number;
+  variantCode?: string;
+  variantName?: string;
+  variantAttributes?: string;
+  sku: string;
+  outletId?: number;
+  locationType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  summary: StockTransactionReportSummaryDto;
+  rows: StockTransactionReportRowDto[];
+}

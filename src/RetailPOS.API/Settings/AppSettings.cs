@@ -8,10 +8,24 @@ public class CompanySettings
     public string Email { get; set; } = string.Empty;
     public string Website { get; set; } = string.Empty;
     public string TaxNumber { get; set; } = string.Empty;
-    public string Currency { get; set; } = "USD";
-    public string CurrencySymbol { get; set; } = "$";
-    public string DateFormat { get; set; } = "MM/dd/yyyy";
-    public string TimeZone { get; set; } = "UTC";
+
+    // Legacy fields (kept for backwards compatibility with existing system-settings.json).
+    public string Currency { get; set; } = "BDT";
+    public string CurrencySymbol { get; set; } = "৳";
+
+    public string DateFormat { get; set; } = "dd/MM/yyyy";
+    public string TimeZone { get; set; } = "Asia/Dhaka";
+}
+
+public class CurrencySettings
+{
+    public string CurrencyCode { get; set; } = "BDT";
+    public string CurrencySymbol { get; set; } = "৳";
+    public string CurrencyName { get; set; } = "Bangladeshi Taka";
+    public string SymbolPosition { get; set; } = "before";
+    public int DecimalPlaces { get; set; } = 2;
+    public string ThousandsSeparator { get; set; } = ",";
+    public string DecimalSeparator { get; set; } = ".";
 }
 
 public class TaxSettings
@@ -42,6 +56,7 @@ public class InventorySettings
 public class SystemSettings
 {
     public CompanySettings Company { get; set; } = new();
+    public CurrencySettings Currency { get; set; } = new();
     public TaxSettings Tax { get; set; } = new();
     public ReceiptSettings Receipt { get; set; } = new();
     public InventorySettings Inventory { get; set; } = new();

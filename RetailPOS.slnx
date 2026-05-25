@@ -4,4 +4,7 @@
     <Project Path="src/RetailPOS.Core/RetailPOS.Core.csproj" />
     <Project Path="src/RetailPOS.Infrastructure/RetailPOS.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RetailPOS.Tests/RetailPOS.Tests.csproj" />
+  </Folder>
 </Solution>

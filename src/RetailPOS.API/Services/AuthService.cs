@@ -42,6 +42,16 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
+        // Outlet-bound roles must have a default outlet — every transactional API
+        // enforces it server-side. SuperAdmin and BusinessOwner operate above outlets
+        // (SuperAdmin manages businesses; BusinessOwner can act across all their outlets),
+        // so the requirement is skipped for them.
+        if (!RoleSwitchClaims.IsOutletExempt(user.Role?.Name) && !user.OutletId.HasValue)
+        {
+            throw new UnauthorizedAccessException(
+                "Your account is not assigned to an outlet. Please contact an administrator.");
+        }
+
         var token = _tokenService.GenerateAccessToken(user, user.Role);
         var refreshToken = _tokenService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
@@ -72,7 +82,9 @@ public class AuthService : IAuthService
                 RoleName = user.Role?.Name,
                 Permissions = permissions,
                 OutletId = user.OutletId,
-                OutletName = user.Outlet?.Name
+                OutletName = user.Outlet?.Name,
+                RealRoleName = user.Role?.Name,
+                IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
             }
         };
     }
@@ -167,7 +179,9 @@ public class AuthService : IAuthService
             RoleName = user.Role?.Name,
             Permissions = permissions,
             OutletId = user.OutletId,
-            OutletName = user.Outlet?.Name
+            OutletName = user.Outlet?.Name,
+            RealRoleName = user.Role?.Name,
+            IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
         };
     }
 }

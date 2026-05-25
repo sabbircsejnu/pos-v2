@@ -6,6 +6,19 @@ export interface User {
   permissions: string[];
   outletId?: number;
   outletName?: string;
+
+  // Session role-switch state
+  realRoleName?: string;
+  actingRoleName?: string;
+  actingOutletId?: number;
+  actingOutletName?: string;
+  isRoleSwitched?: boolean;
+  isBusinessOwner?: boolean;
+}
+
+export interface RoleSwitchRequest {
+  actingRole: string;
+  actingOutletId?: number;
 }
 
 export interface LoginRequest {

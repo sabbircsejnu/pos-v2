@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AccountingService } from '../../services/accounting.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-expenses-list',
@@ -31,7 +32,8 @@ export class ExpensesListComponent implements OnInit {
     public accountingService: AccountingService,
     private router: Router,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -105,7 +107,7 @@ export class ExpensesListComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    return this.currencyService.format(amount);
   }
 
   formatDate(dateStr: string): string {

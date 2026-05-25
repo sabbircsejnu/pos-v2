@@ -9,7 +9,8 @@ import {
   CreateVariationDto,
   CreateVariationOptionDto,
   UpdateVariationDto,
-  UpdateVariationOptionDto
+  UpdateVariationOptionDto,
+  ProductReference
 } from '../../models/variation.model';
 
 @Component({
@@ -44,6 +45,11 @@ export class VariationsComponent implements OnInit {
 
   // Temporary option list while creating variation
   tempOptions = signal<CreateVariationOptionDto[]>([]);
+
+  // Variation-in-use modal state
+  showInUseModal = signal(false);
+  inUseVariationName = signal('');
+  inUseProducts = signal<ProductReference[]>([]);
 
   constructor(
     public variationService: VariationService,
@@ -170,8 +176,16 @@ export class VariationsComponent implements OnInit {
             this.alertService.success(message);
             this.variationService.loadVariations();
           },
-          error: (err) => {
-            this.alertService.error(this.errorHandler.extractErrorMessage(err));
+          error: (err: any) => {
+            if (err?.status === 409) {
+              const body = err.originalError?.error ?? err.error;
+              const products = (body?.data as ProductReference[]) ?? [];
+              this.inUseVariationName.set(name);
+              this.inUseProducts.set(products);
+              this.showInUseModal.set(true);
+            } else {
+              this.alertService.error(this.errorHandler.extractErrorMessage(err));
+            }
           }
         });
       },
@@ -179,6 +193,12 @@ export class VariationsComponent implements OnInit {
       'Delete',
       'Cancel'
     );
+  }
+
+  closeInUseModal(): void {
+    this.showInUseModal.set(false);
+    this.inUseProducts.set([]);
+    this.inUseVariationName.set('');
   }
 
   // Open modal to add option to existing variation

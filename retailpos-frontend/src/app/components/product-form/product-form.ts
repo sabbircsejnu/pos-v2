@@ -7,11 +7,13 @@ import { CategoryService } from '../../services/category.service';
 import { CreateProductRequest, UpdateProductRequest } from '../../models/product.model';
 import { Category } from '../../models/category.model';
 import { CombinationManagerComponent } from '../combination-manager/combination-manager.component';
+import { ProductImageUploaderComponent } from './product-image-uploader.component';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-product-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, CombinationManagerComponent],
+  imports: [CommonModule, FormsModule, CombinationManagerComponent, ProductImageUploaderComponent],
   templateUrl: './product-form.html',
   styleUrl: './product-form.css',
 })
@@ -29,7 +31,6 @@ export class ProductForm implements OnInit {
   costPrice = signal<number>(0);
   taxRate = signal<number>(0);
   hasVariants = signal(false);
-  imageUrl = signal('');
   isActive = signal(true);
   
   // Categories
@@ -44,7 +45,8 @@ export class ProductForm implements OnInit {
     public productService: ProductService,
     private categoryService: CategoryService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public currency: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -80,7 +82,6 @@ export class ProductForm implements OnInit {
           this.costPrice.set(product.costPrice);
           this.taxRate.set(product.taxRate);
           this.hasVariants.set(product.hasVariants);
-          this.imageUrl.set(product.imageUrl || '');
           this.isActive.set(product.isActive);
         }
       },
@@ -156,14 +157,15 @@ export class ProductForm implements OnInit {
       costPrice: this.costPrice(),
       taxRate: this.taxRate(),
       hasVariants: this.hasVariants(),
-      imageUrl: this.imageUrl() || undefined,
       isActive: this.isActive()
     };
-    
+
     this.productService.create(createRequest).subscribe({
-      next: () => {
-        alert('Product created successfully');
-        this.router.navigate(['/products']);
+      next: (response) => {
+        const created = (response as any)?.data;
+        if (created?.id) this.productId.set(created.id);
+        alert('Product created successfully. You can now upload images.');
+        this.router.navigate(['/products', 'edit', created?.id ?? '']);
       },
       error: (error) => {
         this.submitError.set(error.error?.error || 'Failed to create product');
@@ -182,10 +184,9 @@ export class ProductForm implements OnInit {
       basePrice: this.basePrice(),
       costPrice: this.costPrice(),
       taxRate: this.taxRate(),
-      imageUrl: this.imageUrl() || undefined,
       isActive: this.isActive()
     };
-    
+
     this.productService.update(this.productId()!, updateRequest).subscribe({
       next: () => {
         alert('Product updated successfully');

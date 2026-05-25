@@ -12,7 +12,7 @@
   }
 
   @if (!isLoading()) {
-    <!-- Step 1: Select Variations -->
+    <!-- Step 1: Select Variations & their Options -->
     <div class="mb-6">
       <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
         <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
@@ -20,23 +20,89 @@
       </h3>
 
       @if (variationService.variations().length > 0) {
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="space-y-4 mb-4">
           @for (variation of variationService.variations(); track variation.id) {
-            <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-blue-50"
-                   [class.bg-blue-50]="selectedVariationIds().includes(variation.id)"
-                   [class.border-blue-500]="selectedVariationIds().includes(variation.id)">
-              <input 
-                type="checkbox"
-                [checked]="selectedVariationIds().includes(variation.id)"
-                (change)="toggleVariation(variation.id)"
-                class="w-5 h-5 text-blue-600 rounded">
-              <span class="font-medium">{{ variation.name }}</span>
-              <span class="text-sm text-gray-500">({{ variation.options.length }} options)</span>
-            </label>
+            <!-- Variation type header row -->
+            <div class="border rounded-lg overflow-hidden"
+                 [class.border-blue-500]="selectedVariationIds().includes(variation.id)"
+                 [class.border-gray-200]="!selectedVariationIds().includes(variation.id)">
+
+              <!-- Variation toggle header -->
+              <label class="flex items-center gap-3 p-3 cursor-pointer select-none"
+                     [class.bg-blue-50]="selectedVariationIds().includes(variation.id)"
+                     [class.bg-gray-50]="!selectedVariationIds().includes(variation.id)">
+                <input
+                  type="checkbox"
+                  [checked]="selectedVariationIds().includes(variation.id)"
+                  (change)="toggleVariation(variation.id)"
+                  class="w-5 h-5 text-blue-600 rounded">
+                <span class="font-semibold text-gray-800">{{ variation.name }}</span>
+                @if (selectedVariationIds().includes(variation.id)) {
+                  <span class="ml-auto text-sm font-medium"
+                        [class.text-blue-600]="getSelectedOptionsCount(variation.id) > 0"
+                        [class.text-red-600]="getSelectedOptionsCount(variation.id) === 0">
+                    {{ getSelectedOptionsCount(variation.id) }} of {{ variation.options.length }} selected
+                  </span>
+                } @else {
+                  <span class="ml-auto text-sm text-gray-400">({{ variation.options.length }} options)</span>
+                }
+              </label>
+
+              <!-- Option checkboxes — only shown when variation type is selected -->
+              @if (selectedVariationIds().includes(variation.id)) {
+                <div class="px-4 pb-3 pt-1 border-t border-gray-100">
+                  @if (variation.options.length > 0) {
+                    <div class="flex flex-wrap gap-2 mt-2">
+                      @for (option of variation.options; track option.id) {
+                        <label class="flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer text-sm transition-colors"
+                               [class.bg-blue-600]="isOptionSelected(variation.id, option.id)"
+                               [class.text-white]="isOptionSelected(variation.id, option.id)"
+                               [class.border-blue-600]="isOptionSelected(variation.id, option.id)"
+                               [class.bg-white]="!isOptionSelected(variation.id, option.id)"
+                               [class.text-gray-700]="!isOptionSelected(variation.id, option.id)"
+                               [class.border-gray-300]="!isOptionSelected(variation.id, option.id)"
+                               [class.hover:bg-blue-50]="!isOptionSelected(variation.id, option.id)">
+                          <input
+                            type="checkbox"
+                            [checked]="isOptionSelected(variation.id, option.id)"
+                            (change)="toggleOption(variation.id, option.id)"
+                            class="hidden">
+                          <span>{{ option.name }}</span>
+                          @if (option.priceAdjustment !== 0) {
+                            <span class="text-xs opacity-80">
+                              ({{ option.priceAdjustment > 0 ? '+' : '' }}৳{{ option.priceAdjustment }})
+                            </span>
+                          }
+                        </label>
+                      }
+                    </div>
+                    @if (getSelectedOptionsCount(variation.id) === 0) {
+                      <p class="text-red-600 text-xs mt-2">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        At least one option must be selected for this variation type.
+                      </p>
+                    }
+                  } @else {
+                    <p class="text-gray-400 text-sm mt-2">No options defined for this variation.</p>
+                  }
+                </div>
+              }
+            </div>
           }
         </div>
 
-        <button 
+        <!-- Invalid combination warning -->
+        @if (getInvalidCombinations().length > 0) {
+          <div class="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-4 flex items-start gap-2">
+            <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+            <div class="text-sm text-amber-800">
+              <strong>{{ getInvalidCombinations().length }} existing combination(s)</strong> use options that are no
+              longer selected. They will be preserved but won't be regenerated. Save the assignment to confirm.
+            </div>
+          </div>
+        }
+
+        <button
           type="button"
           (click)="saveVariationAssignment()"
           [disabled]="selectedVariationIds().length === 0"
@@ -60,24 +126,33 @@
           Generate Product Combinations
         </h3>
 
+        @if (!canGenerateCombinations()) {
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3 text-sm text-yellow-800">
+            <i class="fas fa-info-circle mr-1"></i>
+            Please select at least one option under each variation type, then save the assignment before generating combinations.
+          </div>
+        }
+
         <div class="flex flex-wrap gap-3">
-          <button 
+          <button
             type="button"
             (click)="generateAllCombinations()"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+            [disabled]="!canGenerateCombinations()"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2">
             <i class="fas fa-layer-group"></i>
             Generate All Combinations
           </button>
 
-          <button 
+          <button
             type="button"
             (click)="generateSelectedCombinations()"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+            [disabled]="!canGenerateCombinations()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2">
             <i class="fas fa-check-square"></i>
             Generate Selected Only
           </button>
 
-          <button 
+          <button
             type="button"
             (click)="openManualModal()"
             class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
@@ -127,13 +202,20 @@
                     </td>
                     <td class="px-4 py-3 text-right text-sm font-medium text-gray-900">৳{{ combo.finalPrice }}</td>
                     <td class="px-4 py-3 text-right text-sm font-medium">
-                      <button 
+                      <a
+                        [routerLink]="['/reports/stock-transactions']"
+                        [queryParams]="{ productId: productId, variantId: combo.id }"
+                        class="text-blue-600 hover:text-blue-800 mr-3"
+                        title="Stock Transactions">
+                        <i class="fas fa-list-alt"></i>
+                      </a>
+                      <button
                         type="button"
                         (click)="openEditModal(combo)"
                         class="text-blue-600 hover:text-blue-800 mr-3">
                         <i class="fas fa-edit"></i>
                       </button>
-                      <button 
+                      <button
                         type="button"
                         (click)="deleteCombination(combo)"
                         class="text-red-600 hover:text-red-800">
@@ -173,7 +255,7 @@
             @for (variation of assignedVariations(); track variation.variationId) {
               <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-600 mb-1">{{ variation.variationName }}</label>
-                <select 
+                <select
                   [(ngModel)]="manualForm().selectedOptions[variation.variationId]"
                   [name]="'option_' + variation.variationId"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg">
@@ -191,8 +273,8 @@
           <!-- SKU -->
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">SKU (optional)</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               [(ngModel)]="manualForm().sku"
               name="sku"
               placeholder="Auto-generated if empty"
@@ -202,8 +284,8 @@
           <!-- Barcode -->
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Barcode</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               [(ngModel)]="manualForm().barcode"
               name="barcode"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg">
@@ -213,8 +295,8 @@
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Additional Price Adj. (৳)</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.01"
                 [(ngModel)]="manualForm().priceAdjustment"
                 name="priceAdjustment"
@@ -222,8 +304,8 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Cost Adj. (৳)</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.01"
                 [(ngModel)]="manualForm().costAdjustment"
                 name="costAdjustment"
@@ -232,13 +314,13 @@
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t">
-            <button 
+            <button
               type="button"
               (click)="showManualModal.set(false)"
               class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
               Cancel
             </button>
-            <button 
+            <button
               type="submit"
               class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               Create Combination
@@ -248,6 +330,7 @@
       </div>
     </div>
   </div>
+
 }
 
 <!-- Edit Modal -->

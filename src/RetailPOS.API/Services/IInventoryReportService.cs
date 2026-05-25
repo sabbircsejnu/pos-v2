@@ -15,4 +15,16 @@ public interface IInventoryReportService
 
     /// <summary>Returns items with no sales activity within the specified number of days</summary>
     Task<List<SlowMovingItemDto>> GetSlowMovingItemsAsync(int days = 90);
+
+    /// <summary>
+    /// Full stock movement history for a product (all variants) or a single variant
+    /// within a date window, including opening/closing balance summary.
+    /// </summary>
+    Task<StockTransactionReportDto> GetStockTransactionReportAsync(
+        long productId,
+        long? variantId,
+        long? locationId,
+        string? locationType,
+        DateTime? dateFrom,
+        DateTime? dateTo);
 }

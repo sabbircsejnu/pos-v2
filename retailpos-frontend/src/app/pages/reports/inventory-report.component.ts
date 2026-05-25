@@ -5,6 +5,7 @@ import { ReportService } from '../../services/report.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { forkJoin } from 'rxjs';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-inventory-report',
@@ -23,7 +24,8 @@ export class InventoryReportComponent implements OnInit {
   constructor(
     public reportService: ReportService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -76,6 +78,6 @@ export class InventoryReportComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    return this.currencyService.format(amount);
   }
 }

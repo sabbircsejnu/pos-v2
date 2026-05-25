@@ -5,7 +5,10 @@ namespace RetailPOS.API.DTOs.Product
         public long VariationId { get; set; }
         public string VariationName { get; set; } = string.Empty;
         public bool IsRequired { get; set; }
+        /// <summary>All globally available options for this variation type.</summary>
         public List<VariationOptionInfo> Options { get; set; } = new();
+        /// <summary>Which option IDs are currently selected for this specific product.</summary>
+        public List<long> SelectedOptionIds { get; set; } = new();
     }
 
     public class VariationOptionInfo
@@ -19,6 +22,12 @@ namespace RetailPOS.API.DTOs.Product
     {
         public long ProductId { get; set; }
         public List<long> VariationIds { get; set; } = new();
+        /// <summary>
+        /// Key = VariationId, Value = list of selected OptionIds for that variation.
+        /// When a variation type is assigned but its entry is absent (or empty), all
+        /// active options are pre-selected as a sensible default.
+        /// </summary>
+        public Dictionary<long, List<long>> SelectedOptionsByVariation { get; set; } = new();
     }
 
     public class CombinationDto
@@ -66,3 +75,4 @@ namespace RetailPOS.API.DTOs.Product
         public decimal CostAdjustment { get; set; }
     }
 }
+

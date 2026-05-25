@@ -2,7 +2,14 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { CompanySettings, TaxSettings, ReceiptSettings, InventorySettings, SystemSettings } from '../models/settings.model';
+import {
+  CompanySettings,
+  CurrencySettings,
+  TaxSettings,
+  ReceiptSettings,
+  InventorySettings,
+  SystemSettings,
+} from '../models/settings.model';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -28,6 +35,10 @@ export class SettingsService {
     return this.http.get<any>(`${this.settingsUrl}/company`);
   }
 
+  getCurrencySettings(): Observable<any> {
+    return this.http.get<any>(`${this.settingsUrl}/currency`);
+  }
+
   getTaxSettings(): Observable<any> {
     return this.http.get<any>(`${this.settingsUrl}/tax`);
   }
@@ -42,6 +53,10 @@ export class SettingsService {
 
   updateCompanySettings(dto: CompanySettings): Observable<any> {
     return this.http.put<any>(`${this.settingsUrl}/company`, dto);
+  }
+
+  updateCurrencySettings(dto: CurrencySettings): Observable<any> {
+    return this.http.put<any>(`${this.settingsUrl}/currency`, dto);
   }
 
   updateTaxSettings(dto: TaxSettings): Observable<any> {

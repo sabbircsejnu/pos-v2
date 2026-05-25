@@ -276,7 +276,8 @@ public class GrnService : IGrnService
                 VariantName = i.Variant?.Name ?? string.Empty,
                 VariantAttributes = i.Variant?.Attributes,
                 Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice
+                UnitPrice = i.UnitPrice,
+                PrimaryImageThumb = i.Variant?.Product?.Images?.FirstOrDefault(img => img.IsPrimary)?.ThumbPath,
             }).ToList() ?? new List<PurchaseOrderItemForGrnDto>()
         }).ToList();
     }

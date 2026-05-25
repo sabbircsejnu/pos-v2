@@ -11,8 +11,8 @@ Write-Host ""
 $DB_HOST = "127.0.0.1"
 $DB_PORT = "5435"
 $DB_NAME = "retailpos_db"
-$DB_USER = "omsadmin"
-$DB_PASSWORD = "123qwe"
+$DB_USER = "admin"
+$DB_PASSWORD = "589123Qwe"
 
 # Check if PostgreSQL is accessible
 Write-Host "Checking database connection..." -ForegroundColor Yellow

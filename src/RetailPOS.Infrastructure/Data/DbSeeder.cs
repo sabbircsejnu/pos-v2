@@ -16,6 +16,10 @@ public static class DbSeeder
     /// </summary>
     public static async Task SeedAsync(RetailPOSDbContext context)
     {
+        // Always ensure the BusinessOwner role + seed user exist (idempotent).
+        // This runs even on already-seeded databases so older deployments pick up new roles.
+        await EnsureBusinessOwnerAsync(context);
+
         if (await context.Roles.AnyAsync())
         {
             return; // Database already seeded
@@ -27,6 +31,7 @@ public static class DbSeeder
         await context.SaveChangesAsync();
 
         var superAdminRole = await context.Roles.FirstAsync(r => r.Name == "Super Admin");
+        var businessOwnerRole = await context.Roles.FirstAsync(r => r.Name == "BusinessOwner");
         var adminRole = await context.Roles.FirstAsync(r => r.Name == "Admin");
         var managerRole = await context.Roles.FirstAsync(r => r.Name == "Manager");
         var cashierRole = await context.Roles.FirstAsync(r => r.Name == "Cashier");
@@ -65,7 +70,8 @@ public static class DbSeeder
             new User { Name = "Sarah Manager", Email = "sarah.manager@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager@123", workFactor: 12), RoleId = managerRole.Id, OutletId = mainOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "Mike Cashier", Email = "mike.cashier@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Cashier@123", workFactor: 12), RoleId = cashierRole.Id, OutletId = mainOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "Lisa Branch Manager", Email = "lisa.manager@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager@123", workFactor: 12), RoleId = managerRole.Id, OutletId = branchOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-            new User { Name = "Tom Stock Manager", Email = "tom.stock@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Stock@123", workFactor: 12), RoleId = stockManagerRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
+            new User { Name = "Tom Stock Manager", Email = "tom.stock@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Stock@123", workFactor: 12), RoleId = stockManagerRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+            new User { Name = "Business Owner", Email = "owner@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Owner@123", workFactor: 12), RoleId = businessOwnerRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
         await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
@@ -560,6 +566,44 @@ public static class DbSeeder
     }
 
     /// <summary>
+    /// Idempotently ensures the BusinessOwner role and a default Business Owner user exist.
+    /// Safe to call on already-seeded databases — only inserts what's missing.
+    /// </summary>
+    private static async Task EnsureBusinessOwnerAsync(RetailPOSDbContext context)
+    {
+        var ownerRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "BusinessOwner");
+        if (ownerRole == null)
+        {
+            ownerRole = new Role
+            {
+                Name = "BusinessOwner",
+                Permissions = "[\"*\"]",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            context.Roles.Add(ownerRole);
+            await context.SaveChangesAsync();
+        }
+
+        var ownerUserExists = await context.Users.AnyAsync(u => u.Email == "owner@retailpos.com");
+        if (!ownerUserExists)
+        {
+            context.Users.Add(new User
+            {
+                Name = "Business Owner",
+                Email = "owner@retailpos.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Owner@123", workFactor: 12),
+                RoleId = ownerRole.Id,
+                OutletId = null,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
     /// Gets the default roles with their permissions.
     /// </summary>
     private static List<Role> GetDefaultRoles()
@@ -570,6 +614,41 @@ public static class DbSeeder
             {
                 Name = "Super Admin",
                 Permissions = "[\"*\"]",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Role
+            {
+                Name = "BusinessOwner",
+                Permissions = "[\"*\"]",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Role
+            {
+                Name = "OutletManager",
+                Permissions = @"[
+                    ""products.view"", ""products.create"", ""products.edit"",
+                    ""categories.view"",
+                    ""inventory.view"", ""inventory.create"", ""inventory.edit"",
+                    ""sales.view"", ""sales.create"", ""sales.edit"",
+                    ""purchases.view"", ""purchases.create"",
+                    ""customers.view"", ""customers.create"", ""customers.edit"",
+                    ""suppliers.view"",
+                    ""reports.view""
+                ]",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Role
+            {
+                Name = "Salesman",
+                Permissions = @"[
+                    ""products.view"",
+                    ""inventory.view"",
+                    ""sales.view"", ""sales.create"",
+                    ""customers.view"", ""customers.create""
+                ]",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             },

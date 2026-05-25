@@ -15,7 +15,8 @@ public class ProductDto
     public decimal BasePrice { get; set; }
     public decimal? CostPrice { get; set; }
     public decimal TaxRate { get; set; }
-    public string? ImageUrl { get; set; }
+    public string? PrimaryImageThumb { get; set; }
+    public string? PrimaryImageMedium { get; set; }
     public bool IsActive { get; set; }
     public bool HasVariants { get; set; }
     public DateTime CreatedAt { get; set; }

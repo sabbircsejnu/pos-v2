@@ -92,7 +92,7 @@ Edit `src/RetailPOS.API/appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=retailpos_db;Username=omsadmin;Password=123Qwe;Port=5435"
+    "DefaultConnection": "Host=localhost;Database=retailpos_db;Username=admin;Password=589123Qwe;Port=5435"
   }
 }
 ```

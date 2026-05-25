@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, signal, computed, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -7,12 +7,14 @@ import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { SupplierService } from '../../services/supplier.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { ProductService } from '../../services/product.service';
+import { ProductImageService } from '../../services/product-image.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CreatePurchaseOrderRequest, CreatePurchaseOrderItem } from '../../models/purchase-order.model';
 import { SearchableDropdownComponent, DropdownOption } from '../searchable-dropdown/searchable-dropdown.component';
 import { Supplier } from '../../models/supplier.model';
 import { Warehouse } from '../../models/warehouse.model';
+import { CurrencyService } from '../../services/currency.service';
 
 interface ProductVariantOption {
   id: number;
@@ -25,6 +27,7 @@ interface ProductVariantOption {
   finalPrice: number;
   costPrice?: number;
   stockQuantity?: number;
+  primaryImageThumb?: string;
 }
 
 @Component({
@@ -37,6 +40,9 @@ interface ProductVariantOption {
 export class PoFormComponent implements OnInit, AfterViewInit {
   @ViewChild('supplierDropdown') supplierDropdown!: SearchableDropdownComponent;
   @ViewChild('warehouseDropdown') warehouseDropdown!: SearchableDropdownComponent;
+
+  private imageSvc = inject(ProductImageService);
+  resolveImage(path?: string | null): string { return this.imageSvc.resolveUrl(path); }
 
   isEditMode = signal(false);
   poId = signal<number | null>(null);
@@ -77,7 +83,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     private warehouseService: WarehouseService,
     private productService: ProductService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
@@ -228,7 +235,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   loadPurchaseOrder(id: number): void {
     this.isLoading.set(true);
     this.poService.getById(id).subscribe({
-      next: (po) => {
+      next: (response) => {
+        const po = response.data;
         this.supplierId.set(po.supplierId);
         this.warehouseId.set(po.warehouseId);
         this.orderDate.set(this.formatDateForInput(new Date(po.orderDate)));
@@ -431,7 +439,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       sku: variant.sku || '',
       unitPrice: variant.costPrice || variant.finalPrice || 0,
       productName: variant.productName,
-      variantName: variant.name
+      variantName: variant.name,
+      primaryImageThumb: variant.primaryImageThumb,
     };
     this.items.set(updatedItems);
     
@@ -557,7 +566,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
 
     saveObservable.subscribe({
       next: (response) => {
-        const poId = this.isEditMode() ? this.poId() : response.id;
+        const poId = this.isEditMode() ? this.poId() : response.data?.id;
         
         if (submit) {
           // Submit for approval
@@ -605,10 +614,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return this.currencyService.format(amount);
   }
 
   onVariantScroll(event: any, index: number): void {
