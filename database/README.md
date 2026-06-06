@@ -26,7 +26,7 @@ psql -h localhost -p 5432 -U postgres -d retailpos_db -f seed-data.sql
 ## Default Credentials
 
 ### Super Admin
-- **Email:** `admin@retailpos.com`
+- **Email:** `suparadmin@sabbir.com`
 - **Password:** `Admin@123`
 - **Permissions:** Full system access (*)
 

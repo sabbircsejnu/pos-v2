@@ -28,7 +28,7 @@ The `DbSeeder` class provides automatic database seeding functionality that runs
 ### 2. Super Admin User
 
 **Credentials:**
-- **Email:** `admin@retailpos.com`
+- **Email:** `suparadmin@sabbir.com`
 - **Password:** `Admin@123`
 - **Role:** Super Admin
 - **Status:** Active
@@ -405,7 +405,7 @@ FROM roles;
 -- Check super admin user
 SELECT id, name, email, role_id, is_active 
 FROM users 
-WHERE email = 'admin@retailpos.com';
+WHERE email = 'suparadmin@sabbir.com';
 ```
 
 ## Version History

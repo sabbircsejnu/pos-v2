@@ -96,7 +96,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO users (name, email, password_hash, role_id, outlet_id, is_active, created_at, updated_at)
 VALUES
     (
-        'Super Admin', 'admin@retailpos.com',
+        'Super Admin', 'suparadmin@sabbir.com',
         '$2a$11$A1K7RvjnXpXriu/iW6S87eDSoHZSG8vZIGYlF4RSsPVgiNUpMm3Su',
         (SELECT id FROM roles WHERE name = 'Super Admin'), NULL, true, NOW(), NOW()
     ),
@@ -399,7 +399,7 @@ VALUES
         (SELECT id FROM warehouses WHERE name = 'Central Warehouse'),
         NOW() - INTERVAL '30 days', NOW() - INTERVAL '20 days',
         18500, 'received',
-        (SELECT id FROM users WHERE email = 'admin@retailpos.com'),
+        (SELECT id FROM users WHERE email = 'suparadmin@sabbir.com'),
         NOW() - INTERVAL '30 days', NOW() - INTERVAL '20 days'
     ),
     (
@@ -649,7 +649,7 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE '';
     RAISE NOTICE 'Default Login Credentials (all use password: Admin@123):';
-    RAISE NOTICE '  Super Admin:   admin@retailpos.com';
+    RAISE NOTICE '  Super Admin:   suparadmin@sabbir.com';
     RAISE NOTICE '  Admin:         john.admin@retailpos.com';
     RAISE NOTICE '  Manager:       sarah.manager@retailpos.com';
     RAISE NOTICE '  Cashier:       mike.cashier@retailpos.com';

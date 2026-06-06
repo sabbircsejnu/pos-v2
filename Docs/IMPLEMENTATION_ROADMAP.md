@@ -125,7 +125,7 @@ Testing & Deployment:    ⬜ Not Started
 - [x] Database migrations applied (25 tables)
 - [x] Seed data created with Super Admin user
 - [x] Default roles: Super Admin, Admin, Manager, Cashier, Stock Manager, User
-- [x] Default users: admin@retailpos.com, manager@retailpos.com, cashier@retailpos.com
+- [x] Default users: suparadmin@sabbir.com, manager@retailpos.com, cashier@retailpos.com
 - [x] Password: Admin@123 (BCrypt hashed)
 - [x] Swagger UI configured at http://localhost:5000/swagger
 - [x] JWT Authentication configured in Swagger

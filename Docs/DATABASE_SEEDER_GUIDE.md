@@ -6,7 +6,7 @@ Your POS system now automatically seeds the database with essential data on star
 
 ### Default Super Admin Credentials
 ```
-Email:    admin@retailpos.com
+Email:    suparadmin@sabbir.com
 Password: Admin@123
 ```
 ⚠️ **Change this password after first login!**
@@ -52,7 +52,7 @@ dotnet run
 SELECT name, jsonb_array_length(permissions) as perm_count FROM roles;
 
 -- Check super admin
-SELECT name, email, is_active FROM users WHERE email = 'admin@retailpos.com';
+SELECT name, email, is_active FROM users WHERE email = 'suparadmin@sabbir.com';
 ```
 
 ---
@@ -73,7 +73,7 @@ SELECT name, email, is_active FROM users WHERE email = 'admin@retailpos.com';
 ### 1 Super Admin User
 
 - **Name:** Super Admin
-- **Email:** admin@retailpos.com
+- **Email:** suparadmin@sabbir.com
 - **Password:** Admin@123 (BCrypt hashed)
 - **Role:** Super Admin
 - **Outlet:** None (can access all)
@@ -169,7 +169,7 @@ info: Program[0]
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@retailpos.com",
+    "email": "suparadmin@sabbir.com",
     "password": "Admin@123"
   }'
 ```
@@ -177,7 +177,7 @@ curl -X POST http://localhost:5000/api/auth/login \
 ### 4. Login via Frontend
 ```
 URL: http://localhost:4200/login
-Email: admin@retailpos.com
+Email: suparadmin@sabbir.com
 Password: Admin@123
 ```
 
@@ -203,9 +203,9 @@ dotnet restore
 ```
 
 ### Can't login
-- Check email: `admin@retailpos.com` (lowercase)
+- Check email: `suparadmin@sabbir.com` (lowercase)
 - Check password: `Admin@123` (case-sensitive)
-- Check user exists: `SELECT * FROM users WHERE email = 'admin@retailpos.com';`
+- Check user exists: `SELECT * FROM users WHERE email = 'suparadmin@sabbir.com';`
 
 ---
 

@@ -53,7 +53,7 @@ Write-Host "✅ Seed Data Applied Successfully!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "You can now login with:" -ForegroundColor Cyan
-Write-Host "  Email: admin@retailpos.com" -ForegroundColor White
+Write-Host "  Email: suparadmin@sabbir.com" -ForegroundColor White
 Write-Host "  Password: Admin@123" -ForegroundColor White
 Write-Host ""
 Write-Host "⚠️  Remember to change the password after first login!" -ForegroundColor Yellow
