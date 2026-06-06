@@ -4,6 +4,7 @@
     <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
     <button
       (click)="createUser()"
+      [appHasPermission]="'users.create'"
       class="btn btn-primary">
       <i class="fas fa-plus"></i>Add New User
     </button>
@@ -137,18 +138,21 @@
                 </button>
                 <button
                   (click)="editUser(user.id, $event)"
+                  [appHasPermission]="'users.edit'"
                   class="text-gray-600 hover:text-gray-900 mr-2"
                   title="Edit">
                   <i class="fas fa-edit"></i>
                 </button>
                 <button
                   (click)="toggleUserStatus(user, $event)"
+                  [appHasPermission]="'users.edit'"
                   [class]="user.isActive ? 'text-red-600 hover:text-red-900 mr-2' : 'text-green-600 hover:text-green-900 mr-2'"
                   [title]="user.isActive ? 'Deactivate' : 'Activate'">
                   <i [class]="user.isActive ? 'fas fa-user-slash' : 'fas fa-user-check'"></i>
                 </button>
                 <button
                   (click)="deleteUser(user, $event)"
+                  [appHasPermission]="'users.delete'"
                   class="text-red-600 hover:text-red-900"
                   title="Delete">
                   <i class="fas fa-trash"></i>

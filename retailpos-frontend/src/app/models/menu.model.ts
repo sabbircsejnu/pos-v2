@@ -4,7 +4,7 @@ export interface MenuItem {
   icon: string;
   route?: string;
   children?: MenuItem[];
-  permission?: string;
+  permission?: string | string[];
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -38,7 +38,7 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Audit Log',
         icon: 'fas fa-history',
         route: '/audit-logs',
-        permission: 'audit_log.view'
+        permission: 'audit.view'
       }
     ]
   },
@@ -65,7 +65,8 @@ export const MENU_ITEMS: MenuItem[] = [
         id: 'categories',
         label: 'Categories',
         icon: 'fas fa-tags',
-        route: '/categories'
+        route: '/categories',
+        permission: 'products.view'
       },
       {
         id: 'suppliers',
@@ -121,7 +122,7 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Purchase Orders',
         icon: 'fas fa-file-invoice',
         route: '/purchase-orders',
-        permission: 'purchase_orders.view'
+        permission: 'purchases.view'
       },
       {
         id: 'grn',
@@ -142,14 +143,14 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Stock Transfers',
         icon: 'fas fa-truck-moving',
         route: '/stock-transfers',
-        permission: 'stock_transfers.view'
+        permission: 'inventory.transfer'
       },
       {
         id: 'stock-adjustments',
         label: 'Stock Adjustments',
         icon: 'fas fa-sliders-h',
         route: '/stock-adjustments',
-        permission: 'stock_adjustments.view'
+        permission: 'inventory.adjust'
       }
     ]
   },
@@ -162,25 +163,29 @@ export const MENU_ITEMS: MenuItem[] = [
         id: 'accounts',
         label: 'Chart of Accounts',
         icon: 'fas fa-book',
-        route: '/accounts'
+        route: '/accounts',
+        permission: 'accounts.view'
       },
       {
         id: 'transactions',
         label: 'Transactions',
         icon: 'fas fa-exchange-alt',
-        route: '/transactions'
+        route: '/transactions',
+        permission: 'transactions.view'
       },
       {
         id: 'expenses',
         label: 'Expenses',
         icon: 'fas fa-receipt',
-        route: '/expenses'
+        route: '/expenses',
+        permission: 'accounts.view'
       },
       {
         id: 'bills',
         label: 'Bills Payable',
         icon: 'fas fa-file-invoice-dollar',
-        route: '/bills'
+        route: '/bills',
+        permission: 'accounts.view'
       }
     ]
   },
@@ -243,7 +248,7 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Purchase Reports',
         icon: 'fas fa-truck',
         route: '/reports/purchases',
-        permission: 'reports.purchases'
+        permission: 'purchases.view'
       },
       {
         id: 'financial-reports',

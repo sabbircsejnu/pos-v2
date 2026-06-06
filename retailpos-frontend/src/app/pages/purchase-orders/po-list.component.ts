@@ -11,6 +11,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { PurchaseOrder, PurchaseOrderSearchRequest, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-po-list',
@@ -49,11 +50,16 @@ export class PoListComponent implements OnInit, OnDestroy {
     public poService: PurchaseOrderService,
     public supplierService: SupplierService,
     public warehouseService: WarehouseService,
+    private authService: AuthService,
     private router: Router,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
     private currencyService: CurrencyService
   ) {}
+
+  can(permission: string): boolean {
+    return this.authService.hasPermission(permission);
+  }
 
   ngOnInit(): void {
     this.loadSuppliers();

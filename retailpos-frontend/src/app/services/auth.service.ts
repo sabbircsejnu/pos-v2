@@ -74,12 +74,28 @@ export class AuthService {
 
   hasPermission(permission: string): boolean {
     const user = this.getUserValue();
-    return user?.permissions?.includes(permission) ?? false;
+    const permissions = user?.permissions ?? [];
+    return permissions.includes('*') || permissions.includes(permission);
   }
 
   hasAnyPermission(permissions: string[]): boolean {
     const user = this.getUserValue();
-    return permissions.some(p => user?.permissions?.includes(p)) ?? false;
+    const userPermissions = user?.permissions ?? [];
+    if (userPermissions.includes('*')) {
+      return true;
+    }
+
+    return permissions.some(p => userPermissions.includes(p));
+  }
+
+  hasAllPermissions(permissions: string[]): boolean {
+    const user = this.getUserValue();
+    const userPermissions = user?.permissions ?? [];
+    if (userPermissions.includes('*')) {
+      return true;
+    }
+
+    return permissions.every(p => userPermissions.includes(p));
   }
 
   hasRole(role: string): boolean {

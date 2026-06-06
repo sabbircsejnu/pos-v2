@@ -42,9 +42,37 @@ export const permissionGuard = (permissions: string[]): CanActivateFn => {
       return true;
     }
 
-    router.navigate(['/unauthorized']);
+    router.navigate(['/dashboard'], { queryParams: { unauthorized: '1' } });
     return false;
   };
+};
+
+export const routePermissionGuard: CanActivateFn = (route, state) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (!authService.isAuthenticated()) {
+    router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+    return false;
+  }
+
+  const permissions = (route.data?.['permissions'] as string[] | undefined) ?? [];
+  const mode = ((route.data?.['permissionMode'] as 'any' | 'all' | undefined) ?? 'any');
+
+  if (permissions.length === 0) {
+    return true;
+  }
+
+  const hasAccess = mode === 'all'
+    ? authService.hasAllPermissions(permissions)
+    : authService.hasAnyPermission(permissions);
+
+  if (hasAccess) {
+    return true;
+  }
+
+  router.navigate(['/dashboard'], { queryParams: { unauthorized: '1' } });
+  return false;
 };
 
 export const roleGuard = (roles: string[]): CanActivateFn => {
@@ -62,7 +90,7 @@ export const roleGuard = (roles: string[]): CanActivateFn => {
       return true;
     }
 
-    router.navigate(['/unauthorized']);
+    router.navigate(['/dashboard'], { queryParams: { unauthorized: '1' } });
     return false;
   };
 };

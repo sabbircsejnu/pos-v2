@@ -52,7 +52,7 @@ import { PurchaseReportComponent } from './pages/reports/purchase-report.compone
 import { StockTransactionReportComponent } from './pages/reports/stock-transaction-report.component';
 import { SettingsPageComponent } from './pages/settings/settings-page.component';
 import { AuditListComponent } from './pages/audit/audit-list.component';
-import { authGuard, loginGuard } from './guards/auth.guard';
+import { authGuard, loginGuard, routePermissionGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
@@ -68,102 +68,102 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardComponent },
       
       // User Management Routes
-      { path: 'users', component: UserListComponent },
-      { path: 'users/create', component: UserFormComponent },
-      { path: 'users/edit/:id', component: UserFormComponent },
-      { path: 'users/:id', component: UserDetailsComponent },
+      { path: 'users', component: UserListComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.view'] } },
+      { path: 'users/create', component: UserFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.create'] } },
+      { path: 'users/edit/:id', component: UserFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.edit'] } },
+      { path: 'users/:id', component: UserDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.view'] } },
       
       // Role Management Routes
-      { path: 'roles', component: RoleListComponent },
-      { path: 'roles/create', component: RoleFormComponent },
-      { path: 'roles/edit/:id', component: RoleFormComponent },
+      { path: 'roles', component: RoleListComponent, canActivate: [routePermissionGuard], data: { permissions: ['roles.view'] } },
+      { path: 'roles/create', component: RoleFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['roles.create'] } },
+      { path: 'roles/edit/:id', component: RoleFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['roles.edit'] } },
       
       // Outlet Management Routes
-      { path: 'outlets', component: OutletListComponent },
-      { path: 'outlets/create', component: OutletFormComponent },
-      { path: 'outlets/edit/:id', component: OutletFormComponent },
-      { path: 'outlets/:id', component: OutletDetailsComponent },
+      { path: 'outlets', component: OutletListComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.view'] } },
+      { path: 'outlets/create', component: OutletFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.create'] } },
+      { path: 'outlets/edit/:id', component: OutletFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.edit'] } },
+      { path: 'outlets/:id', component: OutletDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.view'] } },
       
       // Warehouse Management Routes
-      { path: 'warehouses', component: WarehouseListComponent },
-      { path: 'warehouses/create', component: WarehouseFormComponent },
-      { path: 'warehouses/edit/:id', component: WarehouseFormComponent },
-      { path: 'warehouses/:id', component: WarehouseDetailsComponent },
+      { path: 'warehouses', component: WarehouseListComponent, canActivate: [routePermissionGuard], data: { permissions: ['warehouses.view'] } },
+      { path: 'warehouses/create', component: WarehouseFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['warehouses.create'] } },
+      { path: 'warehouses/edit/:id', component: WarehouseFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['warehouses.edit'] } },
+      { path: 'warehouses/:id', component: WarehouseDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['warehouses.view'] } },
       
       // Category Management Routes
-      { path: 'categories', component: CategoryListComponent },
-      { path: 'categories/create', component: CategoryFormComponent },
-      { path: 'categories/edit/:id', component: CategoryFormComponent },
+      { path: 'categories', component: CategoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
+      { path: 'categories/create', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.create'] } },
+      { path: 'categories/edit/:id', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.edit'] } },
       
       // Variations Management Routes
-      { path: 'variations', component: VariationsComponent },
+      { path: 'variations', component: VariationsComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
       
       // Product Management Routes
-      { path: 'products', component: ProductList },
-      { path: 'products/create', component: ProductForm },
-      { path: 'products/edit/:id', component: ProductForm },
+      { path: 'products', component: ProductList, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
+      { path: 'products/create', component: ProductForm, canActivate: [routePermissionGuard], data: { permissions: ['products.create'] } },
+      { path: 'products/edit/:id', component: ProductForm, canActivate: [routePermissionGuard], data: { permissions: ['products.edit'] } },
       
       // Inventory Management Routes
-      { path: 'inventory', component: InventoryListComponent },
-      { path: 'inventory/low-stock', component: LowStockAlertsComponent },
+      { path: 'inventory', component: InventoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.view'] } },
+      { path: 'inventory/low-stock', component: LowStockAlertsComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.view'] } },
       
       // Supplier Management Routes
-      { path: 'suppliers', component: SupplierListComponent },
-      { path: 'suppliers/create', component: SupplierFormComponent },
-      { path: 'suppliers/edit/:id', component: SupplierFormComponent },
-      { path: 'suppliers/:id', component: SupplierDetailsComponent },
+      { path: 'suppliers', component: SupplierListComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.view'] } },
+      { path: 'suppliers/create', component: SupplierFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.create'] } },
+      { path: 'suppliers/edit/:id', component: SupplierFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.edit'] } },
+      { path: 'suppliers/:id', component: SupplierDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.view'] } },
       
       // Purchase Order Management Routes
-      { path: 'purchase-orders', component: PoListComponent },
-      { path: 'purchase-orders/create', component: PoFormComponent },
-      { path: 'purchase-orders/edit/:id', component: PoFormComponent },
-      { path: 'purchase-orders/:id', component: PoDetailsComponent },
+      { path: 'purchase-orders', component: PoListComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.view'] } },
+      { path: 'purchase-orders/create', component: PoFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.create'] } },
+      { path: 'purchase-orders/edit/:id', component: PoFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.edit'] } },
+      { path: 'purchase-orders/:id', component: PoDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.view'] } },
 
       // GRN Routes
-      { path: 'grn', component: GrnListComponent },
-      { path: 'grn/create', component: GrnCreateComponent },
-      { path: 'grn/:id', component: GrnDetailsComponent },
+      { path: 'grn', component: GrnListComponent, canActivate: [routePermissionGuard], data: { permissions: ['grn.view'] } },
+      { path: 'grn/create', component: GrnCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['grn.create'] } },
+      { path: 'grn/:id', component: GrnDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['grn.view'] } },
 
       // Customer Routes
-      { path: 'customers', component: CustomerListComponent },
-      { path: 'customers/create', component: CustomerFormComponent },
-      { path: 'customers/edit/:id', component: CustomerFormComponent },
-      { path: 'customers/:id', component: CustomerDetailsComponent },
+      { path: 'customers', component: CustomerListComponent, canActivate: [routePermissionGuard], data: { permissions: ['customers.view'] } },
+      { path: 'customers/create', component: CustomerFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['customers.create'] } },
+      { path: 'customers/edit/:id', component: CustomerFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['customers.edit'] } },
+      { path: 'customers/:id', component: CustomerDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['customers.view'] } },
 
       // POS & Sales Routes
-      { path: 'pos', component: PosScreenComponent },
-      { path: 'sales', component: SalesListComponent },
-      { path: 'sales/:id', component: SaleDetailsComponent },
+      { path: 'pos', component: PosScreenComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.create'] } },
+      { path: 'sales', component: SalesListComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.view'] } },
+      { path: 'sales/:id', component: SaleDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.view'] } },
 
       // Stock Transfer Routes
-      { path: 'stock-transfers', component: TransferListComponent },
-      { path: 'stock-transfers/create', component: TransferCreateComponent },
-      { path: 'stock-transfers/:id', component: TransferDetailsComponent },
+      { path: 'stock-transfers', component: TransferListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
+      { path: 'stock-transfers/create', component: TransferCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
+      { path: 'stock-transfers/:id', component: TransferDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
 
       // Stock Adjustment Routes
-      { path: 'stock-adjustments', component: AdjustmentListComponent },
-      { path: 'stock-adjustments/create', component: AdjustmentCreateComponent },
+      { path: 'stock-adjustments', component: AdjustmentListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.adjust'] } },
+      { path: 'stock-adjustments/create', component: AdjustmentCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.adjust'] } },
 
       // Reports Routes
-      { path: 'reports/sales', component: SalesReportComponent },
-      { path: 'reports/inventory', component: InventoryReportComponent },
-      { path: 'reports/purchases', component: PurchaseReportComponent },
-      { path: 'reports/stock-transactions', component: StockTransactionReportComponent },
+      { path: 'reports/sales', component: SalesReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.sales'] } },
+      { path: 'reports/inventory', component: InventoryReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/purchases', component: PurchaseReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.view'] } },
+      { path: 'reports/stock-transactions', component: StockTransactionReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
 
       // Audit Log Route
-      { path: 'audit-logs', component: AuditListComponent },
+      { path: 'audit-logs', component: AuditListComponent, canActivate: [routePermissionGuard], data: { permissions: ['audit.view'] } },
 
       // Settings Routes
-      { path: 'settings', component: SettingsPageComponent },
-      { path: 'settings/company', component: SettingsPageComponent },
+      { path: 'settings', component: SettingsPageComponent, canActivate: [routePermissionGuard], data: { permissions: ['settings.edit'] } },
+      { path: 'settings/company', component: SettingsPageComponent, canActivate: [routePermissionGuard], data: { permissions: ['settings.edit'] } },
 
       // Accounting Routes
-      { path: 'accounts', component: AccountsListComponent },
-      { path: 'transactions', component: TransactionsListComponent },
-      { path: 'expenses', component: ExpensesListComponent },
-      { path: 'expenses/create', component: ExpenseFormComponent },
-      { path: 'expenses/edit/:id', component: ExpenseFormComponent },
-      { path: 'bills', component: BillsListComponent },
+      { path: 'accounts', component: AccountsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounts.view'] } },
+      { path: 'transactions', component: TransactionsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['transactions.view'] } },
+      { path: 'expenses', component: ExpensesListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounts.view'] } },
+      { path: 'expenses/create', component: ExpenseFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounts.create'] } },
+      { path: 'expenses/edit/:id', component: ExpenseFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounts.edit'] } },
+      { path: 'bills', component: BillsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounts.view'] } },
     ]
   },
   

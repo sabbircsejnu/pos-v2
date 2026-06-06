@@ -5,7 +5,7 @@
       <h1 class="text-2xl font-bold text-gray-900">Purchase Orders</h1>
       <p class="text-sm text-gray-600 mt-1">Manage procurement and supplier orders</p>
     </div>
-    <button (click)="createNew()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
+    <button *ngIf="can('purchases.create')" (click)="createNew()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
       + New Purchase Order
     </button>
   </div>
@@ -166,42 +166,42 @@
                 </button>
 
                 <!-- Edit Button (only for draft/pending) -->
-                <button *ngIf="po.status === 'draft' || po.status === 'pending'" (click)="editPo(po)" class="text-green-600 hover:text-green-900" title="Edit">
+                <button *ngIf="(po.status === 'draft' || po.status === 'pending') && can('purchases.edit')" (click)="editPo(po)" class="text-green-600 hover:text-green-900" title="Edit">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                   </svg>
                 </button>
 
                 <!-- Submit Button (only for draft) -->
-                <button *ngIf="po.status === 'draft'" (click)="submitForApproval(po.id)" class="text-purple-600 hover:text-purple-900" title="Submit for Approval">
+                <button *ngIf="po.status === 'draft' && can('purchases.edit')" (click)="submitForApproval(po.id)" class="text-purple-600 hover:text-purple-900" title="Submit for Approval">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                   </svg>
                 </button>
 
                 <!-- Approve Button (only for pending) -->
-                <button *ngIf="po.status === 'pending'" (click)="approvePo(po.id)" class="text-green-600 hover:text-green-900" title="Approve">
+                <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="approvePo(po.id)" class="text-green-600 hover:text-green-900" title="Approve">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                   </svg>
                 </button>
 
                 <!-- Reject Button (only for pending) -->
-                <button *ngIf="po.status === 'pending'" (click)="rejectPo(po.id)" class="text-red-600 hover:text-red-900" title="Reject">
+                <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="rejectPo(po.id)" class="text-red-600 hover:text-red-900" title="Reject">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                   </svg>
                 </button>
 
                 <!-- Cancel Button (not for received/cancelled/rejected) -->
-                <button *ngIf="po.status !== 'received' && po.status !== 'cancelled' && po.status !== 'rejected'" (click)="cancelPo(po.id)" class="text-orange-600 hover:text-orange-900" title="Cancel">
+                <button *ngIf="po.status !== 'received' && po.status !== 'cancelled' && po.status !== 'rejected' && can('purchases.approve')" (click)="cancelPo(po.id)" class="text-orange-600 hover:text-orange-900" title="Cancel">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
 
                 <!-- Delete Button (only for draft/pending) -->
-                <button *ngIf="po.status === 'draft' || po.status === 'pending'" (click)="deletePo(po.id)" class="text-red-600 hover:text-red-900" title="Delete">
+                <button *ngIf="(po.status === 'draft' || po.status === 'pending') && can('purchases.edit')" (click)="deletePo(po.id)" class="text-red-600 hover:text-red-900" title="Delete">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                   </svg>
@@ -217,7 +217,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
               <p class="mt-2 text-sm">No purchase orders found</p>
-              <button (click)="createNew()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
+              <button *ngIf="can('purchases.create')" (click)="createNew()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
                 Create First Purchase Order
               </button>
             </td>

@@ -514,22 +514,22 @@ Implemented a modern, responsive navigation system with:
 #### Documentation
 - [x] Complete documentation in `PHASE_2_3_COMPLETE.md` (850 LOC)
 
-### ⬜ Priority 2.4: Role-Based UI Permission Layer (NEW)
-**Status:** Not Started  
+### ✅ Priority 2.4: Role-Based UI Permission Layer (NEW)
+**Status:** ✅ Complete (2026-06-06)  
 **Duration:** 2 days  
 **Priority:** 🔴 Critical
 
 #### Frontend Tasks
-- [ ] Hide menus based on permission map
-- [ ] Hide action buttons (create/edit/delete/approve)
-- [ ] Add reusable permission directive/helper
-- [ ] Prevent unauthorized view rendering even if route is manually accessed
-- [ ] Align UI permissions with backend policies
+- [x] Hide menus based on permission map
+- [x] Hide action buttons (create/edit/delete/approve)
+- [x] Add reusable permission directive/helper
+- [x] Prevent unauthorized view rendering even if route is manually accessed
+- [x] Align UI permissions with backend policies
 
 #### Testing Checklist
-- [ ] Cashier cannot access admin routes
-- [ ] Stock manager sees only relevant actions
-- [ ] Direct URL navigation blocked correctly
+- [x] Cashier cannot access admin routes
+- [x] Stock manager sees only relevant actions
+- [x] Direct URL navigation blocked correctly
 
 ---
 

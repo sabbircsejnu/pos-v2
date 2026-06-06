@@ -6,11 +6,12 @@ import { UserService } from '../../services/user.service';
 import { RoleService } from '../../services/role.service';
 import { User } from '../../models/user.model';
 import { Role } from '../../models/role.model';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, HasPermissionDirective],
   templateUrl: './user-list.component.html',
   styleUrls: ['./user-list.component.css']
 })

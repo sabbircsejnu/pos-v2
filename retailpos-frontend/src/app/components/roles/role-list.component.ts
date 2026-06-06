@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RoleService } from '../../services/role.service';
 import { Role } from '../../models/role.model';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-role-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HasPermissionDirective],
   templateUrl: './role-list.component.html',
   styleUrls: ['./role-list.component.css']
 })
