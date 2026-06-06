@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using RetailPOS.API.Models;
 using RetailPOS.API.Middleware;
 using RetailPOS.API.Services;
+using RetailPOS.API.Authorization;
 using RetailPOS.Core.Audit;
 using RetailPOS.Infrastructure.Audit;
 using RetailPOS.Infrastructure.Data;
@@ -71,14 +72,27 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var permission in PermissionCatalog.All)
+    {
+        options.AddPolicy(permission, policy =>
+        {
+            policy.RequireAssertion(context =>
+                context.User.Claims.Any(c => c.Type == "permission" && c.Value == "*")
+                || context.User.Claims.Any(c => c.Type == "permission" && c.Value == permission));
+        });
+    }
+});
 
 // Register Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBusinessOnboardingService, BusinessOnboardingService>();
 builder.Services.AddScoped<IRoleSwitchContext, RoleSwitchContext>();
 builder.Services.AddScoped<IRoleSwitchService, RoleSwitchService>();
+builder.Services.AddScoped<ITenantAccessService, TenantAccessService>();
 
 // Register Repositories
 builder.Services.AddScoped<RetailPOS.Infrastructure.Repositories.IUserRepository, RetailPOS.Infrastructure.Repositories.UserRepository>();
@@ -236,15 +250,16 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Seed database on startup
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    // Seed database on startup
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<RetailPOSDbContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
-        
+
         // Ensure database is created and migrations are applied
         await context.Database.MigrateAsync();
 
@@ -261,12 +276,11 @@ using (var scope = app.Services.CreateScope())
                 UNIQUE (product_id, variation_id, option_id)
             )");
 
-        
         logger.LogInformation("Checking if database needs seeding...");
-        
+
         // Seed default roles, users, and all module sample data
         await RetailPOS.Infrastructure.Data.DbSeeder.SeedAsync(context);
-        
+
         logger.LogInformation("Database seeding completed successfully");
     }
     catch (Exception ex)
@@ -323,3 +337,5 @@ app.UseMiddleware<AuditContextMiddleware>();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

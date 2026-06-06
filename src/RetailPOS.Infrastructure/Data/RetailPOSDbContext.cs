@@ -10,9 +10,13 @@ public class RetailPOSDbContext : DbContext
     {
     }
 
+    // Tenancy
+    public DbSet<Business> Businesses => Set<Business>();
+
     // User & Role Management
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
 
     // Locations
     public DbSet<Outlet> Outlets => Set<Outlet>();
@@ -104,6 +108,17 @@ public class RetailPOSDbContext : DbContext
         }
 
         // Role Configuration
+        modelBuilder.Entity<Business>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(255);
+            entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        // Role Configuration
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -120,6 +135,11 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
+
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.Users)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.Users)
@@ -140,6 +160,11 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Address).IsRequired();
             entity.Property(e => e.ContactNumber).HasMaxLength(20);
 
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.Outlets)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.Manager)
                 .WithMany()
                 .HasForeignKey(e => e.ManagerId)
@@ -153,10 +178,31 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Address).IsRequired();
 
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.Warehouses)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.Manager)
                 .WithMany()
                 .HasForeignKey(e => e.ManagerId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Invitation token for onboarding and first-time password setup
+        modelBuilder.Entity<UserInvitation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Purpose).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TokenHash).HasMaxLength(128).IsRequired();
+
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Purpose, e.ConsumedAt });
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Invitations)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Category Configuration
@@ -586,6 +632,11 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Type).HasMaxLength(20).IsRequired();
             entity.Property(e => e.Balance).HasPrecision(10, 2);
+
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.Accounts)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Transaction Configuration

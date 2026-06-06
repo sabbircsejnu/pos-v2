@@ -11,6 +11,7 @@ public class LoginResponseDto
 public class UserInfoDto
 {
     public long Id { get; set; }
+    public long? BusinessId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? RoleName { get; set; }
@@ -25,4 +26,11 @@ public class UserInfoDto
     public string? ActingOutletName { get; set; }
     public bool IsRoleSwitched { get; set; }
     public bool IsBusinessOwner { get; set; }
+    public bool MustResetPassword { get; set; }
+}
+
+public class CompleteInvitationRequestDto
+{
+    public string Token { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }

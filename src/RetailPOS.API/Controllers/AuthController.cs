@@ -84,6 +84,29 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("complete-invitation")]
+    public async Task<ActionResult<LoginResponseDto>> CompleteInvitation([FromBody] CompleteInvitationRequestDto request)
+    {
+        try
+        {
+            var response = await _authService.CompleteInvitationAsync(request);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error completing invitation");
+            return StatusCode(500, new { message = "An error occurred while completing invitation" });
+        }
+    }
+
     [HttpPost("refresh-token")]
     public async Task<ActionResult<LoginResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto request)
     {

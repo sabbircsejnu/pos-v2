@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RetailPOS.API.DTOs.Auth;
@@ -42,6 +44,12 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
+        if (user.MustResetPassword)
+        {
+            throw new UnauthorizedAccessException(
+                "Password setup is required. Complete your invitation before signing in.");
+        }
+
         // Outlet-bound roles must have a default outlet — every transactional API
         // enforces it server-side. SuperAdmin and BusinessOwner operate above outlets
         // (SuperAdmin manages businesses; BusinessOwner can act across all their outlets),
@@ -77,6 +85,7 @@ public class AuthService : IAuthService
             User = new UserInfoDto
             {
                 Id = user.Id,
+                BusinessId = user.BusinessId,
                 Name = user.Name,
                 Email = user.Email,
                 RoleName = user.Role?.Name,
@@ -84,7 +93,72 @@ public class AuthService : IAuthService
                 OutletId = user.OutletId,
                 OutletName = user.Outlet?.Name,
                 RealRoleName = user.Role?.Name,
-                IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
+                IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
+                MustResetPassword = user.MustResetPassword
+            }
+        };
+    }
+
+    public async Task<LoginResponseDto> CompleteInvitationAsync(CompleteInvitationRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+            throw new InvalidOperationException("Invitation token is required.");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            throw new InvalidOperationException("New password must be at least 8 characters.");
+
+        var tokenHash = HashToken(request.Token.Trim());
+
+        var invitation = await _context.UserInvitations
+            .Include(i => i.User)
+                .ThenInclude(u => u.Role)
+            .Include(i => i.User)
+                .ThenInclude(u => u.Outlet)
+            .FirstOrDefaultAsync(i => i.TokenHash == tokenHash);
+
+        if (invitation == null || invitation.ConsumedAt.HasValue || invitation.ExpiresAt < DateTime.UtcNow)
+            throw new UnauthorizedAccessException("Invitation token is invalid or expired.");
+
+        invitation.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 11);
+        invitation.User.MustResetPassword = false;
+        invitation.User.IsActive = true;
+        invitation.User.UpdatedAt = DateTime.UtcNow;
+        invitation.ConsumedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var token = _tokenService.GenerateAccessToken(invitation.User, invitation.User.Role);
+        var refreshToken = _tokenService.GenerateRefreshToken();
+        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
+
+        var permissions = new List<string>();
+        if (invitation.User.Role != null)
+        {
+            try
+            {
+                permissions = JsonSerializer.Deserialize<List<string>>(invitation.User.Role.Permissions) ?? new List<string>();
+            }
+            catch { }
+        }
+
+        return new LoginResponseDto
+        {
+            Token = token,
+            RefreshToken = refreshToken,
+            ExpiresAt = expiresAt,
+            User = new UserInfoDto
+            {
+                Id = invitation.User.Id,
+                BusinessId = invitation.User.BusinessId,
+                Name = invitation.User.Name,
+                Email = invitation.User.Email,
+                RoleName = invitation.User.Role?.Name,
+                Permissions = permissions,
+                OutletId = invitation.User.OutletId,
+                OutletName = invitation.User.Outlet?.Name,
+                RealRoleName = invitation.User.Role?.Name,
+                IsBusinessOwner = string.Equals(invitation.User.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
+                MustResetPassword = invitation.User.MustResetPassword
             }
         };
     }
@@ -174,6 +248,7 @@ public class AuthService : IAuthService
         return new UserInfoDto
         {
             Id = user.Id,
+            BusinessId = user.BusinessId,
             Name = user.Name,
             Email = user.Email,
             RoleName = user.Role?.Name,
@@ -181,7 +256,14 @@ public class AuthService : IAuthService
             OutletId = user.OutletId,
             OutletName = user.Outlet?.Name,
             RealRoleName = user.Role?.Name,
-            IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
+            IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
+            MustResetPassword = user.MustResetPassword
         };
+    }
+
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
     }
 }

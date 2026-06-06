@@ -42,6 +42,11 @@ public class TokenService : ITokenService
             claims.Add(new Claim("outletId", user.OutletId.Value.ToString()));
         }
 
+        if (user.BusinessId.HasValue)
+        {
+            claims.Add(new Claim("businessId", user.BusinessId.Value.ToString()));
+        }
+
         // Effective role/permissions: acting role wins when present
         if (acting != null)
         {

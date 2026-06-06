@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RetailPOS.Infrastructure.Data;
@@ -11,9 +12,11 @@ using RetailPOS.Infrastructure.Data;
 namespace RetailPOS.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(RetailPOSDbContext))]
-    partial class RetailPOSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606142059_Sprint1BusinessOnboarding")]
+    partial class Sprint1BusinessOnboarding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,10 +39,6 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("balance");
 
-                    b.Property<long?>("BusinessId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("business_id");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -54,9 +53,6 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_accounts");
-
-                    b.HasIndex("BusinessId")
-                        .HasDatabaseName("i_x_accounts_business_id");
 
                     b.ToTable("accounts");
                 });
@@ -2240,17 +2236,6 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("warehouses");
                 });
 
-            modelBuilder.Entity("RetailPOS.Core.Entities.Account", b =>
-                {
-                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
-                        .WithMany("Accounts")
-                        .HasForeignKey("BusinessId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("f_k_accounts__businesses_business_id");
-
-                    b.Navigation("Business");
-                });
-
             modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Audit.AuditEvent", "AuditEvent")
@@ -2846,8 +2831,6 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Business", b =>
                 {
-                    b.Navigation("Accounts");
-
                     b.Navigation("Outlets");
 
                     b.Navigation("Users");

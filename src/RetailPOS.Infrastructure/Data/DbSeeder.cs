@@ -65,7 +65,7 @@ public static class DbSeeder
         var users = new List<User>
         {
             // Work factor 12 matches the production default; acceptable here since seeding runs only once.
-            new User { Name = "Super Admin", Email = "admin@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123", workFactor: 12), RoleId = superAdminRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+            new User { Name = "Super Admin", Email = "suparadmin@sabbir.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123", workFactor: 12), RoleId = superAdminRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "John Admin", Email = "john.admin@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123", workFactor: 12), RoleId = adminRole.Id, OutletId = mainOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "Sarah Manager", Email = "sarah.manager@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager@123", workFactor: 12), RoleId = managerRole.Id, OutletId = mainOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "Mike Cashier", Email = "mike.cashier@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Cashier@123", workFactor: 12), RoleId = cashierRole.Id, OutletId = mainOutlet.Id, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
