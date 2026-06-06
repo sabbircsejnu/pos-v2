@@ -9,21 +9,28 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IOutletRepository _outletRepository;
+    private readonly ITenantAccessService _tenantAccess;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
+        IOutletRepository outletRepository,
+        ITenantAccessService tenantAccess,
         ILogger<UserService> logger)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
+        _outletRepository = outletRepository;
+        _tenantAccess = tenantAccess;
         _logger = logger;
     }
 
     public async Task<UserDto> GetUserByIdAsync(long id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
@@ -41,8 +48,9 @@ public class UserService : IUserService
         long? outletId = null,
         bool? isActive = null)
     {
-        var users = await _userRepository.GetAllAsync(pageNumber, pageSize, searchQuery, roleId, outletId, isActive);
-        var totalCount = await _userRepository.GetTotalCountAsync(searchQuery, roleId, outletId, isActive);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var users = await _userRepository.GetAllAsync(pageNumber, pageSize, searchQuery, roleId, outletId, isActive, businessId);
+        var totalCount = await _userRepository.GetTotalCountAsync(searchQuery, roleId, outletId, isActive, businessId);
 
         return new UserListDto
         {
@@ -77,11 +85,22 @@ public class UserService : IUserService
                 "OutletId is required for users below Business Admin. Assign a default outlet.");
         }
 
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        if (dto.OutletId.HasValue)
+        {
+            var outlet = await _outletRepository.GetByIdAsync(dto.OutletId.Value, businessId);
+            if (outlet == null)
+                throw new UnauthorizedAccessException($"Outlet #{dto.OutletId.Value} is not in your authorized business scope.");
+
+            businessId ??= outlet.BusinessId;
+        }
+
         // Hash password
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 11);
 
         var user = new User
         {
+            BusinessId = businessId,
             Name = dto.Name,
             Email = dto.Email,
             PasswordHash = passwordHash,
@@ -98,7 +117,8 @@ public class UserService : IUserService
 
     public async Task<UserDto> UpdateUserAsync(long id, UpdateUserDto dto)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
@@ -124,6 +144,13 @@ public class UserService : IUserService
                 "OutletId is required for users below Business Admin. Assign a default outlet.");
         }
 
+        if (dto.OutletId.HasValue)
+        {
+            var scopedOutlet = await _outletRepository.GetByIdAsync(dto.OutletId.Value, businessId);
+            if (scopedOutlet == null)
+                throw new UnauthorizedAccessException($"Outlet #{dto.OutletId.Value} is not in your authorized business scope.");
+        }
+
         user.Name = dto.Name;
         user.Email = dto.Email;
         user.RoleId = dto.RoleId;
@@ -138,14 +165,15 @@ public class UserService : IUserService
 
     public async Task<bool> DeleteUserAsync(long id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
             throw new KeyNotFoundException($"User with ID {id} not found");
         }
 
-        var result = await _userRepository.DeleteAsync(id);
+        var result = await _userRepository.DeleteAsync(id, businessId);
         
         if (result)
         {
@@ -157,7 +185,8 @@ public class UserService : IUserService
 
     public async Task<bool> ActivateUserAsync(long id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
@@ -178,7 +207,8 @@ public class UserService : IUserService
 
     public async Task<bool> DeactivateUserAsync(long id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
@@ -199,7 +229,8 @@ public class UserService : IUserService
 
     public async Task<bool> ChangePasswordAsync(long id, ChangePasswordDto dto)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var user = await _userRepository.GetByIdAsync(id, businessId);
         
         if (user == null)
         {
@@ -222,13 +253,15 @@ public class UserService : IUserService
 
     public async Task<IEnumerable<UserDto>> GetUsersByOutletAsync(long outletId)
     {
-        var users = await _userRepository.GetByOutletIdAsync(outletId);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var users = await _userRepository.GetByOutletIdAsync(outletId, businessId);
         return users.Select(MapToDto);
     }
 
     public async Task<IEnumerable<UserDto>> GetUsersByRoleAsync(long roleId)
     {
-        var users = await _userRepository.GetByRoleIdAsync(roleId);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var users = await _userRepository.GetByRoleIdAsync(roleId, businessId);
         return users.Select(MapToDto);
     }
 

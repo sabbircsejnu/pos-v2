@@ -117,6 +117,7 @@ public class RoleSwitchService : IRoleSwitchService
         return new UserInfoDto
         {
             Id = user.Id,
+            BusinessId = user.BusinessId,
             Name = user.Name,
             Email = user.Email,
             RoleName = isSwitched ? actingRoleName : user.Role?.Name,
@@ -128,7 +129,8 @@ public class RoleSwitchService : IRoleSwitchService
             ActingOutletId = isSwitched ? actingOutletId : null,
             ActingOutletName = isSwitched ? actingOutletName : null,
             IsRoleSwitched = isSwitched,
-            IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
+            IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
+            MustResetPassword = user.MustResetPassword
         };
     }
 }

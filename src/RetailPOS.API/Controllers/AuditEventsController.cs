@@ -12,7 +12,7 @@ using RetailPOS.Infrastructure.Data;
 namespace RetailPOS.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "audit.view")]
 [Route("api/audit-events")]
 public class AuditEventsController : ControllerBase
 {

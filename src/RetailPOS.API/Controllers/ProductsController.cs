@@ -10,7 +10,7 @@ namespace RetailPOS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "products.view")]
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
@@ -149,6 +149,7 @@ public class ProductsController : ControllerBase
     /// Create a new product
     /// </summary>
     [HttpPost]
+[Authorize(Policy = "products.create")]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductDto createDto)
     {
         try
@@ -172,6 +173,7 @@ public class ProductsController : ControllerBase
     /// Update an existing product
     /// </summary>
     [HttpPut("{id}")]
+[Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ProductDto>> Update(long id, [FromBody] UpdateProductDto updateDto)
     {
         try
@@ -200,6 +202,7 @@ public class ProductsController : ControllerBase
     /// Delete a product
     /// </summary>
     [HttpDelete("{id}")]
+[Authorize(Policy = "products.delete")]
     public async Task<ActionResult> Delete(long id)
     {
         try

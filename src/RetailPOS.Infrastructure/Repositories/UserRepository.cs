@@ -13,12 +13,17 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public async Task<User?> GetByIdAsync(long id)
+    public async Task<User?> GetByIdAsync(long id, long? businessId = null)
     {
-        return await _context.Users
+        var query = _context.Users
             .Include(u => u.Role)
             .Include(u => u.Outlet)
-            .FirstOrDefaultAsync(u => u.Id == id);
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(u => u.BusinessId == businessId.Value);
+
+        return await query.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<User?> GetByEmailAsync(string email)
@@ -35,12 +40,18 @@ public class UserRepository : IUserRepository
         string? searchQuery = null,
         long? roleId = null,
         long? outletId = null,
-        bool? isActive = null)
+        bool? isActive = null,
+        long? businessId = null)
     {
         var query = _context.Users
             .Include(u => u.Role)
             .Include(u => u.Outlet)
             .AsQueryable();
+
+        if (businessId.HasValue)
+        {
+            query = query.Where(u => u.BusinessId == businessId.Value);
+        }
 
         // Apply filters
         if (!string.IsNullOrWhiteSpace(searchQuery))
@@ -77,9 +88,15 @@ public class UserRepository : IUserRepository
         string? searchQuery = null,
         long? roleId = null,
         long? outletId = null,
-        bool? isActive = null)
+        bool? isActive = null,
+        long? businessId = null)
     {
         var query = _context.Users.AsQueryable();
+
+        if (businessId.HasValue)
+        {
+            query = query.Where(u => u.BusinessId == businessId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
@@ -129,9 +146,13 @@ public class UserRepository : IUserRepository
         return (await GetByIdAsync(user.Id))!;
     }
 
-    public async Task<bool> DeleteAsync(long id)
+    public async Task<bool> DeleteAsync(long id, long? businessId = null)
     {
-        var user = await _context.Users.FindAsync(id);
+        var query = _context.Users.AsQueryable();
+        if (businessId.HasValue)
+            query = query.Where(u => u.BusinessId == businessId.Value);
+
+        var user = await query.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
         {
             return false;
@@ -150,22 +171,34 @@ public class UserRepository : IUserRepository
         return await _context.Users.AnyAsync(u => u.Email == email);
     }
 
-    public async Task<IEnumerable<User>> GetByOutletIdAsync(long outletId)
+    public async Task<IEnumerable<User>> GetByOutletIdAsync(long outletId, long? businessId = null)
     {
-        return await _context.Users
+        var query = _context.Users
             .Include(u => u.Role)
             .Include(u => u.Outlet)
             .Where(u => u.OutletId == outletId && u.IsActive)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(u => u.BusinessId == businessId.Value);
+
+        return await query
             .OrderBy(u => u.Name)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<User>> GetByRoleIdAsync(long roleId)
+    public async Task<IEnumerable<User>> GetByRoleIdAsync(long roleId, long? businessId = null)
     {
-        return await _context.Users
+        var query = _context.Users
             .Include(u => u.Role)
             .Include(u => u.Outlet)
             .Where(u => u.RoleId == roleId && u.IsActive)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(u => u.BusinessId == businessId.Value);
+
+        return await query
             .OrderBy(u => u.Name)
             .ToListAsync();
     }

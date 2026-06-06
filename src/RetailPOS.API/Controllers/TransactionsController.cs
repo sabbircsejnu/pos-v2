@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "transactions.view")]
 public class TransactionsController : ControllerBase
 {
     private readonly ITransactionService _transactionService;
@@ -57,6 +57,7 @@ public class TransactionsController : ControllerBase
 
     /// <summary>Create a new transaction and update account balance</summary>
     [HttpPost]
+    [Authorize(Policy = "transactions.create")]
     public async Task<ActionResult<ApiResponse<TransactionDto>>> Create([FromBody] CreateTransactionDto dto)
     {
         var transaction = await _transactionService.CreateAsync(dto);

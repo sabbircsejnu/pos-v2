@@ -7,7 +7,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "roles.view")]
 public class RolesController : ControllerBase
 {
     private readonly IRoleService _roleService;
@@ -63,6 +63,7 @@ public class RolesController : ControllerBase
     /// Create new role
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "roles.create")]
     public async Task<ActionResult<RoleDto>> CreateRole([FromBody] CreateRoleDto dto)
     {
         try
@@ -85,6 +86,7 @@ public class RolesController : ControllerBase
     /// Update existing role
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "roles.edit")]
     public async Task<ActionResult<RoleDto>> UpdateRole(long id, [FromBody] UpdateRoleDto dto)
     {
         try
@@ -111,6 +113,7 @@ public class RolesController : ControllerBase
     /// Delete role
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "roles.delete")]
     public async Task<ActionResult> DeleteRole(long id)
     {
         try

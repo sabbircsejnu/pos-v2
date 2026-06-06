@@ -16,15 +16,22 @@ public class AccountRepository : IAccountRepository
         _context = context;
     }
 
-    public async Task<Account?> GetByIdAsync(long id)
-    {
-        return await _context.Accounts
-            .FirstOrDefaultAsync(a => a.Id == id);
-    }
-
-    public async Task<IEnumerable<Account>> GetAllAsync(string? type = null)
+    public async Task<Account?> GetByIdAsync(long id, long? businessId = null)
     {
         var query = _context.Accounts.AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(a => a.BusinessId == businessId.Value);
+
+        return await query.FirstOrDefaultAsync(a => a.Id == id);
+    }
+
+    public async Task<IEnumerable<Account>> GetAllAsync(string? type = null, long? businessId = null)
+    {
+        var query = _context.Accounts.AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(a => a.BusinessId == businessId.Value);
 
         if (!string.IsNullOrWhiteSpace(type))
             query = query.Where(a => a.Type == type.ToLower());
@@ -46,9 +53,13 @@ public class AccountRepository : IAccountRepository
         return account;
     }
 
-    public async Task<bool> DeleteAsync(long id)
+    public async Task<bool> DeleteAsync(long id, long? businessId = null)
     {
-        var account = await _context.Accounts.FindAsync(id);
+        var query = _context.Accounts.AsQueryable();
+        if (businessId.HasValue)
+            query = query.Where(a => a.BusinessId == businessId.Value);
+
+        var account = await query.FirstOrDefaultAsync(a => a.Id == id);
         if (account == null) return false;
 
         _context.Accounts.Remove(account);
@@ -56,21 +67,35 @@ public class AccountRepository : IAccountRepository
         return true;
     }
 
-    public async Task<decimal> GetBalanceAsync(long id)
+    public async Task<decimal> GetBalanceAsync(long id, long? businessId = null)
     {
-        var credits = await _context.Transactions
-            .Where(t => t.AccountId == id && t.Type == "credit")
+        var query = _context.Transactions
+            .Where(t => t.AccountId == id)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(t => t.Account.BusinessId == businessId.Value);
+
+        var credits = await query
+            .Where(t => t.Type == "credit")
             .SumAsync(t => (decimal?)t.Amount) ?? 0;
 
-        var debits = await _context.Transactions
-            .Where(t => t.AccountId == id && t.Type == "debit")
+        var debits = await query
+            .Where(t => t.Type == "debit")
             .SumAsync(t => (decimal?)t.Amount) ?? 0;
 
         return credits - debits;
     }
 
-    public async Task<bool> HasTransactionsAsync(long id)
+    public async Task<bool> HasTransactionsAsync(long id, long? businessId = null)
     {
-        return await _context.Transactions.AnyAsync(t => t.AccountId == id);
+        var query = _context.Transactions
+            .Where(t => t.AccountId == id)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(t => t.Account.BusinessId == businessId.Value);
+
+        return await query.AnyAsync();
     }
 }

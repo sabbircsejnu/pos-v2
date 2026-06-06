@@ -22,7 +22,7 @@ public class AuditContextMiddleware
         var correlationId = ResolveCorrelationId(context);
         context.Response.Headers[CorrelationHeader] = correlationId.ToString();
 
-        long? userId = null, roleId = null, outletId = null;
+        long? userId = null, roleId = null, outletId = null, businessId = null;
         string? userName = null, roleName = null;
         long? actingUserId = null, actingRoleId = null;
 
@@ -32,6 +32,7 @@ public class AuditContextMiddleware
             roleId = TryParseLong(context.User.FindFirst(RetailPOS.API.Services.RoleSwitchClaims.RealRoleId)?.Value)
                      ?? TryParseLong(context.User.FindFirst("roleId")?.Value);
             outletId = TryParseLong(context.User.FindFirst("outletId")?.Value);
+            businessId = TryParseLong(context.User.FindFirst("businessId")?.Value);
             userName = context.User.FindFirst(ClaimTypes.Name)?.Value
                        ?? context.User.FindFirst("name")?.Value;
             roleName = context.User.FindFirst(RetailPOS.API.Services.RoleSwitchClaims.RealRoleName)?.Value
@@ -70,7 +71,7 @@ public class AuditContextMiddleware
             RealRoleId: roleId,
             ActingRoleId: actingRoleId,
             OutletId: outletId,
-            BusinessId: null,
+            BusinessId: businessId,
             Source: AuditSource.UI,
             RequestMethod: context.Request.Method,
             RequestPath: path,

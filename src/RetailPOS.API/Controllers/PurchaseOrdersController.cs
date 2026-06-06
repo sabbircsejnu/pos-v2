@@ -12,7 +12,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/purchase-orders")]
-[Authorize]
+[Authorize(Policy = "purchases.view")]
 public class PurchaseOrdersController : ControllerBase
 {
     private readonly IPurchaseOrderService _purchaseOrderService;
@@ -87,6 +87,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Create a new purchase order
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "purchases.create")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Create([FromBody] CreatePurchaseOrderDto dto)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -103,6 +104,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Update an existing purchase order
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "purchases.edit")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Update(long id, [FromBody] UpdatePurchaseOrderDto dto)
     {
         var po = await _purchaseOrderService.UpdateAsync(id, dto);
@@ -113,6 +115,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Delete a purchase order (only if draft/pending with no GRNs)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "purchases.edit")]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {
         await _purchaseOrderService.DeleteAsync(id);
@@ -123,6 +126,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Submit purchase order for approval (Draft → Pending)
     /// </summary>
     [HttpPost("{id}/submit")]
+    [Authorize(Policy = "purchases.approve")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Submit(long id)
     {
         _auditCtx.BeginScope(
@@ -139,6 +143,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Approve purchase order (Pending → Approved)
     /// </summary>
     [HttpPost("{id}/approve")]
+    [Authorize(Policy = "purchases.approve")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Approve(long id)
     {
         _auditCtx.BeginScope(
@@ -155,6 +160,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Reject purchase order
     /// </summary>
     [HttpPost("{id}/reject")]
+    [Authorize(Policy = "purchases.approve")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Reject(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
     {
         _auditCtx.BeginScope(
@@ -171,6 +177,7 @@ public class PurchaseOrdersController : ControllerBase
     /// Cancel purchase order
     /// </summary>
     [HttpPost("{id}/cancel")]
+    [Authorize(Policy = "purchases.approve")]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Cancel(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
     {
         _auditCtx.BeginScope(

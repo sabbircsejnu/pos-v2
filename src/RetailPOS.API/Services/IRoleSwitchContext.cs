@@ -18,10 +18,14 @@ public interface IRoleSwitchContext
 
     bool IsRoleSwitched { get; }
     bool IsBusinessOwner { get; }
+    bool IsSuperAdmin { get; }
 
     /// <summary>Effective role name for permission checks (acting if switched, otherwise real).</summary>
     string? EffectiveRoleName { get; }
 
     /// <summary>Effective outlet for permission checks (acting if switched, otherwise user's home outlet).</summary>
     long? EffectiveOutletId { get; }
+
+    /// <summary>Business scope from token claims when available.</summary>
+    long? EffectiveBusinessId { get; }
 }

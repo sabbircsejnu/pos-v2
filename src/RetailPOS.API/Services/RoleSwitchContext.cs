@@ -52,8 +52,10 @@ public sealed class RoleSwitchContext : IRoleSwitchContext
             StringComparison.OrdinalIgnoreCase);
 
     public bool IsBusinessOwner =>
-        string.Equals(RealRoleName, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(RealRoleName, RoleSwitchClaims.SuperAdminRoleName, StringComparison.OrdinalIgnoreCase);
+        string.Equals(RealRoleName, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsSuperAdmin =>
+        string.Equals(RealRoleName, RoleSwitchClaims.SuperAdminRoleName, StringComparison.OrdinalIgnoreCase);
 
     public string? EffectiveRoleName => IsRoleSwitched ? ActingRoleName : RealRoleName;
 
@@ -61,6 +63,8 @@ public sealed class RoleSwitchContext : IRoleSwitchContext
         IsRoleSwitched
             ? ActingOutletId
             : TryParseLong(User?.FindFirst("outletId")?.Value);
+
+    public long? EffectiveBusinessId => TryParseLong(User?.FindFirst("businessId")?.Value);
 
     private static long? TryParseLong(string? s) => long.TryParse(s, out var v) ? v : null;
 }

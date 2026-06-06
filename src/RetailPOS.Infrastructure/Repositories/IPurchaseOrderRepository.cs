@@ -10,12 +10,12 @@ public interface IPurchaseOrderRepository
     /// <summary>
     /// Gets a purchase order by ID with related entities
     /// </summary>
-    Task<PurchaseOrder?> GetByIdAsync(long id);
+    Task<PurchaseOrder?> GetByIdAsync(long id, long? businessId = null);
 
     /// <summary>
     /// Gets all purchase orders with optional filters
     /// </summary>
-    Task<IEnumerable<PurchaseOrder>> GetAllAsync(string? status = null, long? supplierId = null, long? warehouseId = null);
+    Task<IEnumerable<PurchaseOrder>> GetAllAsync(string? status = null, long? supplierId = null, long? warehouseId = null, long? businessId = null);
 
     /// <summary>
     /// Searches purchase orders with filters, sorting, and pagination
@@ -29,22 +29,23 @@ public interface IPurchaseOrderRepository
         int pageNumber = 1,
         int pageSize = 10,
         string sortBy = "order_date",
-        string sortOrder = "desc");
+        string sortOrder = "desc",
+        long? businessId = null);
 
     /// <summary>
     /// Gets purchase orders by supplier ID
     /// </summary>
-    Task<IEnumerable<PurchaseOrder>> GetBySupplierIdAsync(long supplierId);
+    Task<IEnumerable<PurchaseOrder>> GetBySupplierIdAsync(long supplierId, long? businessId = null);
 
     /// <summary>
     /// Gets purchase orders by warehouse ID
     /// </summary>
-    Task<IEnumerable<PurchaseOrder>> GetByWarehouseIdAsync(long warehouseId);
+    Task<IEnumerable<PurchaseOrder>> GetByWarehouseIdAsync(long warehouseId, long? businessId = null);
 
     /// <summary>
     /// Gets purchase orders by status
     /// </summary>
-    Task<IEnumerable<PurchaseOrder>> GetByStatusAsync(string status);
+    Task<IEnumerable<PurchaseOrder>> GetByStatusAsync(string status, long? businessId = null);
 
     /// <summary>
     /// Creates a new purchase order
@@ -59,25 +60,25 @@ public interface IPurchaseOrderRepository
     /// <summary>
     /// Updates purchase order status
     /// </summary>
-    Task<bool> UpdateStatusAsync(long id, string status);
+    Task<bool> UpdateStatusAsync(long id, string status, long? businessId = null);
 
     /// <summary>
     /// Deletes a purchase order (only if in draft/pending status)
     /// </summary>
-    Task<bool> DeleteAsync(long id);
+    Task<bool> DeleteAsync(long id, long? businessId = null);
 
     /// <summary>
     /// Checks if a purchase order can be deleted
     /// </summary>
-    Task<bool> CanDeleteAsync(long id);
+    Task<bool> CanDeleteAsync(long id, long? businessId = null);
 
     /// <summary>
     /// Gets purchase orders awaiting approval (pending status)
     /// </summary>
-    Task<IEnumerable<PurchaseOrder>> GetPendingApprovalsAsync();
+    Task<IEnumerable<PurchaseOrder>> GetPendingApprovalsAsync(long? businessId = null);
 
     /// <summary>
     /// Gets total amount for purchase orders by status and date range
     /// </summary>
-    Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null);
+    Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null, long? businessId = null);
 }

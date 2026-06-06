@@ -8,26 +8,30 @@ public class WarehouseService : IWarehouseService
 {
     private readonly IWarehouseRepository _warehouseRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITenantAccessService _tenantAccess;
     private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
         IWarehouseRepository warehouseRepository,
         IUserRepository userRepository,
+        ITenantAccessService tenantAccess,
         ILogger<WarehouseService> logger)
     {
         _warehouseRepository = warehouseRepository;
         _userRepository = userRepository;
+        _tenantAccess = tenantAccess;
         _logger = logger;
     }
 
     public async Task<IEnumerable<WarehouseDto>> GetAllWarehousesAsync()
     {
-        var warehouses = await _warehouseRepository.GetAllAsync();
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouses = await _warehouseRepository.GetAllAsync(businessId);
         var warehouseDtos = new List<WarehouseDto>();
 
         foreach (var warehouse in warehouses)
         {
-            var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(warehouse.Id);
+            var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(warehouse.Id, businessId);
             warehouseDtos.Add(MapToDto(warehouse, poCount));
         }
 
@@ -36,18 +40,21 @@ public class WarehouseService : IWarehouseService
 
     public async Task<WarehouseDto?> GetWarehouseByIdAsync(long id)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
         if (warehouse == null)
             return null;
 
-        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id);
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
         return MapToDto(warehouse, poCount);
     }
 
     public async Task<WarehouseDto> CreateWarehouseAsync(CreateWarehouseDto dto)
     {
         // Validate warehouse name uniqueness
-        if (await _warehouseRepository.ExistsByNameAsync(dto.Name))
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+
+        if (await _warehouseRepository.ExistsByNameAsync(dto.Name, null, businessId))
         {
             _logger.LogWarning("Warehouse creation failed: Name '{Name}' already exists", dto.Name);
             throw new InvalidOperationException($"A warehouse with the name '{dto.Name}' already exists");
@@ -56,7 +63,7 @@ public class WarehouseService : IWarehouseService
         // Validate manager exists if provided
         if (dto.ManagerId.HasValue)
         {
-            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value);
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
             if (manager == null)
             {
                 _logger.LogWarning("Warehouse creation failed: Manager with ID {ManagerId} not found", dto.ManagerId);
@@ -72,6 +79,7 @@ public class WarehouseService : IWarehouseService
 
         var warehouse = new Warehouse
         {
+            BusinessId = businessId,
             Name = dto.Name,
             Address = dto.Address,
             Capacity = dto.Capacity,
@@ -86,7 +94,8 @@ public class WarehouseService : IWarehouseService
 
     public async Task<WarehouseDto> UpdateWarehouseAsync(long id, UpdateWarehouseDto dto)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
         if (warehouse == null)
         {
             _logger.LogWarning("Warehouse update failed: Warehouse with ID {Id} not found", id);
@@ -94,7 +103,7 @@ public class WarehouseService : IWarehouseService
         }
 
         // Validate warehouse name uniqueness
-        if (await _warehouseRepository.ExistsByNameAsync(dto.Name, id))
+        if (await _warehouseRepository.ExistsByNameAsync(dto.Name, id, businessId))
         {
             _logger.LogWarning("Warehouse update failed: Name '{Name}' already exists", dto.Name);
             throw new InvalidOperationException($"A warehouse with the name '{dto.Name}' already exists");
@@ -103,7 +112,7 @@ public class WarehouseService : IWarehouseService
         // Validate manager exists if provided
         if (dto.ManagerId.HasValue)
         {
-            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value);
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
             if (manager == null)
             {
                 _logger.LogWarning("Warehouse update failed: Manager with ID {ManagerId} not found", dto.ManagerId);
@@ -125,13 +134,14 @@ public class WarehouseService : IWarehouseService
         var updatedWarehouse = await _warehouseRepository.UpdateAsync(warehouse);
         _logger.LogInformation("Warehouse updated: ID={Id}, Name={Name}", updatedWarehouse.Id, updatedWarehouse.Name);
 
-        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id);
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
         return MapToDto(updatedWarehouse, poCount);
     }
 
     public async Task<bool> DeleteWarehouseAsync(long id)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
         if (warehouse == null)
         {
             _logger.LogWarning("Warehouse deletion failed: Warehouse with ID {Id} not found", id);
@@ -139,14 +149,14 @@ public class WarehouseService : IWarehouseService
         }
 
         // Check if warehouse has purchase orders
-        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id);
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
         if (poCount > 0)
         {
             _logger.LogWarning("Warehouse deletion failed: Warehouse {Id} has {Count} purchase orders", id, poCount);
             throw new InvalidOperationException($"Cannot delete warehouse. It has {poCount} purchase order(s)");
         }
 
-        var deleted = await _warehouseRepository.DeleteAsync(id);
+        var deleted = await _warehouseRepository.DeleteAsync(id, businessId);
         if (deleted)
         {
             _logger.LogInformation("Warehouse deleted: ID={Id}, Name={Name}", id, warehouse.Name);
@@ -157,12 +167,13 @@ public class WarehouseService : IWarehouseService
 
     public async Task<IEnumerable<WarehouseDto>> SearchWarehousesAsync(string searchTerm)
     {
-        var warehouses = await _warehouseRepository.SearchAsync(searchTerm);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouses = await _warehouseRepository.SearchAsync(searchTerm, businessId);
         var warehouseDtos = new List<WarehouseDto>();
 
         foreach (var warehouse in warehouses)
         {
-            var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(warehouse.Id);
+            var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(warehouse.Id, businessId);
             warehouseDtos.Add(MapToDto(warehouse, poCount));
         }
 
@@ -171,11 +182,12 @@ public class WarehouseService : IWarehouseService
 
     public async Task<WarehouseStatsDto?> GetWarehouseStatsAsync(long id)
     {
-        var warehouse = await _warehouseRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
         if (warehouse == null)
             return null;
 
-        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id);
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
 
         // TODO: Calculate stock and capacity utilization when Inventory module is implemented
         return new WarehouseStatsDto

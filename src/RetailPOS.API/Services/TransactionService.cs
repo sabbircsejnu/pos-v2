@@ -11,28 +11,33 @@ public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
     private readonly IAccountRepository _accountRepository;
+    private readonly ITenantAccessService _tenantAccess;
     private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         ITransactionRepository transactionRepository,
         IAccountRepository accountRepository,
+        ITenantAccessService tenantAccess,
         ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _accountRepository = accountRepository;
+        _tenantAccess = tenantAccess;
         _logger = logger;
     }
 
     /// <summary>Searches transactions with filters and pagination</summary>
     public async Task<TransactionListDto> SearchAsync(TransactionSearchDto searchDto)
     {
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
         var (transactions, totalCount) = await _transactionRepository.SearchAsync(
             searchDto.AccountId,
             searchDto.StartDate,
             searchDto.EndDate,
             searchDto.Type,
             searchDto.PageNumber,
-            searchDto.PageSize);
+            searchDto.PageSize,
+            businessId);
 
         return new TransactionListDto
         {
@@ -46,7 +51,8 @@ public class TransactionService : ITransactionService
     /// <summary>Gets a transaction by ID</summary>
     public async Task<TransactionDto> GetByIdAsync(long id)
     {
-        var transaction = await _transactionRepository.GetByIdAsync(id);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var transaction = await _transactionRepository.GetByIdAsync(id, businessId);
         if (transaction == null)
             throw new KeyNotFoundException($"Transaction with ID {id} not found");
 
@@ -56,7 +62,8 @@ public class TransactionService : ITransactionService
     /// <summary>Creates a transaction and updates the account balance</summary>
     public async Task<TransactionDto> CreateAsync(CreateTransactionDto dto)
     {
-        var account = await _accountRepository.GetByIdAsync(dto.AccountId);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var account = await _accountRepository.GetByIdAsync(dto.AccountId, businessId);
         if (account == null)
             throw new KeyNotFoundException($"Account with ID {dto.AccountId} not found");
 
@@ -88,11 +95,12 @@ public class TransactionService : ITransactionService
     /// <summary>Gets all transactions for a specific account (ledger)</summary>
     public async Task<IEnumerable<TransactionDto>> GetLedgerAsync(long accountId)
     {
-        var account = await _accountRepository.GetByIdAsync(accountId);
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.RequireBusinessId();
+        var account = await _accountRepository.GetByIdAsync(accountId, businessId);
         if (account == null)
             throw new KeyNotFoundException($"Account with ID {accountId} not found");
 
-        var transactions = await _transactionRepository.GetByAccountAsync(accountId);
+        var transactions = await _transactionRepository.GetByAccountAsync(accountId, businessId);
         return transactions.Select(MapToDto);
     }
 

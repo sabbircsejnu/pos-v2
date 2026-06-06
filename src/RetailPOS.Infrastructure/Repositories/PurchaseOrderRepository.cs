@@ -16,19 +16,24 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         _context = context;
     }
 
-    public async Task<PurchaseOrder?> GetByIdAsync(long id)
+    public async Task<PurchaseOrder?> GetByIdAsync(long id, long? businessId = null)
     {
-        return await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Creator)
             .Include(po => po.Items)
                 .ThenInclude(i => i.Variant)
                     .ThenInclude(v => v.Product)
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        return await query.FirstOrDefaultAsync(po => po.Id == id);
     }
 
-    public async Task<IEnumerable<PurchaseOrder>> GetAllAsync(string? status = null, long? supplierId = null, long? warehouseId = null)
+    public async Task<IEnumerable<PurchaseOrder>> GetAllAsync(string? status = null, long? supplierId = null, long? warehouseId = null, long? businessId = null)
     {
         var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
@@ -36,6 +41,11 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .Include(po => po.Creator)
             .Include(po => po.Items)
             .AsQueryable();
+
+        if (businessId.HasValue)
+        {
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -67,7 +77,8 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         int pageNumber = 1,
         int pageSize = 10,
         string sortBy = "order_date",
-        string sortOrder = "desc")
+        string sortOrder = "desc",
+        long? businessId = null)
     {
         var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
@@ -75,6 +86,11 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .Include(po => po.Creator)
             .Include(po => po.Items)
             .AsQueryable();
+
+        if (businessId.HasValue)
+        {
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+        }
 
         // Apply filters
         if (!string.IsNullOrWhiteSpace(status))
@@ -132,36 +148,54 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return (purchaseOrders, totalCount);
     }
 
-    public async Task<IEnumerable<PurchaseOrder>> GetBySupplierIdAsync(long supplierId)
+    public async Task<IEnumerable<PurchaseOrder>> GetBySupplierIdAsync(long supplierId, long? businessId = null)
     {
-        return await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Items)
             .Where(po => po.SupplierId == supplierId)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        return await query
             .OrderByDescending(po => po.OrderDate)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<PurchaseOrder>> GetByWarehouseIdAsync(long warehouseId)
+    public async Task<IEnumerable<PurchaseOrder>> GetByWarehouseIdAsync(long warehouseId, long? businessId = null)
     {
-        return await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Items)
             .Where(po => po.WarehouseId == warehouseId)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        return await query
             .OrderByDescending(po => po.OrderDate)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<PurchaseOrder>> GetByStatusAsync(string status)
+    public async Task<IEnumerable<PurchaseOrder>> GetByStatusAsync(string status, long? businessId = null)
     {
         var lowerStatus = status.ToLower();
-        return await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Items)
             .Where(po => po.Status.ToLower() == lowerStatus)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        return await query
             .OrderByDescending(po => po.OrderDate)
             .ToListAsync();
     }
@@ -175,7 +209,7 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         await _context.SaveChangesAsync();
         
         // Reload with navigation properties
-        return (await GetByIdAsync(purchaseOrder.Id))!;
+        return (await GetByIdAsync(purchaseOrder.Id, purchaseOrder.Warehouse?.BusinessId))!;
     }
 
     public async Task<PurchaseOrder> UpdateAsync(PurchaseOrder purchaseOrder)
@@ -186,12 +220,16 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         await _context.SaveChangesAsync();
         
         // Reload with navigation properties
-        return (await GetByIdAsync(purchaseOrder.Id))!;
+        return (await GetByIdAsync(purchaseOrder.Id, purchaseOrder.Warehouse?.BusinessId))!;
     }
 
-    public async Task<bool> UpdateStatusAsync(long id, string status)
+    public async Task<bool> UpdateStatusAsync(long id, string status, long? businessId = null)
     {
-        var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+        var query = _context.PurchaseOrders.AsQueryable();
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        var purchaseOrder = await query.FirstOrDefaultAsync(po => po.Id == id);
         if (purchaseOrder == null)
             return false;
 
@@ -202,11 +240,16 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return true;
     }
 
-    public async Task<bool> DeleteAsync(long id)
+    public async Task<bool> DeleteAsync(long id, long? businessId = null)
     {
-        var purchaseOrder = await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Items)
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        var purchaseOrder = await query.FirstOrDefaultAsync(po => po.Id == id);
 
         if (purchaseOrder == null)
             return false;
@@ -218,11 +261,16 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return true;
     }
 
-    public async Task<bool> CanDeleteAsync(long id)
+    public async Task<bool> CanDeleteAsync(long id, long? businessId = null)
     {
-        var purchaseOrder = await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Grns)
-            .FirstOrDefaultAsync(po => po.Id == id);
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        var purchaseOrder = await query.FirstOrDefaultAsync(po => po.Id == id);
 
         if (purchaseOrder == null)
             return false;
@@ -232,21 +280,32 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return allowedStatuses.Contains(purchaseOrder.Status.ToLower()) && !purchaseOrder.Grns.Any();
     }
 
-    public async Task<IEnumerable<PurchaseOrder>> GetPendingApprovalsAsync()
+    public async Task<IEnumerable<PurchaseOrder>> GetPendingApprovalsAsync(long? businessId = null)
     {
-        return await _context.PurchaseOrders
+        var query = _context.PurchaseOrders
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Creator)
             .Include(po => po.Items)
             .Where(po => po.Status.ToLower() == "pending")
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+
+        return await query
             .OrderBy(po => po.OrderDate)
             .ToListAsync();
     }
 
-    public async Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null, long? businessId = null)
     {
         var query = _context.PurchaseOrders.AsQueryable();
+
+        if (businessId.HasValue)
+        {
+            query = query.Where(po => po.Warehouse.BusinessId == businessId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(status))
         {

@@ -28,7 +28,7 @@ public class UserOutletAccessService : IUserOutletAccessService
 
         var defaultOutletId = _roleSwitch.EffectiveOutletId;
 
-        if (_roleSwitch.IsBusinessOwner)
+        if (_roleSwitch.IsSuperAdmin)
         {
             var allOutlets = await _context.Outlets.AsNoTracking()
                 .OrderBy(o => o.Name)
@@ -49,18 +49,67 @@ public class UserOutletAccessService : IUserOutletAccessService
             };
         }
 
+        if (_roleSwitch.IsBusinessOwner)
+        {
+            var businessId = _roleSwitch.EffectiveBusinessId;
+
+            if (!businessId.HasValue)
+            {
+                // Backward compatibility for legacy owner accounts created before tenant rollout.
+                var allOutlets = await _context.Outlets.AsNoTracking()
+                    .OrderBy(o => o.Name)
+                    .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
+                    .ToListAsync();
+
+                var allWarehouses = await _context.Warehouses.AsNoTracking()
+                    .OrderBy(w => w.Name)
+                    .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
+                    .ToListAsync();
+
+                return new AuthorizedOutletsDto
+                {
+                    Outlets = allOutlets,
+                    Warehouses = allWarehouses,
+                    DefaultOutletId = defaultOutletId,
+                    IsBusinessOwner = true
+                };
+            }
+
+            var businessOutlets = await _context.Outlets.AsNoTracking()
+                .Where(o => o.BusinessId == businessId)
+                .OrderBy(o => o.Name)
+                .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
+                .ToListAsync();
+
+            var businessWarehouses = await _context.Warehouses.AsNoTracking()
+                .Where(w => w.BusinessId == businessId)
+                .OrderBy(w => w.Name)
+                .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
+                .ToListAsync();
+
+            return new AuthorizedOutletsDto
+            {
+                Outlets = businessOutlets,
+                Warehouses = businessWarehouses,
+                DefaultOutletId = defaultOutletId,
+                IsBusinessOwner = true
+            };
+        }
+
         // Non-owner: scoped to the user's home outlet (or acting outlet).
         var user = await _context.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new UnauthorizedAccessException("User not found");
 
+        var effectiveBusinessId = _roleSwitch.EffectiveBusinessId ?? user.BusinessId;
         var allowedOutletId = defaultOutletId ?? user.OutletId;
 
         var outlets = new List<AuthorizedLocationDto>();
         if (allowedOutletId.HasValue)
         {
             var outlet = await _context.Outlets.AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == allowedOutletId.Value);
+                .FirstOrDefaultAsync(o => o.Id == allowedOutletId.Value
+                    && (!effectiveBusinessId.HasValue || o.BusinessId == effectiveBusinessId));
             if (outlet != null)
                 outlets.Add(new AuthorizedLocationDto { Id = outlet.Id, Name = outlet.Name, Type = "outlet" });
         }

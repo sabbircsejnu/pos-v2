@@ -7,7 +7,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "users.view")]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -69,6 +69,7 @@ public class UsersController : ControllerBase
     /// Create new user
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "users.create")]
     public async Task<ActionResult<UserDto>> CreateUser([FromBody] CreateUserDto dto)
     {
         try
@@ -95,6 +96,7 @@ public class UsersController : ControllerBase
     /// Update existing user
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "users.edit")]
     public async Task<ActionResult<UserDto>> UpdateUser(long id, [FromBody] UpdateUserDto dto)
     {
         try
@@ -121,6 +123,7 @@ public class UsersController : ControllerBase
     /// Delete user (soft delete)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "users.delete")]
     public async Task<ActionResult> DeleteUser(long id)
     {
         try
@@ -143,6 +146,7 @@ public class UsersController : ControllerBase
     /// Activate user
     /// </summary>
     [HttpPut("{id}/activate")]
+    [Authorize(Policy = "users.edit")]
     public async Task<ActionResult> ActivateUser(long id)
     {
         try
@@ -169,6 +173,7 @@ public class UsersController : ControllerBase
     /// Deactivate user
     /// </summary>
     [HttpPut("{id}/deactivate")]
+    [Authorize(Policy = "users.edit")]
     public async Task<ActionResult> DeactivateUser(long id)
     {
         try
@@ -195,6 +200,7 @@ public class UsersController : ControllerBase
     /// Change user password
     /// </summary>
     [HttpPost("{id}/change-password")]
+    [Authorize(Policy = "users.edit")]
     public async Task<ActionResult> ChangePassword(long id, [FromBody] ChangePasswordDto dto)
     {
         try

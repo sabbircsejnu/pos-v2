@@ -7,7 +7,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "outlets.view")]
 public class OutletsController : ControllerBase
 {
     private readonly IOutletService _outletService;
@@ -62,6 +62,7 @@ public class OutletsController : ControllerBase
     /// Create a new outlet
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "outlets.create")]
     public async Task<ActionResult<OutletDto>> CreateOutlet([FromBody] CreateOutletDto dto)
     {
         try
@@ -93,6 +94,7 @@ public class OutletsController : ControllerBase
     /// Update an existing outlet
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "outlets.edit")]
     public async Task<ActionResult<OutletDto>> UpdateOutlet(long id, [FromBody] UpdateOutletDto dto)
     {
         try
@@ -123,6 +125,7 @@ public class OutletsController : ControllerBase
     /// Delete an outlet
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "outlets.delete")]
     public async Task<ActionResult> DeleteOutlet(long id)
     {
         try

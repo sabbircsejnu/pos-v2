@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "accounts.view")]
 public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;
@@ -38,6 +38,7 @@ public class AccountsController : ControllerBase
 
     /// <summary>Create a new account</summary>
     [HttpPost]
+    [Authorize(Policy = "accounts.create")]
     public async Task<ActionResult<ApiResponse<AccountDto>>> Create([FromBody] CreateAccountDto dto)
     {
         var account = await _accountService.CreateAsync(dto);
@@ -49,6 +50,7 @@ public class AccountsController : ControllerBase
 
     /// <summary>Update an account</summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "accounts.edit")]
     public async Task<ActionResult<ApiResponse<AccountDto>>> Update(long id, [FromBody] UpdateAccountDto dto)
     {
         var account = await _accountService.UpdateAsync(id, dto);
@@ -57,6 +59,7 @@ public class AccountsController : ControllerBase
 
     /// <summary>Delete an account (only if no transactions exist)</summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "accounts.delete")]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {
         await _accountService.DeleteAsync(id);

@@ -7,7 +7,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "warehouses.view")]
 public class WarehousesController : ControllerBase
 {
     private readonly IWarehouseService _warehouseService;
@@ -62,6 +62,7 @@ public class WarehousesController : ControllerBase
     /// Create a new warehouse
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "warehouses.create")]
     public async Task<ActionResult<WarehouseDto>> CreateWarehouse([FromBody] CreateWarehouseDto dto)
     {
         try
@@ -93,6 +94,7 @@ public class WarehousesController : ControllerBase
     /// Update an existing warehouse
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "warehouses.edit")]
     public async Task<ActionResult<WarehouseDto>> UpdateWarehouse(long id, [FromBody] UpdateWarehouseDto dto)
     {
         try
@@ -123,6 +125,7 @@ public class WarehousesController : ControllerBase
     /// Delete a warehouse
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "warehouses.delete")]
     public async Task<ActionResult> DeleteWarehouse(long id)
     {
         try

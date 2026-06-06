@@ -16,19 +16,27 @@ public class TransactionRepository : ITransactionRepository
         _context = context;
     }
 
-    public async Task<Transaction?> GetByIdAsync(long id)
-    {
-        return await _context.Transactions
-            .Include(t => t.Account)
-            .FirstOrDefaultAsync(t => t.Id == id);
-    }
-
-    public async Task<(IEnumerable<Transaction>, int)> SearchAsync(
-        long? accountId, DateTime? startDate, DateTime? endDate, string? type, int pageNumber, int pageSize)
+    public async Task<Transaction?> GetByIdAsync(long id, long? businessId = null)
     {
         var query = _context.Transactions
             .Include(t => t.Account)
             .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(t => t.Account.BusinessId == businessId.Value);
+
+        return await query.FirstOrDefaultAsync(t => t.Id == id);
+    }
+
+    public async Task<(IEnumerable<Transaction>, int)> SearchAsync(
+        long? accountId, DateTime? startDate, DateTime? endDate, string? type, int pageNumber, int pageSize, long? businessId = null)
+    {
+        var query = _context.Transactions
+            .Include(t => t.Account)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(t => t.Account.BusinessId == businessId.Value);
 
         if (accountId.HasValue)
             query = query.Where(t => t.AccountId == accountId.Value);
@@ -53,11 +61,17 @@ public class TransactionRepository : ITransactionRepository
         return (transactions, totalCount);
     }
 
-    public async Task<IEnumerable<Transaction>> GetByAccountAsync(long accountId)
+    public async Task<IEnumerable<Transaction>> GetByAccountAsync(long accountId, long? businessId = null)
     {
-        return await _context.Transactions
+        var query = _context.Transactions
             .Include(t => t.Account)
             .Where(t => t.AccountId == accountId)
+            .AsQueryable();
+
+        if (businessId.HasValue)
+            query = query.Where(t => t.Account.BusinessId == businessId.Value);
+
+        return await query
             .OrderByDescending(t => t.TransactionDate)
             .ToListAsync();
     }
@@ -66,6 +80,6 @@ public class TransactionRepository : ITransactionRepository
     {
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
-        return (await GetByIdAsync(transaction.Id))!;
+        return (await GetByIdAsync(transaction.Id, transaction.Account?.BusinessId))!;
     }
 }
