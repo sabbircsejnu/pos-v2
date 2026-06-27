@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
@@ -9,9 +9,11 @@ import { SupplierService } from '../../services/supplier.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
 import { PurchaseOrder, PurchaseOrderSearchRequest, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
 import { AuthService } from '../../services/auth.service';
+import { DocumentPdfService } from '../../services/document-pdf.service';
 
 @Component({
   selector: 'app-po-list',
@@ -24,6 +26,7 @@ export class PoListComponent implements OnInit, OnDestroy {
   Math = Math;
 
   // Search and filter signals
+  searchQuery = signal<string>('');
   status = signal<string>('');
   supplierId = signal<number | undefined>(undefined);
   warehouseId = signal<number | undefined>(undefined);
@@ -52,9 +55,12 @@ export class PoListComponent implements OnInit, OnDestroy {
     public warehouseService: WarehouseService,
     private authService: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
-    private currencyService: CurrencyService
+    private currencyService: CurrencyService,
+    private documentPdfService: DocumentPdfService
   ) {}
 
   can(permission: string): boolean {
@@ -64,8 +70,38 @@ export class PoListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadSuppliers();
     this.loadWarehouses();
+    this.restoreFromUrl();
     this.setupDebouncedSearch();
-    this.search();
+    this.performSearch();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    this.status.set(this.listState.str(p, 'status'));
+    this.supplierId.set(this.listState.optionalId(p, 'supplierId'));
+    this.warehouseId.set(this.listState.optionalId(p, 'warehouseId'));
+    this.startDate.set(this.listState.str(p, 'startDate'));
+    this.endDate.set(this.listState.str(p, 'endDate'));
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+    this.sortBy.set(this.listState.str(p, 'sortBy', 'order_date'));
+    this.sortOrder.set(this.listState.str(p, 'sortOrder', 'desc'));
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      status: this.status() || undefined,
+      supplierId: this.supplierId(),
+      warehouseId: this.warehouseId(),
+      startDate: this.startDate() || undefined,
+      endDate: this.endDate() || undefined,
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+      sortBy: this.sortBy(),
+      sortOrder: this.sortOrder(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -76,6 +112,7 @@ export class PoListComponent implements OnInit, OnDestroy {
     this.searchSubscription = this.searchSubject
       .pipe(debounceTime(500))
       .subscribe(() => {
+        this.syncUrl();
         this.performSearch();
       });
   }
@@ -98,6 +135,7 @@ export class PoListComponent implements OnInit, OnDestroy {
 
   private performSearch(): void {
     const searchRequest: PurchaseOrderSearchRequest = {
+      searchQuery: this.searchQuery() || undefined,
       status: this.status() || undefined,
       supplierId: this.supplierId(),
       warehouseId: this.warehouseId(),
@@ -116,26 +154,32 @@ export class PoListComponent implements OnInit, OnDestroy {
 
   search(): void {
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
   clearFilters(): void {
+    this.searchQuery.set('');
     this.status.set('');
     this.supplierId.set(undefined);
     this.warehouseId.set(undefined);
     this.startDate.set('');
     this.endDate.set('');
-    this.search();
+    this.listState.clear(this.route);
+    this.pageNumber.set(1);
+    this.performSearch();
   }
 
   changePage(page: number): void {
     this.pageNumber.set(page);
+    this.syncUrl();
     this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
@@ -146,6 +190,7 @@ export class PoListComponent implements OnInit, OnDestroy {
       this.sortBy.set(column);
       this.sortOrder.set('asc');
     }
+    this.syncUrl();
     this.performSearch();
   }
 
@@ -167,10 +212,10 @@ export class PoListComponent implements OnInit, OnDestroy {
   }
 
   editPo(po: PurchaseOrder): void {
-    if (po.status === 'draft' || po.status === 'pending') {
+    if (po.status === 'draft' || po.status === 'sent_back') {
       this.router.navigate(['/purchase-orders/edit', po.id]);
     } else {
-      this.alertService.warning('Only draft or pending purchase orders can be edited');
+      this.alertService.warning('Only draft or sent-back purchase orders can be edited');
     }
   }
 
@@ -234,6 +279,15 @@ export class PoListComponent implements OnInit, OnDestroy {
     });
   }
 
+  downloadPoPdf(po: PurchaseOrder): void {
+    this.documentPdfService.downloadPurchaseOrder(po.id).subscribe({
+      next: (response) => {
+        this.documentPdfService.triggerBrowserDownload(response, `${po.poNumber || `PO-${po.id.toString().padStart(6, '0')}`}.pdf`);
+      },
+      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
+    });
+  }
+
   createNew(): void {
     this.router.navigate(['/purchase-orders/create']);
   }
@@ -272,5 +326,29 @@ export class PoListComponent implements OnInit, OnDestroy {
 
   formatCurrency(amount: number): string {
     return this.currencyService.format(amount);
+  }
+
+  activeFilterCount(): number {
+    let count = 0;
+    if (this.status()) count++;
+    if (this.supplierId()) count++;
+    if (this.warehouseId()) count++;
+    if (this.startDate()) count++;
+    if (this.endDate()) count++;
+    return count;
+  }
+
+  hasActiveFilters(): boolean {
+    return this.activeFilterCount() > 0;
+  }
+
+  statusCount(status: string): number {
+    return this.poService.purchaseOrders().filter(po => po.status === status).length;
+  }
+
+  onFilterChange(): void {
+    this.pageNumber.set(1);
+    this.syncUrl();
+    this.performSearch();
   }
 }

@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CustomerService } from '../../services/customer.service';
@@ -36,6 +36,7 @@ export class CustomerFormComponent implements OnInit {
   constructor(
     private customerService: CustomerService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
@@ -66,7 +67,7 @@ export class CustomerFormComponent implements OnInit {
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
         this.isLoading.set(false);
-        this.router.navigate(['/customers']);
+        this.location.back();
       }
     });
   }
@@ -104,7 +105,7 @@ export class CustomerFormComponent implements OnInit {
       this.customerService.update(this.customerId()!, dto).subscribe({
         next: () => {
           this.alertService.success('Customer updated successfully');
-          this.router.navigate(['/customers']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -120,7 +121,7 @@ export class CustomerFormComponent implements OnInit {
       this.customerService.create(dto).subscribe({
         next: () => {
           this.alertService.success('Customer created successfully');
-          this.router.navigate(['/customers']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -157,6 +158,6 @@ export class CustomerFormComponent implements OnInit {
   }
 
   onCancel(): void {
-    this.router.navigate(['/customers']);
+    this.location.back();
   }
 }

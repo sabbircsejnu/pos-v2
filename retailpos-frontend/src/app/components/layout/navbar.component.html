@@ -1,220 +1,157 @@
-<nav class="bg-gray-900 border-b border-gray-800 shadow-sm fixed top-0 left-0 right-0 z-50" (click)="closeDropdowns()">
-  <div class="px-4">
-    <div class="flex items-center justify-between h-14">
-      <!-- Left Side: Logo & Menu Toggle -->
-      <div class="flex items-center space-x-3">
-        <!-- Sidebar Toggle -->
+<nav class="topbar-shell fixed left-0 right-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur" (click)="closeDropdowns()">
+  <div class="px-4 lg:px-5">
+    <div class="flex h-14 items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
         <button
           (click)="toggleSidebar(); $event.stopPropagation()"
-          class="text-gray-300 hover:bg-gray-800 p-1.5 rounded transition-colors"
-          title="Toggle Sidebar"
-        >
-          <i class="fas fa-bars text-lg"></i>
+          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+          title="Toggle Sidebar">
+          <i class="fas fa-bars text-base"></i>
         </button>
 
-        <!-- Logo & Brand -->
-        <div class="flex items-center space-x-2.5">
-          <div class="bg-white p-1.5 rounded-lg">
-            <i class="fas fa-store text-gray-900 text-base"></i>
+        <div class="flex items-center gap-2">
+          <div class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
+            <i class="fas fa-store text-sm"></i>
           </div>
           <div class="hidden md:block">
-            <span class="text-white font-bold text-base">Retail POS</span>
+            <div class="text-sm font-semibold text-slate-900">Retail POS</div>
+            <div class="text-[11px] text-slate-500">SaaS ERP Platform</div>
           </div>
         </div>
       </div>
 
-      <!-- Center: Main Navigation Menu -->
-      <div class="hidden lg:flex items-center space-x-1">
-        @for (menu of menuService.menuItems(); track menu.id) {
+      <div class="hidden max-w-xl flex-1 lg:block">
+        <form (submit)="runGlobalSearch($event)">
           <div class="relative">
-            @if (menu.children && menu.children.length > 0) {
-              <!-- Parent Menu with Dropdown -->
-              <button
-                (click)="toggleDropdown(menu.id, $event)"
-                [class.bg-gray-800]="openDropdown === menu.id || menuService.activeParentMenu()?.id === menu.id"
-                class="flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
-              >
-                <i [class]="menu.icon" class="text-sm"></i>
-                <span class="font-medium">{{ menu.label }}</span>
-                <i class="fas fa-chevron-down text-xs"></i>
-              </button>
-
-              <!-- Dropdown Menu -->
-              @if (openDropdown === menu.id) {
-                <div class="absolute top-full left-0 mt-1 w-52 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                  @for (child of menu.children; track child.id) {
-                    <a
-                      [routerLink]="child.route"
-                      (click)="selectChildMenu(menu, $event)"
-                      class="flex items-center space-x-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <i [class]="child.icon" class="text-sm text-gray-500"></i>
-                      <span class="font-medium">{{ child.label }}</span>
-                    </a>
-                  }
-                </div>
-              }
-            } @else {
-              <!-- Single Menu Item -->
-              <a
-                [routerLink]="menu.route"
-                (click)="selectParentMenu(menu, $event)"
-                routerLinkActive="bg-gray-800"
-                class="flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
-              >
-                <i [class]="menu.icon" class="text-sm"></i>
-                <span class="font-medium">{{ menu.label }}</span>
-              </a>
-            }
+            <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input
+              type="text"
+              [(ngModel)]="globalSearch"
+              name="globalSearch"
+              placeholder="Search products, suppliers, orders, reports..."
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 focus:border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
           </div>
-        }
+        </form>
       </div>
 
-      <!-- Right Side: User Menu -->
-      <div class="flex items-center space-x-2">
-        <!-- Role Switch (BusinessOwner only) -->
-        @if (currentUser()?.isBusinessOwner) {
-          <div class="relative">
-            <button
-              (click)="toggleRoleSwitchMenu($event)"
-              class="flex items-center space-x-2 text-gray-300 hover:bg-gray-800 px-2 py-1.5 rounded transition-colors"
-              title="Role Switch"
-            >
-              <i class="fas fa-user-shield text-sm"></i>
-              <span class="hidden md:inline text-xs font-medium">
-                @if (currentUser()?.isRoleSwitched) {
-                  Acting as {{ currentUser()?.actingRoleName }}
-                  @if (currentUser()?.actingOutletName) { @ {{ currentUser()?.actingOutletName }} }
-                } @else {
-                  Owner Mode
-                }
-              </span>
-              <i class="fas fa-chevron-down text-xs"></i>
-            </button>
-
-            @if (showRoleSwitchMenu) {
-              <div class="absolute top-full right-0 mt-1 w-72 bg-white rounded-md shadow-lg py-2 z-50 border border-gray-200" (click)="$event.stopPropagation()">
-                <div class="px-3.5 py-2 border-b border-gray-200">
-                  <div class="text-xs uppercase tracking-wide text-gray-500">Current Mode</div>
-                  <div class="text-sm font-semibold text-gray-900">
-                    @if (currentUser()?.isRoleSwitched) {
-                      {{ currentUser()?.actingRoleName }}
-                      @if (currentUser()?.actingOutletName) { @ {{ currentUser()?.actingOutletName }} }
-                    } @else {
-                      Owner Mode (full access)
-                    }
-                  </div>
-                </div>
-
-                <div class="px-3.5 py-2 space-y-2">
-                  <label class="block text-xs font-medium text-gray-600">Switch to role</label>
-                  <select
-                    [(ngModel)]="selectedActingRole"
-                    class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">— Select role —</option>
-                    @for (r of switchableRoles; track r) {
-                      <option [value]="r">{{ r }}</option>
-                    }
-                  </select>
-
-                  <label class="block text-xs font-medium text-gray-600">Outlet</label>
-                  <select
-                    [(ngModel)]="selectedActingOutletId"
-                    class="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option [ngValue]="null">— All outlets —</option>
-                    @for (o of outlets(); track o.id) {
-                      <option [ngValue]="o.id">{{ o.name }}</option>
-                    }
-                  </select>
-
-                  @if (switchError()) {
-                    <div class="text-xs text-red-600">{{ switchError() }}</div>
-                  }
-
-                  <button
-                    type="button"
-                    (click)="confirmSwitchRole($event)"
-                    [disabled]="switchingRole() || !selectedActingRole"
-                    class="w-full text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-1.5 rounded transition-colors"
-                  >
-                    <i class="fas fa-exchange-alt text-xs mr-1"></i>
-                    Switch Role
-                  </button>
-                </div>
-
-                @if (currentUser()?.isRoleSwitched) {
-                  <div class="border-t border-gray-200 mt-1 pt-1">
-                    <button
-                      type="button"
-                      (click)="returnOwnerMode($event)"
-                      [disabled]="switchingRole()"
-                      class="w-full flex items-center space-x-2 px-3.5 py-2 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 transition-colors"
-                    >
-                      <i class="fas fa-undo text-xs"></i>
-                      <span class="font-medium">Return Owner Mode</span>
-                    </button>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        }
-
-        <!-- Notifications -->
-        <button class="relative text-gray-300 hover:bg-gray-800 p-2 rounded transition-colors">
-          <i class="fas fa-bell text-base"></i>
-          <span class="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-semibold text-[10px]">3</span>
+      <div class="flex items-center gap-1.5">
+        <button
+          (click)="runGlobalSearch($event)"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 lg:hidden"
+          title="Search">
+          <i class="fas fa-search text-base"></i>
         </button>
 
-        <!-- User Dropdown -->
+        <button class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100" title="Notifications">
+          <i class="fas fa-bell text-base"></i>
+          <span class="absolute -right-0.5 -top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-semibold text-white">3</span>
+        </button>
+
         <div class="relative">
           <button
-            (click)="toggleUserMenu(); $event.stopPropagation()"
-            class="flex items-center space-x-2 text-gray-300 hover:bg-gray-800 px-2 py-1.5 rounded transition-colors"
-          >
-            <div class="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center">
-              <i class="fas fa-user text-gray-300 text-xs"></i>
-            </div>
-            <div class="hidden md:block text-left">
-              <div class="text-sm font-medium text-white">{{ currentUser()?.name }}</div>
-              <div class="text-xs text-gray-400">{{ currentUser()?.roleName }}</div>
-            </div>
+            (click)="toggleRoleSwitchMenu($event)"
+            class="hidden items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-100 md:inline-flex"
+            title="Outlet Switcher">
+            <i class="fas fa-shop text-[15px]"></i>
+            <span class="max-w-36 truncate">
+              @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
+                {{ currentUser()?.actingOutletName }}
+              } @else {
+                Outlet Switcher
+              }
+            </span>
             <i class="fas fa-chevron-down text-xs"></i>
           </button>
 
-          <!-- User Dropdown Menu -->
-          @if (showUserMenu) {
-            <div class="absolute top-full right-0 mt-1 w-56 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-              <div class="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50">
-                <div class="font-semibold text-gray-900 text-sm">{{ currentUser()?.name }}</div>
-                <div class="text-xs text-gray-600">{{ currentUser()?.email }}</div>
-                <div class="mt-1">
-                  <span class="badge badge-primary text-xs">{{ currentUser()?.roleName }}</span>
+          @if (showRoleSwitchMenu) {
+            <div class="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-slate-200 bg-white p-3 shadow-lg" (click)="$event.stopPropagation()">
+              <div class="mb-3 border-b border-slate-100 pb-2">
+                <div class="text-xs uppercase tracking-wide text-slate-500">Outlet Switcher</div>
+                <div class="text-sm font-semibold text-slate-900">
+                  @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
+                    {{ currentUser()?.actingRoleName }} @ {{ currentUser()?.actingOutletName }}
+                  } @else {
+                    Owner Mode (All Outlets)
+                  }
                 </div>
               </div>
-              <a
-                routerLink="/profile"
-                class="flex items-center space-x-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                <i class="fas fa-user-circle text-sm text-gray-500"></i>
-                <span class="font-medium">My Profile</span>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-medium text-slate-600">Acting Role</label>
+                <select
+                  [(ngModel)]="selectedActingRole"
+                  class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20">
+                  <option value="">Select role</option>
+                  @for (r of switchableRoles; track r) {
+                    <option [value]="r">{{ r }}</option>
+                  }
+                </select>
+
+                <label class="block text-xs font-medium text-slate-600">Outlet</label>
+                <select
+                  [(ngModel)]="selectedActingOutletId"
+                  class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20">
+                  <option [ngValue]="null">All outlets</option>
+                  @for (o of outlets(); track o.id) {
+                    <option [ngValue]="o.id">{{ o.name }}</option>
+                  }
+                </select>
+
+                @if (switchError()) {
+                  <div class="text-xs text-rose-600">{{ switchError() }}</div>
+                }
+
+                <button
+                  type="button"
+                  (click)="confirmSwitchRole($event)"
+                  [disabled]="switchingRole() || !selectedActingRole"
+                  class="w-full rounded-md bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                  Switch Context
+                </button>
+
+                @if (currentUser()?.isRoleSwitched) {
+                  <button
+                    type="button"
+                    (click)="returnOwnerMode($event)"
+                    [disabled]="switchingRole()"
+                    class="w-full rounded-md border border-emerald-200 bg-emerald-50 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                    Return Owner Mode
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="relative">
+          <button
+            (click)="toggleUserMenu(); $event.stopPropagation()"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-slate-700 hover:bg-slate-100">
+            <div class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white">
+              <i class="fas fa-user text-xs"></i>
+            </div>
+            <div class="hidden text-left md:block">
+              <div class="max-w-32 truncate text-sm font-medium text-slate-900">{{ currentUser()?.name }}</div>
+              <div class="max-w-32 truncate text-[11px] text-slate-500">{{ currentUser()?.roleName }}</div>
+            </div>
+            <i class="fas fa-chevron-down text-xs text-slate-500"></i>
+          </button>
+
+          @if (showUserMenu) {
+            <div class="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              <div class="border-b border-slate-100 bg-slate-50 px-3 py-2">
+                <div class="text-sm font-semibold text-slate-900">{{ currentUser()?.name }}</div>
+                <div class="text-xs text-slate-500">{{ currentUser()?.email }}</div>
+              </div>
+              <a routerLink="/settings" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                <i class="fas fa-cog text-slate-500"></i>
+                <span>Settings</span>
               </a>
-              <a
-                routerLink="/settings"
-                class="flex items-center space-x-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                <i class="fas fa-cog text-sm text-gray-500"></i>
-                <span class="font-medium">Settings</span>
-              </a>
-              <div class="border-t border-gray-200 my-1"></div>
               <button
                 (click)="logout()"
-                class="w-full flex items-center space-x-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <i class="fas fa-sign-out-alt text-sm text-red-500"></i>
-                <span class="font-medium">Logout</span>
+                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
               </button>
             </div>
           }

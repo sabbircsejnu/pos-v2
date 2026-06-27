@@ -8,16 +8,21 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/sales")]
-[Authorize]
+[Authorize(Policy = "sales.view")]
 public class SalesController : ControllerBase
 {
     private readonly ISaleService _saleService;
     private readonly IUserOutletAccessService _outletAccess;
+    private readonly IFeatureEntitlementService _featureEntitlement;
 
-    public SalesController(ISaleService saleService, IUserOutletAccessService outletAccess)
+    public SalesController(
+        ISaleService saleService,
+        IUserOutletAccessService outletAccess,
+        IFeatureEntitlementService featureEntitlement)
     {
         _saleService = saleService;
         _outletAccess = outletAccess;
+        _featureEntitlement = featureEntitlement;
     }
 
     /// <summary>List sales with filters (query string)</summary>
@@ -67,6 +72,7 @@ public class SalesController : ControllerBase
 
     /// <summary>Create a new sale</summary>
     [HttpPost]
+    [Authorize(Policy = "sales.create")]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Create([FromBody] CreateSaleDto dto)
     {
         // Server-side outlet enforcement: never trust the client-supplied OutletId.
@@ -83,6 +89,7 @@ public class SalesController : ControllerBase
 
     /// <summary>Void a sale (same day only)</summary>
     [HttpPost("{id}/void")]
+    [Authorize(Policy = "sales.void")]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Void(long id, [FromBody] VoidSaleDto dto)
     {
         var existing = await _saleService.GetByIdAsync(id);
@@ -94,8 +101,11 @@ public class SalesController : ControllerBase
 
     /// <summary>Refund a sale</summary>
     [HttpPost("{id}/refund")]
+    [Authorize(Policy = "sales.refund")]
     public async Task<ActionResult<ApiResponse<SaleDto>>> Refund(long id, [FromBody] RefundSaleDto dto)
     {
+        await _featureEntitlement.EnsureFeatureEnabledAsync("sales.refund");
+
         var existing = await _saleService.GetByIdAsync(id);
         await EnsureSaleOutletAuthorizedAsync(existing);
 

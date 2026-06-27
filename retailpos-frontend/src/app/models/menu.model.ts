@@ -3,274 +3,93 @@ export interface MenuItem {
   label: string;
   icon: string;
   route?: string;
-  children?: MenuItem[];
   permission?: string | string[];
+  role?: string | string[];
+  disabled?: boolean;
+  children?: MenuItem[];
 }
 
-export const MENU_ITEMS: MenuItem[] = [
+export interface MenuSection {
+  id: string;
+  label: string;
+  items: MenuItem[];
+}
+
+// Section-first navigation model designed to scale for 100+ screens.
+export const NAV_SECTIONS: MenuSection[] = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: 'fas fa-home',
-    route: '/dashboard'
-  },
-  {
-    id: 'admin',
-    label: 'Administration',
-    icon: 'fas fa-user-shield',
-    children: [
+    id: 'catalog',
+    label: 'CATALOG',
+    items: [
+      { id: 'products', label: 'Products', icon: 'fas fa-box', route: '/products', permission: 'products.view' },
       {
-        id: 'users',
-        label: 'Users',
-        icon: 'fas fa-users',
-        route: '/users',
-        permission: 'users.view'
+        id: 'barcode-labels',
+        label: 'Barcode Labels',
+        icon: 'fas fa-barcode',
+        route: '/barcode-labels',
+        permission: ['barcode.view', 'barcode.print', 'barcode.bulk_print', 'barcode.template_manage']
       },
-      {
-        id: 'roles',
-        label: 'Roles',
-        icon: 'fas fa-user-tag',
-        route: '/roles',
-        permission: 'roles.view'
-      },
-      {
-        id: 'audit-logs',
-        label: 'Audit Log',
-        icon: 'fas fa-history',
-        route: '/audit-logs',
-        permission: 'audit.view'
-      }
+      { id: 'categories', label: 'Categories', icon: 'fas fa-tags', route: '/categories', permission: 'categories.view' },
+      { id: 'brands', label: 'Brands', icon: 'fas fa-award', permission: 'products.view', disabled: true },
+      { id: 'variations', label: 'Variations', icon: 'fas fa-sliders-h', route: '/variations', permission: 'products.view' },
     ]
   },
   {
-    id: 'master-data',
-    label: 'Master Data',
-    icon: 'fas fa-database',
-    children: [
-      {
-        id: 'outlets',
-        label: 'Outlets',
-        icon: 'fas fa-store',
-        route: '/outlets',
-        permission: 'outlets.view'
-      },
-      {
-        id: 'warehouses',
-        label: 'Warehouses',
-        icon: 'fas fa-warehouse',
-        route: '/warehouses',
-        permission: 'warehouses.view'
-      },
-      {
-        id: 'categories',
-        label: 'Categories',
-        icon: 'fas fa-tags',
-        route: '/categories',
-        permission: 'products.view'
-      },
-      {
-        id: 'suppliers',
-        label: 'Suppliers',
-        icon: 'fas fa-truck',
-        route: '/suppliers',
-        permission: 'suppliers.view'
-      }
-    ]
-  },
-  {
-    id: 'products',
-    label: 'Products',
-    icon: 'fas fa-box',
-    children: [
-      {
-        id: 'product-list',
-        label: 'Product List',
-        icon: 'fas fa-list',
-        route: '/products',
-        permission: 'products.view'
-      },
-      {
-        id: 'variations',
-        label: 'Variations',
-        icon: 'fas fa-sliders-h',
-        route: '/variations',
-        permission: 'products.view'
-      },
-      {
-        id: 'inventory',
-        label: 'Inventory',
-        icon: 'fas fa-boxes',
-        route: '/inventory',
-        permission: 'inventory.view'
-      },
-      {
-        id: 'low-stock',
-        label: 'Low Stock Alerts',
-        icon: 'fas fa-exclamation-triangle',
-        route: '/inventory/low-stock',
-        permission: 'inventory.view'
-      }
+    id: 'inventory',
+    label: 'INVENTORY',
+    items: [
+      { id: 'inventory', label: 'Inventory', icon: 'fas fa-boxes', route: '/inventory', permission: 'inventory.view' },
+      { id: 'stock-counts', label: 'Stock Counts', icon: 'fas fa-clipboard-check', route: '/stock-counts', permission: ['StockCount.ViewOwn', 'StockCount.ViewAll'] },
+      { id: 'stock-adjustment', label: 'Stock Adjustment', icon: 'fas fa-sliders-h', route: '/stock-adjustments', permission: 'stock_adjustments.view' },
+      { id: 'stock-transfer', label: 'Stock Transfer', icon: 'fas fa-truck-moving', route: '/stock-transfers', permission: 'stock_transfers.view' },
+      { id: 'low-stock', label: 'Low Stock Alerts', icon: 'fas fa-triangle-exclamation', route: '/inventory/low-stock', permission: 'low_stock_alerts.view' },
     ]
   },
   {
     id: 'procurement',
-    label: 'Procurement',
-    icon: 'fas fa-shopping-basket',
-    children: [
-      {
-        id: 'purchase-orders',
-        label: 'Purchase Orders',
-        icon: 'fas fa-file-invoice',
-        route: '/purchase-orders',
-        permission: 'purchases.view'
-      },
-      {
-        id: 'grn',
-        label: 'Goods Received (GRN)',
-        icon: 'fas fa-boxes',
-        route: '/grn',
-        permission: 'grn.view'
-      }
-    ]
-  },
-  {
-    id: 'stock-movement',
-    label: 'Stock Movement',
-    icon: 'fas fa-exchange-alt',
-    children: [
-      {
-        id: 'stock-transfers',
-        label: 'Stock Transfers',
-        icon: 'fas fa-truck-moving',
-        route: '/stock-transfers',
-        permission: 'inventory.transfer'
-      },
-      {
-        id: 'stock-adjustments',
-        label: 'Stock Adjustments',
-        icon: 'fas fa-sliders-h',
-        route: '/stock-adjustments',
-        permission: 'inventory.adjust'
-      }
-    ]
-  },
-  {
-    id: 'accounting',
-    label: 'Accounting',
-    icon: 'fas fa-calculator',
-    children: [
-      {
-        id: 'accounts',
-        label: 'Chart of Accounts',
-        icon: 'fas fa-book',
-        route: '/accounts',
-        permission: 'accounts.view'
-      },
-      {
-        id: 'transactions',
-        label: 'Transactions',
-        icon: 'fas fa-exchange-alt',
-        route: '/transactions',
-        permission: 'transactions.view'
-      },
-      {
-        id: 'expenses',
-        label: 'Expenses',
-        icon: 'fas fa-receipt',
-        route: '/expenses',
-        permission: 'accounts.view'
-      },
-      {
-        id: 'bills',
-        label: 'Bills Payable',
-        icon: 'fas fa-file-invoice-dollar',
-        route: '/bills',
-        permission: 'accounts.view'
-      }
+    label: 'PROCUREMENT',
+    items: [
+      { id: 'purchase-orders', label: 'Purchase Orders', icon: 'fas fa-file-invoice', route: '/purchase-orders', permission: 'purchases.view' },
+      { id: 'grn', label: 'Goods Received Notes (GRN)', icon: 'fas fa-box-open', route: '/grn', permission: 'grn.view' },
+      { id: 'suppliers', label: 'Suppliers', icon: 'fas fa-truck', route: '/suppliers', permission: 'suppliers.view' },
     ]
   },
   {
     id: 'sales',
-    label: 'Sales',
-    icon: 'fas fa-cash-register',
-    children: [
-      {
-        id: 'pos',
-        label: 'POS',
-        icon: 'fas fa-shopping-cart',
-        route: '/pos',
-        permission: 'sales.create'
-      },
-      {
-        id: 'sales-list',
-        label: 'Sales List',
-        icon: 'fas fa-receipt',
-        route: '/sales',
-        permission: 'sales.view'
-      },
-      {
-        id: 'customers',
-        label: 'Customers',
-        icon: 'fas fa-user-friends',
-        route: '/customers',
-        permission: 'customers.view'
-      }
+    label: 'SALES',
+    items: [
+      { id: 'pos-sales', label: 'POS Sales', icon: 'fas fa-cash-register', route: '/pos', permission: 'sales.create' },
+      { id: 'sales-orders', label: 'Sales Orders', icon: 'fas fa-receipt', route: '/sales', permission: 'sales.view' },
+      { id: 'customers', label: 'Customers', icon: 'fas fa-user-friends', route: '/customers', permission: 'customers.view' },
     ]
   },
   {
-    id: 'reports',
-    label: 'Reports',
-    icon: 'fas fa-chart-line',
-    children: [
-      {
-        id: 'sales-reports',
-        label: 'Sales Reports',
-        icon: 'fas fa-chart-bar',
-        route: '/reports/sales',
-        permission: 'reports.sales'
-      },
-      {
-        id: 'inventory-reports',
-        label: 'Inventory Reports',
-        icon: 'fas fa-chart-pie',
-        route: '/reports/inventory',
-        permission: 'reports.inventory'
-      },
-      {
-        id: 'stock-transaction-report',
-        label: 'Stock Transactions',
-        icon: 'fas fa-exchange-alt',
-        route: '/reports/stock-transactions',
-        permission: 'reports.inventory'
-      },
-      {
-        id: 'purchase-reports',
-        label: 'Purchase Reports',
-        icon: 'fas fa-truck',
-        route: '/reports/purchases',
-        permission: 'purchases.view'
-      },
-      {
-        id: 'financial-reports',
-        label: 'Financial Reports',
-        icon: 'fas fa-file-invoice-dollar',
-        route: '/reports/financial',
-        permission: 'reports.financial'
-      }
+    id: 'finance',
+    label: 'FINANCE',
+    items: [
+      { id: 'accounting', label: 'Accounting', icon: 'fas fa-calculator', route: '/accounts', permission: 'accounts.view' },
+      { id: 'payments', label: 'Payments', icon: 'fas fa-credit-card', route: '/transactions', permission: 'transactions.view' },
     ]
   },
   {
-    id: 'settings',
-    label: 'Settings',
-    icon: 'fas fa-cog',
-    children: [
-      {
-        id: 'company-settings',
-        label: 'Company & System Settings',
-        icon: 'fas fa-cog',
-        route: '/settings',
-        permission: 'settings.edit'
-      }
+    id: 'reporting',
+    label: 'REPORTING',
+    items: [
+      { id: 'reports', label: 'Reports', icon: 'fas fa-chart-line', route: '/reports/sales', permission: ['reports.sales', 'reports.inventory'] },
+      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-gauge-high', route: '/dashboard' },
     ]
-  }
+  },
+  {
+    id: 'administration',
+    label: 'ADMINISTRATION',
+    items: [
+      { id: 'users', label: 'Users', icon: 'fas fa-users', route: '/users', permission: 'users.view' },
+      { id: 'roles', label: 'Roles', icon: 'fas fa-user-tag', route: '/roles', permission: 'roles.view' },
+      { id: 'outlets', label: 'Outlets', icon: 'fas fa-store', route: '/outlets', permission: 'outlets.view', role: ['Business Owner / Admin', 'Outlet Manager', 'Warehouse Manager', 'Sales Person', 'Accounts Admin'] },
+      { id: 'warehouses', label: 'Warehouses', icon: 'fas fa-warehouse', route: '/warehouses', permission: 'warehouses.view', role: ['Business Owner / Admin', 'Outlet Manager', 'Warehouse Manager', 'Sales Person', 'Accounts Admin'] },
+      { id: 'settings', label: 'Settings', icon: 'fas fa-cog', route: '/settings', permission: 'settings.edit' },
+      { id: 'audit-logs', label: 'Audit Logs', icon: 'fas fa-history', route: '/audit-logs', permission: 'audit.view' },
+      { id: 'businesses', label: 'Businesses', icon: 'fas fa-building', route: '/businesses', role: 'Super Admin' },
+    ]
+  },
 ];

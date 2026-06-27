@@ -5,10 +5,16 @@ using RetailPOS.API.Services;
 namespace RetailPOS.API.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "products.view")]
 [Route("api/products/{productId:long}/images")]
 public class ProductImagesController : ControllerBase
 {
+    public sealed class UploadProductImageRequest
+    {
+        public IFormFile File { get; set; } = default!;
+        public bool IsPrimary { get; set; }
+    }
+
     private readonly IProductMediaService _media;
     private readonly ILogger<ProductImagesController> _logger;
 
@@ -26,13 +32,14 @@ public class ProductImagesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "products.edit")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<IActionResult> Upload(long productId, [FromForm] IFormFile file,
-        [FromForm] bool isPrimary = false)
+    public async Task<IActionResult> Upload(long productId, [FromForm] UploadProductImageRequest request)
     {
         try
         {
-            var dto = await _media.UploadAsync(productId, file, isPrimary);
+            var dto = await _media.UploadAsync(productId, request.File, request.IsPrimary);
             return CreatedAtAction(nameof(List), new { productId }, dto);
         }
         catch (ArgumentException ex)
@@ -51,6 +58,7 @@ public class ProductImagesController : ControllerBase
     }
 
     [HttpDelete("{imageId:long}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<IActionResult> Delete(long productId, long imageId)
     {
         try
@@ -65,6 +73,7 @@ public class ProductImagesController : ControllerBase
     }
 
     [HttpPut("{imageId:long}/primary")]
+    [Authorize(Policy = "products.edit")]
     public async Task<IActionResult> SetPrimary(long productId, long imageId)
     {
         try

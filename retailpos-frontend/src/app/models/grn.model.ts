@@ -3,7 +3,9 @@ export interface GrnItem {
   grnId: number;
   poItemId: number;
   productName: string;
-  variantSku: string;
+  productCode?: string;
+  variantName?: string;
+  variantAttributes?: string;
   orderedQty: number;
   receivedQty: number;
 }
@@ -12,10 +14,12 @@ export interface Grn {
   id: number;
   poId: number;
   poNumber: string;
+  poOrderNumber?: string;
   supplierName: string;
   warehouseName: string;
   receivedDate: string;
   status: string; // 'full' | 'partial'
+  notes?: string;
   createdBy?: number;
   creatorName?: string;
   createdAt: string;
@@ -26,7 +30,9 @@ export interface PurchaseOrderItemForGrn {
   id: number;
   variantId: number;
   productName: string;
-  variantSku: string;
+  productCode?: string;
+  variantName?: string;
+  variantAttributes?: string;
   orderedQty: number;
   unitPrice: number;
   primaryImageThumb?: string;
@@ -45,7 +51,9 @@ export interface PurchaseOrderForGrn {
 export interface GrnVarianceItem {
   poItemId: number;
   productName: string;
-  variantSku: string;
+  productCode?: string;
+  variantName?: string;
+  variantAttributes?: string;
   orderedQty: number;
   receivedQty: number;
   variance: number;

@@ -62,7 +62,7 @@ public class ProductRepository : IProductRepository
     public async Task<(IEnumerable<Product> Products, int TotalCount)> SearchAsync(
         string? searchQuery,
         long? categoryId,
-        bool? isActive,
+        string? status,
         bool? hasVariants,
         decimal? minPrice,
         decimal? maxPrice,
@@ -84,6 +84,7 @@ public class ProductRepository : IProductRepository
             query = query.Where(p =>
                 p.Name.ToLower().Contains(lowerSearchQuery) ||
                 (p.Description != null && p.Description.ToLower().Contains(lowerSearchQuery)) ||
+                (p.ProductCode != null && p.ProductCode.ToLower().Contains(lowerSearchQuery)) ||
                 (p.Sku != null && p.Sku.ToLower().Contains(lowerSearchQuery)) ||
                 (p.Barcode != null && p.Barcode.ToLower().Contains(lowerSearchQuery)));
         }
@@ -93,9 +94,11 @@ public class ProductRepository : IProductRepository
             query = query.Where(p => p.CategoryId == categoryId.Value);
         }
 
-        if (isActive.HasValue)
+        if (!string.IsNullOrWhiteSpace(status))
         {
-            query = query.Where(p => p.IsActive == isActive.Value);
+            var parsedStatus = ParseStatus(status);
+            if (parsedStatus.HasValue)
+                query = query.Where(p => p.Status == parsedStatus.Value);
         }
 
         if (hasVariants.HasValue)
@@ -226,6 +229,21 @@ public class ProductRepository : IProductRepository
         return await query.AnyAsync();
     }
 
+    public async Task<bool> ProductCodeExistsAsync(string productCode, long? excludeProductId = null)
+    {
+        if (string.IsNullOrWhiteSpace(productCode))
+            return false;
+
+        var query = _context.Products.Where(p => p.ProductCode == productCode);
+
+        if (excludeProductId.HasValue)
+        {
+            query = query.Where(p => p.Id != excludeProductId.Value);
+        }
+
+        return await query.AnyAsync();
+    }
+
     public async Task<int> GetTotalStockAsync(long productId)
     {
         // Sum up stock from all inventory records for this product's variants
@@ -244,4 +262,13 @@ public class ProductRepository : IProductRepository
 
         return 0; // Placeholder until Inventory module is implemented
     }
+
+    private static ProductStatus? ParseStatus(string? status) =>
+        status?.ToLower() switch
+        {
+            "active"   => ProductStatus.Active,
+            "inactive" => ProductStatus.Inactive,
+            "draft"    => ProductStatus.Draft,
+            _          => null
+        };
 }

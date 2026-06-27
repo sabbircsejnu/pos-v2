@@ -71,8 +71,12 @@
           <div
             class="product-card"
             [class.out-of-stock]="product.stockQty <= 0"
-            (click)="addToCart(product)"
+            [class.in-cart]="isVariantInCart(product.variantId)"
+            (click)="onProductCardClick(product)"
           >
+            @if (isVariantInCart(product.variantId)) {
+              <div class="product-badge">Already Added</div>
+            }
             <div class="product-icon">
               @if (product.primaryImageThumb) {
                 <img [src]="resolveImage(product.primaryImageThumb)"
@@ -180,7 +184,7 @@
         </div>
       } @else {
         @for (item of cartItems(); track item.variantId; let i = $index) {
-          <div class="cart-item">
+          <div class="cart-item" [class.duplicate-highlight]="duplicateCartVariantId() === item.variantId">
             @if (item.primaryImageThumb) {
               <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName"
                    loading="lazy" decoding="async"

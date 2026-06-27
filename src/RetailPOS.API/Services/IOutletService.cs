@@ -11,4 +11,10 @@ public interface IOutletService
     Task<bool> DeleteOutletAsync(long id);
     Task<IEnumerable<OutletDto>> SearchOutletsAsync(string searchTerm);
     Task<OutletStatsDto?> GetOutletStatsAsync(long id);
+
+    // Super Admin business-scoped operations (explicit businessId, bypasses tenant context)
+    Task<IEnumerable<OutletDto>> GetByBusinessIdAsync(long businessId);
+    Task<OutletDto> CreateForBusinessAsync(long businessId, CreateOutletDto dto);
+    Task<OutletDto> UpdateForBusinessAsync(long businessId, long id, UpdateOutletDto dto);
+    Task<bool> DeleteForBusinessAsync(long businessId, long id);
 }

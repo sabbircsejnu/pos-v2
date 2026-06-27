@@ -1,0 +1,13 @@
+:host {
+	display: block;
+}
+
+.input,
+.select,
+.textarea {
+	width: 100%;
+}
+
+.uppercase {
+	text-transform: uppercase;
+}

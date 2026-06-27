@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AccountingService } from '../../services/accounting.service';
@@ -27,6 +27,7 @@ export class ExpenseFormComponent implements OnInit {
     private fb: FormBuilder,
     public accountingService: AccountingService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
@@ -71,7 +72,7 @@ export class ExpenseFormComponent implements OnInit {
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
         this.isLoading.set(false);
-        this.router.navigate(['/expenses']);
+        this.location.back();
       }
     });
   }
@@ -97,7 +98,7 @@ export class ExpenseFormComponent implements OnInit {
       this.accountingService.updateExpense(this.expenseId()!, dto).subscribe({
         next: () => {
           this.alertService.success('Expense updated successfully');
-          this.router.navigate(['/expenses']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -115,7 +116,7 @@ export class ExpenseFormComponent implements OnInit {
       this.accountingService.createExpense(dto).subscribe({
         next: () => {
           this.alertService.success('Expense created successfully');
-          this.router.navigate(['/expenses']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -126,7 +127,7 @@ export class ExpenseFormComponent implements OnInit {
   }
 
   onCancel(): void {
-    this.router.navigate(['/expenses']);
+    this.location.back();
   }
 
   isFieldInvalid(fieldName: string): boolean {

@@ -33,6 +33,7 @@ export class VariationsComponent implements OnInit {
     name: '',
     displayOrder: 0,
     isActive: true,
+    autoSelectAllOptions: false,
     options: []
   });
 
@@ -68,6 +69,7 @@ export class VariationsComponent implements OnInit {
       name: '',
       displayOrder: 0,
       isActive: true,
+      autoSelectAllOptions: false,
       options: []
     });
     this.tempOptions.set([]);
@@ -82,6 +84,7 @@ export class VariationsComponent implements OnInit {
       name: variation.name,
       displayOrder: variation.displayOrder,
       isActive: variation.isActive,
+      autoSelectAllOptions: variation.autoSelectAllOptions,
       options: []
     });
     this.showModal.set(true);
@@ -126,7 +129,8 @@ export class VariationsComponent implements OnInit {
       const updateDto: UpdateVariationDto = {
         name: form.name,
         displayOrder: form.displayOrder,
-        isActive: form.isActive
+        isActive: form.isActive,
+        autoSelectAllOptions: form.autoSelectAllOptions
       };
 
       this.variationService.updateVariation(this.selectedVariationId()!, updateDto).subscribe({
@@ -145,6 +149,7 @@ export class VariationsComponent implements OnInit {
         name: form.name,
         displayOrder: form.displayOrder,
         isActive: form.isActive,
+        autoSelectAllOptions: form.autoSelectAllOptions,
         options: this.tempOptions()
       };
 

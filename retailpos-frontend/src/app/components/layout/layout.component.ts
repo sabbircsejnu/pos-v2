@@ -15,17 +15,15 @@ import { filter } from 'rxjs/operators';
 })
 export class LayoutComponent implements OnInit {
   private router = inject(Router);
-  private menuService = inject(MenuService);
+  menuService = inject(MenuService);
 
   ngOnInit(): void {
-    // Set active parent menu based on current route on init
-    this.menuService.setActiveParentMenuByRoute(this.router.url);
+    this.menuService.setActiveRouteByUrl(this.router.url);
 
-    // Listen to route changes and update active parent menu
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      this.menuService.setActiveParentMenuByRoute(event.urlAfterRedirects || event.url);
+      this.menuService.setActiveRouteByUrl(event.urlAfterRedirects || event.url);
     });
   }
 }

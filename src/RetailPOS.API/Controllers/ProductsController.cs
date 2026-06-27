@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Product;
 using RetailPOS.API.Services;
 
@@ -22,6 +23,33 @@ public class ProductsController : ControllerBase
         _logger = logger;
     }
 
+    // ── Cost-visibility helpers ──────────────────────────────────────────────
+    /// <summary>Strips cost fields from <paramref name="dto"/> when the caller lacks products.view_cost.</summary>
+    private void RedactCost(ProductDto dto)
+    {
+        if (User.CanViewCost()) return;
+        dto.CostPrice = null;
+    }
+
+    private void RedactCost(IEnumerable<ProductDto> products)
+    {
+        if (User.CanViewCost()) return;
+        foreach (var p in products) RedactCost(p);
+    }
+
+    private void RedactCost(ProductListDto list)
+    {
+        if (User.CanViewCost()) return;
+        foreach (var p in list.Products) RedactCost(p);
+    }
+
+    private void RedactCost(IEnumerable<ProductVariantSearchDto> variants)
+    {
+        if (User.CanViewCost()) return;
+        foreach (var v in variants) v.CostPrice = null;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     /// <summary>
     /// Get all products
     /// </summary>
@@ -30,7 +58,8 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var products = await _productService.GetAllAsync();
+            var products = (await _productService.GetAllAsync()).ToList();
+            RedactCost(products);
             return Ok(new { data = products, message = "Products retrieved successfully" });
         }
         catch (Exception ex)
@@ -49,6 +78,7 @@ public class ProductsController : ControllerBase
         try
         {
             var result = await _productService.SearchAsync(searchDto);
+            RedactCost(result);
             return Ok(new { data = result, message = "Products searched successfully" });
         }
         catch (Exception ex)
@@ -72,6 +102,7 @@ public class ProductsController : ControllerBase
                 return NotFound(new { error = $"Product with ID {id} not found" });
             }
 
+            RedactCost(product);
             return Ok(new { data = product, message = "Product retrieved successfully" });
         }
         catch (Exception ex)
@@ -95,6 +126,7 @@ public class ProductsController : ControllerBase
                 return NotFound(new { error = $"Product with SKU '{sku}' not found" });
             }
 
+            RedactCost(product);
             return Ok(new { data = product, message = "Product retrieved successfully" });
         }
         catch (Exception ex)
@@ -118,6 +150,7 @@ public class ProductsController : ControllerBase
                 return NotFound(new { error = $"Product with barcode '{barcode}' not found" });
             }
 
+            RedactCost(product);
             return Ok(new { data = product, message = "Product retrieved successfully" });
         }
         catch (Exception ex)
@@ -135,7 +168,8 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var products = await _productService.GetByCategoryAsync(categoryId);
+            var products = (await _productService.GetByCategoryAsync(categoryId)).ToList();
+            RedactCost(products);
             return Ok(new { data = products, message = "Products retrieved successfully" });
         }
         catch (Exception ex)
@@ -149,12 +183,13 @@ public class ProductsController : ControllerBase
     /// Create a new product
     /// </summary>
     [HttpPost]
-[Authorize(Policy = "products.create")]
+    [Authorize(Policy = "products.create")]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductDto createDto)
     {
         try
         {
             var product = await _productService.CreateAsync(createDto);
+            RedactCost(product);
             return CreatedAtAction(nameof(GetById), new { id = product.Id }, new { data = product, message = "Product created successfully" });
         }
         catch (InvalidOperationException ex)
@@ -173,12 +208,13 @@ public class ProductsController : ControllerBase
     /// Update an existing product
     /// </summary>
     [HttpPut("{id}")]
-[Authorize(Policy = "products.edit")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ProductDto>> Update(long id, [FromBody] UpdateProductDto updateDto)
     {
         try
         {
             var product = await _productService.UpdateAsync(id, updateDto);
+            RedactCost(product);
             return Ok(new { data = product, message = "Product updated successfully" });
         }
         catch (KeyNotFoundException ex)
@@ -202,7 +238,7 @@ public class ProductsController : ControllerBase
     /// Delete a product
     /// </summary>
     [HttpDelete("{id}")]
-[Authorize(Policy = "products.delete")]
+    [Authorize(Policy = "products.delete")]
     public async Task<ActionResult> Delete(long id)
     {
         try
@@ -249,11 +285,17 @@ public class ProductsController : ControllerBase
     /// Search product variants for PO/GRN forms
     /// </summary>
     [HttpGet("variants/search")]
-    public async Task<ActionResult> SearchVariants([FromQuery] string query = "", [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult> SearchVariants(
+        [FromQuery] string query = "",
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] long? locationId = null,
+        [FromQuery] string? locationType = null)
     {
         try
         {
-            var variants = await _productService.SearchVariantsAsync(query, pageNumber, pageSize);
+            var variants = (await _productService.SearchVariantsAsync(query, pageNumber, pageSize, locationId, locationType)).ToList();
+            RedactCost(variants);
             return Ok(new { data = variants, message = "Variants retrieved successfully" });
         }
         catch (Exception ex)

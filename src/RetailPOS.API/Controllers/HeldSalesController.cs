@@ -20,23 +20,27 @@ namespace RetailPOS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/held-sales")]
-[Authorize]
+[Authorize(Policy = "sales.view")]
 public class HeldSalesController : ControllerBase
 {
     private readonly IHeldSaleService _heldSaleService;
+    private readonly IFeatureEntitlementService _featureEntitlement;
 
-    public HeldSalesController(IHeldSaleService heldSaleService)
+    public HeldSalesController(IHeldSaleService heldSaleService, IFeatureEntitlementService featureEntitlement)
     {
         _heldSaleService = heldSaleService;
+        _featureEntitlement = featureEntitlement;
     }
 
     // ── POST /api/held-sales ──────────────────────────────────────────────────
 
     /// <summary>Park/hold the current cart.</summary>
     [HttpPost]
+    [Authorize(Policy = "sales.create")]
     [ProducesResponseType(typeof(ApiResponse<HeldSaleDto>), StatusCodes.Status201Created)]
     public async Task<ActionResult<ApiResponse<HeldSaleDto>>> Hold([FromBody] HoldSaleDto dto)
     {
+        await _featureEntitlement.EnsureFeatureEnabledAsync("sales.hold");
         var held = await _heldSaleService.HoldAsync(dto);
         return CreatedAtAction(
             nameof(GetById),
@@ -86,6 +90,7 @@ public class HeldSalesController : ControllerBase
     /// explicitly discards it.
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "sales.create")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {

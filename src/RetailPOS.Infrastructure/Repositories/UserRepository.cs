@@ -68,7 +68,10 @@ public class UserRepository : IUserRepository
 
         if (outletId.HasValue)
         {
-            query = query.Where(u => u.OutletId == outletId.Value);
+            if (outletId.Value == 0)
+                query = query.Where(u => u.OutletId == null);
+            else
+                query = query.Where(u => u.OutletId == outletId.Value);
         }
 
         if (isActive.HasValue)
@@ -112,7 +115,10 @@ public class UserRepository : IUserRepository
 
         if (outletId.HasValue)
         {
-            query = query.Where(u => u.OutletId == outletId.Value);
+            if (outletId.Value == 0)
+                query = query.Where(u => u.OutletId == null);
+            else
+                query = query.Where(u => u.OutletId == outletId.Value);
         }
 
         if (isActive.HasValue)

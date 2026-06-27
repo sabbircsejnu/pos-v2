@@ -1,7 +1,8 @@
-﻿import { Component, Input, OnInit, signal, computed } from '@angular/core';
+﻿import { Component, Input, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { ProductVariationService, CombinationDto, ProductVariationDto } from '../../services/product-variation.service';
 import { VariationService } from '../../services/variation.service';
 import { Variation } from '../../models/variation.model';
@@ -43,6 +44,9 @@ export class CombinationManagerComponent implements OnInit {
     costAdjustment: 0,
     selectedOptions: {} as { [variationId: number]: number }
   });
+
+  private auth = inject(AuthService);
+  canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
 
   constructor(
     private productVariationService: ProductVariationService,
@@ -99,14 +103,21 @@ export class CombinationManagerComponent implements OnInit {
     const optionsMap = { ...this.selectedOptionsByVariation() };
 
     if (current.includes(variationId)) {
-      // Deselecting the variation type â€” remove it
+      // Deselecting the variation type — remove it
       this.selectedVariationIds.set(current.filter(id => id !== variationId));
       delete optionsMap[variationId];
     } else {
-      // Selecting the variation type â€” pre-select all its options
+      // Selecting the variation type for the first time on this product.
+      // Pre-select options based on the variation type's autoSelectAllOptions setting:
+      //   true  → pre-select all options (e.g. Size where every option is usually needed)
+      //   false → start with nothing selected so the user picks only what applies (e.g. Color)
       this.selectedVariationIds.set([...current, variationId]);
       const variation = this.variationService.variations().find(v => v.id === variationId);
-      optionsMap[variationId] = variation ? variation.options.map(o => o.id) : [];
+      if (variation?.autoSelectAllOptions) {
+        optionsMap[variationId] = variation.options.map(o => o.id);
+      } else {
+        optionsMap[variationId] = [];
+      }
     }
 
     this.selectedOptionsByVariation.set(optionsMap);

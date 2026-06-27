@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/pricing")]
-[Authorize]
+[Authorize(Policy = "products.view")]
 public class PricingController : ControllerBase
 {
     private readonly IPricingService _pricingService;
@@ -84,6 +84,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Create a new price/campaign rule.</summary>
     [HttpPost("rules")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<PriceRuleDto>>> CreateRule(
         [FromBody] CreatePriceRuleDto dto)
     {
@@ -96,6 +97,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Update a price rule.</summary>
     [HttpPut("rules/{id:long}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<PriceRuleDto>>> UpdateRule(
         long id, [FromBody] UpdatePriceRuleDto dto)
     {
@@ -105,6 +107,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Delete a price rule.</summary>
     [HttpDelete("rules/{id:long}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse>> DeleteRule(long id)
     {
         await _pricingService.DeleteRuleAsync(id);
@@ -131,6 +134,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Create an outlet price override.</summary>
     [HttpPost("outlet-overrides")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<OutletPriceOverrideDto>>> CreateOverride(
         [FromBody] CreateOutletPriceOverrideDto dto)
     {
@@ -143,6 +147,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Update an outlet price override.</summary>
     [HttpPut("outlet-overrides/{id:long}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<OutletPriceOverrideDto>>> UpdateOverride(
         long id, [FromBody] UpdateOutletPriceOverrideDto dto)
     {
@@ -152,6 +157,7 @@ public class PricingController : ControllerBase
 
     /// <summary>Delete an outlet price override.</summary>
     [HttpDelete("outlet-overrides/{id:long}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse>> DeleteOverride(long id)
     {
         await _pricingService.DeleteOverrideAsync(id);

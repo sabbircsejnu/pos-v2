@@ -12,6 +12,7 @@ public class ProductVariationService : IProductVariationService
     private readonly IProductRepository _productRepository;
     private readonly IVariationRepository _variationRepository;
     private readonly IVariationOptionRepository _optionRepository;
+    private readonly IProductIdentifierService _identifierService;
     private readonly ILogger<ProductVariationService> _logger;
 
     public ProductVariationService(
@@ -19,12 +20,14 @@ public class ProductVariationService : IProductVariationService
         IProductRepository productRepository,
         IVariationRepository variationRepository,
         IVariationOptionRepository optionRepository,
+        IProductIdentifierService identifierService,
         ILogger<ProductVariationService> logger)
     {
         _context = context;
         _productRepository = productRepository;
         _variationRepository = variationRepository;
         _optionRepository = optionRepository;
+        _identifierService = identifierService;
         _logger = logger;
     }
 
@@ -192,6 +195,22 @@ public class ProductVariationService : IProductVariationService
         if (product == null)
             throw new KeyNotFoundException($"Product with ID {productId} not found");
 
+        // Validate variationIds against what's actually assigned to this product
+        var assignedVariationIds = product.ProductVariations.Select(pv => pv.VariationId).ToHashSet();
+
+        if (!assignedVariationIds.Any())
+            throw new InvalidOperationException(
+                $"Product {productId} has no variations assigned. Please assign variations to this product first.");
+
+        if (variationIds.Any())
+        {
+            var invalidIds = variationIds.Where(id => !assignedVariationIds.Contains(id)).ToList();
+            if (invalidIds.Any())
+                throw new InvalidOperationException(
+                    $"Variation ID(s) {string.Join(", ", invalidIds)} are not assigned to product {productId}. " +
+                    $"Assigned variation IDs are: {string.Join(", ", assignedVariationIds.OrderBy(id => id))}.");
+        }
+
         var variationOptions = await GetSelectedOptionsForProduct(productId, variationIds);
 
         if (!variationOptions.Any())
@@ -255,6 +274,9 @@ public class ProductVariationService : IProductVariationService
 
     private async Task<List<CombinationDto>> GenerateCombinations(Product product, List<List<VariationOption>> variationOptions)
     {
+        if (string.IsNullOrWhiteSpace(product.ProductCode))
+            throw new InvalidOperationException("Main Product Code is required before generating variants");
+
         var combinations = new List<List<VariationOption>>();
         GenerateCombinationsRecursive(variationOptions, 0, new List<VariationOption>(), combinations);
 
@@ -283,12 +305,25 @@ public class ProductVariationService : IProductVariationService
 
                 var combinationName = string.Join(" - ", combination.Select(o => o.Name));
                 var priceAdjustment = combination.Sum(o => o.PriceAdjustment);
+                var (sizeCode, attrCode) = _identifierService.ExtractCodesFromOptions(
+                    combination.Select(o => (o.Variation?.Name ?? string.Empty, o.Name)));
+
+                var generatedSku = await _identifierService.ResolveVariantSkuAsync(
+                    requestedSku: null,
+                    mainProductCode: product.ProductCode,
+                    sizeCode: sizeCode,
+                    attributeCode: attrCode);
+
+                var generatedBarcode = await _identifierService.ResolveVariantBarcodeAsync(
+                    requestedBarcode: null,
+                    categoryId: product.CategoryId);
 
                 var variant = new ProductVariant
                 {
                     ProductId = product.Id,
                     Name = combinationName,
-                    Sku = $"{product.Sku}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                    Sku = generatedSku,
+                    Barcode = generatedBarcode,
                     PriceAdjustment = priceAdjustment,
                     CostAdjustment = 0,
                     Attributes = "{}",
@@ -388,6 +423,22 @@ public class ProductVariationService : IProductVariationService
         var combinationName = string.Join(" - ", options.Select(o => o.Name));
         var priceAdjustment = options.Sum(o => o.PriceAdjustment) + request.PriceAdjustment;
 
+        if (string.IsNullOrWhiteSpace(product.ProductCode))
+            throw new InvalidOperationException("Main Product Code is required before creating variants");
+
+        var (sizeCode, attrCode) = _identifierService.ExtractCodesFromOptions(
+            options.Select(o => (o.Variation?.Name ?? string.Empty, o.Name)));
+
+        var resolvedSku = await _identifierService.ResolveVariantSkuAsync(
+            request.Sku,
+            product.ProductCode,
+            sizeCode,
+            attrCode);
+
+        var resolvedBarcode = await _identifierService.ResolveVariantBarcodeAsync(
+            request.Barcode,
+            product.CategoryId);
+
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -395,8 +446,8 @@ public class ProductVariationService : IProductVariationService
             {
                 ProductId = productId,
                 Name = combinationName,
-                Sku = request.Sku ?? $"{product.Sku}-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
-                Barcode = request.Barcode,
+                Sku = resolvedSku,
+                Barcode = resolvedBarcode,
                 PriceAdjustment = priceAdjustment,
                 CostAdjustment = request.CostAdjustment,
                 Attributes = "{}",
@@ -480,12 +531,36 @@ public class ProductVariationService : IProductVariationService
 
     public async Task UpdateCombinationAsync(long variantId, UpdateCombinationRequest request)
     {
-        var variant = await _context.ProductVariants.FindAsync(variantId);
+        var variant = await _context.ProductVariants
+            .Include(v => v.Product)
+            .Include(v => v.ProductVariantOptions)
+                .ThenInclude(pvo => pvo.Option)
+                    .ThenInclude(o => o.Variation)
+            .FirstOrDefaultAsync(v => v.Id == variantId);
+
         if (variant == null)
             throw new KeyNotFoundException($"Variant with ID {variantId} not found");
 
-        variant.Sku = request.Sku;
-        variant.Barcode = request.Barcode;
+        if (string.IsNullOrWhiteSpace(variant.Product.ProductCode))
+            throw new InvalidOperationException("Main Product Code is required before updating variants");
+
+        var (sizeCode, attrCode) = _identifierService.ExtractCodesFromOptions(
+            variant.ProductVariantOptions.Select(pvo => (pvo.Option.Variation?.Name ?? string.Empty, pvo.Option.Name)));
+
+        var resolvedSku = await _identifierService.ResolveVariantSkuAsync(
+            request.Sku,
+            variant.Product.ProductCode,
+            sizeCode,
+            attrCode,
+            excludeVariantId: variantId);
+
+        var resolvedBarcode = await _identifierService.ResolveVariantBarcodeAsync(
+            request.Barcode,
+            variant.Product.CategoryId,
+            excludeVariantId: variantId);
+
+        variant.Sku = resolvedSku;
+        variant.Barcode = resolvedBarcode;
         variant.PriceAdjustment = request.PriceAdjustment;
         variant.CostAdjustment = request.CostAdjustment;
         variant.UpdatedAt = DateTime.UtcNow;
@@ -495,12 +570,39 @@ public class ProductVariationService : IProductVariationService
 
     public async Task DeleteCombinationAsync(long variantId)
     {
-        var variant = await _context.ProductVariants.FindAsync(variantId);
+        var variant = await _context.ProductVariants
+            .Include(v => v.Inventories)
+            .Include(v => v.SaleItems)
+            .Include(v => v.PurchaseOrderItems)
+            .Include(v => v.StockTransferItems)
+            .Include(v => v.StockAdjustmentLines)
+            .FirstOrDefaultAsync(v => v.Id == variantId);
+
         if (variant == null)
             throw new KeyNotFoundException($"Variant with ID {variantId} not found");
 
-        _context.ProductVariants.Remove(variant);
-        await _context.SaveChangesAsync();
+        if (variant.SaleItems.Any())
+            throw new InvalidOperationException("Cannot delete a variant that has associated sales records.");
+        if (variant.PurchaseOrderItems.Any())
+            throw new InvalidOperationException("Cannot delete a variant that has associated purchase order items.");
+        if (variant.StockTransferItems.Any())
+            throw new InvalidOperationException("Cannot delete a variant that has associated stock transfer items.");
+        if (variant.StockAdjustmentLines.Any())
+            throw new InvalidOperationException("Cannot delete a variant that has associated stock adjustments.");
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            _context.Inventories.RemoveRange(variant.Inventories);
+            _context.ProductVariants.Remove(variant);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }
 

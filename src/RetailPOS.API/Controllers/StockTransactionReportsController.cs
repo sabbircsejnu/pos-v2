@@ -14,7 +14,7 @@ namespace RetailPOS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/reports/stock-transactions")]
-[Authorize]
+[Authorize(Policy = "reports.inventory")]
 public class StockTransactionReportsController : ControllerBase
 {
     private readonly IInventoryReportService _inventoryReportService;

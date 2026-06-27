@@ -5,6 +5,7 @@ import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { MenuService, SidebarDensity } from '../../services/menu.service';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import {
   CompanySettings,
@@ -16,7 +17,7 @@ import {
   SUPPORTED_CURRENCIES,
 } from '../../models/settings.model';
 
-type SettingsTab = 'company' | 'currency' | 'tax' | 'receipt' | 'inventory';
+type SettingsTab = 'company' | 'currency' | 'tax' | 'receipt' | 'inventory' | 'appearance';
 
 @Component({
   selector: 'app-settings-page',
@@ -57,6 +58,7 @@ export class SettingsPageComponent implements OnInit {
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
     private currencyService: CurrencyService,
+    public menuService: MenuService,
   ) {}
 
   ngOnInit(): void {
@@ -223,5 +225,10 @@ export class SettingsPageComponent implements OnInit {
 
   updateInventoryField(field: keyof InventorySettings, value: boolean | number): void {
     this.inventory.update(i => ({ ...i, [field]: value }));
+  }
+
+  setSidebarDensity(density: SidebarDensity): void {
+    this.menuService.setSidebarDensity(density);
+    this.alertService.success(`Sidebar density set to ${density}.`);
   }
 }

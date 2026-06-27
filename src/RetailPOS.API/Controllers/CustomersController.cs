@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/customers")]
-[Authorize]
+[Authorize(Policy = "customers.view")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
@@ -44,6 +44,7 @@ public class CustomersController : ControllerBase
 
     /// <summary>Create a new customer</summary>
     [HttpPost]
+    [Authorize(Policy = "customers.create")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Create([FromBody] CreateCustomerDto dto)
     {
         var customer = await _customerService.CreateAsync(dto);
@@ -55,6 +56,7 @@ public class CustomersController : ControllerBase
 
     /// <summary>Update an existing customer</summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "customers.edit")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Update(long id, [FromBody] UpdateCustomerDto dto)
     {
         var customer = await _customerService.UpdateAsync(id, dto);
@@ -63,6 +65,7 @@ public class CustomersController : ControllerBase
 
     /// <summary>Delete a customer</summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "customers.delete")]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {
         await _customerService.DeleteAsync(id);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Roles;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Core.Entities;
@@ -7,56 +8,54 @@ namespace RetailPOS.API.Services;
 
 public class RoleService : IRoleService
 {
-    private readonly IRoleRepository _roleRepository;
-    private readonly ILogger<RoleService> _logger;
-
-    // All available permissions in the system
-    private static readonly List<string> AllPermissions = new()
+    private static readonly Dictionary<string, string[]> LegacyPermissionAliases = new(StringComparer.OrdinalIgnoreCase)
     {
-        // User management
-        "users.view", "users.create", "users.edit", "users.delete",
-        
-        // Role management
-        "roles.view", "roles.create", "roles.edit", "roles.delete",
-        
-        // Product management
-        "products.view", "products.create", "products.edit", "products.delete",
-        
-        // Inventory management
-        "inventory.view", "inventory.adjust", "inventory.transfer",
-        
-        // Sales
-        "sales.view", "sales.create", "sales.void", "sales.refund",
-        
-        // Purchase orders
-        "purchases.view", "purchases.create", "purchases.edit", "purchases.approve",
-        
-        // GRN
-        "grn.view", "grn.create", "grn.receive",
-        
-        // Customers
-        "customers.view", "customers.create", "customers.edit", "customers.delete",
-        
-        // Suppliers
-        "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete",
-        
-        // Reports
-        "reports.sales", "reports.inventory", "reports.financial", "reports.export",
-        
-        // Settings
-        "settings.view", "settings.edit",
-        
-        // Audit logs
-        "audit.view",
-        
-        // Outlets & Warehouses
-        "outlets.view", "outlets.create", "outlets.edit", "outlets.delete",
-        "warehouses.view", "warehouses.create", "warehouses.edit", "warehouses.delete"
+        ["inventory.adjust"] = new[]
+        {
+            "stock_adjustments.view",
+            "stock_adjustments.create",
+            "stock_adjustments.edit",
+            "stock_adjustments.delete",
+            "stock_adjustments.approve",
+            "stock_adjustments.reject",
+            "stock_adjustments.cancel"
+        },
+        ["inventory.transfer"] = new[]
+        {
+            "stock_transfers.view",
+            "stock_transfers.create",
+            "stock_transfers.edit",
+            "stock_transfers.delete",
+            "stock_transfers.approve",
+            "stock_transfers.cancel",
+            "stock_transfers.dispatch",
+            "stock_transfers.receive",
+            "stock_transfers.reject_receive",
+            "stock_transfers.return_create",
+            "stock_transfers.transfer_from_any_location",
+            "stock_requisitions.view",
+            "stock_requisitions.create",
+            "stock_requisitions.edit",
+            "stock_requisitions.approve",
+            "stock_requisitions.reject",
+            "stock_requisitions.convert_to_transfer"
+        }
     };
 
-    public RoleService(IRoleRepository roleRepository, ILogger<RoleService> logger)
+    private readonly IRoleRepository _roleRepository;
+    private readonly IRoleSwitchContext _roleSwitchContext;
+    private readonly ITenantAccessService _tenantAccess;
+    private readonly ILogger<RoleService> _logger;
+
+    public RoleService(
+        IRoleRepository roleRepository,
+        IRoleSwitchContext roleSwitchContext,
+        ITenantAccessService tenantAccess,
+        ILogger<RoleService> logger)
     {
         _roleRepository = roleRepository;
+        _roleSwitchContext = roleSwitchContext;
+        _tenantAccess = tenantAccess;
         _logger = logger;
     }
 
@@ -64,7 +63,7 @@ public class RoleService : IRoleService
     {
         var role = await _roleRepository.GetByIdAsync(id);
         
-        if (role == null)
+        if (role == null || (IsSuperAdminRole(role.Name) && !_roleSwitchContext.IsSuperAdmin))
         {
             throw new KeyNotFoundException($"Role with ID {id} not found");
         }
@@ -75,20 +74,35 @@ public class RoleService : IRoleService
     public async Task<IEnumerable<RoleDto>> GetAllRolesAsync()
     {
         var roles = await _roleRepository.GetAllAsync();
-        return roles.Select(MapToDto);
+
+        if (!_roleSwitchContext.IsSuperAdmin)
+        {
+            roles = roles.Where(r => !IsSuperAdminRole(r.Name));
+        }
+
+        // Scope user count to caller's business so it matches the modal's tenant-scoped query
+        long? businessId = _tenantAccess.IsSuperAdmin ? null : _tenantAccess.EffectiveBusinessId;
+        return roles.Select(r => MapToDto(r, businessId));
     }
 
     public async Task<RoleDto> CreateRoleAsync(CreateRoleDto dto)
     {
+        if (IsSuperAdminRole(dto.Name) && !_roleSwitchContext.IsSuperAdmin)
+        {
+            throw new UnauthorizedAccessException("Only Super Admin can manage this role.");
+        }
+
         // Check if role name already exists
         if (await _roleRepository.ExistsAsync(dto.Name))
         {
             throw new InvalidOperationException($"Role with name '{dto.Name}' already exists");
         }
 
+        var normalizedPermissions = NormalizePermissions(dto.Permissions);
+
         // Validate permissions
-        var invalidPermissions = dto.Permissions
-            .Where(p => p != "*" && !AllPermissions.Contains(p))
+        var invalidPermissions = normalizedPermissions
+            .Where(p => p != "*" && !PermissionCatalog.All.Contains(p))
             .ToList();
 
         if (invalidPermissions.Any())
@@ -99,7 +113,7 @@ public class RoleService : IRoleService
         var role = new Role
         {
             Name = dto.Name,
-            Permissions = JsonSerializer.Serialize(dto.Permissions)
+            Permissions = JsonSerializer.Serialize(normalizedPermissions)
         };
 
         var createdRole = await _roleRepository.CreateAsync(role);
@@ -117,15 +131,27 @@ public class RoleService : IRoleService
             throw new KeyNotFoundException($"Role with ID {id} not found");
         }
 
+        if (IsSuperAdminRole(role.Name) && !_roleSwitchContext.IsSuperAdmin)
+        {
+            throw new UnauthorizedAccessException("Only Super Admin can manage this role.");
+        }
+
+        if (IsSuperAdminRole(dto.Name) && !_roleSwitchContext.IsSuperAdmin)
+        {
+            throw new UnauthorizedAccessException("Only Super Admin can manage this role.");
+        }
+
         // Check if name is being changed to an existing name
         if (role.Name != dto.Name && await _roleRepository.ExistsAsync(dto.Name))
         {
             throw new InvalidOperationException($"Role with name '{dto.Name}' already exists");
         }
 
+        var normalizedPermissions = NormalizePermissions(dto.Permissions);
+
         // Validate permissions
-        var invalidPermissions = dto.Permissions
-            .Where(p => p != "*" && !AllPermissions.Contains(p))
+        var invalidPermissions = normalizedPermissions
+            .Where(p => p != "*" && !PermissionCatalog.All.Contains(p))
             .ToList();
 
         if (invalidPermissions.Any())
@@ -134,7 +160,7 @@ public class RoleService : IRoleService
         }
 
         role.Name = dto.Name;
-        role.Permissions = JsonSerializer.Serialize(dto.Permissions);
+        role.Permissions = JsonSerializer.Serialize(normalizedPermissions);
 
         var updatedRole = await _roleRepository.UpdateAsync(role);
         _logger.LogInformation("Role updated: {RoleName}", dto.Name);
@@ -149,6 +175,11 @@ public class RoleService : IRoleService
         if (role == null)
         {
             throw new KeyNotFoundException($"Role with ID {id} not found");
+        }
+
+        if (IsSuperAdminRole(role.Name))
+        {
+            throw new InvalidOperationException("Super Admin role cannot be deleted.");
         }
 
         // Check if role is in use
@@ -169,10 +200,51 @@ public class RoleService : IRoleService
 
     public async Task<List<string>> GetAllPermissionsAsync()
     {
-        return await Task.FromResult(AllPermissions);
+        return await Task.FromResult(PermissionCatalog.All.ToList());
     }
 
-    private RoleDto MapToDto(Role role)
+    private static bool IsSuperAdminRole(string? roleName) =>
+        string.Equals(roleName, RoleSwitchClaims.SuperAdminRoleName, StringComparison.OrdinalIgnoreCase);
+
+    private static List<string> NormalizePermissions(IEnumerable<string>? permissions)
+    {
+        if (permissions == null)
+        {
+            return new List<string>();
+        }
+
+        var normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var permission in permissions)
+        {
+            if (string.IsNullOrWhiteSpace(permission))
+            {
+                continue;
+            }
+
+            var key = permission.Trim();
+
+            if (key == "*")
+            {
+                return new List<string> { "*" };
+            }
+
+            if (LegacyPermissionAliases.TryGetValue(key, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    normalized.Add(alias);
+                }
+                continue;
+            }
+
+            normalized.Add(key);
+        }
+
+        return normalized.ToList();
+    }
+
+    private RoleDto MapToDto(Role role, long? businessId = null)
     {
         List<string> permissions;
         try
@@ -184,12 +256,16 @@ public class RoleService : IRoleService
             permissions = new List<string>();
         }
 
+        var userCount = businessId.HasValue
+            ? role.Users?.Count(u => u.BusinessId == businessId) ?? 0
+            : role.Users?.Count ?? 0;
+
         return new RoleDto
         {
             Id = role.Id,
             Name = role.Name,
             Permissions = permissions,
-            UserCount = role.Users?.Count ?? 0,
+            UserCount = userCount,
             CreatedAt = role.CreatedAt,
             UpdatedAt = role.UpdatedAt
         };

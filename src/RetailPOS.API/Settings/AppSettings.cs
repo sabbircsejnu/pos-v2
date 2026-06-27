@@ -8,6 +8,7 @@ public class CompanySettings
     public string Email { get; set; } = string.Empty;
     public string Website { get; set; } = string.Empty;
     public string TaxNumber { get; set; } = string.Empty;
+    public string LogoBase64 { get; set; } = string.Empty;
 
     // Legacy fields (kept for backwards compatibility with existing system-settings.json).
     public string Currency { get; set; } = "BDT";

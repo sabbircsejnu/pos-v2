@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SupplierService } from '../../services/supplier.service';
 import { AlertService } from '../../services/alert.service';
@@ -23,6 +23,7 @@ export class SupplierDetailsComponent implements OnInit {
   constructor(
     private supplierService: SupplierService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
@@ -47,7 +48,7 @@ export class SupplierDetailsComponent implements OnInit {
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
         this.isLoading.set(false);
-        this.router.navigate(['/suppliers']);
+        this.location.back();
       }
     });
   }
@@ -82,7 +83,7 @@ export class SupplierDetailsComponent implements OnInit {
           this.supplierService.delete(supplier.id).subscribe({
             next: () => {
               this.alertService.success('Supplier deleted successfully');
-              this.router.navigate(['/suppliers']);
+              this.location.back();
             },
             error: (err) => {
               this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -94,7 +95,7 @@ export class SupplierDetailsComponent implements OnInit {
   }
 
   backToList(): void {
-    this.router.navigate(['/suppliers']);
+    this.location.back();
   }
 
   getHealthStatusClass(status: string): string {

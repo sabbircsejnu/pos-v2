@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = "products.view")]
     public class VariationsController : ControllerBase
     {
         private readonly IVariationService _variationService;
@@ -35,6 +35,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse<VariationDto>>> Create([FromBody] CreateVariationDto dto)
         {
             var variation = await _variationService.CreateVariationAsync(dto);
@@ -45,6 +46,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse<VariationDto>>> Update(long id, [FromBody] UpdateVariationDto dto)
         {
             var variation = await _variationService.UpdateVariationAsync(id, dto);
@@ -52,6 +54,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse>> Delete(long id)
         {
             await _variationService.DeleteVariationAsync(id);
@@ -59,6 +62,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPost("{variationId}/options")]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse<VariationOptionDto>>> CreateOption(long variationId, [FromBody] CreateVariationOptionDto dto)
         {
             var option = await _variationService.CreateOptionAsync(variationId, dto);
@@ -69,6 +73,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPut("options/{optionId}")]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse<VariationOptionDto>>> UpdateOption(long optionId, [FromBody] UpdateVariationOptionDto dto)
         {
             var option = await _variationService.UpdateOptionAsync(optionId, dto);
@@ -76,6 +81,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpDelete("options/{optionId}")]
+        [Authorize(Policy = "products.edit")]
         public async Task<ActionResult<ApiResponse>> DeleteOption(long optionId)
         {
             await _variationService.DeleteOptionAsync(optionId);

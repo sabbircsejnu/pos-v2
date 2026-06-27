@@ -16,21 +16,21 @@ public class RoleRepository : IRoleRepository
     public async Task<Role?> GetByIdAsync(long id)
     {
         return await _context.Roles
-            .Include(r => r.Users)
+            .Include(r => r.Users.Where(u => u.IsActive))
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
     public async Task<Role?> GetByNameAsync(string name)
     {
         return await _context.Roles
-            .Include(r => r.Users)
+            .Include(r => r.Users.Where(u => u.IsActive))
             .FirstOrDefaultAsync(r => r.Name == name);
     }
 
     public async Task<IEnumerable<Role>> GetAllAsync()
     {
         return await _context.Roles
-            .Include(r => r.Users)
+            .Include(r => r.Users.Where(u => u.IsActive))
             .OrderBy(r => r.Name)
             .ToListAsync();
     }
@@ -76,6 +76,6 @@ public class RoleRepository : IRoleRepository
 
     public async Task<bool> IsRoleInUseAsync(long id)
     {
-        return await _context.Users.AnyAsync(u => u.RoleId == id);
+        return await _context.Users.AnyAsync(u => u.RoleId == id && u.IsActive);
     }
 }

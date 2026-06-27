@@ -8,37 +8,48 @@
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Stock Transfer Details</h1>
         @if (transfer()) {
-          <p class="text-sm text-gray-600 mt-0.5">Transfer #{{ transfer()!.id }}</p>
+          <p class="text-sm text-gray-600 mt-0.5">Transfer #{{ transfer()!.transferNo || transfer()!.id }}</p>
         }
       </div>
     </div>
 
     @if (transfer()) {
       <div class="flex items-center gap-2">
+        <a
+          [routerLink]="['/barcode-labels']"
+          [queryParams]="{ query: transfer()!.id, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
+          class="btn btn-outline"
+          *ngIf="auth.hasPermission('barcode.view')">
+          <i class="fas fa-barcode"></i> Print Barcode
+        </a>
         <span class="px-3 py-1 rounded-full text-sm font-semibold"
               [ngClass]="getStatusColor(transfer()!.status)">
           {{ getStatusLabel(transfer()!.status) }}
         </span>
-        @if (transfer()!.status === 'pending') {
+        <span class="px-3 py-1 rounded-full text-sm font-semibold bg-indigo-100 text-indigo-700">
+          {{ getTypeLabel(transfer()!.transferType) }}
+        </span>
+        @if ((transfer()!.status === 'submitted' || transfer()!.status === 'pending') && auth.hasPermission('stock_transfers.approve')) {
           <button (click)="approve()" class="btn btn-primary">
             <i class="fas fa-check"></i> Approve
           </button>
+        }
+        @if ((transfer()!.status === 'submitted' || transfer()!.status === 'approved' || transfer()!.status === 'in_transit') && auth.hasPermission('stock_transfers.reject_receive') && canReceiveOrRejectCurrentTransfer()) {
           <button (click)="reject()" class="btn btn-outline text-red-600 border-red-300">
             <i class="fas fa-times"></i> Reject
           </button>
+        }
+        @if ((transfer()!.status === 'draft' || transfer()!.status === 'submitted' || transfer()!.status === 'pending' || transfer()!.status === 'approved') && auth.hasPermission('stock_transfers.cancel')) {
           <button (click)="cancel()" class="btn btn-outline">
             <i class="fas fa-ban"></i> Cancel
           </button>
         }
-        @if (transfer()!.status === 'approved') {
+        @if (transfer()!.status === 'approved' && auth.hasPermission('stock_transfers.dispatch')) {
           <button (click)="send()" class="btn btn-primary">
             <i class="fas fa-truck-moving"></i> Send
           </button>
-          <button (click)="cancel()" class="btn btn-outline">
-            <i class="fas fa-ban"></i> Cancel
-          </button>
         }
-        @if (transfer()!.status === 'in_transit') {
+        @if (transfer()!.status === 'in_transit' && auth.hasPermission('stock_transfers.receive') && canReceiveOrRejectCurrentTransfer()) {
           <button (click)="receive()" class="btn btn-primary">
             <i class="fas fa-box-open"></i> Receive
           </button>
@@ -94,6 +105,12 @@
           <p class="text-xs text-gray-500 uppercase tracking-wide">Transfer Date</p>
           <p class="font-medium text-gray-900 mt-1">{{ formatDate(transfer()!.transferDate) }}</p>
         </div>
+        @if (transfer()!.notes) {
+          <div class="md:col-span-2">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Notes</p>
+            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.notes }}</p>
+          </div>
+        }
         <div>
           <p class="text-xs text-gray-500 uppercase tracking-wide">Created At</p>
           <p class="font-medium text-gray-900 mt-1">{{ formatDateTime(transfer()!.createdAt) }}</p>
@@ -126,7 +143,11 @@
                 <th class="px-4 py-2.5">#</th>
                 <th class="px-4 py-2.5">Product</th>
                 <th class="px-4 py-2.5">SKU</th>
-                <th class="px-4 py-2.5 text-right">Quantity</th>
+                <th class="px-4 py-2.5 text-right">Requested</th>
+                <th class="px-4 py-2.5 text-right">Transfer</th>
+                <th class="px-4 py-2.5 text-right">Accepted</th>
+                <th class="px-4 py-2.5 text-right">Rejected</th>
+                <th class="px-4 py-2.5 text-center">Barcode</th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +156,20 @@
                   <td class="px-4 py-2.5 text-gray-500">{{ i + 1 }}</td>
                   <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
                   <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.quantity }}</td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.requestedQuantity || getEffectiveTransferQty(item) }}</td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ getEffectiveTransferQty(item) }}</td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-green-700">{{ item.acceptedQuantity || 0 }}</td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-red-700">{{ item.rejectedQuantity || 0 }}</td>
+                  <td class="px-4 py-2.5 text-center">
+                    <a
+                      *ngIf="auth.hasPermission('barcode.view')"
+                      [routerLink]="['/barcode-labels']"
+                      [queryParams]="{ query: item.variantSku, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
+                      class="text-indigo-600 hover:text-indigo-900 text-sm"
+                    >
+                      Print
+                    </a>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -165,6 +199,65 @@
           <button (click)="closeReasonModal()" class="btn btn-outline">Cancel</button>
           <button (click)="submitReason()" class="btn btn-primary">Confirm</button>
         </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Receive Modal -->
+@if (showReceiveModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] overflow-hidden">
+      <div class="p-6 border-b border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900">Receive Transfer</h2>
+        <p class="text-sm text-gray-600 mt-1">Set accepted and rejected quantities for each item.</p>
+      </div>
+      <div class="p-6 overflow-y-auto max-h-[58vh]">
+        <div class="space-y-3">
+          @for (row of receiveItems(); track row.variantId; let i = $index) {
+            <div class="grid grid-cols-12 gap-3 p-3 bg-gray-50 rounded-lg">
+              <div class="col-span-4">
+                <div class="font-medium text-gray-900">{{ row.productName }}</div>
+                <div class="text-xs text-gray-500">{{ row.variantSku }}</div>
+              </div>
+              <div class="col-span-2">
+                <label class="label">Transfer Qty</label>
+                <input class="input" type="number" [ngModel]="row.transferQuantity" disabled />
+              </div>
+              <div class="col-span-2">
+                <label class="label">Accepted</label>
+                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                       [ngModel]="row.acceptedQuantity" (ngModelChange)="updateReceiveAccepted(i, $event)" />
+              </div>
+              <div class="col-span-2">
+                <label class="label">Rejected</label>
+                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                       [ngModel]="row.rejectedQuantity" (ngModelChange)="updateReceiveRejected(i, $event)" />
+              </div>
+              <div class="col-span-2">
+                <label class="label">Remarks</label>
+                <input class="input" type="text" [ngModel]="row.remarks" (ngModelChange)="updateReceiveRemarks(i, $event)" />
+              </div>
+            </div>
+          }
+        </div>
+        <div class="mt-4">
+          <label class="label">Receive Notes</label>
+          <textarea class="input resize-none" rows="2" [ngModel]="receiveNotes()" (ngModelChange)="receiveNotes.set($event)"
+                    placeholder="Optional notes for this receive action"></textarea>
+        </div>
+      </div>
+      <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <button (click)="closeReceiveModal()" class="btn btn-outline" [disabled]="isReceiving()">Cancel</button>
+        <button (click)="submitReceive()" class="btn btn-primary" [disabled]="isReceiving()">
+          @if (isReceiving()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Receiving...
+          } @else {
+            <i class="fas fa-check"></i>
+            Confirm Receive
+          }
+        </button>
       </div>
     </div>
   </div>

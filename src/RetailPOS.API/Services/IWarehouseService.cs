@@ -11,4 +11,10 @@ public interface IWarehouseService
     Task<bool> DeleteWarehouseAsync(long id);
     Task<IEnumerable<WarehouseDto>> SearchWarehousesAsync(string searchTerm);
     Task<WarehouseStatsDto?> GetWarehouseStatsAsync(long id);
+
+    // Super Admin business-scoped operations (explicit businessId, bypasses tenant context)
+    Task<IEnumerable<WarehouseDto>> GetByBusinessIdAsync(long businessId);
+    Task<WarehouseDto> CreateForBusinessAsync(long businessId, CreateWarehouseDto dto);
+    Task<WarehouseDto> UpdateForBusinessAsync(long businessId, long id, UpdateWarehouseDto dto);
+    Task<bool> DeleteForBusinessAsync(long businessId, long id);
 }

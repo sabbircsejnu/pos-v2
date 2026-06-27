@@ -126,6 +126,7 @@ The system uses a JSONB-based permission system. Here are the available permissi
 - `purchases.create` - Create purchases
 - `purchases.edit` - Edit purchases
 - `purchases.delete` - Delete purchases
+- `purchases.receive` - Purchase and receive stock immediately
 
 ### Customer Management
 - `customers.view` - View customers

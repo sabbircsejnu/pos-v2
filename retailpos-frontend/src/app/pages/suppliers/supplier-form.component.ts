@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SupplierService } from '../../services/supplier.service';
@@ -25,6 +25,7 @@ export class SupplierFormComponent implements OnInit {
     private fb: FormBuilder,
     private supplierService: SupplierService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
@@ -67,7 +68,7 @@ export class SupplierFormComponent implements OnInit {
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
         this.isLoading.set(false);
-        this.router.navigate(['/suppliers']);
+        this.location.back();
       }
     });
   }
@@ -93,7 +94,7 @@ export class SupplierFormComponent implements OnInit {
       this.supplierService.update(this.supplierId()!, updateDto).subscribe({
         next: () => {
           this.alertService.success('Supplier updated successfully');
-          this.router.navigate(['/suppliers']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -111,7 +112,7 @@ export class SupplierFormComponent implements OnInit {
       this.supplierService.create(createDto).subscribe({
         next: () => {
           this.alertService.success('Supplier created successfully');
-          this.router.navigate(['/suppliers']);
+          this.location.back();
         },
         error: (err) => {
           this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -122,7 +123,7 @@ export class SupplierFormComponent implements OnInit {
   }
 
   onCancel(): void {
-    this.router.navigate(['/suppliers']);
+    this.location.back();
   }
 
   private markFormGroupTouched(formGroup: FormGroup): void {

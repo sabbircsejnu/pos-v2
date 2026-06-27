@@ -75,6 +75,7 @@ public class InventoryService : IInventoryService
             {
                 InventoryId = i.Id,
                 ProductVariantId = i.VariantId,
+                LocationId = i.LocationId,
                 ProductName = i.Variant?.Product?.Name ?? "Unknown",
                 VariantName = i.Variant?.Name ?? "Default",
                 Sku = i.Variant?.Sku,
@@ -114,8 +115,9 @@ public class InventoryService : IInventoryService
     public async Task<List<InventoryDto>> SearchAsync(InventorySearchDto searchDto)
     {
         var inventories = await _inventoryRepository.SearchAsync(
-            searchDto.ProductName,
-            searchDto.Sku,
+            searchDto.ProductSearch,
+            searchDto.VariantId,
+            searchDto.VariantSearch,
             searchDto.CategoryId,
             searchDto.OutletId,
             searchDto.WarehouseId,
@@ -176,14 +178,14 @@ public class InventoryService : IInventoryService
 
         if (outletId.HasValue)
         {
-            query = query.Where(i => i.LocationType == "outlet" && i.LocationId == outletId);
+            query = query.Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId);
             var outlet = await _context.Outlets.FindAsync(outletId.Value);
             locationName = outlet?.Name ?? "Unknown Outlet";
             locationType = "Outlet";
         }
         else if (warehouseId.HasValue)
         {
-            query = query.Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId);
+            query = query.Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId);
             var warehouse = await _context.Warehouses.FindAsync(warehouseId.Value);
             locationName = warehouse?.Name ?? "Unknown Warehouse";
             locationType = "Warehouse";
@@ -226,7 +228,7 @@ public class InventoryService : IInventoryService
 
         // Group by outlets
         var outletGroups = inventories
-            .Where(i => i.LocationType == "outlet")
+            .Where(i => i.LocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase))
             .GroupBy(i => i.LocationId);
 
         foreach (var group in outletGroups)
@@ -247,7 +249,7 @@ public class InventoryService : IInventoryService
 
         // Group by warehouses
         var warehouseGroups = inventories
-            .Where(i => i.LocationType == "warehouse")
+            .Where(i => i.LocationType.Equals("warehouse", StringComparison.OrdinalIgnoreCase))
             .GroupBy(i => i.LocationId);
 
         foreach (var group in warehouseGroups)
@@ -284,16 +286,18 @@ public class InventoryService : IInventoryService
         return new InventoryDto
         {
             Id = inventory.Id,
+            ProductId = inventory.Variant?.ProductId ?? 0,
             ProductVariantId = inventory.VariantId,
             ProductName = inventory.Variant?.Product?.Name ?? "Unknown",
+            ProductCode = inventory.Variant?.Product?.ProductCode,
             VariantName = inventory.Variant?.Name ?? "Default",
             Sku = inventory.Variant?.Sku,
             Barcode = inventory.Variant?.Barcode,
-            OutletId = inventory.LocationType == "outlet" ? inventory.LocationId : null,
-            OutletName = inventory.LocationType == "outlet" ? locationName : null,
-            WarehouseId = inventory.LocationType == "warehouse" ? inventory.LocationId : null,
-            WarehouseName = inventory.LocationType == "warehouse" ? locationName : null,
-            LocationType = inventory.LocationType == "outlet" ? "Outlet" : "Warehouse",
+            OutletId = inventory.LocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase) ? inventory.LocationId : null,
+            OutletName = inventory.LocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase) ? locationName : null,
+            WarehouseId = inventory.LocationType.Equals("warehouse", StringComparison.OrdinalIgnoreCase) ? inventory.LocationId : null,
+            WarehouseName = inventory.LocationType.Equals("warehouse", StringComparison.OrdinalIgnoreCase) ? locationName : null,
+            LocationType = inventory.LocationType.Equals("outlet", StringComparison.OrdinalIgnoreCase) ? "Outlet" : "Warehouse",
             Quantity = inventory.Quantity,
             ReorderLevel = inventory.LowStockThreshold,
             MaxStockLevel = null, // Not available in entity
@@ -307,15 +311,18 @@ public class InventoryService : IInventoryService
 
     private async Task<string> GetLocationNameAsync(long locationId, string locationType)
     {
-        if (locationType == "outlet")
+        if (locationType.Equals("outlet", StringComparison.OrdinalIgnoreCase))
         {
             var outlet = await _context.Outlets.FindAsync(locationId);
             return outlet?.Name ?? "Unknown Outlet";
         }
-        else
+
+        if (locationType.Equals("warehouse", StringComparison.OrdinalIgnoreCase))
         {
             var warehouse = await _context.Warehouses.FindAsync(locationId);
             return warehouse?.Name ?? "Unknown Warehouse";
         }
+
+        return $"Unknown Location {locationId}";
     }
 }

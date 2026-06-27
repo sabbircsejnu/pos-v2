@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { UserService } from '../../services/user.service';
 import { User } from '../../models/user.model';
@@ -13,6 +13,7 @@ import { User } from '../../models/user.model';
 })
 export class UserDetailsComponent implements OnInit {
   private router = inject(Router);
+  private location = inject(Location);
   private route = inject(ActivatedRoute);
   private userService = inject(UserService);
 
@@ -54,7 +55,7 @@ export class UserDetailsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/users']);
+    this.location.back();
   }
 
   toggleStatus(): void {
@@ -93,7 +94,7 @@ export class UserDetailsComponent implements OnInit {
     this.userService.deleteUser(user.id).subscribe({
       next: () => {
         alert('User deleted successfully!');
-        this.router.navigate(['/users']);
+        this.location.back();
       },
       error: (err) => {
         console.error('Error deleting user:', err);

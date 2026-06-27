@@ -29,7 +29,7 @@ namespace RetailPOS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/pos")]
-[Authorize]
+[Authorize(Policy = "sales.create")]
 public class PosController : ControllerBase
 {
     private readonly IPosLookupService      _posLookup;

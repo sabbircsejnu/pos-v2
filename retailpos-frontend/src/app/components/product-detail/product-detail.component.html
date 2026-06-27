@@ -1,0 +1,343 @@
+<div class="container mx-auto px-4 py-4">
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="card p-12 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-3"></i>
+      <p class="text-sm text-gray-500">Loading product details…</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error() && !isLoading()) {
+    <div class="card p-6">
+      <div class="alert alert-error mb-4">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>{{ error() }}</p>
+      </div>
+      <button (click)="goBack()" class="btn btn-outline">
+        <i class="fas fa-arrow-left mr-2"></i>Back
+      </button>
+    </div>
+  }
+
+  <!-- Product Detail -->
+  @if (product() && !isLoading()) {
+    <div>
+
+      <!-- Page Header -->
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+            <a [routerLink]="['/products']" [queryParams]="listQueryParams()" class="hover:text-gray-900">Products</a>
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span class="text-gray-900 font-medium">{{ product()!.name }}</span>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900">{{ product()!.name }}</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="goBack()" class="btn btn-outline">
+            <i class="fas fa-arrow-left mr-1"></i> Back
+          </button>
+          <a [routerLink]="['/products/edit', product()!.id]" [queryParams]="listQueryParams()" class="btn btn-primary">
+            <i class="fas fa-edit mr-1"></i> Edit
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- LEFT: Images -->
+        <div class="lg:col-span-1 space-y-3">
+
+          <!-- Primary / active image -->
+          <div class="card p-2">
+            @if (activeImageUrl()) {
+              <img
+                [src]="activeImageUrl()!"
+                [alt]="product()!.name"
+                (click)="openLightbox()"
+                class="w-full aspect-square object-cover rounded cursor-zoom-in"
+                loading="lazy" />
+            } @else {
+              <div class="w-full aspect-square bg-gray-100 rounded flex items-center justify-center">
+                <i class="fas fa-box text-gray-300 text-5xl"></i>
+              </div>
+            }
+          </div>
+
+          <!-- Thumbnails -->
+          @if (images().length > 1) {
+            <div class="flex flex-wrap gap-2">
+              @for (img of images(); track img.id) {
+                <button
+                  (click)="selectImage(img)"
+                  [class.ring-2]="activeImageUrl() === resolveImage(img.mediumUrl)"
+                  class="ring-gray-900 rounded overflow-hidden w-14 h-14 border border-gray-200 hover:border-gray-400 transition">
+                  <img
+                    [src]="resolveImage(img.thumbUrl)"
+                    [alt]="product()!.name"
+                    class="w-full h-full object-cover"
+                    loading="lazy" />
+                </button>
+              }
+            </div>
+          }
+
+          <!-- Status card -->
+          <div class="card p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-gray-500">Status</span>
+              @if (product()!.status === 'active') {
+                <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Active</span>
+              } @else if (product()!.status === 'draft') {
+                <span class="badge badge-warning"><i class="fas fa-pencil-alt mr-1"></i>Draft</span>
+              } @else {
+                <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Inactive</span>
+              }
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-gray-500">Variants</span>
+              @if (product()!.hasVariants) {
+                <span class="badge badge-primary">{{ product()!.variantCount }}</span>
+              } @else {
+                <span class="text-sm text-gray-700">Single SKU</span>
+              }
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-gray-500">Total Stock</span>
+              @if (product()!.totalStock > 0) {
+                <span class="badge badge-success">{{ product()!.totalStock }}</span>
+              } @else {
+                <span class="badge badge-danger">Out of Stock</span>
+              }
+            </div>
+          </div>
+
+        </div><!-- /LEFT -->
+
+        <!-- RIGHT: Details -->
+        <div class="lg:col-span-2 space-y-4">
+
+          <!-- Identification card -->
+          <div class="card">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <i class="fas fa-tag mr-2 text-indigo-500"></i>Identification
+              </h2>
+            </div>
+            <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              <!-- Product Code -->
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Product Code</p>
+                @if (product()!.productCode) {
+                  <span class="font-mono text-sm font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    {{ product()!.productCode }}
+                  </span>
+                } @else {
+                  <span class="text-sm text-gray-400">—</span>
+                }
+              </div>
+
+              <!-- SKU -->
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">SKU</p>
+                @if (product()!.sku) {
+                  <span class="font-mono text-sm text-gray-900">{{ product()!.sku }}</span>
+                } @else {
+                  <span class="text-sm text-gray-400">—</span>
+                }
+              </div>
+
+              <!-- Barcode -->
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Barcode</p>
+                @if (product()!.barcode) {
+                  <span class="font-mono text-sm text-gray-900">{{ product()!.barcode }}</span>
+                } @else {
+                  <span class="text-sm text-gray-400">—</span>
+                }
+              </div>
+
+              <!-- Category -->
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Category</p>
+                <span class="badge badge-primary">{{ product()!.categoryName }}</span>
+              </div>
+
+              <!-- ID -->
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">System ID</p>
+                <span class="text-sm text-gray-700">#{{ product()!.id }}</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Pricing card -->
+          <div class="card">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <i class="fas fa-dollar-sign mr-2 text-green-500"></i>Pricing
+              </h2>
+            </div>
+            <div class="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Selling Price</p>
+                <p class="text-lg font-bold text-gray-900">{{ product()!.basePrice | appCurrency }}</p>
+              </div>
+
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Cost Price</p>
+                <p class="text-lg font-semibold text-gray-700">
+                  @if (canViewCost() && product()!.costPrice > 0) {
+                    {{ product()!.costPrice | appCurrency }}
+                  } @else if (canViewCost()) {
+                    <span class="text-sm text-gray-400">—</span>
+                  } @else {
+                    <span class="text-sm text-gray-400">Restricted</span>
+                  }
+                </p>
+              </div>
+
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Profit Margin</p>
+                <p class="text-lg font-semibold"
+                   [class.text-green-600]="canViewCost() && profitMargin > 0"
+                   [class.text-red-600]="canViewCost() && profitMargin < 0"
+                   [class.text-gray-400]="!canViewCost() || profitMargin === 0">
+                  @if (canViewCost() && product()!.costPrice > 0) {
+                    {{ profitMargin | number:'1.1-1' }}%
+                  } @else {
+                    <span class="text-sm text-gray-400">—</span>
+                  }
+                </p>
+              </div>
+
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Tax Rate</p>
+                <p class="text-lg font-semibold text-gray-700">{{ product()!.taxRate }}%</p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Description card -->
+          @if (product()!.description) {
+            <div class="card">
+              <div class="px-4 py-3 border-b border-gray-100">
+                <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                  <i class="fas fa-align-left mr-2 text-gray-400"></i>Description
+                </h2>
+              </div>
+              <div class="p-4">
+                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ product()!.description }}</p>
+              </div>
+            </div>
+          }
+
+          <!-- Variants card -->
+          @if (product()!.hasVariants && product()!.variants.length) {
+            <div class="card">
+              <div class="px-4 py-3 border-b border-gray-100">
+                <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                  <i class="fas fa-layer-group mr-2 text-purple-500"></i>
+                  Variants
+                  <span class="ml-2 badge badge-primary">{{ product()!.variantCount }}</span>
+                </h2>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th class="px-4 py-2.5">Variant</th>
+                      <th class="px-4 py-2.5">SKU</th>
+                      <th class="px-4 py-2.5">Barcode</th>
+                      <th class="px-4 py-2.5 text-right">Price Adj.</th>
+                      <th class="px-4 py-2.5 text-right">Final Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (v of product()!.variants; track v.id) {
+                      <tr>
+                        <td class="px-4 py-2.5 font-medium text-sm text-gray-900">{{ v.name }}</td>
+                        <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ v.sku || '—' }}</td>
+                        <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ v.barcode || '—' }}</td>
+                        <td class="px-4 py-2.5 text-right text-sm">
+                          @if (v.priceAdjustment !== 0) {
+                            <span [class.text-green-600]="v.priceAdjustment > 0"
+                                  [class.text-red-600]="v.priceAdjustment < 0">
+                              {{ v.priceAdjustment > 0 ? '+' : '' }}{{ v.priceAdjustment | appCurrency }}
+                            </span>
+                          } @else {
+                            <span class="text-gray-400">—</span>
+                          }
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-semibold text-sm text-gray-900">
+                          {{ v.finalPrice | appCurrency }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- Timestamps -->
+          <div class="card p-4">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Created</p>
+                <p class="text-gray-700">{{ product()!.createdAt | date:'mediumDate' }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-gray-500 mb-1">Last Updated</p>
+                <p class="text-gray-700">{{ product()!.updatedAt | date:'mediumDate' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick links -->
+          <div class="card p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Quick Links</p>
+            <div class="flex flex-wrap gap-2">
+              <a
+                [routerLink]="['/reports/stock-transactions']"
+                [queryParams]="{ productId: product()!.id }"
+                class="btn btn-outline text-xs py-1.5">
+                <i class="fas fa-list-alt mr-1"></i> Stock Transactions
+              </a>
+              <a
+                [routerLink]="['/inventory']"
+                [queryParams]="{ productId: product()!.id }"
+                class="btn btn-outline text-xs py-1.5">
+                <i class="fas fa-warehouse mr-1"></i> Inventory
+              </a>
+              <a
+                [routerLink]="['/barcode-labels']"
+                [queryParams]="{ query: product()!.productCode || product()!.sku || product()!.name, sourceModule: 'product-details', sourceReferenceType: 'product', sourceReferenceId: product()!.id }"
+                class="btn btn-outline text-xs py-1.5"
+                *ngIf="auth.hasPermission('barcode.view')">
+                <i class="fas fa-barcode mr-1"></i> Print Barcode
+              </a>
+            </div>
+          </div>
+
+        </div><!-- /RIGHT -->
+      </div><!-- /grid -->
+    </div>
+  }
+
+</div>
+
+<!-- Image Lightbox -->
+@if (lightboxImage()) {
+  <app-image-lightbox
+    [src]="lightboxImage()!.medium"
+    (closed)="lightboxImage.set(null)">
+  </app-image-lightbox>
+}

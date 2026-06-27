@@ -8,6 +8,8 @@ public class ProductVariantSearchDto
     public long Id { get; set; }
     public long ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
+    /// <summary>Main product code from the parent product.</summary>
+    public string? ProductCode { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Sku { get; set; }
     public string? Barcode { get; set; }

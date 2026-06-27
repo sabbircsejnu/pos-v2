@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
 using RetailPOS.API.Settings;
@@ -8,7 +9,6 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class SettingsController : ControllerBase
 {
     private readonly ISettingsService _settingsService;
@@ -20,6 +20,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets all system settings.</summary>
     [HttpGet]
+    [Authorize(Policy = "settings.view")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> GetAll()
     {
         var settings = await _settingsService.GetAllSettingsAsync();
@@ -28,6 +29,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets company settings.</summary>
     [HttpGet("company")]
+    [Authorize(Policy = "settings.view")]
     public async Task<ActionResult<ApiResponse<CompanySettings>>> GetCompany()
     {
         var settings = await _settingsService.GetCompanySettingsAsync();
@@ -36,6 +38,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Updates company settings.</summary>
     [HttpPut("company")]
+    [Authorize(Policy = "settings.edit")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCompany([FromBody] CompanySettings settings)
     {
         var result = await _settingsService.UpdateCompanySettingsAsync(settings);
@@ -53,6 +56,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Updates currency settings.</summary>
     [HttpPut("currency")]
+    [Authorize(Policy = "settings.edit")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCurrency([FromBody] CurrencySettings settings)
     {
         var validation = ValidateCurrency(settings);
@@ -100,6 +104,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets tax settings.</summary>
     [HttpGet("tax")]
+    [Authorize(Policy = "settings.view")]
     public async Task<ActionResult<ApiResponse<TaxSettings>>> GetTax()
     {
         var settings = await _settingsService.GetTaxSettingsAsync();
@@ -108,6 +113,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Updates tax settings.</summary>
     [HttpPut("tax")]
+    [Authorize(Policy = "settings.edit")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateTax([FromBody] TaxSettings settings)
     {
         var result = await _settingsService.UpdateTaxSettingsAsync(settings);
@@ -116,6 +122,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets receipt settings.</summary>
     [HttpGet("receipt")]
+    [Authorize(Policy = "settings.view")]
     public async Task<ActionResult<ApiResponse<ReceiptSettings>>> GetReceipt()
     {
         var settings = await _settingsService.GetReceiptSettingsAsync();
@@ -124,6 +131,7 @@ public class SettingsController : ControllerBase
 
     /// <summary>Updates receipt settings.</summary>
     [HttpPut("receipt")]
+    [Authorize(Policy = "settings.edit")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateReceipt([FromBody] ReceiptSettings settings)
     {
         var result = await _settingsService.UpdateReceiptSettingsAsync(settings);
@@ -134,12 +142,23 @@ public class SettingsController : ControllerBase
     [HttpGet("inventory")]
     public async Task<ActionResult<ApiResponse<InventorySettings>>> GetInventory()
     {
+        var canViewInventorySettings = User.HasPermission("settings.view")
+            || User.HasPermission("inventory.view")
+            || User.HasPermission("stock_adjustments.view")
+            || User.HasPermission("stock_adjustments.create");
+
+        if (!canViewInventorySettings)
+        {
+            return Forbid();
+        }
+
         var settings = await _settingsService.GetInventorySettingsAsync();
         return Ok(ApiResponse<InventorySettings>.SuccessResponse(settings));
     }
 
     /// <summary>Updates inventory settings.</summary>
     [HttpPut("inventory")]
+    [Authorize(Policy = "settings.edit")]
     public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInventory([FromBody] InventorySettings settings)
     {
         var result = await _settingsService.UpdateInventorySettingsAsync(settings);

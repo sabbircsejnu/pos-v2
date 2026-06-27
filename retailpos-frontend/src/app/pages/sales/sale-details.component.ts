@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule, DatePipe, Location } from '@angular/common';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,6 +26,7 @@ export class SaleDetailsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     public saleService: SaleService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
@@ -91,7 +92,7 @@ export class SaleDetailsComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/sales']);
+    this.location.back();
   }
 
   getStatusClass(status: string): string {

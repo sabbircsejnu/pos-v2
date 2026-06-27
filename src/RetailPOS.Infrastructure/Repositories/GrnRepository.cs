@@ -23,6 +23,8 @@ public class GrnRepository : IGrnRepository
                 .ThenInclude(po => po.Supplier)
             .Include(g => g.PurchaseOrder)
                 .ThenInclude(po => po.Warehouse)
+            .Include(g => g.PurchaseOrder)
+                .ThenInclude(po => po.Creator)
             .Include(g => g.Creator)
             .Include(g => g.Items)
                 .ThenInclude(i => i.PurchaseOrderItem)
@@ -38,6 +40,8 @@ public class GrnRepository : IGrnRepository
                 .ThenInclude(po => po.Supplier)
             .Include(g => g.PurchaseOrder)
                 .ThenInclude(po => po.Warehouse)
+            .Include(g => g.PurchaseOrder)
+                .ThenInclude(po => po.Creator)
             .Include(g => g.Creator)
             .Include(g => g.Items)
             .AsQueryable();
@@ -69,6 +73,8 @@ public class GrnRepository : IGrnRepository
                 .ThenInclude(po => po.Supplier)
             .Include(g => g.PurchaseOrder)
                 .ThenInclude(po => po.Warehouse)
+            .Include(g => g.PurchaseOrder)
+                .ThenInclude(po => po.Creator)
             .Include(g => g.Creator)
             .Include(g => g.Items)
             .AsQueryable();

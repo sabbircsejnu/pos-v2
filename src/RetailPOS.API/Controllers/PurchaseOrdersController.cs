@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
+using RetailPOS.API.Documents.Pdf;
 using RetailPOS.API.DTOs.PurchaseOrder;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
@@ -16,13 +18,16 @@ namespace RetailPOS.API.Controllers;
 public class PurchaseOrdersController : ControllerBase
 {
     private readonly IPurchaseOrderService _purchaseOrderService;
+    private readonly IPurchaseOrderPdfService _purchaseOrderPdfService;
     private readonly IAuditContext _auditCtx;
     private readonly IAuditService _auditSvc;
 
     public PurchaseOrdersController(IPurchaseOrderService purchaseOrderService,
+        IPurchaseOrderPdfService purchaseOrderPdfService,
         IAuditContext auditCtx, IAuditService auditSvc)
     {
         _purchaseOrderService = purchaseOrderService;
+        _purchaseOrderPdfService = purchaseOrderPdfService;
         _auditCtx = auditCtx;
         _auditSvc = auditSvc;
     }
@@ -58,6 +63,16 @@ public class PurchaseOrdersController : ControllerBase
     {
         var po = await _purchaseOrderService.GetByIdAsync(id);
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po));
+    }
+
+    /// <summary>
+    /// Download purchase order as PDF
+    /// </summary>
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> DownloadPdf(long id, CancellationToken cancellationToken)
+    {
+        var pdf = await _purchaseOrderPdfService.GenerateAsync(id, User.CanViewCost(), cancellationToken);
+        return File(pdf.Content, "application/pdf", pdf.FileName);
     }
 
     /// <summary>
@@ -98,6 +113,44 @@ public class PurchaseOrdersController : ControllerBase
             nameof(GetById),
             new { id = po.Id },
             ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order created successfully"));
+    }
+
+    /// <summary>
+    /// Create purchase order and immediately receive stock (auto-GRN).
+    /// </summary>
+    [HttpPost("purchase-receive")]
+    [Authorize(Policy = "purchases.receive")]
+    public async Task<ActionResult<ApiResponse<PurchaseAndReceiveResultDto>>> PurchaseAndReceive([FromBody] CreatePurchaseAndReceiveDto dto)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        long? userId = long.TryParse(userIdClaim, out var parsedPoUserId) ? parsedPoUserId : null;
+
+        if (!userId.HasValue)
+        {
+            return Unauthorized(ApiResponse<PurchaseAndReceiveResultDto>.ErrorResponse("Authenticated user context is required for Purchase & Receive."));
+        }
+
+        _auditCtx.BeginScope(
+            "Purchase & Receive Immediate", AuditActionType.Create,
+            AuditModule.Purchase, "PurchaseOrder", null);
+
+        try
+        {
+            var result = await _purchaseOrderService.PurchaseAndReceiveAsync(dto, userId);
+            await _auditSvc.FlushScopeAsync();
+
+            var message = result.IsDuplicateRequest
+                ? "Duplicate request detected; existing purchase receive result returned"
+                : "Purchase order created, auto-GRN generated, and stock updated successfully";
+
+            return Ok(ApiResponse<PurchaseAndReceiveResultDto>.SuccessResponse(result, message));
+        }
+        catch (Exception ex)
+        {
+            _auditCtx.FailScope(ex.Message);
+            await _auditSvc.FlushScopeAsync();
+            throw;
+        }
     }
 
     /// <summary>
@@ -188,5 +241,22 @@ public class PurchaseOrdersController : ControllerBase
         await _auditSvc.FlushScopeAsync();
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order cancelled"));
+    }
+
+    /// <summary>
+    /// Send purchase order back for correction (Pending → Sent Back)
+    /// </summary>
+    [HttpPost("{id}/send-back")]
+    [Authorize(Policy = "purchases.approve")]
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> SendBack(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
+    {
+        _auditCtx.BeginScope(
+            "Send Back Purchase Order", AuditActionType.Update,
+            AuditModule.Purchase, "PurchaseOrder", id.ToString());
+
+        var po = await _purchaseOrderService.SendBackAsync(id, dto.Reason ?? "No reason provided");
+        await _auditSvc.FlushScopeAsync();
+
+        return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order sent back for correction"));
     }
 }

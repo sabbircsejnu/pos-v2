@@ -28,6 +28,11 @@ public interface IPurchaseOrderService
     Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderDto dto, long? userId = null);
 
     /// <summary>
+    /// Creates a purchase order and immediately receives it in one transaction.
+    /// </summary>
+    Task<PurchaseAndReceiveResultDto> PurchaseAndReceiveAsync(CreatePurchaseAndReceiveDto dto, long? userId = null);
+
+    /// <summary>
     /// Updates an existing purchase order (only if draft or pending)
     /// </summary>
     Task<PurchaseOrderDto> UpdateAsync(long id, UpdatePurchaseOrderDto dto);
@@ -56,6 +61,11 @@ public interface IPurchaseOrderService
     /// Cancels a purchase order with reason
     /// </summary>
     Task<PurchaseOrderDto> CancelAsync(long id, string reason);
+
+    /// <summary>
+    /// Sends a purchase order back for correction (Pending → Sent Back)
+    /// </summary>
+    Task<PurchaseOrderDto> SendBackAsync(long id, string reason);
 
     /// <summary>
     /// Gets purchase orders awaiting approval

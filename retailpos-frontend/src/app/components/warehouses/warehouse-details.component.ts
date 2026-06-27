@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { WarehouseService } from '../../services/warehouse.service';
 import { Warehouse } from '../../models/warehouse.model';
@@ -19,6 +19,7 @@ export class WarehouseDetailsComponent implements OnInit {
   constructor(
     private warehouseService: WarehouseService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute
   ) {}
 
@@ -52,6 +53,6 @@ export class WarehouseDetailsComponent implements OnInit {
   }
 
   backToList(): void {
-    this.router.navigate(['/warehouses']);
+    this.location.back();
   }
 }

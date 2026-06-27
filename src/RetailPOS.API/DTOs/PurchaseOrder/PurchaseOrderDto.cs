@@ -9,10 +9,19 @@ public class PurchaseOrderItemDto
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;
+    public string? ProductCode { get; set; }
+    public string? Sku { get; set; }
     public string? VariantAttributes { get; set; }
     public int Quantity { get; set; }
+    public string? Unit { get; set; }
     public decimal UnitPrice { get; set; }
-    public decimal TotalPrice => Quantity * UnitPrice;
+    /// <summary>Item-level discount percentage (0–100).</summary>
+    public decimal Discount { get; set; }
+    /// <summary>Item-level tax percentage (0–100).</summary>
+    public decimal Tax { get; set; }
+    /// <summary>Line total = Quantity × UnitPrice × (1 - Discount/100) × (1 + Tax/100)</summary>
+    public decimal TotalPrice =>
+        Math.Round(Quantity * UnitPrice * (1 - Discount / 100m) * (1 + Tax / 100m), 2);
 }
 
 /// <summary>
@@ -21,6 +30,8 @@ public class PurchaseOrderItemDto
 public class PurchaseOrderDto
 {
     public long Id { get; set; }
+    /// <summary>Human-readable reference, e.g. PO-20260607-0001.</summary>
+    public string PoNumber { get; set; } = string.Empty;
     public long SupplierId { get; set; }
     public string SupplierName { get; set; } = string.Empty;
     public long WarehouseId { get; set; }
@@ -28,14 +39,36 @@ public class PurchaseOrderDto
     public DateTime OrderDate { get; set; }
     public DateTime? ExpectedDelivery { get; set; }
     public decimal TotalAmount { get; set; }
+    /// <summary>draft | pending | sent_back | approved | partially_received | fully_received | completed | cancelled | rejected</summary>
     public string Status { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    /// <summary>Populated when PO is rejected or sent back.</summary>
+    public string? RejectionReason { get; set; }
     public long? CreatedBy { get; set; }
     public string? CreatedByName { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public long? LatestGrnId { get; set; }
+    public string? LatestGrnNumber => LatestGrnId.HasValue ? $"GRN-{LatestGrnId.Value:D6}" : null;
     public List<PurchaseOrderItemDto> Items { get; set; } = new();
     public int TotalItems => Items.Count;
     public int TotalQuantity => Items.Sum(i => i.Quantity);
+}
+
+/// <summary>
+/// DTO for creating a Purchase Order item
+/// </summary>
+public class CreatePurchaseOrderItemDto
+{
+    public long VariantId { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    /// <summary>Discount percentage (0–100). Default: 0.</summary>
+    public decimal Discount { get; set; } = 0;
+    /// <summary>Tax percentage (0–100). Default: 0.</summary>
+    public decimal Tax { get; set; } = 0;
+    /// <summary>Unit of measurement (e.g. pcs, kg, box). Optional.</summary>
+    public string? Unit { get; set; }
 }
 
 /// <summary>
@@ -47,22 +80,36 @@ public class CreatePurchaseOrderDto
     public long WarehouseId { get; set; }
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
     public DateTime? ExpectedDelivery { get; set; }
-    public string Status { get; set; } = "draft"; // draft, pending, approved, received, cancelled
+    public string Status { get; set; } = "draft"; // draft or pending
+    public string? Notes { get; set; }
     public List<CreatePurchaseOrderItemDto> Items { get; set; } = new();
 }
 
 /// <summary>
-/// DTO for creating a Purchase Order item
+/// DTO for immediate purchase and receive flow.
+/// Creates PO, auto-generates GRN, and updates stock in one transaction.
 /// </summary>
-public class CreatePurchaseOrderItemDto
+public class CreatePurchaseAndReceiveDto : CreatePurchaseOrderDto
 {
-    public long VariantId { get; set; }
-    public int Quantity { get; set; }
-    public decimal UnitPrice { get; set; }
+    /// <summary>
+    /// Client-generated unique request key (UUID) used to prevent duplicate submissions.
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
 }
 
 /// <summary>
-/// DTO for updating an existing Purchase Order
+/// Result payload for immediate purchase and receive flow.
+/// </summary>
+public class PurchaseAndReceiveResultDto
+{
+    public PurchaseOrderDto PurchaseOrder { get; set; } = new();
+    public long GrnId { get; set; }
+    public string GrnNumber => $"GRN-{GrnId:D6}";
+    public bool IsDuplicateRequest { get; set; }
+}
+
+/// <summary>
+/// DTO for updating an existing Purchase Order (only allowed when draft or sent_back)
 /// </summary>
 public class UpdatePurchaseOrderDto
 {
@@ -70,6 +117,7 @@ public class UpdatePurchaseOrderDto
     public long WarehouseId { get; set; }
     public DateTime OrderDate { get; set; }
     public DateTime? ExpectedDelivery { get; set; }
+    public string? Notes { get; set; }
     public List<CreatePurchaseOrderItemDto> Items { get; set; } = new();
 }
 
@@ -104,10 +152,12 @@ public class PurchaseOrderSearchDto
 }
 
 /// <summary>
-/// DTO for updating Purchase Order status
+/// DTO for updating Purchase Order status (used by reject, cancel, send-back)
 /// </summary>
 public class UpdatePurchaseOrderStatusDto
 {
-    public string Status { get; set; } = string.Empty; // pending, approved, received, cancelled, rejected
-    public string? Reason { get; set; } // Optional reason for rejection/cancellation
+    /// <summary>Target status: rejected | cancelled | sent_back</summary>
+    public string Status { get; set; } = string.Empty;
+    /// <summary>Reason for rejection, cancellation, or send-back.</summary>
+    public string? Reason { get; set; }
 }

@@ -71,6 +71,10 @@ public class RolesController : ControllerBase
             var role = await _roleService.CreateRoleAsync(dto);
             return CreatedAtAction(nameof(GetRole), new { id = role.Id }, role);
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -93,6 +97,10 @@ public class RolesController : ControllerBase
         {
             var role = await _roleService.UpdateRoleAsync(id, dto);
             return Ok(role);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (KeyNotFoundException ex)
         {
@@ -120,6 +128,10 @@ public class RolesController : ControllerBase
         {
             await _roleService.DeleteRoleAsync(id);
             return Ok(new { message = "Role deleted successfully" });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (KeyNotFoundException ex)
         {

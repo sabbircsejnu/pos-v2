@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
@@ -7,6 +7,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { PurchaseOrder, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
+import { DocumentPdfService } from '../../services/document-pdf.service';
 
 @Component({
   selector: 'app-po-details',
@@ -21,15 +22,17 @@ export class PoDetailsComponent implements OnInit {
   isLoading = signal(false);
   isProcessing = signal(false);
 
-  // Rejection/Cancellation reason
+  // Rejection/Cancellation/Send-back reason
   showReasonModal = signal(false);
-  reasonAction = signal<'reject' | 'cancel'>('reject');
+  reasonAction = signal<'reject' | 'cancel' | 'send_back'>('reject');
   reason = signal<string>('');
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private poService: PurchaseOrderService,
+    private documentPdfService: DocumentPdfService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
     private currencyService: CurrencyService
@@ -42,7 +45,7 @@ export class PoDetailsComponent implements OnInit {
       this.loadPurchaseOrder(+id);
     } else {
       this.alertService.error('Invalid purchase order ID');
-      this.router.navigate(['/purchase-orders']);
+      this.location.back();
     }
   }
 
@@ -56,18 +59,19 @@ export class PoDetailsComponent implements OnInit {
       error: (err: any) => {
         this.isLoading.set(false);
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
-        this.router.navigate(['/purchase-orders']);
+        this.location.back();
       }
     });
   }
 
   canEdit(): boolean {
     const status = this.po()?.status;
-    return status === 'draft' || status === 'pending';
+    return status === 'draft' || status === 'sent_back';
   }
 
   canSubmit(): boolean {
-    return this.po()?.status === 'draft';
+    const status = this.po()?.status;
+    return status === 'draft' || status === 'sent_back';
   }
 
   canApprove(): boolean {
@@ -78,9 +82,13 @@ export class PoDetailsComponent implements OnInit {
     return this.po()?.status === 'pending';
   }
 
+  canSendBack(): boolean {
+    return this.po()?.status === 'pending';
+  }
+
   canCancel(): boolean {
     const status = this.po()?.status;
-    return status === 'draft' || status === 'pending' || status === 'approved';
+    return status === 'draft' || status === 'pending' || status === 'sent_back' || status === 'approved';
   }
 
   canDelete(): boolean {
@@ -143,6 +151,12 @@ export class PoDetailsComponent implements OnInit {
     this.showReasonModal.set(true);
   }
 
+  showSendBackModal(): void {
+    this.reasonAction.set('send_back');
+    this.reason.set('');
+    this.showReasonModal.set(true);
+  }
+
   closeReasonModal(): void {
     this.showReasonModal.set(false);
     this.reason.set('');
@@ -155,18 +169,28 @@ export class PoDetailsComponent implements OnInit {
     }
 
     this.isProcessing.set(true);
-    const action$ = this.reasonAction() === 'reject'
-      ? this.poService.reject(this.poId(), this.reason())
-      : this.poService.cancel(this.poId(), this.reason());
+    let action$;
+    let successMsg: string;
+
+    switch (this.reasonAction()) {
+      case 'reject':
+        action$ = this.poService.reject(this.poId(), this.reason());
+        successMsg = 'Purchase order rejected';
+        break;
+      case 'send_back':
+        action$ = this.poService.sendBack(this.poId(), this.reason());
+        successMsg = 'Purchase order sent back for correction';
+        break;
+      default:
+        action$ = this.poService.cancel(this.poId(), this.reason());
+        successMsg = 'Purchase order cancelled';
+    }
 
     action$.subscribe({
       next: () => {
         this.isProcessing.set(false);
         this.closeReasonModal();
-        const message = this.reasonAction() === 'reject'
-          ? 'Purchase order rejected'
-          : 'Purchase order cancelled';
-        this.alertService.success(message);
+        this.alertService.success(successMsg);
         this.loadPurchaseOrder(this.poId());
       },
       error: (err: any) => {
@@ -185,7 +209,7 @@ export class PoDetailsComponent implements OnInit {
           next: () => {
             this.isProcessing.set(false);
             this.alertService.success('Purchase order deleted successfully');
-            this.router.navigate(['/purchase-orders']);
+            this.location.back();
           },
           error: (err: any) => {
             this.isProcessing.set(false);
@@ -197,7 +221,7 @@ export class PoDetailsComponent implements OnInit {
   }
 
   backToList(): void {
-    this.router.navigate(['/purchase-orders']);
+    this.location.back();
   }
 
   formatCurrency(amount: number): string {
@@ -212,6 +236,22 @@ export class PoDetailsComponent implements OnInit {
     });
   }
 
+  getVariantDetails(item: { variantName?: string; variantAttributes?: string }): string {
+    const parts = [item.variantName, item.variantAttributes]
+      .map(v => (v ?? '').trim())
+      .filter(v => this.hasReadableText(v));
+
+    return parts.join(' - ');
+  }
+
+  private hasReadableText(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed === '{}' || trimmed === '[]' || trimmed.toLowerCase() === 'null') return false;
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return false;
+    return true;
+  }
+
   getStatusLabel(status: string): string {
     return getPOStatusLabel(status);
   }
@@ -221,7 +261,29 @@ export class PoDetailsComponent implements OnInit {
   }
 
   printPo(): void {
-    // TODO: Implement PDF generation/print
-    this.alertService.info('Print feature coming soon');
+    if (!this.po()) {
+      return;
+    }
+
+    this.isProcessing.set(true);
+    this.documentPdfService.downloadPurchaseOrder(this.poId()).subscribe({
+      next: (response) => {
+        this.documentPdfService.triggerBrowserDownload(response, `${this.po()!.poNumber || `PO-${this.poId().toString().padStart(6, '0')}`}.pdf`);
+        this.isProcessing.set(false);
+      },
+      error: (err: any) => {
+        this.isProcessing.set(false);
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  viewLatestGrn(): void {
+    const latestGrnId = this.po()?.latestGrnId;
+    if (!latestGrnId) {
+      return;
+    }
+
+    this.router.navigate(['/grn', latestGrnId]);
   }
 }

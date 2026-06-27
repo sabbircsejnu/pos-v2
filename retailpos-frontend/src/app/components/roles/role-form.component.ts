@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { RoleService } from '../../services/role.service';
@@ -20,6 +20,7 @@ interface PermissionCategory {
 export class RoleFormComponent implements OnInit {
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private location = inject(Location);
   private route = inject(ActivatedRoute);
   private roleService = inject(RoleService);
 
@@ -44,11 +45,76 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Product Management',
-      permissions: ['products.view', 'products.create', 'products.edit', 'products.delete']
+      permissions: ['products.view', 'products.view_cost', 'products.create', 'products.edit', 'products.delete']
     },
     {
-      name: 'Inventory Management',
-      permissions: ['inventory.view', 'inventory.adjust', 'inventory.transfer']
+      name: 'Barcode Labels',
+      permissions: ['barcode.view', 'barcode.print', 'barcode.bulk_print', 'barcode.template_manage']
+    },
+    {
+      name: 'Category Management',
+      permissions: ['categories.view', 'categories.create', 'categories.edit', 'categories.delete']
+    },
+    {
+      name: 'Inventory',
+      permissions: ['inventory.view', 'inventory.create', 'inventory.edit', 'inventory.delete']
+    },
+    {
+      name: 'Stock Adjustment',
+      permissions: [
+        'stock_adjustments.view',
+        'stock_adjustments.create',
+        'stock_adjustments.edit',
+        'stock_adjustments.delete',
+        'stock_adjustments.approve',
+        'stock_adjustments.reject'
+      ]
+    },
+    {
+      name: 'Stock Transfer',
+      permissions: [
+        'stock_transfers.view',
+        'stock_transfers.create',
+        'stock_transfers.edit',
+        'stock_transfers.delete',
+        'stock_transfers.approve',
+        'stock_transfers.cancel',
+        'stock_transfers.dispatch',
+        'stock_transfers.receive',
+        'stock_transfers.reject_receive',
+        'stock_transfers.return_create',
+        'stock_transfers.transfer_from_any_location'
+      ]
+    },
+    {
+      name: 'Stock Count',
+      permissions: [
+        'StockCount.ViewOwn',
+        'StockCount.ViewAll',
+        'StockCount.Create',
+        'StockCount.Download',
+        'StockCount.Print',
+        'StockCount.Upload',
+        'StockCount.Submit',
+        'StockCount.Approve',
+        'StockCount.Reject',
+        'StockCount.Reopen'
+      ]
+    },
+    {
+      name: 'Stock Requisition',
+      permissions: [
+        'stock_requisitions.view',
+        'stock_requisitions.create',
+        'stock_requisitions.edit',
+        'stock_requisitions.approve',
+        'stock_requisitions.reject',
+        'stock_requisitions.convert_to_transfer'
+      ]
+    },
+    {
+      name: 'Low Stock Alerts',
+      permissions: ['low_stock_alerts.view', 'low_stock_alerts.create', 'low_stock_alerts.edit', 'low_stock_alerts.delete']
     },
     {
       name: 'Sales Management',
@@ -56,11 +122,11 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Purchase Management',
-      permissions: ['purchases.view', 'purchases.create', 'purchases.edit', 'purchases.delete']
+      permissions: ['purchases.view', 'purchases.create', 'purchases.edit', 'purchases.approve', 'purchases.receive']
     },
     {
       name: 'GRN Management',
-      permissions: ['grn.view', 'grn.create', 'grn.complete']
+      permissions: ['grn.view', 'grn.create', 'grn.receive']
     },
     {
       name: 'Customer Management',
@@ -72,7 +138,7 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Reports',
-      permissions: ['reports.sales', 'reports.inventory', 'reports.financial', 'reports.audit']
+      permissions: ['reports.sales', 'reports.inventory', 'reports.financial', 'reports.export']
     },
     {
       name: 'Settings',
@@ -89,8 +155,31 @@ export class RoleFormComponent implements OnInit {
     {
       name: 'Warehouse Management',
       permissions: ['warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete']
+    },
+    {
+      name: 'Accounts Management',
+      permissions: ['accounts.view', 'accounts.create', 'accounts.edit', 'accounts.delete']
+    },
+    {
+      name: 'Transactions Management',
+      permissions: ['transactions.view', 'transactions.create', 'transactions.edit', 'transactions.delete']
     }
   ];
+
+  /** Categories filtered to only include permissions the backend supports. */
+  get visiblePermissionCategories(): PermissionCategory[] {
+    const supported = this.allPermissions();
+    if (supported.length === 0) {
+      // API permissions not yet loaded — show all to avoid empty UI
+      return this.permissionCategories;
+    }
+    return this.permissionCategories
+      .map(cat => ({
+        name: cat.name,
+        permissions: cat.permissions.filter(p => supported.includes(p))
+      }))
+      .filter(cat => cat.permissions.length > 0);
+  }
 
   ngOnInit(): void {
     this.initializeForm();
@@ -228,12 +317,12 @@ export class RoleFormComponent implements OnInit {
       next: () => {
         this.successMessage.set('Role created successfully!');
         setTimeout(() => {
-          this.router.navigate(['/roles']);
+          this.location.back();
         }, 1500);
       },
       error: (err) => {
         console.error('Error creating role:', err);
-        this.error.set(err.error?.message || 'Failed to create role');
+        this.error.set(err.error?.error || err.error?.message || 'Failed to create role');
         this.isLoading.set(false);
       }
     });
@@ -249,18 +338,26 @@ export class RoleFormComponent implements OnInit {
       next: () => {
         this.successMessage.set('Role updated successfully!');
         setTimeout(() => {
-          this.router.navigate(['/roles']);
+          this.location.back();
         }, 1500);
       },
       error: (err) => {
         console.error('Error updating role:', err);
-        this.error.set(err.error?.message || 'Failed to update role');
+        this.error.set(err.error?.error || err.error?.message || 'Failed to update role');
         this.isLoading.set(false);
       }
     });
   }
 
   cancel(): void {
-    this.router.navigate(['/roles']);
+    this.location.back();
+  }
+
+  getPermissionDisplayName(permission: string): string {
+    if (permission === 'stock_transfers.transfer_from_any_location') {
+      return 'Transfer From Any Location';
+    }
+
+    return permission;
   }
 }

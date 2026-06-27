@@ -18,6 +18,7 @@ import { CategoryListComponent } from './components/categories/category-list.com
 import { CategoryFormComponent } from './components/categories/category-form.component';
 import { ProductList } from './components/product-list/product-list';
 import { ProductForm } from './components/product-form/product-form';
+import { ProductDetailComponent } from './components/product-detail/product-detail.component';
 import { VariationsComponent } from './pages/variations/variations.component';
 import { InventoryListComponent } from './components/inventory/inventory-list.component';
 import { LowStockAlertsComponent } from './components/inventory/low-stock-alerts.component';
@@ -41,6 +42,11 @@ import { TransferCreateComponent } from './pages/stock-transfers/transfer-create
 import { TransferDetailsComponent } from './pages/stock-transfers/transfer-details.component';
 import { AdjustmentListComponent } from './pages/stock-adjustments/adjustment-list.component';
 import { AdjustmentCreateComponent } from './pages/stock-adjustments/adjustment-create.component';
+import { AdjustmentDetailsComponent } from './pages/stock-adjustments/adjustment-details.component';
+import { AdjustmentEditComponent } from './pages/stock-adjustments/adjustment-edit.component';
+import { StockCountListComponent } from './pages/stock-counts/stock-count-list.component';
+import { StockCountCreateComponent } from './pages/stock-counts/stock-count-create.component';
+import { StockCountDetailsComponent } from './pages/stock-counts/stock-count-details.component';
 import { AccountsListComponent } from './pages/accounting/accounts-list.component';
 import { TransactionsListComponent } from './pages/accounting/transactions-list.component';
 import { ExpensesListComponent } from './pages/accounting/expenses-list.component';
@@ -50,9 +56,25 @@ import { SalesReportComponent } from './pages/reports/sales-report.component';
 import { InventoryReportComponent } from './pages/reports/inventory-report.component';
 import { PurchaseReportComponent } from './pages/reports/purchase-report.component';
 import { StockTransactionReportComponent } from './pages/reports/stock-transaction-report.component';
+import { CurrentStockReportComponent } from './pages/reports/current-stock-report.component';
+import { ProductLedgerReportComponent } from './pages/reports/product-ledger-report.component';
+import { StockMovementReportComponent } from './pages/reports/stock-movement-report.component';
+import { StockValuationReportComponent } from './pages/reports/stock-valuation-report.component';
+import { OutletWiseStockReportComponent } from './pages/reports/outlet-wise-stock-report.component';
+import { LowStockReportComponent } from './pages/reports/low-stock-report.component';
+import { OutOfStockReportComponent } from './pages/reports/out-of-stock-report.component';
+import { NegativeStockReportComponent } from './pages/reports/negative-stock-report.component';
+import { StockAdjustmentReportComponent } from './pages/reports/stock-adjustment-report.component';
+import { StockTransferReportComponent } from './pages/reports/stock-transfer-report.component';
 import { SettingsPageComponent } from './pages/settings/settings-page.component';
 import { AuditListComponent } from './pages/audit/audit-list.component';
-import { authGuard, loginGuard, routePermissionGuard } from './guards/auth.guard';
+import { BusinessListComponent } from './pages/businesses/business-list.component';
+import { BusinessFormComponent } from './pages/businesses/business-form.component';
+import { BusinessSetupComponent } from './pages/businesses/business-setup.component';
+import { GlobalSearchComponent } from './pages/global-search/global-search.component';
+import { BarcodeLabelsComponent } from './pages/barcodes/barcode-labels.component';
+import { BarcodeTemplatesComponent } from './pages/barcodes/barcode-templates.component';
+import { authGuard, loginGuard, roleGuard, routePermissionGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
@@ -66,8 +88,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: DashboardComponent },
+      { path: 'search', component: GlobalSearchComponent },
       
       // User Management Routes
+      { path: 'businesses', component: BusinessListComponent, canActivate: [roleGuard(['Super Admin'])] },
+      { path: 'businesses/create', component: BusinessFormComponent, canActivate: [roleGuard(['Super Admin'])] },
+      { path: 'businesses/:id/setup', component: BusinessSetupComponent, canActivate: [roleGuard(['Super Admin'])] },
+
       { path: 'users', component: UserListComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.view'] } },
       { path: 'users/create', component: UserFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.create'] } },
       { path: 'users/edit/:id', component: UserFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['users.edit'] } },
@@ -91,9 +118,9 @@ export const routes: Routes = [
       { path: 'warehouses/:id', component: WarehouseDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['warehouses.view'] } },
       
       // Category Management Routes
-      { path: 'categories', component: CategoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
-      { path: 'categories/create', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.create'] } },
-      { path: 'categories/edit/:id', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.edit'] } },
+      { path: 'categories', component: CategoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['categories.view'] } },
+      { path: 'categories/create', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['categories.create'] } },
+      { path: 'categories/edit/:id', component: CategoryFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['categories.edit'] } },
       
       // Variations Management Routes
       { path: 'variations', component: VariationsComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
@@ -102,10 +129,18 @@ export const routes: Routes = [
       { path: 'products', component: ProductList, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
       { path: 'products/create', component: ProductForm, canActivate: [routePermissionGuard], data: { permissions: ['products.create'] } },
       { path: 'products/edit/:id', component: ProductForm, canActivate: [routePermissionGuard], data: { permissions: ['products.edit'] } },
+      { path: 'products/:id', component: ProductDetailComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
+      {
+        path: 'barcode-labels',
+        component: BarcodeLabelsComponent,
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['barcode.view', 'barcode.print', 'barcode.bulk_print', 'barcode.template_manage'] }
+      },
+      { path: 'barcode-templates', component: BarcodeTemplatesComponent, canActivate: [routePermissionGuard], data: { permissions: ['barcode.template_manage'] } },
       
       // Inventory Management Routes
       { path: 'inventory', component: InventoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.view'] } },
-      { path: 'inventory/low-stock', component: LowStockAlertsComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.view'] } },
+      { path: 'inventory/low-stock', component: LowStockAlertsComponent, canActivate: [routePermissionGuard], data: { permissions: ['low_stock_alerts.view'] } },
       
       // Supplier Management Routes
       { path: 'suppliers', component: SupplierListComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.view'] } },
@@ -136,17 +171,34 @@ export const routes: Routes = [
       { path: 'sales/:id', component: SaleDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.view'] } },
 
       // Stock Transfer Routes
-      { path: 'stock-transfers', component: TransferListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
-      { path: 'stock-transfers/create', component: TransferCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
-      { path: 'stock-transfers/:id', component: TransferDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.transfer'] } },
+      { path: 'stock-transfers', component: TransferListComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_transfers.view'] } },
+      { path: 'stock-transfers/create', component: TransferCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_transfers.create'] } },
+      { path: 'stock-transfers/:id', component: TransferDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_transfers.view'] } },
 
       // Stock Adjustment Routes
-      { path: 'stock-adjustments', component: AdjustmentListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.adjust'] } },
-      { path: 'stock-adjustments/create', component: AdjustmentCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.adjust'] } },
+      { path: 'stock-adjustments', component: AdjustmentListComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_adjustments.view'] } },
+      { path: 'stock-adjustments/create', component: AdjustmentCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_adjustments.create'] } },
+      { path: 'stock-adjustments/:id/edit', component: AdjustmentEditComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_adjustments.edit'] } },
+      { path: 'stock-adjustments/:id', component: AdjustmentDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['stock_adjustments.view'] } },
+
+      // Stock Count Routes
+      { path: 'stock-counts', component: StockCountListComponent, canActivate: [routePermissionGuard], data: { permissions: ['StockCount.ViewOwn', 'StockCount.ViewAll'] } },
+      { path: 'stock-counts/create', component: StockCountCreateComponent, canActivate: [routePermissionGuard], data: { permissions: ['StockCount.Create'] } },
+      { path: 'stock-counts/:id', component: StockCountDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['StockCount.ViewOwn', 'StockCount.ViewAll'] } },
 
       // Reports Routes
       { path: 'reports/sales', component: SalesReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.sales'] } },
       { path: 'reports/inventory', component: InventoryReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/current-stock', component: CurrentStockReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/product-ledger', component: ProductLedgerReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/stock-movement', component: StockMovementReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/stock-valuation', component: StockValuationReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/outlet-wise-stock', component: OutletWiseStockReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/low-stock', component: LowStockReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/out-of-stock', component: OutOfStockReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/negative-stock', component: NegativeStockReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/stock-adjustments', component: StockAdjustmentReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
+      { path: 'reports/stock-transfers-report', component: StockTransferReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
       { path: 'reports/purchases', component: PurchaseReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['purchases.view'] } },
       { path: 'reports/stock-transactions', component: StockTransactionReportComponent, canActivate: [routePermissionGuard], data: { permissions: ['reports.inventory'] } },
 

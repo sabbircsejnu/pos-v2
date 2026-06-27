@@ -1,22 +1,122 @@
-/* Sidebar Component Styles */
 :host {
   display: block;
+  --sb-active: #2563eb;
+  --sb-active-border: #2563eb;
+  --sb-active-soft: rgba(37, 99, 235, 0.1);
+  --sb-text: #2f3446;
+  --sb-muted: #6f7587;
 }
 
-/* Custom scrollbar */
-aside::-webkit-scrollbar {
-  width: 6px;
+.app-sidebar {
+  background: #f7f7f8;
 }
 
-aside::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.brand-mark {
+  background: linear-gradient(145deg, #334155 0%, #1e293b 60%, #2563eb 100%);
 }
 
-aside::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
+.group-header {
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
-aside::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.group-header:hover {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+
+.group-header .fa-chevron-down {
+  transition: transform 170ms ease;
+}
+
+.nav-item {
+  letter-spacing: 0.01em;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+  min-height: 46px;
+}
+
+.nav-item:hover {
+  transform: translateX(0.5px);
+}
+
+.nav-icon {
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.02);
+}
+
+.nav-item.is-active {
+  background: var(--sb-active-soft);
+  border-left-color: var(--sb-active-border);
+  color: #1e3a8a;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.nav-item.is-active .nav-icon {
+  color: #2563eb;
+}
+
+.group-items {
+  overflow: hidden;
+  transition: max-height 180ms ease, opacity 170ms ease;
+}
+
+.group-items-expanded {
+  max-height: 540px;
+  opacity: 1;
+}
+
+.group-items-collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-density-comfortable .group-header {
+  padding-top: 0.62rem;
+  padding-bottom: 0.62rem;
+}
+
+.sidebar-density-comfortable .nav-item {
+  min-height: 48px;
+  padding-top: 0.62rem;
+  padding-bottom: 0.62rem;
+}
+
+.sidebar-density-comfortable .nav-icon {
+  height: 2rem;
+  width: 2rem;
+}
+
+.sidebar-density-compact .group-header {
+  padding-top: 0.46rem;
+  padding-bottom: 0.46rem;
+}
+
+.sidebar-density-compact .nav-item {
+  min-height: 44px;
+  padding-top: 0.46rem;
+  padding-bottom: 0.46rem;
+}
+
+.sidebar-density-compact .nav-icon {
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+.app-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.app-sidebar::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

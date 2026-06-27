@@ -3,6 +3,7 @@ export interface Variation {
   name: string;
   displayOrder: number;
   isActive: boolean;
+  autoSelectAllOptions: boolean;
   options: VariationOption[];
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +24,7 @@ export interface CreateVariationDto {
   name: string;
   displayOrder: number;
   isActive: boolean;
+  autoSelectAllOptions: boolean;
   options: CreateVariationOptionDto[];
 }
 
@@ -37,6 +39,7 @@ export interface UpdateVariationDto {
   name: string;
   displayOrder: number;
   isActive: boolean;
+  autoSelectAllOptions: boolean;
 }
 
 export interface UpdateVariationOptionDto {

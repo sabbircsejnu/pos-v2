@@ -35,6 +35,20 @@ cd src/RetailPOS.API
 dotnet run
 ```
 
+### Apply Pending Migrations (Manual)
+```bash
+# From repository root
+dotnet ef database update --project src/RetailPOS.Infrastructure --startup-project src/RetailPOS.API
+
+# Or from src/RetailPOS.API
+dotnet ef database update --project ../RetailPOS.Infrastructure
+```
+
+If `dotnet ef` is not available:
+```bash
+dotnet tool install --global dotnet-ef
+```
+
 ### Reset Database (Development)
 ```bash
 # Drop and recreate database

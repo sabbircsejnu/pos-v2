@@ -77,6 +77,10 @@ public class UsersController : ControllerBase
             var user = await _userService.CreateUserAsync(dto);
             return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -103,6 +107,10 @@ public class UsersController : ControllerBase
         {
             var user = await _userService.UpdateUserAsync(id, dto);
             return Ok(user);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
@@ -256,6 +264,42 @@ public class UsersController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving users for role {RoleId}", roleId);
             return StatusCode(500, new { error = "An error occurred while retrieving users" });
+        }
+    }
+
+    /// <summary>
+    /// Self-service password change for current logged-in user.
+    /// No special permission required beyond being authenticated.
+    /// User must provide current password for verification.
+    /// </summary>
+    [HttpPost("my-password")]
+    [Authorize]
+    public async Task<ActionResult> ChangeOwnPassword([FromBody] ChangePasswordDto dto)
+    {
+        try
+        {
+            // Get current user ID from claims
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { error = "Unable to determine current user" });
+            }
+
+            await _userService.ChangePasswordAsync(userId, dto);
+            return Ok(new { message = "Your password has been changed successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password for user {UserId}");
+            return StatusCode(500, new { error = "An error occurred while changing your password" });
         }
     }
 }

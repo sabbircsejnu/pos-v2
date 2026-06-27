@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.Outlet;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Core.Entities;
+using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.API.Services;
 
@@ -10,17 +11,20 @@ public class OutletService : IOutletService
     private readonly IOutletRepository _outletRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITenantAccessService _tenantAccess;
+    private readonly RetailPOSDbContext _db;
     private readonly ILogger<OutletService> _logger;
 
     public OutletService(
         IOutletRepository outletRepository,
         IUserRepository userRepository,
         ITenantAccessService tenantAccess,
+        RetailPOSDbContext db,
         ILogger<OutletService> logger)
     {
         _outletRepository = outletRepository;
         _userRepository = userRepository;
         _tenantAccess = tenantAccess;
+        _db = db;
         _logger = logger;
     }
 
@@ -59,6 +63,23 @@ public class OutletService : IOutletService
         {
             _logger.LogWarning("Outlet creation failed: Name '{Name}' already exists", dto.Name);
             throw new InvalidOperationException($"An outlet with the name '{dto.Name}' already exists");
+        }
+
+        if (businessId.HasValue)
+        {
+            var businessLimits = await _db.Businesses
+                .AsNoTracking()
+                .Where(b => b.Id == businessId.Value)
+                .Select(b => new { b.MaxOutlets })
+                .FirstOrDefaultAsync();
+
+            if (businessLimits != null && businessLimits.MaxOutlets.HasValue)
+            {
+                var existingOutlets = await _db.Outlets.LongCountAsync(o => o.BusinessId == businessId.Value);
+                if (existingOutlets >= businessLimits.MaxOutlets.Value)
+                    throw new InvalidOperationException(
+                        $"Outlet limit reached for this business ({businessLimits.MaxOutlets.Value}). Upgrade subscription or increase outlet limit.");
+            }
         }
 
         // Validate manager exists if provided
@@ -187,6 +208,107 @@ public class OutletService : IOutletService
             SalesCount = 0,
             TotalSales = 0
         };
+    }
+
+    // ── Super Admin business-scoped operations ────────────────────────────────
+
+    public async Task<IEnumerable<OutletDto>> GetByBusinessIdAsync(long businessId)
+    {
+        var outlets = await _outletRepository.GetAllAsync(businessId);
+        var result = new List<OutletDto>();
+        foreach (var outlet in outlets)
+        {
+            var userCount = await _outletRepository.GetUserCountAsync(outlet.Id, businessId);
+            result.Add(MapToDto(outlet, userCount));
+        }
+        return result;
+    }
+
+    public async Task<OutletDto> CreateForBusinessAsync(long businessId, CreateOutletDto dto)
+    {
+        if (await _outletRepository.ExistsByNameAsync(dto.Name, null, businessId))
+            throw new InvalidOperationException($"An outlet with the name '{dto.Name}' already exists in this business");
+
+        var businessLimits = await _db.Businesses
+            .AsNoTracking()
+            .Where(b => b.Id == businessId)
+            .Select(b => new { b.MaxOutlets })
+            .FirstOrDefaultAsync();
+
+        if (businessLimits == null)
+            throw new InvalidOperationException($"Business {businessId} not found");
+
+        if (businessLimits.MaxOutlets.HasValue)
+        {
+            var count = await _db.Outlets.LongCountAsync(o => o.BusinessId == businessId);
+            if (count >= businessLimits.MaxOutlets.Value)
+                throw new InvalidOperationException(
+                    $"Outlet limit reached ({businessLimits.MaxOutlets.Value}). Upgrade subscription or increase outlet limit.");
+        }
+
+        if (dto.ManagerId.HasValue)
+        {
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
+            if (manager == null)
+                throw new InvalidOperationException($"Manager with ID {dto.ManagerId} not found in this business");
+        }
+
+        var outlet = new Outlet
+        {
+            BusinessId = businessId,
+            Name = dto.Name,
+            Address = dto.Address,
+            ContactNumber = dto.ContactNumber,
+            ManagerId = dto.ManagerId
+        };
+
+        var created = await _outletRepository.CreateAsync(outlet);
+        _logger.LogInformation("Business setup: Outlet created for business {BusinessId}: ID={Id}, Name={Name}", businessId, created.Id, created.Name);
+        return MapToDto(created, 0);
+    }
+
+    public async Task<OutletDto> UpdateForBusinessAsync(long businessId, long id, UpdateOutletDto dto)
+    {
+        var outlet = await _outletRepository.GetByIdAsync(id, businessId);
+        if (outlet == null)
+            throw new InvalidOperationException($"Outlet {id} not found in business {businessId}");
+
+        if (await _outletRepository.ExistsByNameAsync(dto.Name, id, businessId))
+            throw new InvalidOperationException($"An outlet with the name '{dto.Name}' already exists in this business");
+
+        if (dto.ManagerId.HasValue)
+        {
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
+            if (manager == null)
+                throw new InvalidOperationException($"Manager with ID {dto.ManagerId} not found in this business");
+        }
+
+        outlet.Name = dto.Name;
+        outlet.Address = dto.Address;
+        outlet.ContactNumber = dto.ContactNumber;
+        outlet.ManagerId = dto.ManagerId;
+
+        var updated = await _outletRepository.UpdateAsync(outlet);
+        _logger.LogInformation("Business setup: Outlet updated for business {BusinessId}: ID={Id}", businessId, updated.Id);
+
+        var userCount = await _outletRepository.GetUserCountAsync(id, businessId);
+        return MapToDto(updated, userCount);
+    }
+
+    public async Task<bool> DeleteForBusinessAsync(long businessId, long id)
+    {
+        var outlet = await _outletRepository.GetByIdAsync(id, businessId);
+        if (outlet == null)
+            return false;
+
+        var userCount = await _outletRepository.GetUserCountAsync(id, businessId);
+        if (userCount > 0)
+            throw new InvalidOperationException($"Cannot delete outlet. It has {userCount} active user(s)");
+
+        var deleted = await _outletRepository.DeleteAsync(id, businessId);
+        if (deleted)
+            _logger.LogInformation("Business setup: Outlet deleted from business {BusinessId}: ID={Id}", businessId, id);
+        return deleted;
     }
 
     private static OutletDto MapToDto(Outlet outlet, int userCount)

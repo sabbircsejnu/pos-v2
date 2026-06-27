@@ -2,6 +2,7 @@ namespace RetailPOS.API.DTOs.StockAdjustment;
 
 public class CreateStockAdjustmentDto
 {
+    public string Action { get; set; } = StockAdjustmentCreateActions.Draft;
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty;
     public long VariantId { get; set; }

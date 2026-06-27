@@ -2,12 +2,13 @@ import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, Subscription, debounceTime } from 'rxjs';
 
 import { SaleService } from '../../services/sale.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
 import { SaleListDto, SaleSummaryDto } from '../../models/sale.model';
 
 @Component({
@@ -40,16 +41,43 @@ export class SalesListComponent implements OnInit, OnDestroy {
   constructor(
     public saleService: SaleService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
   ) {}
 
   ngOnInit(): void {
     this.subs.push(
-      this.searchSubject.pipe(debounceTime(400)).subscribe(() => this.performSearch())
+      this.searchSubject.pipe(debounceTime(400)).subscribe(() => {
+        this.syncUrl();
+        this.performSearch();
+      })
     );
+    this.restoreFromUrl();
     this.loadTodaySummary();
-    this.search();
+    this.performSearch();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    this.statusFilter.set(this.listState.str(p, 'status'));
+    this.startDate.set(this.listState.str(p, 'startDate'));
+    this.endDate.set(this.listState.str(p, 'endDate'));
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      status: this.statusFilter() || undefined,
+      startDate: this.startDate() || undefined,
+      endDate: this.endDate() || undefined,
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -73,6 +101,7 @@ export class SalesListComponent implements OnInit, OnDestroy {
   }
 
   search(): void {
+    this.syncUrl();
     this.performSearch();
   }
 
@@ -95,7 +124,8 @@ export class SalesListComponent implements OnInit, OnDestroy {
     this.startDate.set('');
     this.endDate.set('');
     this.pageNumber.set(1);
-    this.search();
+    this.listState.clear(this.route);
+    this.performSearch();
   }
 
   viewSale(id: number): void {
@@ -104,7 +134,8 @@ export class SalesListComponent implements OnInit, OnDestroy {
 
   changePage(page: number): void {
     this.pageNumber.set(page);
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   get totalPages(): number {

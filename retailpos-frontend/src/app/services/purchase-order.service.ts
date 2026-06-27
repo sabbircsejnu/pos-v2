@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import {
   PurchaseOrder,
   CreatePurchaseOrderRequest,
+  CreatePurchaseAndReceiveRequest,
   UpdatePurchaseOrderRequest,
   PurchaseOrderSearchRequest,
   PurchaseOrderListResponse,
@@ -144,6 +145,24 @@ export class PurchaseOrderService {
   }
 
   /**
+   * Create PO and immediately receive it with auto-generated GRN
+   */
+  purchaseAndReceive(request: CreatePurchaseAndReceiveRequest): Observable<any> {
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    return this.http.post<any>(`${this.apiUrl}/purchase-receive`, request).pipe(
+      tap({
+        next: () => this.isLoading.set(false),
+        error: (err) => {
+          this.error.set(err.message || 'Failed to complete purchase and receive');
+          this.isLoading.set(false);
+        }
+      })
+    );
+  }
+
+  /**
    * Update an existing purchase order
    */
   update(id: number, request: UpdatePurchaseOrderRequest): Observable<any> {
@@ -255,6 +274,29 @@ export class PurchaseOrderService {
         next: () => this.isLoading.set(false),
         error: (err) => {
           this.error.set(err.message || 'Failed to cancel purchase order');
+          this.isLoading.set(false);
+        }
+      })
+    );
+  }
+
+  /**
+   * Send purchase order back for correction (Pending → Sent Back)
+   */
+  sendBack(id: number, reason: string): Observable<any> {
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    const request: UpdatePurchaseOrderStatusRequest = {
+      status: 'sent_back',
+      reason
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/${id}/send-back`, request).pipe(
+      tap({
+        next: () => this.isLoading.set(false),
+        error: (err) => {
+          this.error.set(err.message || 'Failed to send back purchase order');
           this.isLoading.set(false);
         }
       })

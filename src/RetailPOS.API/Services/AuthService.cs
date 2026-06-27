@@ -1,8 +1,11 @@
 using System.Text.Json;
 using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Models;
 using RetailPOS.Core.Entities;
@@ -50,22 +53,18 @@ public class AuthService : IAuthService
                 "Password setup is required. Complete your invitation before signing in.");
         }
 
-        // Outlet-bound roles must have a default outlet — every transactional API
-        // enforces it server-side. SuperAdmin and BusinessOwner operate above outlets
-        // (SuperAdmin manages businesses; BusinessOwner can act across all their outlets),
-        // so the requirement is skipped for them.
-        if (!RoleSwitchClaims.IsOutletExempt(user.Role?.Name) && !user.OutletId.HasValue)
-        {
-            throw new UnauthorizedAccessException(
-                "Your account is not assigned to an outlet. Please contact an administrator.");
-        }
+        // Outlet assignment is intentionally NOT checked here.
+        // Roles such as AccountsAdmin and WarehouseManager are permitted to have
+        // no outlet assigned, and the business policy allows any authenticated user
+        // to log in regardless of outlet assignment. Outlet enforcement happens at
+        // the feature/transaction level (UserOutletAccessService) so that a clear,
+        // context-specific message is shown only on pages that actually require it.
 
         var token = _tokenService.GenerateAccessToken(user, user.Role);
         var refreshToken = _tokenService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
 
-        // Here you would typically store the refresh token in database
-        // For now, we'll just return it
+        await PersistRefreshTokenAsync(user.Id, refreshToken);
 
         var permissions = new List<string>();
         if (user.Role != null)
@@ -131,6 +130,8 @@ public class AuthService : IAuthService
         var refreshToken = _tokenService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
 
+        await PersistRefreshTokenAsync(invitation.User.Id, refreshToken);
+
         var permissions = new List<string>();
         if (invitation.User.Role != null)
         {
@@ -171,8 +172,21 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered");
         }
 
-        // Get default role (you might want to create a "User" role first)
-        var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
+        // Registration endpoint is intentionally constrained to non-privileged roles only.
+        var defaultRole = await _context.Roles
+            .FirstOrDefaultAsync(r => r.Name == "Cashier")
+            ?? await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
+
+        if (defaultRole == null)
+        {
+            throw new InvalidOperationException("Default registration role is not configured.");
+        }
+
+        if (string.Equals(defaultRole.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(defaultRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Registration role configuration is invalid.");
+        }
 
         var user = new User
         {
@@ -203,24 +217,120 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
     {
-        // In a real application, you would validate the refresh token from database
-        // For now, we'll just validate the access token structure
-        if (!_tokenService.ValidateToken(request.Token))
+        var principal = GetPrincipalFromToken(request.Token, validateLifetime: false);
+        if (principal == null)
         {
             throw new UnauthorizedAccessException("Invalid token");
         }
 
-        // Extract user ID from token and regenerate tokens
-        // This is simplified - in production, validate refresh token from DB
-        throw new NotImplementedException("Refresh token logic to be implemented with token storage");
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Invalid token");
+        }
+
+        var user = await _context.Users
+            .Include(u => u.Role)
+            .Include(u => u.Outlet)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null || !user.IsActive)
+        {
+            throw new UnauthorizedAccessException("User not found or inactive");
+        }
+
+        var incomingTokenHash = HashToken(request.RefreshToken.Trim());
+        var storedRefreshToken = await _context.UserRefreshTokens
+            .FirstOrDefaultAsync(rt => rt.UserId == userId && rt.TokenHash == incomingTokenHash);
+
+        if (storedRefreshToken == null)
+        {
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        if (storedRefreshToken.RevokedAt.HasValue)
+        {
+            throw new UnauthorizedAccessException("Refresh token reuse detected: token has already been revoked");
+        }
+
+        var now = DateTime.UtcNow;
+        if (storedRefreshToken.ExpiresAt <= now)
+        {
+            storedRefreshToken.RevokedAt = now;
+            storedRefreshToken.RevokedReason = "Expired";
+            await _context.SaveChangesAsync();
+            throw new UnauthorizedAccessException("Refresh token has expired");
+        }
+
+        var newAccessToken = _tokenService.GenerateAccessToken(user, user.Role);
+        var newRefreshToken = _tokenService.GenerateRefreshToken();
+        var newRefreshTokenHash = HashToken(newRefreshToken);
+
+        storedRefreshToken.RevokedAt = now;
+        storedRefreshToken.RevokedReason = "Rotated";
+        storedRefreshToken.ReplacedByTokenHash = newRefreshTokenHash;
+
+        _context.UserRefreshTokens.Add(new UserRefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = newRefreshTokenHash,
+            ExpiresAt = now.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+            CreatedAt = now
+        });
+
+        await _context.SaveChangesAsync();
+
+        var permissions = new List<string>();
+        if (user.Role != null)
+        {
+            try
+            {
+                permissions = JsonSerializer.Deserialize<List<string>>(user.Role.Permissions) ?? new List<string>();
+            }
+            catch { }
+        }
+
+        return new LoginResponseDto
+        {
+            Token = newAccessToken,
+            RefreshToken = newRefreshToken,
+            ExpiresAt = now.AddMinutes(_jwtSettings.ExpirationMinutes),
+            User = new UserInfoDto
+            {
+                Id = user.Id,
+                BusinessId = user.BusinessId,
+                Name = user.Name,
+                Email = user.Email,
+                RoleName = user.Role?.Name,
+                Permissions = permissions,
+                OutletId = user.OutletId,
+                OutletName = user.Outlet?.Name,
+                RealRoleName = user.Role?.Name,
+                IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
+                MustResetPassword = user.MustResetPassword
+            }
+        };
     }
 
     public async Task<bool> LogoutAsync(long userId)
     {
-        // In a real application, you would invalidate the refresh token in database
-        // For JWT, we can't invalidate the access token until it expires
-        // You could maintain a blacklist of tokens if needed
-        return await Task.FromResult(true);
+        var now = DateTime.UtcNow;
+        var activeTokens = await _context.UserRefreshTokens
+            .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAt = now;
+            token.RevokedReason = "Logout";
+        }
+
+        if (activeTokens.Count > 0)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return true;
     }
 
     public async Task<UserInfoDto?> GetCurrentUserAsync(long userId)
@@ -265,5 +375,51 @@ public class AuthService : IAuthService
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes);
+    }
+
+    private async Task PersistRefreshTokenAsync(long userId, string refreshToken)
+    {
+        _context.UserRefreshTokens.Add(new UserRefreshToken
+        {
+            UserId = userId,
+            TokenHash = HashToken(refreshToken),
+            ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+    }
+
+    private ClaimsPrincipal? GetPrincipalFromToken(string token, bool validateLifetime)
+    {
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret)),
+            ValidateIssuer = true,
+            ValidIssuer = _jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = _jwtSettings.Audience,
+            ValidateLifetime = validateLifetime,
+            ClockSkew = TimeSpan.Zero
+        };
+
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var validatedToken);
+
+            if (validatedToken is not JwtSecurityToken jwtToken ||
+                !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return principal;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

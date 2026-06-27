@@ -1,8 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { OutletService } from '../../services/outlet.service';
+import { ListStateService } from '../../services/list-state.service';
 import { Outlet } from '../../models/outlet.model';
 
 @Component({
@@ -19,11 +20,14 @@ export class OutletListComponent implements OnInit {
 
   constructor(
     public outletService: OutletService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
   ) {}
 
   ngOnInit(): void {
-    this.loadOutlets();
+    this.searchQuery = this.listState.str(this.route.snapshot.queryParams, 'search');
+    this.performSearch();
   }
 
   loadOutlets(): void {
@@ -35,7 +39,7 @@ export class OutletListComponent implements OnInit {
     });
   }
 
-  onSearch(): void {
+  private performSearch(): void {
     if (this.searchQuery.trim()) {
       this.outletService.searchOutlets(this.searchQuery).subscribe({
         error: (error) => {
@@ -46,6 +50,11 @@ export class OutletListComponent implements OnInit {
     } else {
       this.loadOutlets();
     }
+  }
+
+  onSearch(): void {
+    this.listState.update(this.route, { search: this.searchQuery || undefined });
+    this.performSearch();
   }
 
   createOutlet(): void {

@@ -1,7 +1,9 @@
 export interface Inventory {
   id: number;
+  productId?: number;
   productVariantId: number;
   productName: string;
+  productCode?: string;
   variantName: string;
   sku?: string;
   barcode?: string;
@@ -72,8 +74,9 @@ export interface CategoryValuation {
 }
 
 export interface InventorySearchRequest {
-  productName?: string;
-  sku?: string;
+  productSearch?: string;
+  variantId?: number;
+  variantSearch?: string;
   categoryId?: number;
   outletId?: number;
   warehouseId?: number;

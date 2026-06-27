@@ -1,15 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.Outlet;
+using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.API.Services;
 
-/// <summary>
-/// Authorization rule:
-/// - BusinessOwner ⇒ every outlet + every warehouse.
-/// - Everyone else ⇒ only the outlet recorded on their User row (or the
-///   currently-acting outlet, if role-switched).
-/// </summary>
 public class UserOutletAccessService : IUserOutletAccessService
 {
     private readonly RetailPOSDbContext _context;
@@ -26,8 +21,6 @@ public class UserOutletAccessService : IUserOutletAccessService
         var userId = _roleSwitch.RealUserId
             ?? throw new UnauthorizedAccessException("User identity not found");
 
-        var defaultOutletId = _roleSwitch.EffectiveOutletId;
-
         if (_roleSwitch.IsSuperAdmin)
         {
             var allOutlets = await _context.Outlets.AsNoTracking()
@@ -40,86 +33,187 @@ public class UserOutletAccessService : IUserOutletAccessService
                 .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
                 .ToListAsync();
 
+            var defaultOutlet = _roleSwitch.EffectiveOutletId;
             return new AuthorizedOutletsDto
             {
                 Outlets = allOutlets,
                 Warehouses = allWarehouses,
-                DefaultOutletId = defaultOutletId,
-                IsBusinessOwner = true
+                DestinationOutlets = allOutlets,
+                DestinationWarehouses = allWarehouses,
+                DefaultOutletId = defaultOutlet,
+                IsBusinessOwner = true,
+                IsGlobalAccess = true,
+                AccessScope = User.InventoryAccessAll,
+                DefaultLocationId = defaultOutlet,
+                DefaultLocationType = defaultOutlet.HasValue ? "outlet" : null
             };
         }
 
-        if (_roleSwitch.IsBusinessOwner)
-        {
-            var businessId = _roleSwitch.EffectiveBusinessId;
-
-            if (!businessId.HasValue)
-            {
-                // Backward compatibility for legacy owner accounts created before tenant rollout.
-                var allOutlets = await _context.Outlets.AsNoTracking()
-                    .OrderBy(o => o.Name)
-                    .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
-                    .ToListAsync();
-
-                var allWarehouses = await _context.Warehouses.AsNoTracking()
-                    .OrderBy(w => w.Name)
-                    .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
-                    .ToListAsync();
-
-                return new AuthorizedOutletsDto
-                {
-                    Outlets = allOutlets,
-                    Warehouses = allWarehouses,
-                    DefaultOutletId = defaultOutletId,
-                    IsBusinessOwner = true
-                };
-            }
-
-            var businessOutlets = await _context.Outlets.AsNoTracking()
-                .Where(o => o.BusinessId == businessId)
-                .OrderBy(o => o.Name)
-                .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
-                .ToListAsync();
-
-            var businessWarehouses = await _context.Warehouses.AsNoTracking()
-                .Where(w => w.BusinessId == businessId)
-                .OrderBy(w => w.Name)
-                .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
-                .ToListAsync();
-
-            return new AuthorizedOutletsDto
-            {
-                Outlets = businessOutlets,
-                Warehouses = businessWarehouses,
-                DefaultOutletId = defaultOutletId,
-                IsBusinessOwner = true
-            };
-        }
-
-        // Non-owner: scoped to the user's home outlet (or acting outlet).
         var user = await _context.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new UnauthorizedAccessException("User not found");
 
         var effectiveBusinessId = _roleSwitch.EffectiveBusinessId ?? user.BusinessId;
-        var allowedOutletId = defaultOutletId ?? user.OutletId;
+        var accessScope = NormalizeAccessScope(user.InventoryLocationAccessScope);
 
-        var outlets = new List<AuthorizedLocationDto>();
-        if (allowedOutletId.HasValue)
+        // Backward compatibility for old BusinessOwner users.
+        if (string.IsNullOrWhiteSpace(user.InventoryLocationAccessScope) && _roleSwitch.IsBusinessOwner)
+        {
+            accessScope = User.InventoryAccessAll;
+        }
+
+        if (accessScope == User.InventoryAccessAll)
+        {
+            IQueryable<Outlet> outletQuery = _context.Outlets.AsNoTracking();
+            IQueryable<Warehouse> warehouseQuery = _context.Warehouses.AsNoTracking();
+
+            if (effectiveBusinessId.HasValue)
+            {
+                outletQuery = outletQuery.Where(o => o.BusinessId == effectiveBusinessId);
+                warehouseQuery = warehouseQuery.Where(w => w.BusinessId == effectiveBusinessId);
+            }
+
+            var outlets = await outletQuery
+                .OrderBy(o => o.Name)
+                .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
+                .ToListAsync();
+
+            var warehouses = await warehouseQuery
+                .OrderBy(w => w.Name)
+                .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
+                .ToListAsync();
+
+            var defaultOutletId = _roleSwitch.EffectiveOutletId ?? user.OutletId;
+            var defaultLocationId = defaultOutletId
+                ?? outlets.FirstOrDefault()?.Id
+                ?? warehouses.FirstOrDefault()?.Id;
+            var defaultLocationType = defaultOutletId.HasValue || outlets.Any()
+                ? "outlet"
+                : warehouses.Any() ? "warehouse" : null;
+
+            return new AuthorizedOutletsDto
+            {
+                Outlets = outlets,
+                Warehouses = warehouses,
+                DestinationOutlets = outlets,
+                DestinationWarehouses = warehouses,
+                DefaultOutletId = defaultOutletId,
+                IsBusinessOwner = _roleSwitch.IsBusinessOwner,
+                IsGlobalAccess = true,
+                AccessScope = User.InventoryAccessAll,
+                DefaultLocationId = defaultLocationId,
+                DefaultLocationType = defaultLocationType
+            };
+        }
+
+        if (accessScope == User.InventoryAccessSpecific)
+        {
+            var outletAssignments = await _context.UserOutletAssignments
+                .AsNoTracking()
+                .Where(a => a.UserId == userId && a.IsActive)
+                .Include(a => a.Outlet)
+                .OrderByDescending(a => a.IsPrimary)
+                .ThenBy(a => a.Outlet!.Name)
+                .ToListAsync();
+
+            var warehouseAssignments = await _context.UserWarehouseAssignments
+                .AsNoTracking()
+                .Where(a => a.UserId == userId && a.IsActive)
+                .Include(a => a.Warehouse)
+                .OrderByDescending(a => a.IsPrimary)
+                .ThenBy(a => a.Warehouse!.Name)
+                .ToListAsync();
+
+            var outlets = outletAssignments
+                .Where(a => a.Outlet != null && (!effectiveBusinessId.HasValue || a.Outlet.BusinessId == effectiveBusinessId))
+                .Select(a => new AuthorizedLocationDto { Id = a.OutletId, Name = a.Outlet!.Name, Type = "outlet" })
+                .ToList();
+
+            var warehouses = warehouseAssignments
+                .Where(a => a.Warehouse != null && (!effectiveBusinessId.HasValue || a.Warehouse.BusinessId == effectiveBusinessId))
+                .Select(a => new AuthorizedLocationDto { Id = a.WarehouseId, Name = a.Warehouse!.Name, Type = "warehouse" })
+                .ToList();
+
+            var (destinationOutlets, destinationWarehouses) = await LoadDestinationLocationsAsync(effectiveBusinessId);
+
+            var defaultOutletId = user.OutletId;
+            var defaultLocationId = defaultOutletId
+                ?? outletAssignments.FirstOrDefault(a => a.IsPrimary)?.OutletId
+                ?? warehouseAssignments.FirstOrDefault(a => a.IsPrimary)?.WarehouseId
+                ?? outlets.FirstOrDefault()?.Id
+                ?? warehouses.FirstOrDefault()?.Id;
+            var defaultLocationType = defaultOutletId.HasValue || outlets.Any()
+                ? "outlet"
+                : warehouses.Any() ? "warehouse" : null;
+
+            return new AuthorizedOutletsDto
+            {
+                Outlets = outlets,
+                Warehouses = warehouses,
+                DestinationOutlets = destinationOutlets,
+                DestinationWarehouses = destinationWarehouses,
+                DefaultOutletId = defaultOutletId,
+                IsBusinessOwner = _roleSwitch.IsBusinessOwner,
+                IsGlobalAccess = false,
+                AccessScope = User.InventoryAccessSpecific,
+                DefaultLocationId = defaultLocationId,
+                DefaultLocationType = defaultLocationType
+            };
+        }
+
+        // assigned_only (or fallback): only assigned outlet and/or primary warehouse.
+        var assignedOutletId = _roleSwitch.EffectiveOutletId ?? user.OutletId;
+
+        var assignedWarehouse = await _context.UserWarehouseAssignments
+            .AsNoTracking()
+            .Where(a => a.UserId == userId && a.IsActive)
+            .OrderByDescending(a => a.IsPrimary)
+            .ThenBy(a => a.Id)
+            .Include(a => a.Warehouse)
+            .FirstOrDefaultAsync();
+
+        var outletsList = new List<AuthorizedLocationDto>();
+        if (assignedOutletId.HasValue)
         {
             var outlet = await _context.Outlets.AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == allowedOutletId.Value
+                .FirstOrDefaultAsync(o => o.Id == assignedOutletId.Value
                     && (!effectiveBusinessId.HasValue || o.BusinessId == effectiveBusinessId));
             if (outlet != null)
-                outlets.Add(new AuthorizedLocationDto { Id = outlet.Id, Name = outlet.Name, Type = "outlet" });
+            {
+                outletsList.Add(new AuthorizedLocationDto { Id = outlet.Id, Name = outlet.Name, Type = "outlet" });
+            }
         }
+
+        var warehousesList = new List<AuthorizedLocationDto>();
+        if (assignedWarehouse?.Warehouse != null
+            && (!effectiveBusinessId.HasValue || assignedWarehouse.Warehouse.BusinessId == effectiveBusinessId))
+        {
+            warehousesList.Add(new AuthorizedLocationDto
+            {
+                Id = assignedWarehouse.WarehouseId,
+                Name = assignedWarehouse.Warehouse.Name,
+                Type = "warehouse"
+            });
+        }
+
+        var (destinationOutletsAssigned, destinationWarehousesAssigned) = await LoadDestinationLocationsAsync(effectiveBusinessId);
+
+        var defaultLocationIdAssigned = outletsList.FirstOrDefault()?.Id
+            ?? warehousesList.FirstOrDefault()?.Id;
+        var defaultLocationTypeAssigned = outletsList.Any() ? "outlet" : warehousesList.Any() ? "warehouse" : null;
 
         return new AuthorizedOutletsDto
         {
-            Outlets = outlets,
-            Warehouses = new List<AuthorizedLocationDto>(),
-            DefaultOutletId = allowedOutletId,
-            IsBusinessOwner = false
+            Outlets = outletsList,
+            Warehouses = warehousesList,
+            DestinationOutlets = destinationOutletsAssigned,
+            DestinationWarehouses = destinationWarehousesAssigned,
+            DefaultOutletId = assignedOutletId,
+            IsBusinessOwner = _roleSwitch.IsBusinessOwner,
+            IsGlobalAccess = false,
+            AccessScope = User.InventoryAccessAssignedOnly,
+            DefaultLocationId = defaultLocationIdAssigned,
+            DefaultLocationType = defaultLocationTypeAssigned
         };
     }
 
@@ -128,19 +222,45 @@ public class UserOutletAccessService : IUserOutletAccessService
         string? requestedLocationType)
     {
         var auth = await GetAuthorizedOutletsAsync();
+        var normalizedRequestedType = NormalizeLocationType(requestedLocationType);
 
-        // No filter requested → fall back to the user's default outlet (or "all" for BO).
         if (!requestedLocationId.HasValue)
         {
-            if (auth.IsBusinessOwner)
-                return (null, null);
+            if (auth.IsGlobalAccess)
+                return (null, normalizedRequestedType);
 
-            return auth.DefaultOutletId.HasValue
-                ? (auth.DefaultOutletId, "outlet")
-                : (null, null);
+            if (normalizedRequestedType == "warehouse")
+            {
+                if (!auth.Warehouses.Any())
+                    throw new UnauthorizedAccessException("You are not authorized to view warehouse data.");
+
+                return auth.Warehouses.Count > 1
+                    ? (null, "warehouse")
+                    : (auth.Warehouses.First().Id, "warehouse");
+            }
+
+            if (normalizedRequestedType == "outlet")
+            {
+                if (!auth.Outlets.Any())
+                    throw new UnauthorizedAccessException("You are not authorized to view outlet data.");
+
+                return auth.Outlets.Count > 1
+                    ? (null, "outlet")
+                    : (auth.Outlets.First().Id, "outlet");
+            }
+
+            var defaultLocationId = auth.DefaultLocationId
+                ?? auth.Outlets.FirstOrDefault()?.Id
+                ?? auth.Warehouses.FirstOrDefault()?.Id;
+            var defaultLocationType = auth.DefaultLocationType
+                ?? (auth.Outlets.Any() ? "outlet" : auth.Warehouses.Any() ? "warehouse" : "outlet");
+
+            return defaultLocationId.HasValue
+                ? (defaultLocationId, defaultLocationType)
+                : (null, defaultLocationType);
         }
 
-        var type = string.IsNullOrWhiteSpace(requestedLocationType) ? "outlet" : requestedLocationType.ToLower();
+        var type = normalizedRequestedType ?? "outlet";
 
         var allowed = type == "warehouse"
             ? auth.Warehouses.Any(w => w.Id == requestedLocationId.Value)
@@ -157,17 +277,31 @@ public class UserOutletAccessService : IUserOutletAccessService
     {
         var auth = await GetAuthorizedOutletsAsync();
 
-        if (!auth.IsBusinessOwner)
+        if (!auth.IsGlobalAccess)
         {
-            // Non-BO is always pinned to their default outlet, regardless of what
-            // the client sent — frontend filters cannot expand scope.
-            return auth.DefaultOutletId
+            if (requestedOutletId.HasValue)
+            {
+                var allowed = auth.Outlets.Any(o => o.Id == requestedOutletId.Value);
+                if (!allowed)
+                {
+                    throw new UnauthorizedAccessException(
+                        $"You are not authorized to view data for outlet #{requestedOutletId.Value}.");
+                }
+
+                return requestedOutletId;
+            }
+
+            if (auth.Outlets.Count > 1)
+                return null;
+
+            return auth.Outlets.FirstOrDefault()?.Id
+                ?? auth.DefaultOutletId
                 ?? throw new UnauthorizedAccessException(
-                    "Your account is not assigned to a default outlet. Contact an administrator.");
+                    "Your account is not assigned to an authorized outlet.");
         }
 
         if (!requestedOutletId.HasValue)
-            return null; // BO: "all outlets"
+            return null;
 
         var ok = auth.Outlets.Any(o => o.Id == requestedOutletId.Value);
         if (!ok)
@@ -181,18 +315,26 @@ public class UserOutletAccessService : IUserOutletAccessService
     {
         var auth = await GetAuthorizedOutletsAsync();
 
-        if (!auth.IsBusinessOwner)
+        if (!auth.IsGlobalAccess)
         {
-            var defaultOutlet = auth.DefaultOutletId
-                ?? throw new UnauthorizedAccessException(
-                    "Your account is not assigned to a default outlet. Contact an administrator.");
+            if (!requestedOutletId.HasValue || requestedOutletId.Value <= 0)
+            {
+                var fallback = auth.Outlets.FirstOrDefault()?.Id ?? auth.DefaultOutletId;
+                if (!fallback.HasValue)
+                {
+                    throw new UnauthorizedAccessException(
+                        "Your account is not assigned to an authorized outlet.");
+                }
 
-            // Reject mismatched payloads instead of silently rewriting — protects audit trail.
-            if (requestedOutletId.HasValue && requestedOutletId.Value != defaultOutlet)
+                return fallback.Value;
+            }
+
+            var allowed = auth.Outlets.Any(o => o.Id == requestedOutletId.Value);
+            if (!allowed)
                 throw new UnauthorizedAccessException(
                     $"You are not authorized to record this transaction for outlet #{requestedOutletId.Value}.");
 
-            return defaultOutlet;
+            return requestedOutletId.Value;
         }
 
         if (!requestedOutletId.HasValue || requestedOutletId.Value <= 0)
@@ -215,25 +357,12 @@ public class UserOutletAccessService : IUserOutletAccessService
 
         var type = string.IsNullOrWhiteSpace(requestedLocationType)
             ? "outlet"
-            : requestedLocationType.ToLower();
+            : requestedLocationType.ToLowerInvariant();
 
         if (type != "outlet" && type != "warehouse")
             throw new InvalidOperationException($"Invalid locationType '{requestedLocationType}'.");
 
         var auth = await GetAuthorizedOutletsAsync();
-
-        if (!auth.IsBusinessOwner)
-        {
-            var defaultOutlet = auth.DefaultOutletId
-                ?? throw new UnauthorizedAccessException(
-                    "Your account is not assigned to a default outlet. Contact an administrator.");
-
-            if (type != "outlet" || requestedLocationId != defaultOutlet)
-                throw new UnauthorizedAccessException(
-                    $"You are not authorized to record this transaction for {type} #{requestedLocationId}.");
-
-            return (defaultOutlet, "outlet");
-        }
 
         var allowed = type == "warehouse"
             ? auth.Warehouses.Any(w => w.Id == requestedLocationId)
@@ -241,8 +370,56 @@ public class UserOutletAccessService : IUserOutletAccessService
 
         if (!allowed)
             throw new UnauthorizedAccessException(
-                $"{type} #{requestedLocationId} is not in your authorized set.");
+                $"You are not authorized to record this transaction for {type} #{requestedLocationId}.");
 
         return (requestedLocationId, type);
+    }
+
+    private static string? NormalizeLocationType(string? locationType)
+    {
+        if (string.IsNullOrWhiteSpace(locationType))
+            return null;
+
+        var normalized = locationType.Trim().ToLowerInvariant();
+        if (normalized != "outlet" && normalized != "warehouse")
+            throw new InvalidOperationException($"Invalid locationType '{locationType}'.");
+
+        return normalized;
+    }
+
+    private static string NormalizeAccessScope(string? scope)
+    {
+        var normalized = (scope ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            User.InventoryAccessAssignedOnly => User.InventoryAccessAssignedOnly,
+            User.InventoryAccessSpecific => User.InventoryAccessSpecific,
+            User.InventoryAccessAll => User.InventoryAccessAll,
+            _ => User.InventoryAccessAssignedOnly
+        };
+    }
+
+    private async Task<(List<AuthorizedLocationDto> Outlets, List<AuthorizedLocationDto> Warehouses)> LoadDestinationLocationsAsync(long? businessId)
+    {
+        IQueryable<Outlet> outletQuery = _context.Outlets.AsNoTracking();
+        IQueryable<Warehouse> warehouseQuery = _context.Warehouses.AsNoTracking();
+
+        if (businessId.HasValue)
+        {
+            outletQuery = outletQuery.Where(o => o.BusinessId == businessId.Value);
+            warehouseQuery = warehouseQuery.Where(w => w.BusinessId == businessId.Value);
+        }
+
+        var outlets = await outletQuery
+            .OrderBy(o => o.Name)
+            .Select(o => new AuthorizedLocationDto { Id = o.Id, Name = o.Name, Type = "outlet" })
+            .ToListAsync();
+
+        var warehouses = await warehouseQuery
+            .OrderBy(w => w.Name)
+            .Select(w => new AuthorizedLocationDto { Id = w.Id, Name = w.Name, Type = "warehouse" })
+            .ToListAsync();
+
+        return (outlets, warehouses);
     }
 }

@@ -7,7 +7,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "categories.view")]
 public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
@@ -117,6 +117,7 @@ public class CategoriesController : ControllerBase
     /// Create new category
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "categories.create")]
     public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CreateCategoryDto dto)
     {
         try
@@ -157,6 +158,7 @@ public class CategoriesController : ControllerBase
     /// Update existing category
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "categories.edit")]
     public async Task<ActionResult<CategoryDto>> UpdateCategory(long id, [FromBody] UpdateCategoryDto dto)
     {
         try
@@ -193,6 +195,7 @@ public class CategoriesController : ControllerBase
     /// Delete category
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "categories.delete")]
     public async Task<ActionResult> DeleteCategory(long id)
     {
         try
@@ -224,6 +227,7 @@ public class CategoriesController : ControllerBase
     /// Move category to a different parent
     /// </summary>
     [HttpPut("{id}/move")]
+    [Authorize(Policy = "categories.edit")]
     public async Task<ActionResult<CategoryDto>> MoveCategory(long id, [FromBody] MoveCategoryDto dto)
     {
         try

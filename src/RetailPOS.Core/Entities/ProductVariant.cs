@@ -20,5 +20,5 @@ public class ProductVariant
     public virtual ICollection<PurchaseOrderItem> PurchaseOrderItems { get; set; } = new List<PurchaseOrderItem>();
     public virtual ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
     public virtual ICollection<StockTransferItem> StockTransferItems { get; set; } = new List<StockTransferItem>();
-    public virtual ICollection<StockAdjustment> StockAdjustments { get; set; } = new List<StockAdjustment>();
+    public virtual ICollection<StockAdjustmentLine> StockAdjustmentLines { get; set; } = new List<StockAdjustmentLine>();
 }

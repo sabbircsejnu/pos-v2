@@ -162,6 +162,7 @@ public class GrnService : IGrnService
 
         var po = grn.PurchaseOrder;
         var warehouseId = po.WarehouseId;
+        const string warehouseLocationType = "warehouse";
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
@@ -175,7 +176,7 @@ public class GrnService : IGrnService
                     .FirstOrDefaultAsync(inv =>
                         inv.VariantId == variantId &&
                         inv.LocationId == warehouseId &&
-                        inv.LocationType == "warehouse");
+                        inv.LocationType.ToLower() == warehouseLocationType);
 
                 if (inventory == null)
                 {
@@ -183,7 +184,7 @@ public class GrnService : IGrnService
                     {
                         VariantId = variantId,
                         LocationId = warehouseId,
-                        LocationType = "warehouse",
+                        LocationType = warehouseLocationType,
                         Quantity = item.ReceivedQty
                     };
                     _context.Inventories.Add(inventory);
@@ -197,7 +198,7 @@ public class GrnService : IGrnService
                 _stockLedger.WriteEntry(
                     variantId: variantId,
                     locationId: warehouseId,
-                    locationType: "warehouse",
+                    locationType: warehouseLocationType,
                     transactionType: RetailPOS.Core.Entities.StockLedgerTransactionType.Grn,
                     qtyIn: item.ReceivedQty,
                     qtyOut: 0,
@@ -273,6 +274,7 @@ public class GrnService : IGrnService
                 Id = i.Id,
                 VariantId = i.VariantId,
                 ProductName = i.Variant?.Product?.Name ?? string.Empty,
+                ProductCode = i.Variant?.Product?.ProductCode,
                 VariantName = i.Variant?.Name ?? string.Empty,
                 VariantAttributes = i.Variant?.Attributes,
                 Quantity = i.Quantity,
@@ -369,8 +371,8 @@ public class GrnService : IGrnService
             ReceivedDate = grn.ReceivedDate,
             Status = grn.Status,
             Notes = grn.Notes,                             // NEW
-            CreatedBy = grn.CreatedBy,
-            CreatedByName = grn.Creator?.Name,
+            CreatedBy = grn.CreatedBy ?? grn.PurchaseOrder?.CreatedBy,
+            CreatedByName = grn.Creator?.Name ?? grn.PurchaseOrder?.Creator?.Name,
             CreatedAt = grn.CreatedAt,
             Items = grn.Items?.Select(i => new GrnItemDto
             {
@@ -378,6 +380,7 @@ public class GrnService : IGrnService
                 PoItemId = i.PoItemId,
                 VariantId = i.PurchaseOrderItem?.VariantId ?? 0,
                 ProductName = i.PurchaseOrderItem?.Variant?.Product?.Name ?? string.Empty,
+                ProductCode = i.PurchaseOrderItem?.Variant?.Product?.ProductCode,
                 VariantName = i.PurchaseOrderItem?.Variant?.Name ?? string.Empty,
                 VariantAttributes = i.PurchaseOrderItem?.Variant?.Attributes,
                 OrderedQty = i.PurchaseOrderItem?.Quantity ?? 0,

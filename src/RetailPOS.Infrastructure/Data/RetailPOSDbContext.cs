@@ -12,11 +12,16 @@ public class RetailPOSDbContext : DbContext
 
     // Tenancy
     public DbSet<Business> Businesses => Set<Business>();
+    public DbSet<BusinessFeatureSetting> BusinessFeatureSettings => Set<BusinessFeatureSetting>();
+    public DbSet<BusinessReminderNotification> BusinessReminderNotifications => Set<BusinessReminderNotification>();
 
     // User & Role Management
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
+    public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
+    public DbSet<UserWarehouseAssignment> UserWarehouseAssignments => Set<UserWarehouseAssignment>();
+    public DbSet<UserOutletAssignment> UserOutletAssignments => Set<UserOutletAssignment>();
 
     // Locations
     public DbSet<Outlet> Outlets => Set<Outlet>();
@@ -33,6 +38,10 @@ public class RetailPOSDbContext : DbContext
     public DbSet<ProductVariationSelectedOption> ProductVariationSelectedOptions => Set<ProductVariationSelectedOption>();
     public DbSet<Inventory> Inventories => Set<Inventory>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<BarcodeTemplate> BarcodeTemplates => Set<BarcodeTemplate>();
+    public DbSet<BarcodeTemplateField> BarcodeTemplateFields => Set<BarcodeTemplateField>();
+    public DbSet<BarcodePrintHistory> BarcodePrintHistories => Set<BarcodePrintHistory>();
+    public DbSet<BarcodePrintHistoryItem> BarcodePrintHistoryItems => Set<BarcodePrintHistoryItem>();
 
     // Suppliers & Purchase
     public DbSet<Supplier> Suppliers => Set<Supplier>();
@@ -51,7 +60,12 @@ public class RetailPOSDbContext : DbContext
     // Stock Management
     public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
     public DbSet<StockTransferItem> StockTransferItems => Set<StockTransferItem>();
+    public DbSet<StockRequisition> StockRequisitions => Set<StockRequisition>();
+    public DbSet<StockRequisitionLine> StockRequisitionLines => Set<StockRequisitionLine>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<StockAdjustmentLine> StockAdjustmentLines => Set<StockAdjustmentLine>();
+    public DbSet<StockCount> StockCounts => Set<StockCount>();
+    public DbSet<StockCountLine> StockCountLines => Set<StockCountLine>();
 
     // Accounting
     public DbSet<Account> Accounts => Set<Account>();
@@ -115,7 +129,33 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.SubscriptionPlan).HasMaxLength(100);
             entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<BusinessFeatureSetting>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FeatureKey).HasMaxLength(100).IsRequired();
+            entity.HasIndex(e => new { e.BusinessId, e.FeatureKey }).IsUnique();
+
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.FeatureSettings)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BusinessReminderNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ReminderType).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Message).HasMaxLength(500).IsRequired();
+            entity.HasIndex(e => new { e.BusinessId, e.ReminderType, e.TargetAt });
+
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.ReminderNotifications)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Role Configuration
@@ -135,6 +175,10 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.InventoryLocationAccessScope)
+                .HasMaxLength(40)
+                .HasDefaultValue(User.InventoryAccessAssignedOnly)
+                .IsRequired();
 
             entity.HasOne(e => e.Business)
                 .WithMany(b => b.Users)
@@ -205,6 +249,76 @@ public class RetailPOSDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<UserRefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TokenHash).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.ReplacedByTokenHash).HasMaxLength(128);
+            entity.Property(e => e.RevokedReason).HasMaxLength(200);
+
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.RevokedAt, e.ExpiresAt });
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // UserWarehouseAssignment Configuration
+        modelBuilder.Entity<UserWarehouseAssignment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Unique constraint: one warehouse per user
+            entity.HasIndex(e => new { e.UserId, e.WarehouseId }).IsUnique();
+
+            // Indexes for efficient querying
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.WarehouseId);
+            entity.HasIndex(e => e.BusinessId);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.WarehouseAssignments)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Warehouse)
+                .WithMany()
+                .HasForeignKey(e => e.WarehouseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserOutletAssignment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.UserId, e.OutletId }).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.OutletId);
+            entity.HasIndex(e => e.BusinessId);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.OutletAssignments)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany()
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Category Configuration
         modelBuilder.Entity<Category>(entity =>
         {
@@ -224,11 +338,26 @@ public class RetailPOSDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ProductCode).HasMaxLength(50);
+            // Unique partial index: only non-null product codes must be unique.
+            // NULL values are intentionally excluded so existing products without a code are unaffected.
+            entity.HasIndex(e => e.ProductCode)
+                  .IsUnique()
+                  .HasFilter("product_code IS NOT NULL");
             entity.Property(e => e.BasePrice).HasPrecision(10, 2);
             entity.Property(e => e.CostPrice).HasPrecision(10, 2);
             entity.Property(e => e.TaxRate).HasPrecision(5, 2);
             entity.HasIndex(e => e.Barcode).IsUnique();
             entity.Property(e => e.Barcode).HasMaxLength(50);
+
+            // Status is stored as smallint; default 1 (Active).
+            entity.Property(e => e.Status)
+                  .HasConversion<int>()
+                  .HasColumnType("smallint")
+                  .HasDefaultValue(ProductStatus.Active);
+
+            // IsActive is a computed C# property — not persisted.
+            entity.Ignore(e => e.IsActive);
 
             entity.HasOne(e => e.Category)
                 .WithMany(c => c.Products)
@@ -259,6 +388,9 @@ public class RetailPOSDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.AutoSelectAllOptions)
+                .HasColumnName("default_select_all_options")
+                .HasDefaultValue(false);
         });
 
         // VariationOption Configuration
@@ -354,6 +486,109 @@ public class RetailPOSDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // BarcodeTemplate Configuration
+        modelBuilder.Entity<BarcodeTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.TemplateType).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.PaperType).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.LabelWidthMm).HasPrecision(8, 2);
+            entity.Property(e => e.LabelHeightMm).HasPrecision(8, 2);
+
+            entity.HasIndex(e => new { e.BusinessId, e.Name }).IsUnique();
+            entity.HasIndex(e => new { e.BusinessId, e.IsDefault })
+                .HasFilter("is_default = true")
+                .HasDatabaseName("ux_barcode_templates_one_default_per_business");
+
+            entity.HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // BarcodeTemplateField Configuration
+        modelBuilder.Entity<BarcodeTemplateField>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FieldKey).HasMaxLength(60).IsRequired();
+            entity.Property(e => e.FontWeight).HasMaxLength(20);
+            entity.Property(e => e.Align).HasMaxLength(20);
+            entity.Property(e => e.X).HasPrecision(8, 2);
+            entity.Property(e => e.Y).HasPrecision(8, 2);
+            entity.Property(e => e.Width).HasPrecision(8, 2);
+            entity.Property(e => e.Height).HasPrecision(8, 2);
+            entity.Property(e => e.FontSize).HasPrecision(8, 2);
+
+            entity.HasIndex(e => new { e.TemplateId, e.FieldKey }).IsUnique();
+            entity.HasIndex(e => new { e.TemplateId, e.SortOrder });
+
+            entity.HasOne(e => e.Template)
+                .WithMany(t => t.Fields)
+                .HasForeignKey(e => e.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // BarcodePrintHistory Configuration
+        modelBuilder.Entity<BarcodePrintHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PrintMode).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SourceModule).HasMaxLength(60);
+            entity.Property(e => e.SourceReferenceType).HasMaxLength(60);
+            entity.Property(e => e.LabelWidthMm).HasPrecision(8, 2);
+            entity.Property(e => e.LabelHeightMm).HasPrecision(8, 2);
+
+            entity.HasIndex(e => new { e.BusinessId, e.PrintedAt });
+            entity.HasIndex(e => new { e.TemplateId, e.PrintedAt });
+            entity.HasIndex(e => new { e.PrintedByUserId, e.PrintedAt });
+            entity.HasIndex(e => new { e.SourceReferenceType, e.SourceReferenceId });
+
+            entity.HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Outlet)
+                .WithMany()
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Template)
+                .WithMany()
+                .HasForeignKey(e => e.TemplateId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.PrintedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.PrintedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // BarcodePrintHistoryItem Configuration
+        modelBuilder.Entity<BarcodePrintHistoryItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProductName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.VariantName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.VariantSku).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.BarcodeValue).HasMaxLength(100);
+            entity.Property(e => e.SellingPrice).HasPrecision(10, 2);
+
+            entity.HasIndex(e => e.PrintHistoryId);
+            entity.HasIndex(e => e.VariantId);
+
+            entity.HasOne(e => e.PrintHistory)
+                .WithMany(h => h.Items)
+                .HasForeignKey(e => e.PrintHistoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany()
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Inventory Configuration
         modelBuilder.Entity<Inventory>(entity =>
         {
@@ -362,12 +597,15 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.BatchNumber).HasMaxLength(50);
 
             // Optimistic concurrency token — maps to PostgreSQL's built-in xmin system column.
-            // No DDL column is required; xmin is always present on every row.
-            // EF Core includes xmin in every UPDATE's WHERE clause, causing a
-            // DbUpdateConcurrencyException on concurrent conflicting writes.
+            // No DDL column is required; xmin is always present on every PostgreSQL row.
+            // ValueGeneratedOnAddOrUpdate tells EF Core NOT to include xmin in INSERT/UPDATE
+            // column lists (it's a system column — writing it directly causes a PostgreSQL error).
+            // EF Core reads the new value back via RETURNING xmin after each write, then
+            // includes it in the WHERE clause of the next UPDATE to detect concurrent changes.
             entity.Property(e => e.XMin)
                 .HasColumnName("xmin")
                 .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
                 .IsConcurrencyToken();
 
             entity.HasIndex(e => new { e.VariantId, e.LocationId, e.LocationType }).IsUnique();
@@ -391,8 +629,17 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<PurchaseOrder>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.PoNumber).HasMaxLength(30).IsRequired();
+            entity.HasIndex(e => e.PoNumber).IsUnique();
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(64);
+            entity.HasIndex(e => new { e.WarehouseId, e.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("idempotency_key IS NOT NULL");
             entity.Property(e => e.TotalAmount).HasPrecision(10, 2);
-            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+            // status values: draft | pending | sent_back | approved | partially_received | fully_received | completed | cancelled | rejected
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
 
             entity.HasOne(e => e.Supplier)
                 .WithMany(s => s.PurchaseOrders)
@@ -415,6 +662,9 @@ public class RetailPOSDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.Discount).HasPrecision(5, 2);
+            entity.Property(e => e.Tax).HasPrecision(5, 2);
+            entity.Property(e => e.Unit).HasMaxLength(30);
 
             entity.HasOne(e => e.PurchaseOrder)
                 .WithMany(po => po.Items)
@@ -576,18 +826,64 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<StockTransfer>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.TransferNo).HasMaxLength(40);
+            entity.Property(e => e.TransferType).HasMaxLength(30).IsRequired();
             entity.Property(e => e.FromLocationType).HasMaxLength(20).IsRequired();
             entity.Property(e => e.ToLocationType).HasMaxLength(20).IsRequired();
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.TransferNo)
+                .IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.TransferDate);
+            entity.HasIndex(e => new { e.FromLocationType, e.FromLocationId });
+            entity.HasIndex(e => new { e.ToLocationType, e.ToLocationId });
+            entity.HasIndex(e => e.RelatedRequisitionId);
 
             entity.HasOne(e => e.Approver)
                 .WithMany(u => u.StockTransfersApproved)
                 .HasForeignKey(e => e.ApprovedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasOne(e => e.Submitter)
+                .WithMany()
+                .HasForeignKey(e => e.SubmittedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Dispatcher)
+                .WithMany()
+                .HasForeignKey(e => e.DispatchedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Receiver)
+                .WithMany()
+                .HasForeignKey(e => e.ReceivedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany()
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Canceller)
+                .WithMany()
+                .HasForeignKey(e => e.CancelledBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Updater)
+                .WithMany()
+                .HasForeignKey(e => e.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.Creator)
                 .WithMany(u => u.StockTransfersCreated)
                 .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.RelatedRequisition)
+                .WithMany(r => r.Transfers)
+                .HasForeignKey(e => e.RelatedRequisitionId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -595,6 +891,8 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<StockTransferItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+            entity.Property(e => e.Remarks).HasMaxLength(1000);
 
             entity.HasOne(e => e.Transfer)
                 .WithMany(t => t.Items)
@@ -607,21 +905,201 @@ public class RetailPOSDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // StockRequisition Configuration
+        modelBuilder.Entity<StockRequisition>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RequisitionNo).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.RequestingLocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SourceLocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.RequisitionNo)
+                .IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.RequestDate);
+            entity.HasIndex(e => new { e.RequestingLocationType, e.RequestingLocationId });
+            entity.HasIndex(e => new { e.SourceLocationType, e.SourceLocationId });
+
+            entity.HasOne(e => e.Requester)
+                .WithMany()
+                .HasForeignKey(e => e.RequestedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Submitter)
+                .WithMany()
+                .HasForeignKey(e => e.SubmittedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Approver)
+                .WithMany()
+                .HasForeignKey(e => e.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany()
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Closer)
+                .WithMany()
+                .HasForeignKey(e => e.ClosedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Updater)
+                .WithMany()
+                .HasForeignKey(e => e.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StockRequisitionLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Remarks).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.RequisitionId);
+            entity.HasIndex(e => e.VariantId);
+
+            entity.HasOne(e => e.Requisition)
+                .WithMany(r => r.Lines)
+                .HasForeignKey(e => e.RequisitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany()
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // StockAdjustment Configuration
         modelBuilder.Entity<StockAdjustment>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.AdjustmentNumber).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
             entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
-            entity.Property(e => e.Reason).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
 
-            entity.HasOne(e => e.Variant)
-                .WithMany(v => v.StockAdjustments)
-                .HasForeignKey(e => e.VariantId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.AdjustmentNumber)
+                .IsUnique();
+
+            entity.HasIndex(e => e.Status);
 
             entity.HasOne(e => e.Adjuster)
                 .WithMany(u => u.StockAdjustments)
                 .HasForeignKey(e => e.AdjustedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Approver)
+                .WithMany(u => u.StockAdjustmentsApproved)
+                .HasForeignKey(e => e.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany(u => u.StockAdjustmentsRejected)
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Canceller)
+                .WithMany(u => u.StockAdjustmentsCancelled)
+                .HasForeignKey(e => e.CancelledBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.Lines)
+                .WithOne(l => l.StockAdjustment)
+                .HasForeignKey(l => l.StockAdjustmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StockAdjustmentLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Reason).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+
+            entity.HasIndex(e => e.StockAdjustmentId);
+            entity.HasIndex(e => e.VariantId);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.StockAdjustmentLines)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // StockCount Configuration
+        modelBuilder.Entity<StockCount>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.StockCountNo).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.LocationType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
+            entity.Property(e => e.Remarks).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.StockCountNo).IsUnique();
+            entity.HasIndex(e => e.BusinessId);
+            entity.HasIndex(e => e.LocationId);
+            entity.HasIndex(e => e.StockCountDate);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.BusinessId, e.LocationType, e.LocationId, e.CreatedAt });
+
+            entity.HasIndex(e => new { e.BusinessId, e.LocationType, e.LocationId })
+                .IsUnique()
+                .HasFilter("status in ('Draft','Submitted')");
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Submitter)
+                .WithMany()
+                .HasForeignKey(e => e.SubmittedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Approver)
+                .WithMany()
+                .HasForeignKey(e => e.ApprovedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Rejector)
+                .WithMany()
+                .HasForeignKey(e => e.RejectedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.Lines)
+                .WithOne(l => l.StockCount)
+                .HasForeignKey(l => l.StockCountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StockCountLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ProductName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ProductCode).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.VariantName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.CurrentStock).HasPrecision(18, 3).IsRequired();
+            entity.Property(e => e.PhysicalStock).HasPrecision(18, 3);
+            entity.Property(e => e.Difference).HasPrecision(18, 3);
+            entity.Property(e => e.Remarks).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.StockCountId);
+            entity.HasIndex(e => e.VariantId);
+            entity.HasIndex(e => new { e.StockCountId, e.VariantId }).IsUnique();
+
+            entity.HasOne(e => e.Product)
+                .WithMany()
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany()
+                .HasForeignKey(e => e.VariantId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

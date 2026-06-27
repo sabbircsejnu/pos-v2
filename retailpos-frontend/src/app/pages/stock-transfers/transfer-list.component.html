@@ -5,10 +5,12 @@
       <h1 class="text-2xl font-bold text-gray-900">Stock Transfers</h1>
       <p class="text-sm text-gray-600 mt-0.5">Manage stock movement between locations</p>
     </div>
-    <button (click)="createTransfer()" class="btn btn-primary">
-      <i class="fas fa-plus"></i>
-      Create Transfer
-    </button>
+    @if (auth.hasPermission('stock_transfers.create')) {
+      <button (click)="createTransfer()" class="btn btn-primary">
+        <i class="fas fa-plus"></i>
+        Create Transfer
+      </button>
+    }
   </div>
 
   <!-- Filters -->
@@ -16,12 +18,15 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div>
         <label class="label">Status</label>
-        <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" class="input">
+        <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); onFilterChange()" class="input">
           <option value="">All Statuses</option>
+          <option value="draft">Draft</option>
+          <option value="submitted">Submitted</option>
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="in_transit">In Transit</option>
           <option value="received">Received</option>
+          <option value="partially_received">Partially Received</option>
           <option value="cancelled">Cancelled</option>
           <option value="rejected">Rejected</option>
         </select>
@@ -66,6 +71,7 @@
               <th class="px-4 py-2.5">To</th>
               <th class="px-4 py-2.5">Date</th>
               <th class="px-4 py-2.5 text-center">Items</th>
+              <th class="px-4 py-2.5">Type</th>
               <th class="px-4 py-2.5">Status</th>
               <th class="px-4 py-2.5 text-center">Actions</th>
             </tr>
@@ -85,6 +91,11 @@
                 <td class="px-4 py-2.5 text-gray-600">{{ formatDate(transfer.transferDate) }}</td>
                 <td class="px-4 py-2.5 text-center text-gray-700">{{ transfer.items.length || 0 }}</td>
                 <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                    {{ getTypeLabel(transfer.transferType) }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5">
                   <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
                         [ngClass]="getStatusColor(transfer.status)">
                     {{ getStatusLabel(transfer.status) }}
@@ -96,31 +107,31 @@
                             class="btn btn-ghost py-1 px-2" title="View">
                       <i class="fas fa-eye"></i>
                     </button>
-                    @if (transfer.status === 'pending') {
+                    @if ((transfer.status === 'submitted' || transfer.status === 'pending') && auth.hasPermission('stock_transfers.approve')) {
                       <button (click)="approveTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-blue-600" title="Approve">
                         <i class="fas fa-check"></i>
                       </button>
+                    }
+                    @if ((transfer.status === 'submitted' || transfer.status === 'approved' || transfer.status === 'in_transit') && auth.hasPermission('stock_transfers.reject_receive') && canReceiveOrRejectTransfer(transfer)) {
                       <button (click)="rejectTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-red-600" title="Reject">
                         <i class="fas fa-times"></i>
                       </button>
+                    }
+                    @if ((transfer.status === 'draft' || transfer.status === 'submitted' || transfer.status === 'pending' || transfer.status === 'approved') && auth.hasPermission('stock_transfers.cancel')) {
                       <button (click)="cancelTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-gray-500" title="Cancel">
                         <i class="fas fa-ban"></i>
                       </button>
                     }
-                    @if (transfer.status === 'approved') {
+                    @if (transfer.status === 'approved' && auth.hasPermission('stock_transfers.dispatch')) {
                       <button (click)="sendTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-orange-600" title="Send (In Transit)">
                         <i class="fas fa-truck-moving"></i>
                       </button>
-                      <button (click)="cancelTransfer(transfer.id, $event)"
-                              class="btn btn-ghost py-1 px-2 text-gray-500" title="Cancel">
-                        <i class="fas fa-ban"></i>
-                      </button>
                     }
-                    @if (transfer.status === 'in_transit') {
+                    @if (transfer.status === 'in_transit' && auth.hasPermission('stock_transfers.receive') && canReceiveOrRejectTransfer(transfer)) {
                       <button (click)="receiveTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-green-600" title="Receive">
                         <i class="fas fa-box-open"></i>
@@ -143,7 +154,7 @@
               {{ Math.min(pageNumber() * pageSize(), transferService.totalCount()) }} of
               {{ transferService.totalCount() }} transfers
             </span>
-            <select [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)"
+            <select [ngModel]="pageSize()" (ngModelChange)="changePageSize($event)"
                     class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900">
               <option [ngValue]="10">10 per page</option>
               <option [ngValue]="25">25 per page</option>
@@ -174,11 +185,13 @@
       <i class="fas fa-exchange-alt text-6xl text-gray-300 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">No Transfers Found</h3>
       <p class="text-gray-600 mb-6">Create a stock transfer to move inventory between locations</p>
-      <button (click)="createTransfer()"
-              class="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition">
-        <i class="fas fa-plus mr-2"></i>
-        Create Transfer
-      </button>
+      @if (auth.hasPermission('stock_transfers.create')) {
+        <button (click)="createTransfer()"
+                class="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition">
+          <i class="fas fa-plus mr-2"></i>
+          Create Transfer
+        </button>
+      }
     </div>
   }
 </div>

@@ -201,6 +201,96 @@ public class WarehouseService : IWarehouseService
         };
     }
 
+    // ── Super Admin business-scoped operations ────────────────────────────────
+
+    public async Task<IEnumerable<WarehouseDto>> GetByBusinessIdAsync(long businessId)
+    {
+        var warehouses = await _warehouseRepository.GetAllAsync(businessId);
+        var result = new List<WarehouseDto>();
+        foreach (var warehouse in warehouses)
+        {
+            var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(warehouse.Id, businessId);
+            result.Add(MapToDto(warehouse, poCount));
+        }
+        return result;
+    }
+
+    public async Task<WarehouseDto> CreateForBusinessAsync(long businessId, CreateWarehouseDto dto)
+    {
+        if (await _warehouseRepository.ExistsByNameAsync(dto.Name, null, businessId))
+            throw new InvalidOperationException($"A warehouse with the name '{dto.Name}' already exists in this business");
+
+        if (dto.ManagerId.HasValue)
+        {
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
+            if (manager == null)
+                throw new InvalidOperationException($"Manager with ID {dto.ManagerId} not found in this business");
+        }
+
+        if (dto.Capacity.HasValue && dto.Capacity.Value < 0)
+            throw new InvalidOperationException("Capacity must be a positive number");
+
+        var warehouse = new Warehouse
+        {
+            BusinessId = businessId,
+            Name = dto.Name,
+            Address = dto.Address,
+            Capacity = dto.Capacity,
+            ManagerId = dto.ManagerId
+        };
+
+        var created = await _warehouseRepository.CreateAsync(warehouse);
+        _logger.LogInformation("Business setup: Warehouse created for business {BusinessId}: ID={Id}, Name={Name}", businessId, created.Id, created.Name);
+        return MapToDto(created, 0);
+    }
+
+    public async Task<WarehouseDto> UpdateForBusinessAsync(long businessId, long id, UpdateWarehouseDto dto)
+    {
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
+        if (warehouse == null)
+            throw new InvalidOperationException($"Warehouse {id} not found in business {businessId}");
+
+        if (await _warehouseRepository.ExistsByNameAsync(dto.Name, id, businessId))
+            throw new InvalidOperationException($"A warehouse with the name '{dto.Name}' already exists in this business");
+
+        if (dto.ManagerId.HasValue)
+        {
+            var manager = await _userRepository.GetByIdAsync(dto.ManagerId.Value, businessId);
+            if (manager == null)
+                throw new InvalidOperationException($"Manager with ID {dto.ManagerId} not found in this business");
+        }
+
+        if (dto.Capacity.HasValue && dto.Capacity.Value < 0)
+            throw new InvalidOperationException("Capacity must be a positive number");
+
+        warehouse.Name = dto.Name;
+        warehouse.Address = dto.Address;
+        warehouse.Capacity = dto.Capacity;
+        warehouse.ManagerId = dto.ManagerId;
+
+        var updated = await _warehouseRepository.UpdateAsync(warehouse);
+        _logger.LogInformation("Business setup: Warehouse updated for business {BusinessId}: ID={Id}", businessId, updated.Id);
+
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
+        return MapToDto(updated, poCount);
+    }
+
+    public async Task<bool> DeleteForBusinessAsync(long businessId, long id)
+    {
+        var warehouse = await _warehouseRepository.GetByIdAsync(id, businessId);
+        if (warehouse == null)
+            return false;
+
+        var poCount = await _warehouseRepository.GetPurchaseOrderCountAsync(id, businessId);
+        if (poCount > 0)
+            throw new InvalidOperationException($"Cannot delete warehouse. It has {poCount} purchase order(s)");
+
+        var deleted = await _warehouseRepository.DeleteAsync(id, businessId);
+        if (deleted)
+            _logger.LogInformation("Business setup: Warehouse deleted from business {BusinessId}: ID={Id}", businessId, id);
+        return deleted;
+    }
+
     private static WarehouseDto MapToDto(Warehouse warehouse, int poCount)
     {
         return new WarehouseDto

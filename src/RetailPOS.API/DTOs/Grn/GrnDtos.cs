@@ -9,6 +9,7 @@ public class GrnItemDto
     public long PoItemId { get; set; }
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
+    public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
     public string? VariantAttributes { get; set; }
     public int OrderedQty { get; set; }
@@ -189,6 +190,7 @@ public class PurchaseOrderItemForGrnDto
     public long Id { get; set; }
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
+    public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
     public string? VariantAttributes { get; set; }
     public int Quantity { get; set; }

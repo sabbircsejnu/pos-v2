@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, inject, signal, computed, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
@@ -8,17 +8,20 @@ import { SupplierService } from '../../services/supplier.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { ProductService } from '../../services/product.service';
 import { ProductImageService } from '../../services/product-image.service';
+import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { CreatePurchaseOrderRequest, CreatePurchaseOrderItem } from '../../models/purchase-order.model';
+import { CreatePurchaseAndReceiveRequest, CreatePurchaseOrderRequest, CreatePurchaseOrderItem } from '../../models/purchase-order.model';
 import { SearchableDropdownComponent, DropdownOption } from '../searchable-dropdown/searchable-dropdown.component';
 import { Supplier } from '../../models/supplier.model';
 import { Warehouse } from '../../models/warehouse.model';
 import { CurrencyService } from '../../services/currency.service';
+import { findVariantIndexById, isVariantAlreadyInItems } from '../../utils/variant-selection.util';
 
 interface ProductVariantOption {
   id: number;
   productId: number;
+  productCode?: string;
   productName: string;
   name: string;
   sku?: string;
@@ -42,6 +45,10 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   @ViewChild('warehouseDropdown') warehouseDropdown!: SearchableDropdownComponent;
 
   private imageSvc = inject(ProductImageService);
+  private auth = inject(AuthService);
+  canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
+  canPurchaseAndReceive = computed(() => this.auth.hasPermission('purchases.receive'));
+
   resolveImage(path?: string | null): string { return this.imageSvc.resolveUrl(path); }
 
   isEditMode = signal(false);
@@ -54,11 +61,37 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   warehouseId = signal<number | null>(null);
   orderDate = signal<string>(this.formatDateForInput(new Date()));
   expectedDeliveryDate = signal<string>('');
+  notes = signal<string>('');
   
   items = signal<any[]>([]);
 
   // Computed helpers used in template
   hasSelectedItems = computed(() => this.items().some((i: any) => i.variantId && i.variantId !== 0));
+  selectedItems = computed(() => this.items().filter((i: any) => i.variantId && i.variantId !== 0));
+  selectedItemCount = computed(() => this.selectedItems().length);
+  totalQuantity = computed(() => this.selectedItems().reduce((sum: number, item: any) => sum + (item.quantity || 0), 0));
+  setupChecklist = computed(() => {
+    const hasSupplier = !!this.supplierId();
+    const hasWarehouse = !!this.warehouseId();
+    const hasDate = !!this.orderDate();
+    const hasItems = this.selectedItemCount() > 0;
+    const hasValue = this.calculateGrandTotal() > 0;
+
+    return [
+      { label: 'Supplier selected', complete: hasSupplier },
+      { label: 'Warehouse selected', complete: hasWarehouse },
+      { label: 'Order date selected', complete: hasDate },
+      { label: 'At least one line item', complete: hasItems },
+      { label: 'Order value confirmed', complete: hasValue },
+    ];
+  });
+  setupPercent = computed(() => {
+    const checklist = this.setupChecklist();
+    if (checklist.length === 0) return 0;
+    const done = checklist.filter(item => item.complete).length;
+    return Math.round((done / checklist.length) * 100);
+  });
+  // 7 columns: #, Product / Variant, Product Code, Qty, Unit Price, Total, Action
   searchRowColspan = computed(() => this.hasSelectedItems() ? 7 : 1);
 
   // Data
@@ -74,10 +107,12 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   hasMoreVariants = signal<{ [index: number]: boolean }>({});
   variantInputFocused = signal<{ [index: number]: boolean }>({});
   dropdownPosition = signal<{ [index: number]: { top: number; left: number; width: number } }>({});
+  duplicateHighlightedVariantId = signal<number | null>(null);
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private poService: PurchaseOrderService,
     private supplierService: SupplierService,
     private warehouseService: WarehouseService,
@@ -244,14 +279,21 @@ export class PoFormComponent implements OnInit, AfterViewInit {
           this.expectedDeliveryDate.set(this.formatDateForInput(new Date(po.expectedDelivery)));
         }
         
+        this.notes.set(po.notes || '');
+
         // Convert items
         const itemsData: any[] = po.items.map((item: any) => ({
           variantId: item.variantId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          discount: item.discount ?? 0,
+          tax: item.tax ?? 0,
+          unit: item.unit || '',
           sku: item.sku || '',
+          productCode: item.productCode || item.mainProductCode || '',
           productName: item.productName || '',
-          variantName: item.variantName || ''
+          variantName: item.variantName || '',
+          variantAttributes: item.variantAttributes || ''
         }));
         this.items.set(itemsData);
         // Add empty search row at end for adding more items
@@ -261,7 +303,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       error: (err: any) => {
         this.isLoading.set(false);
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
-        this.router.navigate(['/purchase-orders']);
+        this.location.back();
       }
     });
   }
@@ -274,6 +316,9 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         variantId: 0,
         quantity: 1,
         unitPrice: 0,
+        discount: 0,
+        tax: 0,
+        unit: '',
         productName: '',
         variantName: ''
       }
@@ -306,7 +351,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     
     // Clear selection if user is typing (they're searching for something new)
     const currentItem = this.items()[index];
-    if (currentItem.variantId && value !== this.getVariantDisplayText(currentItem)) {
+    if (currentItem?.variantId && value !== this.getVariantDisplayText(currentItem)) {
       const items = [...this.items()];
       items[index] = {
         ...items[index],
@@ -364,7 +409,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       });
       // If no selection was made, clear the query and results
       const currentItem = this.items()[index];
-      if (!currentItem.variantId) {
+        if (!currentItem?.variantId) {
         this.variantSearchQuery.update(q => ({ ...q, [index]: '' }));
         this.variantSearchResults.update(r => ({ ...r, [index]: [] }));
       }
@@ -415,15 +460,32 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     this.searchVariantsForRow(index, query, currentPage + 1);
   }
 
+  isVariantAlreadyAdded(variantId: number, currentIndex: number): boolean {
+    return isVariantAlreadyInItems(this.items(), variantId, currentIndex);
+  }
+
+  onVariantResultClick(variant: ProductVariantOption, index: number): void {
+    if (this.isVariantAlreadyAdded(variant.id, index)) {
+      this.alertService.warning(`${variant.productName} - ${variant.name} is already added`);
+      this.highlightDuplicateVariant(variant.id);
+      return;
+    }
+
+    this.selectVariant(variant, index);
+  }
+
+  highlightDuplicateVariant(variantId: number): void {
+    this.duplicateHighlightedVariantId.set(variantId);
+    setTimeout(() => this.duplicateHighlightedVariantId.set(null), 1500);
+  }
+
   selectVariant(variant: ProductVariantOption, index: number): void {
-    // Check if this variant is already selected in another row
     const currentItems = this.items();
-    const isDuplicate = currentItems.some((item: any, idx: number) => 
-      idx !== index && item.variantId === variant.id
-    );
+    const duplicateIndex = findVariantIndexById(currentItems, variant.id, index);
     
-    if (isDuplicate) {
+    if (duplicateIndex !== -1) {
       this.alertService.error(`${variant.productName} - ${variant.name} is already added to this order`);
+      this.highlightDuplicateVariant(variant.id);
       // Clear search state but don't select
       this.variantSearchResults.update(r => ({ ...r, [index]: [] }));
       this.variantSearchQuery.update(q => ({ ...q, [index]: '' }));
@@ -437,9 +499,11 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       ...updatedItems[index],
       variantId: variant.id,
       sku: variant.sku || '',
+      productCode: variant.productCode || '',
       unitPrice: variant.costPrice || variant.finalPrice || 0,
       productName: variant.productName,
       variantName: variant.name,
+      variantAttributes: variant.attributes || '',
       primaryImageThumb: variant.primaryImageThumb,
     };
     this.items.set(updatedItems);
@@ -464,19 +528,41 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   }
 
   updateItemQuantity(index: number, quantity: number): void {
-    const items = this.items();
-    items[index].quantity = quantity;
-    this.items.set([...items]);
+    const items = [...this.items()];
+    items[index] = { ...items[index], quantity };
+    this.items.set(items);
   }
 
   updateItemPrice(index: number, price: number): void {
-    const items = this.items();
-    items[index].unitPrice = price;
-    this.items.set([...items]);
+    const items = [...this.items()];
+    items[index] = { ...items[index], unitPrice: price };
+    this.items.set(items);
+  }
+
+  updateItemDiscount(index: number, discount: number): void {
+    const items = [...this.items()];
+    items[index] = { ...items[index], discount };
+    this.items.set(items);
+  }
+
+  updateItemTax(index: number, tax: number): void {
+    const items = [...this.items()];
+    items[index] = { ...items[index], tax };
+    this.items.set(items);
+  }
+
+  updateItemUnit(index: number, unit: string): void {
+    const items = [...this.items()];
+    items[index] = { ...items[index], unit };
+    this.items.set(items);
   }
 
   calculateItemTotal(item: any): number {
-    return (item.quantity || 0) * (item.unitPrice || 0);
+    const qty = item.quantity || 0;
+    const price = item.unitPrice || 0;
+    const disc = item.discount || 0;
+    const tax = item.tax || 0;
+    return Math.round(qty * price * (1 - disc / 100) * (1 + tax / 100) * 100) / 100;
   }
 
   /** Returns 1-based position counting only selected (non-empty) items */
@@ -487,6 +573,10 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       if (item.variantId && item.variantId !== 0) count++;
     }
     return count;
+  }
+
+  getSearchRowIndex(): number {
+    return Math.max(this.items().length - 1, 0);
   }
 
   calculateGrandTotal(): number {
@@ -534,6 +624,14 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         this.alertService.error(`Item ${i + 1}: Unit price cannot be negative`);
         return false;
       }
+      if (item.discount < 0 || item.discount > 100) {
+        this.alertService.error(`Item ${i + 1}: Discount must be between 0 and 100`);
+        return false;
+      }
+      if (item.tax < 0 || item.tax > 100) {
+        this.alertService.error(`Item ${i + 1}: Tax must be between 0 and 100`);
+        return false;
+      }
     }
     
     return true;
@@ -551,12 +649,16 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       warehouseId: this.warehouseId()!,
       orderDate: this.orderDate(),
       expectedDelivery: this.expectedDeliveryDate() || undefined,
+      notes: this.notes() || undefined,
       items: this.items()
         .filter((item: any) => item.variantId && item.variantId !== 0)
         .map((item: any) => ({
           variantId: item.variantId,
           quantity: item.quantity,
-          unitPrice: item.unitPrice
+          unitPrice: item.unitPrice,
+          discount: item.discount ?? 0,
+          tax: item.tax ?? 0,
+          unit: item.unit || undefined
         }))
     };
 
@@ -574,7 +676,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
             next: () => {
               this.isSaving.set(false);
               this.alertService.success('Purchase order created and submitted for approval');
-              this.router.navigate(['/purchase-orders']);
+              this.location.back();
             },
             error: (err: any) => {
               this.isSaving.set(false);
@@ -584,8 +686,84 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         } else {
           this.isSaving.set(false);
           this.alertService.success(`Purchase order ${this.isEditMode() ? 'updated' : 'created'} successfully`);
-          this.router.navigate(['/purchase-orders']);
+          this.location.back();
         }
+      },
+      error: (err: any) => {
+        this.isSaving.set(false);
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  purchaseAndReceive(): void {
+    if (this.isEditMode()) {
+      this.alertService.error('Purchase & Receive is only available for new purchase orders');
+      return;
+    }
+
+    if (this.isSaving()) {
+      return;
+    }
+
+    if (!this.validateForm()) {
+      return;
+    }
+
+    this.alertService.confirm(
+      'This will create the purchase order, automatically generate a GRN, and add the products to warehouse stock. Do you want to continue?',
+      () => this.executePurchaseAndReceive(),
+      'Confirm Purchase & Receive',
+      'Continue',
+      'Cancel'
+    );
+  }
+
+  private executePurchaseAndReceive(): void {
+    if (this.isSaving()) {
+      return;
+    }
+
+    this.isSaving.set(true);
+
+    const request: CreatePurchaseAndReceiveRequest = {
+      supplierId: this.supplierId()!,
+      warehouseId: this.warehouseId()!,
+      orderDate: new Date(this.orderDate()),
+      expectedDelivery: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : undefined,
+      notes: this.notes() || undefined,
+      idempotencyKey: crypto.randomUUID(),
+      items: this.items()
+        .filter((item: any) => item.variantId && item.variantId !== 0)
+        .map((item: any) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount ?? 0,
+          tax: item.tax ?? 0,
+          unit: item.unit || undefined
+        }))
+    };
+
+    this.poService.purchaseAndReceive(request).subscribe({
+      next: (response) => {
+        const result = response.data;
+        this.isSaving.set(false);
+        this.alertService.success(`Purchase & Receive completed successfully. Auto-generated ${result?.grnNumber || 'GRN'}.`);
+
+        const poId = result?.purchaseOrder?.id;
+        if (poId) {
+          this.router.navigate(['/purchase-orders', poId]);
+          return;
+        }
+
+        const grnId = result?.grnId;
+        if (grnId) {
+          this.router.navigate(['/grn', grnId]);
+          return;
+        }
+
+        this.location.back();
       },
       error: (err: any) => {
         this.isSaving.set(false);
@@ -603,7 +781,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/purchase-orders']);
+    this.location.back();
   }
 
   formatDateForInput(date: Date): string {
@@ -633,5 +811,24 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       return `${item.productName} - ${item.variantName}`;
     }
     return '';
+  }
+
+  formatVariantAttributes(attributes?: string | null): string {
+    if (!attributes) {
+      return '';
+    }
+
+    try {
+      const parsed = JSON.parse(attributes);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return Object.entries(parsed)
+          .map(([key, value]) => `${key} ${value}`)
+          .join(' / ');
+      }
+    } catch {
+      // Fall back to the raw string when the payload is already formatted text.
+    }
+
+    return attributes;
   }
 }

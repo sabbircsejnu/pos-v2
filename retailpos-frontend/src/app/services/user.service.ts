@@ -32,7 +32,7 @@ export class UserService {
 
     if (search) params = params.set('search', search);
     if (roleId) params = params.set('roleId', roleId.toString());
-    if (outletId) params = params.set('outletId', outletId.toString());
+    if (outletId !== undefined) params = params.set('outletId', outletId.toString());
     if (isActive !== undefined) params = params.set('isActive', isActive.toString());
 
     return this.http.get<UserListResponse>(this.apiUrl, { params });

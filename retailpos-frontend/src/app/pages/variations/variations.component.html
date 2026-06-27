@@ -35,11 +35,19 @@
           <div class="flex justify-between items-start mb-4">
             <div>
               <h3 class="text-xl font-semibold text-gray-800">{{ variation.name }}</h3>
-              <span 
-                class="inline-block mt-1 px-2 py-1 text-xs rounded"
-                [ngClass]="variation.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
-                {{ variation.isActive ? 'Active' : 'Inactive' }}
-              </span>
+              <div class="flex flex-wrap gap-1.5 mt-1">
+                <span 
+                  class="inline-block px-2 py-1 text-xs rounded"
+                  [ngClass]="variation.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                  {{ variation.isActive ? 'Active' : 'Inactive' }}
+                </span>
+                <span 
+                  class="inline-block px-2 py-1 text-xs rounded"
+                  [ngClass]="variation.autoSelectAllOptions ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'"
+                  title="Auto-select all options when assigned to a product">
+                  {{ variation.autoSelectAllOptions ? '⚡ Auto-select all' : '✋ Manual select' }}
+                </span>
+              </div>
             </div>
             <div class="flex gap-2">
               <button 
@@ -163,7 +171,7 @@
           </div>
 
           <!-- Is Active -->
-          <div class="mb-6">
+          <div class="mb-4">
             <label class="flex items-center">
               <input 
                 type="checkbox" 
@@ -171,6 +179,26 @@
                 name="isActive"
                 class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
               <span class="ml-2 text-gray-700">Active</span>
+            </label>
+          </div>
+
+          <!-- Auto-select all options behaviour -->
+          <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="variationForm().autoSelectAllOptions"
+                name="autoSelectAllOptions"
+                class="mt-0.5 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+              <div>
+                <span class="font-medium text-gray-800">Auto-select all options when assigned to a product</span>
+                <p class="text-sm text-gray-600 mt-0.5">
+                  When this variation is first added to a product, all its options are automatically
+                  pre-selected. Recommended for variations like <em>Size</em> where most products
+                  use every option. Leave unchecked for variations like <em>Color</em> or
+                  <em>Fabric</em> where products typically use only a subset.
+                </p>
+              </div>
             </label>
           </div>
 

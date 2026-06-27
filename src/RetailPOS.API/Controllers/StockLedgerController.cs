@@ -13,7 +13,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/stock-ledger")]
-[Authorize]
+[Authorize(Policy = "inventory.view")]
 public class StockLedgerController : ControllerBase
 {
     private readonly IStockLedgerService _ledgerService;

@@ -19,18 +19,26 @@ public class StockAdjustmentRepository : IStockAdjustmentRepository
     public async Task<StockAdjustment?> GetByIdAsync(long id)
     {
         return await _context.StockAdjustments
-            .Include(sa => sa.Variant)
-                .ThenInclude(v => v.Product)
+            .Include(sa => sa.Lines)
+                .ThenInclude(l => l.Variant)
+                    .ThenInclude(v => v.Product)
             .Include(sa => sa.Adjuster)
+            .Include(sa => sa.Approver)
+            .Include(sa => sa.Rejector)
+            .Include(sa => sa.Canceller)
             .FirstOrDefaultAsync(sa => sa.Id == id);
     }
 
-    public async Task<IEnumerable<StockAdjustment>> GetAllAsync(long? locationId = null, string? locationType = null, long? variantId = null)
+    public async Task<IEnumerable<StockAdjustment>> GetAllAsync(long? locationId = null, string? locationType = null, long? variantId = null, string? status = null)
     {
         var query = _context.StockAdjustments
-            .Include(sa => sa.Variant)
-                .ThenInclude(v => v.Product)
+            .Include(sa => sa.Lines)
+                .ThenInclude(l => l.Variant)
+                    .ThenInclude(v => v.Product)
             .Include(sa => sa.Adjuster)
+            .Include(sa => sa.Approver)
+            .Include(sa => sa.Rejector)
+            .Include(sa => sa.Canceller)
             .AsQueryable();
 
         if (locationId.HasValue)
@@ -40,7 +48,10 @@ public class StockAdjustmentRepository : IStockAdjustmentRepository
             query = query.Where(sa => sa.LocationType.ToLower() == locationType.ToLower());
 
         if (variantId.HasValue)
-            query = query.Where(sa => sa.VariantId == variantId.Value);
+            query = query.Where(sa => sa.Lines.Any(line => line.VariantId == variantId.Value));
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(sa => sa.Status == status);
 
         return await query.OrderByDescending(sa => sa.AdjustmentDate).ToListAsync();
     }
@@ -49,15 +60,20 @@ public class StockAdjustmentRepository : IStockAdjustmentRepository
         long? locationId,
         string? locationType,
         long? variantId,
+        string? status,
         DateTime? startDate,
         DateTime? endDate,
         int pageNumber,
         int pageSize)
     {
         var query = _context.StockAdjustments
-            .Include(sa => sa.Variant)
-                .ThenInclude(v => v.Product)
+            .Include(sa => sa.Lines)
+                .ThenInclude(l => l.Variant)
+                    .ThenInclude(v => v.Product)
             .Include(sa => sa.Adjuster)
+            .Include(sa => sa.Approver)
+            .Include(sa => sa.Rejector)
+            .Include(sa => sa.Canceller)
             .AsQueryable();
 
         if (locationId.HasValue)
@@ -67,7 +83,10 @@ public class StockAdjustmentRepository : IStockAdjustmentRepository
             query = query.Where(sa => sa.LocationType.ToLower() == locationType.ToLower());
 
         if (variantId.HasValue)
-            query = query.Where(sa => sa.VariantId == variantId.Value);
+            query = query.Where(sa => sa.Lines.Any(line => line.VariantId == variantId.Value));
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(sa => sa.Status == status);
 
         if (startDate.HasValue)
             query = query.Where(sa => sa.AdjustmentDate >= startDate.Value);
@@ -89,10 +108,14 @@ public class StockAdjustmentRepository : IStockAdjustmentRepository
     public async Task<IEnumerable<StockAdjustment>> GetHistoryAsync(long variantId, long locationId)
     {
         return await _context.StockAdjustments
-            .Include(sa => sa.Variant)
-                .ThenInclude(v => v.Product)
+            .Include(sa => sa.Lines)
+                .ThenInclude(l => l.Variant)
+                    .ThenInclude(v => v.Product)
             .Include(sa => sa.Adjuster)
-            .Where(sa => sa.VariantId == variantId && sa.LocationId == locationId)
+            .Include(sa => sa.Approver)
+            .Include(sa => sa.Rejector)
+            .Include(sa => sa.Canceller)
+            .Where(sa => sa.LocationId == locationId && sa.Lines.Any(line => line.VariantId == variantId))
             .OrderByDescending(sa => sa.AdjustmentDate)
             .ToListAsync();
     }

@@ -1,0 +1,272 @@
+<div class="flex flex-col h-full">
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="flex justify-between items-start mb-4 px-4 pt-4 flex-shrink-0">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Stock Transfer Report</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Inventory movements between locations</p>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (report() && totalCount() > 0) {
+        <div class="relative group">
+          <button class="btn btn-outline text-sm">
+            <i class="fas fa-download"></i> Export <i class="fas fa-chevron-down ml-1"></i>
+          </button>
+          <div class="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-20
+                      invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150">
+            <button (click)="export('csv')"
+                    class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg">
+              <i class="fas fa-file-csv text-green-600 w-4"></i> Export CSV
+            </button>
+            <button (click)="export('excel')"
+                    class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
+              <i class="fas fa-file-excel text-green-700 w-4"></i> Export Excel
+            </button>
+          </div>
+        </div>
+      }
+      <button (click)="loadReport()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+        <i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────────────────────────────── -->
+  <div class="card mx-4 mb-4 p-4 flex-shrink-0">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+      <div>
+        <label class="label">From Outlet</label>
+        <select class="input" [ngModel]="fromOutletId()" (ngModelChange)="fromOutletId.set($event ? +$event : null)">
+          <option [ngValue]="null">Any Outlet</option>
+          @for (o of outletService.outlets(); track o.id) {
+            <option [ngValue]="o.id">{{ o.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">To Outlet</label>
+        <select class="input" [ngModel]="toOutletId()" (ngModelChange)="toOutletId.set($event ? +$event : null)">
+          <option [ngValue]="null">Any Outlet</option>
+          @for (o of outletService.outlets(); track o.id) {
+            <option [ngValue]="o.id">{{ o.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Status</label>
+        <select class="input" [ngModel]="status()" (ngModelChange)="status.set($event)">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Date From</label>
+        <input type="date" class="input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
+      </div>
+      <div>
+        <label class="label">Date To</label>
+        <input type="date" class="input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
+      </div>
+      <div>
+        <label class="label">Search</label>
+        <input type="text" class="input" placeholder="Product name or SKU…"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+    </div>
+    <div class="flex items-center justify-between">
+      <div class="flex gap-2">
+        <button (click)="setDateRange('today')" class="btn btn-outline text-xs py-1">Today</button>
+        <button (click)="setDateRange('last30')" class="btn btn-outline text-xs py-1">Last 30d</button>
+        <button (click)="setDateRange('thisMonth')" class="btn btn-outline text-xs py-1">This Month</button>
+        <button (click)="setDateRange('lastMonth')" class="btn btn-outline text-xs py-1">Last Month</button>
+      </div>
+      <div class="flex gap-2">
+        <button (click)="resetFilters()" class="btn btn-outline text-sm">
+          <i class="fas fa-times"></i> Reset
+        </button>
+        <button (click)="applyFilters()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+          <i class="fas fa-search"></i> Apply
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16 flex-shrink-0">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+
+    <!-- ── Summary Cards ────────────────────────────────────────────────── -->
+    @if (summary()) {
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mx-4 mb-4 flex-shrink-0">
+        <div class="card p-3">
+          <p class="text-xs text-gray-500">Transfers</p>
+          <p class="text-xl font-bold text-gray-800">{{ summary()!.totalTransfers | number }}</p>
+        </div>
+        <div class="card p-3">
+          <p class="text-xs text-gray-500">Total Lines</p>
+          <p class="text-xl font-bold text-gray-800">{{ summary()!.totalLines | number }}</p>
+        </div>
+        <div class="card p-3">
+          <p class="text-xs text-gray-500">Total Quantity</p>
+          <p class="text-xl font-bold text-gray-800">{{ summary()!.totalQuantity | number }}</p>
+        </div>
+        <div class="card p-3 bg-blue-50 border-blue-200">
+          <p class="text-xs text-blue-600 font-medium">Total Value</p>
+          <p class="text-xl font-bold text-blue-800">{{ formatCurrency(summary()!.totalValue) }}</p>
+        </div>
+        <div class="card p-3 bg-amber-50 border-amber-200">
+          <p class="text-xs text-amber-600 font-medium">Pending</p>
+          <p class="text-xl font-bold text-amber-800">{{ summary()!.pendingCount | number }}</p>
+        </div>
+        <div class="card p-3 bg-green-50 border-green-200">
+          <p class="text-xs text-green-600 font-medium">Completed</p>
+          <p class="text-xl font-bold text-green-800">{{ summary()!.completedCount | number }}</p>
+        </div>
+      </div>
+    }
+
+    <!-- ── Table ────────────────────────────────────────────────────────── -->
+    <div class="mx-4 mb-4 card flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div class="text-sm text-gray-600">
+          @if (totalCount() > 0) {
+            Showing {{ (page() - 1) * pageSize() + 1 }}–{{ page() * pageSize() < totalCount() ? page() * pageSize() : totalCount() }}
+            of <strong>{{ totalCount() | number }}</strong> lines
+          } @else { No data }
+        </div>
+        <select class="input py-1 text-sm w-20"
+                [ngModel]="pageSize()"
+                (ngModelChange)="onPageSizeChange(+$event)">
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+          <option [ngValue]="100">100</option>
+          <option [ngValue]="200">200</option>
+        </select>
+      </div>
+
+      <div class="overflow-auto flex-1">
+        <table class="table min-w-full">
+          <thead class="sticky top-0 z-10 bg-gray-50">
+            <tr>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('transferDate')">
+                Date <i [class]="sortIcon('transferDate')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('status')">
+                Status <i [class]="sortIcon('status')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('fromLocation')">
+                From <i [class]="sortIcon('fromLocation')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('toLocation')">
+                To <i [class]="sortIcon('toLocation')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('productName')">
+                Product <i [class]="sortIcon('productName')"></i>
+              </th>
+              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('quantity')">
+                Quantity <i [class]="sortIcon('quantity')"></i>
+              </th>
+              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('transferValue')">
+                Value <i [class]="sortIcon('transferValue')"></i>
+              </th>
+              <th class="whitespace-nowrap">Created By</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.transferId + '_' + row.sku; let i = $index) {
+              <tr class="hover:bg-gray-50 transition-colors"
+                  [class.bg-blue-50]="i > 0 && rows()[i - 1].transferId !== row.transferId">
+                <td class="text-sm text-gray-600 whitespace-nowrap">
+                  {{ row.transferDate | date:'dd MMM yyyy' }}
+                  <div class="text-xs text-gray-400">#{{ row.transferId }}</div>
+                </td>
+                <td>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize"
+                        [ngClass]="statusClass(row.status)">
+                    {{ row.status }}
+                  </span>
+                </td>
+                <td class="text-sm text-gray-700">
+                  <div class="font-medium">{{ row.fromLocationName }}</div>
+                  <div class="text-xs text-gray-400">{{ row.fromLocationType }}</div>
+                </td>
+                <td class="text-sm text-gray-700">
+                  <div class="font-medium">{{ row.toLocationName }}</div>
+                  <div class="text-xs text-gray-400">{{ row.toLocationType }}</div>
+                </td>
+                <td>
+                  <div class="font-medium text-gray-900 text-sm">{{ row.productName }}</div>
+                  <div class="text-xs text-gray-400 font-mono">{{ row.sku }}</div>
+                </td>
+                <td class="text-right font-bold text-gray-800">{{ row.quantity | number }}</td>
+                <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.transferValue) }}</td>
+                <td class="text-sm text-gray-600 whitespace-nowrap">{{ row.createdBy }}</td>
+              </tr>
+            }
+            @if (rows().length === 0) {
+              <tr>
+                <td colspan="8" class="text-center text-gray-500 py-12">
+                  <i class="fas fa-truck text-4xl text-gray-300 mb-3 block"></i>
+                  No stock transfers found for the selected period.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Sticky Footer -->
+      @if (summary() && totalCount() > 0) {
+        <div class="sticky bottom-0 border-t-2 border-gray-300 bg-blue-50 flex-shrink-0">
+          <div class="overflow-x-auto">
+            <table class="table min-w-full">
+              <tfoot>
+                <tr class="font-bold text-gray-800">
+                  <td colspan="5" class="text-xs uppercase text-gray-500 whitespace-nowrap">
+                    TOTAL ({{ summary()!.totalTransfers }} transfers, {{ totalCount() | number }} lines)
+                  </td>
+                  <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}</td>
+                  <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalValue) }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
+          <button (click)="goToPage(page() - 1)" [disabled]="page() === 1"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            <i class="fas fa-chevron-left"></i> Prev
+          </button>
+          <div class="flex items-center gap-1">
+            @if (pages()[0] > 1) {
+              <button (click)="goToPage(1)" class="btn btn-outline text-sm py-1 px-3">1</button>
+              @if (pages()[0] > 2) { <span class="px-1 text-gray-400">…</span> }
+            }
+            @for (p of pages(); track p) {
+              <button (click)="goToPage(p)"
+                      [class.btn-primary]="p === page()"
+                      [class.btn-outline]="p !== page()"
+                      class="btn text-sm py-1 px-3">{{ p }}</button>
+            }
+            @if (pages()[pages().length - 1] < totalPages()) {
+              @if (pages()[pages().length - 1] < totalPages() - 1) { <span class="px-1 text-gray-400">…</span> }
+              <button (click)="goToPage(totalPages())" class="btn btn-outline text-sm py-1 px-3">{{ totalPages() }}</button>
+            }
+          </div>
+          <button (click)="goToPage(page() + 1)" [disabled]="page() === totalPages()"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

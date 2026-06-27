@@ -1,0 +1,12 @@
+/* Current Stock Report — component-scoped styles */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Ensure sticky footer works with proper table layout */
+.table tfoot tr td {
+  position: relative;
+}

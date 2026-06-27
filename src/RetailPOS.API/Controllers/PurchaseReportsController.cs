@@ -9,7 +9,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/reports/purchases")]
-[Authorize]
+[Authorize(Policy = "purchases.view")]
 public class PurchaseReportsController : ControllerBase
 {
     private readonly RetailPOSDbContext _context;

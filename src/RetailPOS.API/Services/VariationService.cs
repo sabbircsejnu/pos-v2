@@ -50,7 +50,8 @@ namespace RetailPOS.API.Services
             {
                 Name = dto.Name,
                 DisplayOrder = dto.DisplayOrder,
-                IsActive = dto.IsActive
+                IsActive = dto.IsActive,
+                AutoSelectAllOptions = dto.AutoSelectAllOptions
             };
 
             variation = await _variationRepo.CreateAsync(variation);
@@ -84,6 +85,7 @@ namespace RetailPOS.API.Services
             variation.Name = dto.Name;
             variation.DisplayOrder = dto.DisplayOrder;
             variation.IsActive = dto.IsActive;
+            variation.AutoSelectAllOptions = dto.AutoSelectAllOptions;
 
             variation = await _variationRepo.UpdateAsync(variation);
             return MapToDto(variation);
@@ -152,6 +154,7 @@ namespace RetailPOS.API.Services
                 Name = variation.Name,
                 DisplayOrder = variation.DisplayOrder,
                 IsActive = variation.IsActive,
+                AutoSelectAllOptions = variation.AutoSelectAllOptions,
                 Options = variation.Options.Select(MapOptionToDto).ToList()
             };
         }

@@ -15,8 +15,9 @@ public interface IUserOutletAccessService
     /// <summary>
     /// Validates an inbound outlet/warehouse filter against the user's authorized set.
     /// <para>
-    /// - When <paramref name="requestedLocationId"/> is null, returns the user's default outlet
-    ///   (with locationType = "outlet"). For BusinessOwner this stays null = "All locations".
+    /// - When <paramref name="requestedLocationId"/> is null, resolves to the caller's default scope.
+    ///   BusinessOwner can query all locations; users with multiple authorized outlets can query
+    ///   all outlets; others are pinned to their default outlet.
     /// </para>
     /// - When supplied, throws <see cref="UnauthorizedAccessException"/> if the user is not
     ///   permitted to read from that location.
@@ -28,7 +29,7 @@ public interface IUserOutletAccessService
     /// <summary>
     /// Read-side outlet filter for list/report endpoints that only deal with outlets
     /// (not warehouses).
-    /// - Non-BusinessOwner: always returns the user's default outlet (ignores supplied id).
+    /// - Non-BusinessOwner: returns the user's default outlet.
     /// - BusinessOwner: validates the supplied id (if any) against the authorized set;
     ///   null means "all outlets".
     /// </summary>

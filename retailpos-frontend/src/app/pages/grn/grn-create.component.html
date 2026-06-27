@@ -34,7 +34,7 @@
           <select [(ngModel)]="selectedPoId" (ngModelChange)="onPoSelected($event)" class="input">
             <option [ngValue]="null">-- Select a Purchase Order --</option>
             <option *ngFor="let po of pendingPOs()" [ngValue]="po.id">
-              {{ po.orderNumber }} — {{ po.supplierName }} ({{ po.warehouseName }})
+              {{ getPoReference(po) }} — {{ po.supplierName }} ({{ po.warehouseName }})
             </option>
           </select>
         </div>
@@ -55,7 +55,7 @@
           </div>
           <div>
             <p class="text-gray-500">Order Date</p>
-            <p class="font-semibold text-gray-900">{{ selectedPO()!.orderDate | date:'mediumDate' }}</p>
+            <p class="font-semibold text-gray-900">{{ formatDateTime(selectedPO()!.orderDate) }}</p>
           </div>
           <div>
             <p class="text-gray-500">Total Amount</p>
@@ -64,15 +64,15 @@
         </div>
       </div>
 
-      <!-- Step 2: Received Date -->
+      <!-- Step 2: Received Date & Time -->
       <div class="mb-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <span class="w-6 h-6 bg-gray-900 text-white rounded-full flex items-center justify-center text-sm">2</span>
-          Received Date
+          Received Date &amp; Time
         </h2>
         <div class="max-w-xs">
-          <label class="label">Date Received <span class="text-red-500">*</span></label>
-          <input type="date" [(ngModel)]="receivedDate" class="input" />
+          <label class="label">Date &amp; Time Received <span class="text-red-500">*</span></label>
+          <input type="datetime-local" [(ngModel)]="receivedDateTime" step="60" class="input" />
         </div>
       </div>
 
@@ -88,7 +88,6 @@
             <thead>
               <tr>
                 <th class="px-4 py-2.5">Product</th>
-                <th class="px-4 py-2.5">SKU</th>
                 <th class="px-4 py-2.5 text-right">Unit Price</th>
                 <th class="px-4 py-2.5 text-right">Ordered Qty</th>
                 <th class="px-4 py-2.5 text-right">Received Qty</th>
@@ -107,10 +106,17 @@
                         <i class="fas fa-box text-gray-400 text-xs"></i>
                       </div>
                     }
-                    <span>{{ item.productName }}</span>
+                    <div>
+                      <div>{{ item.productName }}</div>
+                      @if (item.productCode) {
+                        <div class="text-xs text-gray-500">Code: {{ item.productCode }}</div>
+                      }
+                      @if (getVariantDetails(item)) {
+                        <div class="text-xs text-gray-500">Variant: {{ getVariantDetails(item) }}</div>
+                      }
+                    </div>
                   </div>
                 </td>
-                <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
                 <td class="px-4 py-2.5 text-right text-gray-700">{{ formatCurrency(item.unitPrice) }}</td>
                 <td class="px-4 py-2.5 text-right text-gray-700">{{ item.orderedQty }}</td>
                 <td class="px-4 py-2.5 text-right">

@@ -13,15 +13,21 @@ public class ProductService : IProductService
 {
     private readonly IProductRepository _productRepository;
     private readonly IProductVariantRepository _variantRepository;
+    private readonly IInventoryRepository _inventoryRepository;
+    private readonly IProductIdentifierService _identifierService;
     private readonly ILogger<ProductService> _logger;
 
     public ProductService(
         IProductRepository productRepository,
         IProductVariantRepository variantRepository,
+        IInventoryRepository inventoryRepository,
+        IProductIdentifierService identifierService,
         ILogger<ProductService> logger)
     {
         _productRepository = productRepository;
         _variantRepository = variantRepository;
+        _inventoryRepository = inventoryRepository;
+        _identifierService = identifierService;
         _logger = logger;
     }
 
@@ -70,7 +76,7 @@ public class ProductService : IProductService
         var (products, totalCount) = await _productRepository.SearchAsync(
             searchDto.SearchQuery,
             searchDto.CategoryId,
-            searchDto.IsActive,
+            searchDto.Status,
             searchDto.HasVariants,
             searchDto.MinPrice,
             searchDto.MaxPrice,
@@ -136,11 +142,19 @@ public class ProductService : IProductService
             throw new InvalidOperationException($"Barcode '{createDto.Barcode}' already exists");
         }
 
+        // Validate ProductCode uniqueness (if provided)
+        if (!string.IsNullOrWhiteSpace(createDto.ProductCode) &&
+            await _productRepository.ProductCodeExistsAsync(createDto.ProductCode))
+        {
+            throw new InvalidOperationException($"Product code '{createDto.ProductCode}' already exists");
+        }
+
         // Create product entity
         var product = new Product
         {
             Name = createDto.Name,
             Description = createDto.Description,
+            ProductCode = string.IsNullOrWhiteSpace(createDto.ProductCode) ? null : createDto.ProductCode.Trim().ToUpper(),
             Sku = sku,
             Barcode = createDto.Barcode,
             CategoryId = createDto.CategoryId,
@@ -148,7 +162,7 @@ public class ProductService : IProductService
             CostPrice = createDto.CostPrice ?? 0,
             TaxRate = createDto.TaxRate,
             HasVariants = createDto.HasVariants,
-            IsActive = createDto.IsActive
+            Status = ParseStatus(createDto.Status)
         };
 
         // Save product first
@@ -157,32 +171,33 @@ public class ProductService : IProductService
         // Create variants if specified
         if (createDto.HasVariants && createDto.Variants != null && createDto.Variants.Any())
         {
+            if (string.IsNullOrWhiteSpace(createdProduct.ProductCode))
+            {
+                throw new InvalidOperationException("Main Product Code is required when creating product variants");
+            }
+
             foreach (var variantDto in createDto.Variants)
             {
-                // Generate variant SKU if not provided
-                var variantSku = string.IsNullOrWhiteSpace(variantDto.Sku)
-                    ? $"{sku}-{variantDto.Name.Replace(" ", "").ToUpper().Substring(0, Math.Min(3, variantDto.Name.Length))}"
-                    : variantDto.Sku;
+                var (sizeCode, attributeCode) = _identifierService.ExtractCodesFromVariantText(
+                    variantDto.Name,
+                    variantDto.Attributes);
 
-                // Validate variant SKU uniqueness
-                if (await _variantRepository.SkuExistsAsync(variantSku))
-                {
-                    throw new InvalidOperationException($"Variant SKU '{variantSku}' already exists");
-                }
+                var variantSku = await _identifierService.ResolveVariantSkuAsync(
+                    variantDto.Sku,
+                    createdProduct.ProductCode,
+                    sizeCode,
+                    attributeCode);
 
-                // Validate variant Barcode uniqueness (if provided)
-                if (!string.IsNullOrWhiteSpace(variantDto.Barcode) &&
-                    await _variantRepository.BarcodeExistsAsync(variantDto.Barcode))
-                {
-                    throw new InvalidOperationException($"Variant Barcode '{variantDto.Barcode}' already exists");
-                }
+                var variantBarcode = await _identifierService.ResolveVariantBarcodeAsync(
+                    variantDto.Barcode,
+                    createdProduct.CategoryId);
 
                 var variant = new ProductVariant
                 {
                     ProductId = createdProduct.Id,
                     Name = variantDto.Name,
                     Sku = variantSku,
-                    Barcode = variantDto.Barcode,
+                    Barcode = variantBarcode,
                     Attributes = variantDto.Attributes,
                     PriceAdjustment = variantDto.PriceAdjustment
                 };
@@ -226,16 +241,25 @@ public class ProductService : IProductService
             throw new InvalidOperationException($"Barcode '{updateDto.Barcode}' already exists");
         }
 
+        // Validate ProductCode uniqueness (if changed and provided)
+        if (!string.IsNullOrWhiteSpace(updateDto.ProductCode) &&
+            updateDto.ProductCode != product.ProductCode &&
+            await _productRepository.ProductCodeExistsAsync(updateDto.ProductCode, id))
+        {
+            throw new InvalidOperationException($"Product code '{updateDto.ProductCode}' already exists");
+        }
+
         // Update product properties
         product.Name = updateDto.Name;
         product.Description = updateDto.Description;
+        product.ProductCode = string.IsNullOrWhiteSpace(updateDto.ProductCode) ? null : updateDto.ProductCode.Trim().ToUpper();
         product.Sku = updateDto.Sku ?? product.Sku;
         product.Barcode = updateDto.Barcode;
         product.CategoryId = updateDto.CategoryId;
         product.BasePrice = updateDto.BasePrice;
         product.CostPrice = updateDto.CostPrice ?? 0;
         product.TaxRate = updateDto.TaxRate;
-        product.IsActive = updateDto.IsActive;
+        product.Status = ParseStatus(updateDto.Status);
 
         await _productRepository.UpdateAsync(product);
 
@@ -303,6 +327,7 @@ public class ProductService : IProductService
             {
                 Id = v.Id,
                 ProductId = v.ProductId,
+                ProductCode = product.ProductCode,
                 Name = v.Name,
                 Sku = v.Sku,
                 Barcode = v.Barcode,
@@ -319,6 +344,7 @@ public class ProductService : IProductService
             Id = product.Id,
             Name = product.Name,
             Description = product.Description,
+            ProductCode = product.ProductCode,
             Sku = product.Sku,
             Barcode = product.Barcode,
             CategoryId = product.CategoryId,
@@ -329,6 +355,7 @@ public class ProductService : IProductService
             HasVariants = product.HasVariants,
             PrimaryImageThumb = product.Images?.FirstOrDefault(i => i.IsPrimary)?.ThumbPath,
             PrimaryImageMedium = product.Images?.FirstOrDefault(i => i.IsPrimary)?.MediumPath,
+            Status = product.Status.ToString().ToLower(),
             IsActive = product.IsActive,
             VariantCount = variants.Count,
             TotalStock = totalStock,
@@ -338,16 +365,19 @@ public class ProductService : IProductService
         };
     }
 
-    public async Task<IEnumerable<ProductVariantSearchDto>> SearchVariantsAsync(string query, int pageNumber, int pageSize)
+    public async Task<IEnumerable<ProductVariantSearchDto>> SearchVariantsAsync(string query, int pageNumber, int pageSize, long? locationId = null, string? locationType = null)
     {
         var variants = await _variantRepository.SearchAsync(query, pageNumber, pageSize);
         
         var result = new List<ProductVariantSearchDto>();
+
+        var normalizedLocationType = string.IsNullOrWhiteSpace(locationType)
+            ? null
+            : locationType.Trim().ToLowerInvariant();
         
         foreach (var variant in variants)
         {
-            // Get the product for each variant
-            var product = await _productRepository.GetByIdAsync(variant.ProductId);
+            var product = variant.Product ?? await _productRepository.GetByIdAsync(variant.ProductId);
             if (product == null) continue;
             
             // For single-variant products with "Default" name, use product name only
@@ -358,22 +388,38 @@ public class ProductService : IProductService
                 variantDisplayName = "Standard";
             }
             
+            int? stockQuantity = null;
+            if (locationId.HasValue && (normalizedLocationType == "outlet" || normalizedLocationType == "warehouse"))
+            {
+                var inventory = await _inventoryRepository.GetByVariantAndLocationAsync(variant.Id, locationId.Value, normalizedLocationType);
+                stockQuantity = inventory?.Quantity ?? 0;
+            }
+
             result.Add(new ProductVariantSearchDto
             {
                 Id = variant.Id,
                 ProductId = variant.ProductId,
                 ProductName = product.Name,
+                ProductCode = product.ProductCode,
                 Name = variantDisplayName,
                 Sku = variant.Sku,
                 Barcode = variant.Barcode,
                 Attributes = variant.Attributes,
                 FinalPrice = product.BasePrice + variant.PriceAdjustment,
                 CostPrice = product.CostPrice,
-                StockQuantity = 0, // TODO: Implement when Inventory module is ready
+                StockQuantity = stockQuantity,
                 PrimaryImageThumb = product.Images?.FirstOrDefault(i => i.IsPrimary)?.ThumbPath,
             });
         }
         
         return result;
     }
+
+    private static ProductStatus ParseStatus(string? status) =>
+        status?.ToLower() switch
+        {
+            "inactive" => ProductStatus.Inactive,
+            "draft"    => ProductStatus.Draft,
+            _          => ProductStatus.Active   // default and "active"
+        };
 }

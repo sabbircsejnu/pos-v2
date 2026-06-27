@@ -1,1 +1,42 @@
-/* Purchase Order List Component Styles */
+:host {
+	display: block;
+}
+
+.action-row {
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.4rem;
+}
+
+.icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.6rem;
+	height: 1.6rem;
+	border-radius: 0.25rem;
+	border: 1px solid transparent;
+	font-size: 0.85rem;
+}
+
+.icon-view { color: rgb(107 114 128); }
+.icon-view:hover { color: rgb(17 24 39); }
+
+.icon-edit { color: rgb(75 85 99); }
+.icon-edit:hover { color: rgb(17 24 39); }
+
+.icon-submit { color: rgb(75 85 99); }
+.icon-submit:hover { color: rgb(17 24 39); }
+
+.icon-approve { color: rgb(75 85 99); }
+.icon-approve:hover { color: rgb(17 24 39); }
+
+.icon-reject { color: rgb(75 85 99); }
+.icon-reject:hover { color: rgb(17 24 39); }
+
+.icon-cancel { color: rgb(75 85 99); }
+.icon-cancel:hover { color: rgb(17 24 39); }
+
+.icon-delete { color: rgb(75 85 99); }
+.icon-delete:hover { color: rgb(17 24 39); }

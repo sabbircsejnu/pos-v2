@@ -5,7 +5,6 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { MenuService } from '../../services/menu.service';
 import { OutletService } from '../../services/outlet.service';
-import { MenuItem } from '../../models/menu.model';
 import { User } from '../../models/auth.models';
 import { Outlet } from '../../models/outlet.model';
 import { Subscription } from 'rxjs';
@@ -25,7 +24,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   showUserMenu = false;
   showRoleSwitchMenu = false;
-  openDropdown: string | null = null;
+  globalSearch = '';
   currentUser = signal<User | null>(null);
   outlets = signal<Outlet[]>([]);
   selectedActingRole = '';
@@ -53,41 +52,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.userSubscription?.unsubscribe();
   }
 
-  toggleDropdown(menuId: string, event: Event): void {
-    event.stopPropagation();
-    this.openDropdown = this.openDropdown === menuId ? null : menuId;
-  }
-
-  selectParentMenu(menu: MenuItem, event: Event): void {
-    event.stopPropagation();
-    
-    if (menu.children && menu.children.length > 0) {
-      // Set active parent and show sidebar
-      this.menuService.setActiveParentMenu(menu);
-      this.openDropdown = null;
-      
-      // Navigate to first child if parent has no route
-      if (!menu.route && menu.children[0]?.route) {
-        this.router.navigate([menu.children[0].route]);
-      }
-    } else if (menu.route) {
-      // Navigate directly if no children
-      this.menuService.setActiveParentMenu(null);
-      this.router.navigate([menu.route]);
-      this.openDropdown = null;
-    }
-  }
-
-  selectChildMenu(parentMenu: MenuItem, event: Event): void {
-    event.stopPropagation();
-    // Set the parent menu as active to show sidebar with children
-    this.menuService.setActiveParentMenu(parentMenu);
-    this.openDropdown = null;
-  }
-
   closeDropdowns(): void {
-    this.openDropdown = null;
     this.showRoleSwitchMenu = false;
+    this.showUserMenu = false;
   }
 
   toggleUserMenu(): void {
@@ -151,5 +118,17 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.menuService.toggleSidebar();
+  }
+
+  runGlobalSearch(event?: Event): void {
+    event?.stopPropagation();
+    const query = this.globalSearch.trim();
+    if (!query) {
+      return;
+    }
+
+    this.router.navigate(['/search'], {
+      queryParams: { q: query }
+    });
   }
 }

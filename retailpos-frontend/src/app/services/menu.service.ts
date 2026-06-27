@@ -1,68 +1,106 @@
 import { Injectable, signal } from '@angular/core';
-import { MenuItem, MENU_ITEMS } from '../models/menu.model';
+import { MenuItem, MenuSection, NAV_SECTIONS } from '../models/menu.model';
 import { AuthService } from './auth.service';
 import { Subscription } from 'rxjs';
+
+export type SidebarDensity = 'comfortable' | 'compact';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MenuService {
-  menuItems = signal<MenuItem[]>([]);
-  activeParentMenu = signal<MenuItem | null>(null);
-  sidebarOpen = signal(true);
+  sections = signal<MenuSection[]>([]);
+  sidebarCollapsed = signal(false);
+  mobileSidebarOpen = signal(false);
+  sidebarDensity = signal<SidebarDensity>('compact');
+  activeRoute = signal<string>('');
   private authSubscription?: Subscription;
 
   constructor(private authService: AuthService) {
+    this.sidebarDensity.set(this.readSavedDensity());
     this.refreshMenu();
     this.authSubscription = this.authService.currentUser$.subscribe(() => {
       this.refreshMenu();
     });
   }
 
-  setActiveParentMenu(menu: MenuItem | null): void {
-    this.activeParentMenu.set(menu);
-  }
-
   toggleSidebar(): void {
-    this.sidebarOpen.set(!this.sidebarOpen());
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      this.mobileSidebarOpen.set(!this.mobileSidebarOpen());
+      return;
+    }
+
+    this.sidebarCollapsed.set(!this.sidebarCollapsed());
   }
 
-  getChildMenuItems(): MenuItem[] {
-    const parent = this.activeParentMenu();
-    return parent?.children || [];
+  closeMobileSidebar(): void {
+    this.mobileSidebarOpen.set(false);
   }
 
-  private refreshMenu(): void {
-    const filteredItems = this.filterMenuItems(MENU_ITEMS);
-    this.menuItems.set(filteredItems);
+  setActiveRouteByUrl(url: string): void {
+    this.activeRoute.set(url);
+  }
 
-    const currentParent = this.activeParentMenu();
-    if (currentParent && !filteredItems.some(item => item.id === currentParent.id)) {
-      this.activeParentMenu.set(null);
+  setSidebarDensity(density: SidebarDensity): void {
+    this.sidebarDensity.set(density);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('sidebar_density', density);
     }
   }
 
-  private filterMenuItems(items: MenuItem[]): MenuItem[] {
-    const result: MenuItem[] = [];
+  isItemActive(item: MenuItem): boolean {
+    if (!item.route) return false;
+    const current = this.activeRoute();
+    if (item.route === '/dashboard') {
+      return current === '/dashboard';
+    }
+    return current.startsWith(item.route);
+  }
 
-    for (const item of items) {
-      const hasOwnAccess = this.hasAccess(item.permission);
-      const childItems = item.children ? this.filterMenuItems(item.children) : undefined;
+  private refreshMenu(): void {
+    const filteredSections = this.filterMenuSections(NAV_SECTIONS);
+    this.sections.set(filteredSections);
+  }
 
-      if (childItems && childItems.length > 0) {
-        result.push({ ...item, children: childItems });
-        continue;
-      }
+  private filterMenuSections(sections: MenuSection[]): MenuSection[] {
+    const result: MenuSection[] = [];
 
-      if (hasOwnAccess) {
-        result.push({ ...item, children: childItems });
+    for (const section of sections) {
+      const items = this.filterMenuItems(section.items);
+      if (items.length > 0) {
+        result.push({ ...section, items });
       }
     }
 
     return result;
   }
 
-  private hasAccess(permission?: string | string[]): boolean {
+  private filterMenuItems(items: MenuItem[]): MenuItem[] {
+    const filtered: MenuItem[] = [];
+
+    for (const item of items) {
+      if (item.children && item.children.length > 0) {
+        const childItems = this.filterMenuItems(item.children);
+        if (childItems.length > 0 && this.hasAccess(item.permission, item.role)) {
+          filtered.push({ ...item, children: childItems });
+        }
+        continue;
+      }
+
+      if (this.hasAccess(item.permission, item.role)) {
+        filtered.push(item);
+      }
+    }
+
+    return filtered;
+  }
+
+  private hasAccess(permission?: string | string[], role?: string | string[]): boolean {
+    const roleAllowed = this.hasRoleAccess(role);
+    if (!roleAllowed) {
+      return false;
+    }
+
     if (!permission) {
       return true;
     }
@@ -74,21 +112,24 @@ export class MenuService {
     return this.authService.hasPermission(permission);
   }
 
-  // Find and set active parent menu based on current route
-  setActiveParentMenuByRoute(route: string): void {
-    for (const menuItem of this.menuItems()) {
-      if (menuItem.children && menuItem.children.length > 0) {
-        // Check if any child route matches the current route
-        const matchingChild = menuItem.children.find(child => 
-          child.route && route.startsWith(child.route)
-        );
-        if (matchingChild) {
-          this.setActiveParentMenu(menuItem);
-          return;
-        }
-      }
+  private hasRoleAccess(role?: string | string[]): boolean {
+    if (!role) {
+      return true;
     }
-    // No matching parent found, clear active parent
-    this.setActiveParentMenu(null);
+
+    if (Array.isArray(role)) {
+      return role.some(r => this.authService.hasRole(r));
+    }
+
+    return this.authService.hasRole(role);
+  }
+
+  private readSavedDensity(): SidebarDensity {
+    if (typeof window === 'undefined') {
+      return 'compact';
+    }
+
+    const saved = window.localStorage.getItem('sidebar_density');
+    return saved === 'comfortable' ? 'comfortable' : 'compact';
   }
 }

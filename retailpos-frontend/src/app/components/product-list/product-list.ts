@@ -1,26 +1,33 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { ProductService } from '../../services/product.service';
 import { CategoryService } from '../../services/category.service';
 import { ProductImageService } from '../../services/product-image.service';
+import { ListStateService } from '../../services/list-state.service';
 import { Product, ProductSearchRequest } from '../../models/product.model';
 import { Category } from '../../models/category.model';
 import { ImageLightboxComponent } from '../product-form/image-lightbox.component';
+import { AdvancedFilterDrawerComponent } from '../advanced-filter-drawer/advanced-filter-drawer.component';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ImageLightboxComponent, AppCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterLink, ImageLightboxComponent, AdvancedFilterDrawerComponent, AppCurrencyPipe],
   templateUrl: './product-list.html',
   styleUrl: './product-list.css',
 })
 export class ProductList implements OnInit, OnDestroy {
   private imageSvc = inject(ProductImageService);
+  private route = inject(ActivatedRoute);
+  private listState = inject(ListStateService);
+  private auth = inject(AuthService);
+  canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   lightboxImage = signal<{ medium: string; original: string } | null>(null);
 
   resolveImage(path?: string | null): string {
@@ -41,10 +48,16 @@ export class ProductList implements OnInit, OnDestroy {
   // Search filters
   searchQuery = signal('');
   selectedCategoryId = signal<number | undefined>(undefined);
-  selectedIsActive = signal<boolean | undefined>(true);
+  selectedStatus = signal<string | undefined>('active');
   selectedHasVariants = signal<boolean | undefined>(undefined);
   minPrice = signal<number | undefined>(undefined);
   maxPrice = signal<number | undefined>(undefined);
+
+  // Advanced filter drawer state
+  isAdvancedFilterDrawerOpen = signal(false);
+  draftHasVariants = signal<boolean | undefined>(undefined);
+  draftMinPrice = signal<number | undefined>(undefined);
+  draftMaxPrice = signal<number | undefined>(undefined);
 
   // Pagination
   pageNumber = signal(1);
@@ -68,7 +81,41 @@ export class ProductList implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadCategories();
     this.setupDebouncedSearch();
-    this.search();
+    this.restoreFromUrl();
+    this.performSearch();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    this.selectedCategoryId.set(this.listState.optionalId(p, 'categoryId'));
+    const status = p['status'] as string | undefined;
+    this.selectedStatus.set(status !== undefined ? status : 'active');
+    this.selectedHasVariants.set(this.listState.boolOrUndef(p, 'hasVariants'));
+    const minP = p['minPrice'] != null ? Number(p['minPrice']) : undefined;
+    this.minPrice.set(!isNaN(minP as number) && minP !== undefined ? minP : undefined);
+    const maxP = p['maxPrice'] != null ? Number(p['maxPrice']) : undefined;
+    this.maxPrice.set(!isNaN(maxP as number) && maxP !== undefined ? maxP : undefined);
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+    this.sortBy.set(this.listState.str(p, 'sortBy', 'name'));
+    this.sortOrder.set(this.listState.str(p, 'sortOrder', 'asc'));
+    this.syncAdvancedDraftsFromApplied();
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      categoryId: this.selectedCategoryId(),
+      status: this.selectedStatus(),
+      hasVariants: this.selectedHasVariants(),
+      minPrice: this.minPrice(),
+      maxPrice: this.maxPrice(),
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+      sortBy: this.sortBy(),
+      sortOrder: this.sortOrder(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -81,12 +128,61 @@ export class ProductList implements OnInit, OnDestroy {
         debounceTime(500)
       )
       .subscribe(() => {
+        this.syncUrl();
         this.performSearch();
       });
   }
 
   onSearchChange(): void {
+    this.pageNumber.set(1);
     this.searchSubject.next();
+  }
+
+  onBasicFilterChange(): void {
+    this.pageNumber.set(1);
+    this.syncUrl();
+    this.performSearch();
+  }
+
+  openAdvancedFilters(): void {
+    this.syncAdvancedDraftsFromApplied();
+    this.isAdvancedFilterDrawerOpen.set(true);
+  }
+
+  closeAdvancedFilters(): void {
+    this.isAdvancedFilterDrawerOpen.set(false);
+    this.syncAdvancedDraftsFromApplied();
+  }
+
+  applyAdvancedFilters(): void {
+    this.selectedHasVariants.set(this.draftHasVariants());
+    this.minPrice.set(this.draftMinPrice());
+    this.maxPrice.set(this.draftMaxPrice());
+    this.pageNumber.set(1);
+    this.syncUrl();
+    this.performSearch();
+    this.isAdvancedFilterDrawerOpen.set(false);
+  }
+
+  clearAdvancedFilters(): void {
+    this.draftHasVariants.set(undefined);
+    this.draftMinPrice.set(undefined);
+    this.draftMaxPrice.set(undefined);
+    this.applyAdvancedFilters();
+  }
+
+  advancedFilterCount(): number {
+    let count = 0;
+    if (this.selectedHasVariants() !== undefined) count += 1;
+    if (this.minPrice() !== undefined) count += 1;
+    if (this.maxPrice() !== undefined) count += 1;
+    return count;
+  }
+
+  private syncAdvancedDraftsFromApplied(): void {
+    this.draftHasVariants.set(this.selectedHasVariants());
+    this.draftMinPrice.set(this.minPrice());
+    this.draftMaxPrice.set(this.maxPrice());
   }
 
   loadCategories(): void {
@@ -101,7 +197,7 @@ export class ProductList implements OnInit, OnDestroy {
     const searchRequest: ProductSearchRequest = {
       searchQuery: this.searchQuery() || undefined,
       categoryId: this.selectedCategoryId(),
-      isActive: this.selectedIsActive(),
+      status: this.selectedStatus(),
       hasVariants: this.selectedHasVariants(),
       minPrice: this.minPrice(),
       maxPrice: this.maxPrice(),
@@ -115,30 +211,32 @@ export class ProductList implements OnInit, OnDestroy {
   }
 
   search(): void {
-    this.performSearch();
+    this.onBasicFilterChange();
   }
 
   clearFilters(): void {
     this.searchQuery.set('');
     this.selectedCategoryId.set(undefined);
-    this.selectedIsActive.set(true);
+    this.selectedStatus.set('active');
     this.selectedHasVariants.set(undefined);
     this.minPrice.set(undefined);
     this.maxPrice.set(undefined);
+    this.syncAdvancedDraftsFromApplied();
     this.pageNumber.set(1);
-    this.search();
+    this.listState.clear(this.route);
+    this.performSearch();
   }
 
   createProduct(): void {
-    this.router.navigate(['/products/create']);
+    this.router.navigate(['/products/create'], { queryParamsHandling: 'preserve' });
   }
 
   editProduct(id: number): void {
-    this.router.navigate(['/products/edit', id]);
+    this.router.navigate(['/products/edit', id], { queryParamsHandling: 'preserve' });
   }
 
   viewProduct(id: number): void {
-    this.router.navigate(['/products', id]);
+    this.router.navigate(['/products', id], { queryParamsHandling: 'preserve' });
   }
 
   confirmDelete(product: Product, event: Event): void {
@@ -148,7 +246,7 @@ export class ProductList implements OnInit, OnDestroy {
       this.productService.delete(product.id).subscribe({
         next: () => {
           alert('Product deleted successfully');
-          this.search();
+          this.performSearch();
         },
         error: (error) => {
           alert(error.error?.error || 'Failed to delete product');
@@ -159,13 +257,15 @@ export class ProductList implements OnInit, OnDestroy {
 
   changePage(page: number): void {
     this.pageNumber.set(page);
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   sort(column: string): void {
@@ -175,7 +275,8 @@ export class ProductList implements OnInit, OnDestroy {
       this.sortBy.set(column);
       this.sortOrder.set('asc');
     }
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   getSortIcon(column: string): string {

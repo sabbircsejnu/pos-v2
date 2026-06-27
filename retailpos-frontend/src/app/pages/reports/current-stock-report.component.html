@@ -1,0 +1,394 @@
+<div class="flex flex-col h-full">
+  <!-- ── Page Header ──────────────────────────────────────────────────────── -->
+  <div class="flex justify-between items-start mb-4 px-4 pt-4 flex-shrink-0">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Current Stock Report</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Real-time inventory position across all locations</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <!-- Export buttons -->
+      <div class="relative group">
+        <button class="btn btn-outline text-sm" [disabled]="isLoading() || totalCount() === 0">
+          <i class="fas fa-download"></i> Export
+          <i class="fas fa-chevron-down ml-1"></i>
+        </button>
+        <div class="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-20
+                    invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150">
+          <button (click)="export('csv')"
+                  class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg">
+            <i class="fas fa-file-csv text-green-600 w-4"></i> Export CSV
+          </button>
+          <button (click)="export('excel')"
+                  class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
+            <i class="fas fa-file-excel text-green-700 w-4"></i> Export Excel
+          </button>
+        </div>
+      </div>
+      <!-- Column visibility -->
+      <div class="relative">
+        <button (click)="showColumnPanel.set(!showColumnPanel())"
+                class="btn btn-outline text-sm"
+                [class.btn-primary]="showColumnPanel()">
+          <i class="fas fa-columns"></i> Columns
+        </button>
+        @if (showColumnPanel()) {
+          <div class="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-2">
+            @for (col of columns(); track col.key) {
+              <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer text-sm text-gray-700">
+                <input type="checkbox" [checked]="col.visible"
+                       (change)="toggleColumn(col.key)"
+                       class="rounded border-gray-300" />
+                {{ col.label }}
+              </label>
+            }
+          </div>
+        }
+      </div>
+      <!-- Refresh -->
+      <button (click)="loadReport()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+        <i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters Panel ─────────────────────────────────────────────────────── -->
+  <div class="card mx-4 mb-4 p-4 flex-shrink-0">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
+      <!-- Outlet -->
+      <div>
+        <label class="label">Outlet</label>
+        <select class="input" [ngModel]="outletId()" (ngModelChange)="outletId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Outlets</option>
+          @for (o of outletService.outlets(); track o.id) {
+            <option [ngValue]="o.id">{{ o.name }}</option>
+          }
+        </select>
+      </div>
+      <!-- Warehouse -->
+      <div>
+        <label class="label">Warehouse</label>
+        <select class="input" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Warehouses</option>
+          @for (w of warehouseService.warehouses(); track w.id) {
+            <option [ngValue]="w.id">{{ w.name }}</option>
+          }
+        </select>
+      </div>
+      <!-- Category -->
+      <div>
+        <label class="label">Category</label>
+        <select class="input" [ngModel]="categoryId()" (ngModelChange)="categoryId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Categories</option>
+          @for (c of categoryService.categories(); track c.id) {
+            <option [ngValue]="c.id">{{ c.name }}</option>
+          }
+        </select>
+      </div>
+      <!-- Stock Status -->
+      <div>
+        <label class="label">Stock Status</label>
+        <select class="input" [ngModel]="stockStatus()" (ngModelChange)="stockStatus.set($event)">
+          <option value="all">All Status</option>
+          <option value="in-stock">In Stock</option>
+          <option value="low-stock">Low Stock</option>
+          <option value="out-of-stock">Out of Stock</option>
+        </select>
+      </div>
+      <!-- Search -->
+      <div class="md:col-span-2">
+        <label class="label">Search (Name / SKU / Barcode)</label>
+        <div class="relative">
+          <input type="text"
+                 class="input pl-9"
+                 placeholder="Search products..."
+                 [ngModel]="search()"
+                 (ngModelChange)="search.set($event)"
+                 (keyup.enter)="applyFilters()" />
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button (click)="resetFilters()" class="btn btn-outline text-sm">
+        <i class="fas fa-times"></i> Reset
+      </button>
+      <button (click)="applyFilters()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+        <i class="fas fa-search"></i> Get Report
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loading state ─────────────────────────────────────────────────────── -->
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16 flex-shrink-0">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+
+    <!-- ── Summary Cards ────────────────────────────────────────────────────── -->
+    @if (summary()) {
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mx-4 mb-4 flex-shrink-0">
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-boxes text-blue-600"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Products</p>
+              <p class="text-xl font-bold text-gray-900">{{ summary()!.totalProducts | number }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-cubes text-green-600"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Quantity</p>
+              <p class="text-xl font-bold text-gray-900">{{ summary()!.totalQuantity | number }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-dollar-sign text-purple-600"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Total Inventory Value</p>
+              <p class="text-xl font-bold text-gray-900">{{ formatCurrency(summary()!.totalStockValue) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ── Report Table ──────────────────────────────────────────────────────── -->
+    <div class="mx-4 mb-4 card flex flex-col min-h-0 overflow-hidden">
+      <!-- Table header bar -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div class="text-sm text-gray-600">
+          @if (totalCount() > 0) {
+            Showing {{ (page() - 1) * pageSize() + 1 }}–{{ page() * pageSize() < totalCount() ? page() * pageSize() : totalCount() }}
+            of <strong>{{ totalCount() | number }}</strong> records
+          } @else {
+            No records found
+          }
+        </div>
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+          <span>Rows per page:</span>
+          <select class="input py-1 text-sm w-20"
+                  [ngModel]="pageSize()"
+                  (ngModelChange)="onPageSizeChange(+$event)">
+            <option [ngValue]="25">25</option>
+            <option [ngValue]="50">50</option>
+            <option [ngValue]="100">100</option>
+            <option [ngValue]="200">200</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Scrollable table wrapper -->
+      <div class="overflow-auto flex-1">
+        <table class="table min-w-full">
+          <!-- Sticky header -->
+          <thead class="sticky top-0 z-10 bg-gray-50">
+            <tr>
+              @if (isColumnVisible('productCode')) {
+                <th (click)="sort('productCode')" class="cursor-pointer hover:bg-gray-100 whitespace-nowrap">
+                  Product Code <i class="fas {{ sortIcon('productCode') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('barcode')) {
+                <th class="whitespace-nowrap">Barcode</th>
+              }
+              @if (isColumnVisible('productName')) {
+                <th (click)="sort('productName')" class="cursor-pointer hover:bg-gray-100 whitespace-nowrap">
+                  Product Name <i class="fas {{ sortIcon('productName') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('category')) {
+                <th (click)="sort('category')" class="cursor-pointer hover:bg-gray-100 whitespace-nowrap">
+                  Category <i class="fas {{ sortIcon('category') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('location')) {
+                <th (click)="sort('location')" class="cursor-pointer hover:bg-gray-100 whitespace-nowrap">
+                  Location <i class="fas {{ sortIcon('location') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('availableQuantity')) {
+                <th (click)="sort('availableQuantity')" class="cursor-pointer hover:bg-gray-100 text-right whitespace-nowrap">
+                  Available Qty <i class="fas {{ sortIcon('availableQuantity') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('reservedQuantity')) {
+                <th class="text-right whitespace-nowrap">Reserved Qty</th>
+              }
+              @if (isColumnVisible('reorderLevel')) {
+                <th class="text-right whitespace-nowrap">Reorder Level</th>
+              }
+              @if (isColumnVisible('unitCost')) {
+                <th (click)="sort('unitCost')" class="cursor-pointer hover:bg-gray-100 text-right whitespace-nowrap">
+                  Unit Cost <i class="fas {{ sortIcon('unitCost') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('stockValue')) {
+                <th (click)="sort('stockValue')" class="cursor-pointer hover:bg-gray-100 text-right whitespace-nowrap">
+                  Stock Value <i class="fas {{ sortIcon('stockValue') }} ml-1 text-gray-400"></i>
+                </th>
+              }
+              @if (isColumnVisible('lastPurchaseDate')) {
+                <th class="whitespace-nowrap">Last Purchase</th>
+              }
+              @if (isColumnVisible('lastSaleDate')) {
+                <th class="whitespace-nowrap">Last Sale</th>
+              }
+              @if (isColumnVisible('stockStatus')) {
+                <th class="whitespace-nowrap">Status</th>
+              }
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (row of rows(); track row.variantId + '-' + row.locationId) {
+              <tr class="hover:bg-gray-50 transition-colors">
+                @if (isColumnVisible('productCode')) {
+                  <td class="font-mono text-xs text-gray-600">{{ row.productCode }}</td>
+                }
+                @if (isColumnVisible('barcode')) {
+                  <td class="font-mono text-xs text-gray-500">{{ row.barcode || '—' }}</td>
+                }
+                @if (isColumnVisible('productName')) {
+                  <td class="font-medium text-gray-900">{{ row.productName }}</td>
+                }
+                @if (isColumnVisible('category')) {
+                  <td class="text-gray-600">{{ row.category }}</td>
+                }
+                @if (isColumnVisible('location')) {
+                  <td>
+                    <span class="text-gray-900">{{ row.locationName }}</span>
+                    <span class="ml-1 text-xs text-gray-400">({{ row.locationType }})</span>
+                  </td>
+                }
+                @if (isColumnVisible('availableQuantity')) {
+                  <td class="text-right font-semibold"
+                      [class.text-red-600]="row.availableQuantity === 0"
+                      [class.text-amber-600]="row.availableQuantity > 0 && row.availableQuantity <= row.reorderLevel"
+                      [class.text-gray-900]="row.availableQuantity > row.reorderLevel">
+                    {{ row.availableQuantity | number }}
+                  </td>
+                }
+                @if (isColumnVisible('reservedQuantity')) {
+                  <td class="text-right text-gray-600">{{ row.reservedQuantity | number }}</td>
+                }
+                @if (isColumnVisible('reorderLevel')) {
+                  <td class="text-right text-gray-500">{{ row.reorderLevel | number }}</td>
+                }
+                @if (isColumnVisible('unitCost')) {
+                  <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
+                }
+                @if (isColumnVisible('stockValue')) {
+                  <td class="text-right font-semibold text-gray-900">{{ formatCurrency(row.stockValue) }}</td>
+                }
+                @if (isColumnVisible('lastPurchaseDate')) {
+                  <td class="text-sm text-gray-500">{{ formatDate(row.lastPurchaseDate) }}</td>
+                }
+                @if (isColumnVisible('lastSaleDate')) {
+                  <td class="text-sm text-gray-500">{{ formatDate(row.lastSaleDate) }}</td>
+                }
+                @if (isColumnVisible('stockStatus')) {
+                  <td>
+                    <span class="badge {{ stockStatusBadge(row.stockStatus) }} text-xs">
+                      {{ stockStatusLabel(row.stockStatus) }}
+                    </span>
+                  </td>
+                }
+              </tr>
+            }
+            @if (rows().length === 0) {
+              <tr>
+                <td [attr.colspan]="visibleColumns().length" class="text-center text-gray-500 py-12">
+                  <i class="fas fa-box-open text-4xl text-gray-300 mb-3 block"></i>
+                  No stock records found for the selected filters.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Sticky Footer Totals ──────────────────────────────────────────── -->
+      <!-- Totals are computed from the FULL filtered dataset, not just current page -->
+      @if (summary() && totalCount() > 0) {
+        <div class="sticky bottom-0 border-t-2 border-gray-300 bg-blue-50 flex-shrink-0">
+          <div class="overflow-x-auto">
+            <table class="table min-w-full">
+              <tfoot>
+                <tr class="font-bold text-gray-800">
+                  @if (isColumnVisible('productCode')) {
+                    <td class="text-xs uppercase text-gray-500 whitespace-nowrap">TOTAL (all {{ totalCount() | number }} records)</td>
+                  }
+                  @if (isColumnVisible('barcode')) { <td></td> }
+                  @if (isColumnVisible('productName')) { <td></td> }
+                  @if (isColumnVisible('category')) { <td></td> }
+                  @if (isColumnVisible('location')) { <td></td> }
+                  @if (isColumnVisible('availableQuantity')) {
+                    <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}</td>
+                  }
+                  @if (isColumnVisible('reservedQuantity')) { <td></td> }
+                  @if (isColumnVisible('reorderLevel')) { <td></td> }
+                  @if (isColumnVisible('unitCost')) { <td></td> }
+                  @if (isColumnVisible('stockValue')) {
+                    <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</td>
+                  }
+                  @if (isColumnVisible('lastPurchaseDate')) { <td></td> }
+                  @if (isColumnVisible('lastSaleDate')) { <td></td> }
+                  @if (isColumnVisible('stockStatus')) { <td></td> }
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- ── Pagination ────────────────────────────────────────────────────── -->
+      @if (totalPages() > 1) {
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
+          <button (click)="goToPage(page() - 1)"
+                  [disabled]="page() === 1"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            <i class="fas fa-chevron-left"></i> Prev
+          </button>
+          <div class="flex items-center gap-1">
+            @if (pages()[0] > 1) {
+              <button (click)="goToPage(1)" class="btn btn-outline text-sm py-1 px-3">1</button>
+              @if (pages()[0] > 2) {
+                <span class="px-1 text-gray-400">…</span>
+              }
+            }
+            @for (p of pages(); track p) {
+              <button (click)="goToPage(p)"
+                      [class.btn-primary]="p === page()"
+                      [class.btn-outline]="p !== page()"
+                      class="btn text-sm py-1 px-3">{{ p }}</button>
+            }
+            @if (pages()[pages().length - 1] < totalPages()) {
+              @if (pages()[pages().length - 1] < totalPages() - 1) {
+                <span class="px-1 text-gray-400">…</span>
+              }
+              <button (click)="goToPage(totalPages())" class="btn btn-outline text-sm py-1 px-3">{{ totalPages() }}</button>
+            }
+          </div>
+          <button (click)="goToPage(page() + 1)"
+                  [disabled]="page() === totalPages()"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -39,6 +39,11 @@
             class="py-3 px-3 text-sm transition-colors">
             <i class="fas fa-boxes mr-1"></i> Inventory
           </button>
+          <button (click)="activeTab.set('appearance')"
+            [class]="activeTab() === 'appearance' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            class="py-3 px-3 text-sm transition-colors">
+            <i class="fas fa-panorama mr-1"></i> Appearance
+          </button>
         </nav>
       </div>
 
@@ -329,6 +334,56 @@
               <i class="fas fa-save"></i>
               {{ isSaving() ? 'Saving...' : 'Save Inventory Settings' }}
             </button>
+          </div>
+        </div>
+      }
+
+      <!-- Appearance Tab -->
+      @if (activeTab() === 'appearance') {
+        <div class="p-6">
+          <div class="mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Sidebar Density</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Pick a navigation density that matches your team’s workflow and screen size preferences.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+            <button
+              type="button"
+              (click)="setSidebarDensity('comfortable')"
+              class="rounded-lg border p-4 text-left transition"
+              [class.border-sky-500]="menuService.sidebarDensity() === 'comfortable'"
+              [class.bg-sky-50]="menuService.sidebarDensity() === 'comfortable'"
+              [class.border-gray-200]="menuService.sidebarDensity() !== 'comfortable'"
+              [class.hover:border-gray-300]="menuService.sidebarDensity() !== 'comfortable'">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-900">Comfortable</h3>
+                @if (menuService.sidebarDensity() === 'comfortable') {
+                  <i class="fas fa-circle-check text-sky-600"></i>
+                }
+              </div>
+              <p class="text-xs text-gray-600">More breathing room and wider sidebar for readability on large displays.</p>
+            </button>
+
+            <button
+              type="button"
+              (click)="setSidebarDensity('compact')"
+              class="rounded-lg border p-4 text-left transition"
+              [class.border-sky-500]="menuService.sidebarDensity() === 'compact'"
+              [class.bg-sky-50]="menuService.sidebarDensity() === 'compact'"
+              [class.border-gray-200]="menuService.sidebarDensity() !== 'compact'"
+              [class.hover:border-gray-300]="menuService.sidebarDensity() !== 'compact'">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-900">Compact</h3>
+                @if (menuService.sidebarDensity() === 'compact') {
+                  <i class="fas fa-circle-check text-sky-600"></i>
+                }
+              </div>
+              <p class="text-xs text-gray-600">Denser layout with tighter spacing for power users and smaller screens.</p>
+            </button>
+          </div>
+
+          <div class="mt-4 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600 max-w-2xl">
+            This preference is saved locally in your browser and applied immediately.
           </div>
         </div>
       }

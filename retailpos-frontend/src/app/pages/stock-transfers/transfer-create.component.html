@@ -1,141 +1,284 @@
-<div class="container mx-auto px-4 py-4 max-w-4xl">
-  <!-- Header -->
-  <div class="flex items-center gap-3 mb-6">
-    <button (click)="cancel()" class="btn btn-ghost">
-      <i class="fas fa-arrow-left"></i>
-    </button>
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Create Stock Transfer</h1>
-      <p class="text-sm text-gray-600 mt-0.5">Transfer stock between locations</p>
-    </div>
-  </div>
-
+<div class="mx-auto max-w-[96rem] px-2 py-3 sm:px-3 lg:px-4">
   @if (isLoadingData()) {
-    <div class="card p-8 text-center">
-      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
-      <p class="text-sm text-gray-600">Loading data...</p>
+    <div class="flex items-center justify-center py-16">
+      <div class="h-12 w-12 animate-spin rounded-full border-b-2 border-slate-900"></div>
     </div>
   } @else {
-    <form (ngSubmit)="onSubmit()">
-      <!-- Transfer Details -->
-      <div class="card p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Transfer Details</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- From Location -->
-          <div class="space-y-3">
-            <h3 class="font-medium text-gray-700">From Location</h3>
-            <div>
-              <label class="label">Location Type</label>
-              <select [(ngModel)]="fromLocationType" name="fromLocationType"
-                      (ngModelChange)="onFromTypeChange()" class="input">
-                <option value="outlet">Outlet</option>
-                <option value="warehouse">Warehouse</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Location <span class="text-red-500">*</span></label>
-              <select [(ngModel)]="fromLocationId" name="fromLocationId" class="input" required>
-                <option [ngValue]="null">-- Select Location --</option>
-                @for (loc of getFromLocations(); track loc.id) {
-                  <option [ngValue]="loc.id">{{ loc.name }}</option>
-                }
-              </select>
-            </div>
-          </div>
-
-          <!-- To Location -->
-          <div class="space-y-3">
-            <h3 class="font-medium text-gray-700">To Location</h3>
-            <div>
-              <label class="label">Location Type</label>
-              <select [(ngModel)]="toLocationType" name="toLocationType"
-                      (ngModelChange)="onToTypeChange()" class="input">
-                <option value="outlet">Outlet</option>
-                <option value="warehouse">Warehouse</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Location <span class="text-red-500">*</span></label>
-              <select [(ngModel)]="toLocationId" name="toLocationId" class="input" required>
-                <option [ngValue]="null">-- Select Location --</option>
-                @for (loc of getToLocations(); track loc.id) {
-                  <option [ngValue]="loc.id">{{ loc.name }}</option>
-                }
-              </select>
-            </div>
-          </div>
-
-          <!-- Transfer Date -->
+    <form (ngSubmit)="onSubmit()" class="space-y-3">
+      <div class="sticky top-2 z-20 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <label class="label">Transfer Date <span class="text-red-500">*</span></label>
-            <input type="date" [(ngModel)]="transferDate" name="transferDate"
-                   class="input" required />
+            <h1 class="text-lg font-semibold text-slate-900">Create Stock Transfer</h1>
+            <p class="text-xs text-slate-600">Move inventory between locations with controlled transfer workflow.</p>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">New Transfer</span>
+            <button type="button" (click)="cancel()" class="btn btn-outline min-w-24" [disabled]="isSubmitting()">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+            <button type="button" class="btn btn-outline min-w-28" [disabled]="!canSubmit()" (click)="saveDraft()">
+              @if (isSubmitting()) {
+                <i class="fas fa-spinner fa-spin"></i>
+                Saving...
+              } @else {
+                Save Draft
+              }
+            </button>
+            <button type="button" class="btn btn-primary min-w-28" [disabled]="!canSubmit()" (click)="submit()">
+              Submit
+            </button>
+            @if (auth.hasPermission('stock_transfers.dispatch')) {
+              <button type="button" class="btn btn-primary min-w-40" [disabled]="!canSubmit()" (click)="submitAndDispatch()">
+                Submit & Dispatch
+              </button>
+            }
           </div>
         </div>
       </div>
 
-      <!-- Items Section -->
-      <div class="card p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">Items</h2>
-          <button type="button" (click)="addItem()" class="btn btn-outline">
-            <i class="fas fa-plus"></i>
-            Add Item
-          </button>
-        </div>
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-start">
+        <section class="space-y-3 lg:col-span-8 xl:col-span-9">
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-900">Add Transfer Items</h2>
+                <p class="text-xs text-slate-600">Select destination location, then search by main code, SKU, product, or attributes.</p>
+              </div>
+            </div>
 
-        @if (lineItems().length === 0) {
-          <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-            <i class="fas fa-box text-3xl mb-2 text-gray-300"></i>
-            <p>No items added. Click "Add Item" to begin.</p>
-          </div>
-        } @else {
-          <div class="space-y-3">
-            @for (item of lineItems(); track $index; let i = $index) {
-              <div class="grid grid-cols-12 gap-3 items-start p-3 bg-gray-50 rounded-lg">
-                <div class="col-span-8">
-                  <label class="label">Product Variant <span class="text-red-500">*</span></label>
-                  <select [ngModel]="item.variantId" (ngModelChange)="onVariantSelected(i, $event)"
-                          [name]="'variant_' + i" class="input">
-                    <option [ngValue]="0">-- Select Variant --</option>
-                    @for (v of variantOptions(); track v.id) {
-                      <option [ngValue]="v.id">{{ v.displayName }}</option>
+            <app-variant-search-picker
+              [disabled]="isSubmitting() || !canSearchProducts()"
+              [locationId]="fromLocationId()"
+              [locationType]="fromLocationType()"
+              [existingVariantIds]="existingVariantIds()"
+              [placeholder]="canSearchProducts() ? 'Search by main code, SKU, product name, or variant attributes...' : 'Select both source and destination locations before adding products'"
+              (selected)="onVariantSelected($event)">
+            </app-variant-search-picker>
+
+            @if (productSearchHelperText()) {
+              <p class="mt-2 text-xs font-medium" [ngClass]="sameLocationSelected() ? 'text-rose-600' : 'text-slate-600'">
+                {{ productSearchHelperText() }}
+              </p>
+            }
+
+            @if (lineItems().length === 0) {
+              <div class="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                <div class="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
+                  <i class="fas fa-exchange-alt text-lg"></i>
+                </div>
+                <h3 class="text-sm font-semibold text-slate-900">No items added yet</h3>
+                <p class="mt-1 text-sm text-slate-600">Use the search above to add products to this transfer.</p>
+              </div>
+            } @else {
+              <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="w-full table-fixed divide-y divide-slate-200">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="w-[36%] px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Product</th>
+                      <th class="w-[14%] px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">SKU / Variant</th>
+                      @if (isRequisitionTransfer()) {
+                        <th class="w-[10%] px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Requested Qty</th>
+                      }
+                      <th class="w-[10%] px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Available at Source</th>
+                      <th class="w-[10%] px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Stock at Destination</th>
+                      <th class="w-[18%] px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Transfer Qty</th>
+                      <th class="w-[8%] px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white">
+                    @for (item of lineItems(); track item.variantId; let i = $index) {
+                      <tr [ngClass]="getTransferQuantityError(item) ? 'bg-rose-50/30' : (duplicateLineItemIndex() === i ? 'bg-amber-50/50' : 'hover:bg-slate-50')">
+                        <td class="px-3 py-2.5">
+                          <div class="flex min-w-0 items-start gap-3">
+                            @if (item.primaryImageThumb) {
+                              <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName" loading="lazy" decoding="async" class="h-10 w-10 flex-shrink-0 rounded-lg border border-slate-200 bg-white object-cover" />
+                            } @else {
+                              <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
+                                <i class="fas fa-box text-xs"></i>
+                              </div>
+                            }
+
+                            <div class="min-w-0 flex-1">
+                              <div class="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{{ item.productName }}</div>
+                              <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                                @if (item.productCode) { <span>Main Code: {{ item.productCode }}</span> }
+                                @if (item.attributes) { <span>{{ item.attributes }}</span> }
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-sm text-slate-700">{{ item.variantSku || '-' }}</td>
+                        @if (isRequisitionTransfer()) {
+                          <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ item.requestedQuantity }}</td>
+                        }
+                        <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ item.availableStock ?? '-' }}</td>
+                        <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ item.destinationStock ?? '-' }}</td>
+                        <td class="px-3 py-2.5">
+                          <input
+                            type="number"
+                            [ngModel]="item.transferQuantity"
+                            (ngModelChange)="updateTransferQuantity(i, $event)"
+                            [ngModelOptions]="{ standalone: true }"
+                            min="1"
+                            class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            [disabled]="isSubmitting()" />
+                          @if (getTransferQuantityError(item)) {
+                            <p class="mt-1 text-[11px] text-rose-600">{{ getTransferQuantityError(item) }}</p>
+                          }
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                          <button
+                            type="button"
+                            (click)="removeItem(i)"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700"
+                            [disabled]="isSubmitting()"
+                            title="Remove">
+                            <i class="fas fa-times text-xs"></i>
+                          </button>
+                        </td>
+                      </tr>
                     }
-                  </select>
-                </div>
-                <div class="col-span-3">
-                  <label class="label">Quantity <span class="text-red-500">*</span></label>
-                  <input type="number" [ngModel]="item.quantity"
-                         (ngModelChange)="updateQuantity(i, $event)"
-                         [name]="'qty_' + i"
-                         min="1" class="input" />
-                </div>
-                <div class="col-span-1 pt-6">
-                  <button type="button" (click)="removeItem(i)"
-                          class="btn btn-ghost text-red-600 py-2 px-2">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
+                  </tbody>
+                </table>
               </div>
             }
           </div>
-        }
-      </div>
+        </section>
 
-      <!-- Actions -->
-      <div class="flex justify-end gap-3">
-        <button type="button" (click)="cancel()" class="btn btn-outline">
-          Cancel
-        </button>
-        <button type="submit" [disabled]="isSubmitting()" class="btn btn-primary">
-          @if (isSubmitting()) {
-            <i class="fas fa-spinner fa-spin"></i>
-            Creating...
-          } @else {
-            <i class="fas fa-paper-plane"></i>
-            Create Transfer
-          }
-        </button>
+        <aside class="space-y-3 lg:col-span-4 xl:col-span-3 lg:sticky lg:top-20 self-start">
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-900">Transfer Details</h2>
+                <p class="text-xs text-slate-600">Header-level transfer metadata.</p>
+              </div>
+              <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">Required</span>
+            </div>
+
+            <div class="space-y-3">
+              <div>
+                <label class="label label-required">Transfer Type</label>
+                <select [ngModel]="transferType()" (ngModelChange)="onTransferTypeChange($event)" name="transferType" class="input" required>
+                  <option value="direct">Direct</option>
+                  <option value="requisition">Requisition</option>
+                  <option value="return">Return</option>
+                </select>
+              </div>
+              <div>
+                <label class="label label-required">Transfer Date</label>
+                <input type="date" [ngModel]="transferDate()" (ngModelChange)="transferDate.set($event)" name="transferDate" class="input" required />
+              </div>
+              <div>
+                <label class="label">Notes</label>
+                <textarea [ngModel]="notes()" (ngModelChange)="notes.set($event)" name="notes" rows="2" class="textarea" placeholder="Optional transfer notes"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">From Location</h2>
+            <p class="mb-3 text-xs text-slate-600">Source inventory location.</p>
+
+            @if (canSelectFromLocation()) {
+              <div class="space-y-3">
+                <div>
+                  <label class="label label-required">Location Type</label>
+                  <select [ngModel]="fromLocationType()" (ngModelChange)="fromLocationType.set($event); onFromTypeChange()" name="fromLocationType" class="input" required>
+                    <option value="outlet">Outlet</option>
+                    <option value="warehouse">Warehouse</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label label-required">Location</label>
+                  <select [ngModel]="fromLocationId()" (ngModelChange)="onFromLocationChange($event)" name="fromLocationId" class="input" required>
+                    <option [ngValue]="null">-- Select Source --</option>
+                    @for (loc of getFromLocations(); track loc.id) {
+                      <option [ngValue]="loc.id">{{ loc.name }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            } @else {
+              <div class="space-y-3">
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Location Type</p>
+                  <p class="mt-1 font-medium capitalize">{{ fromLocationType() || '-' }}</p>
+                </div>
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Location</p>
+                  <p class="mt-1 font-medium">{{ getFromLocationName() }}</p>
+                </div>
+                <p class="text-xs text-slate-600">Source location is resolved from your assigned/default location.</p>
+              </div>
+            }
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">To Location</h2>
+            <p class="mb-3 text-xs text-slate-600">Destination inventory location.</p>
+
+            <div class="space-y-3">
+              <div>
+                <label class="label label-required">Location Type</label>
+                <select [ngModel]="toLocationType()" (ngModelChange)="toLocationType.set($event); onToTypeChange()" name="toLocationType" class="input" required>
+                  <option value="outlet">Outlet</option>
+                  <option value="warehouse">Warehouse</option>
+                </select>
+              </div>
+              <div>
+                <label class="label label-required">Location</label>
+                <select [ngModel]="toLocationId()" (ngModelChange)="onToLocationChange($event)" name="toLocationId" class="input" required>
+                  <option [ngValue]="null">-- Select Destination --</option>
+                  @for (loc of getToLocations(); track loc.id) {
+                    <option [ngValue]="loc.id">{{ loc.name }}</option>
+                  }
+                </select>
+              </div>
+              @if (sameLocationSelected()) {
+                <p class="text-xs font-medium text-rose-600">Source and destination cannot be the same.</p>
+              }
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">Summary</h2>
+            <p class="mb-3 text-xs text-slate-600">Readiness and transfer totals.</p>
+
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">From Location</span>
+                <span class="max-w-[11rem] truncate font-medium text-slate-900">{{ getFromLocationName() }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">To Location</span>
+                <span class="max-w-[11rem] truncate font-medium text-slate-900">{{ getToLocationName() }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Total Products</span>
+                <span class="font-medium text-slate-900">{{ totals().totalProducts }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Total Transfer Qty</span>
+                <span class="font-medium text-slate-900">{{ totals().totalTransferQuantity }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Transfer Type</span>
+                <span class="font-medium capitalize text-slate-900">{{ transferType() }}</span>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="mb-1 flex items-center justify-between text-xs text-slate-600">
+                <span>Readiness</span>
+                <span class="font-medium text-slate-800">{{ checklistPercent() }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100">
+                <div class="h-2 rounded-full bg-slate-900" [style.width.%]="checklistPercent()"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </form>
   }

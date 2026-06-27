@@ -25,6 +25,15 @@ namespace RetailPOS.Core.Entities
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// When true, all options of this variation are pre-selected by default
+        /// when a user assigns this variation type to a product for the first time.
+        /// Useful for variation types where most products use every option (e.g. Size).
+        /// Defaults to false (user must manually choose options).
+        /// </summary>
+        [Column("default_select_all_options")]
+        public bool AutoSelectAllOptions { get; set; } = false;
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

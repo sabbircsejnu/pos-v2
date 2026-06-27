@@ -78,6 +78,11 @@ public interface IPurchaseOrderRepository
     Task<IEnumerable<PurchaseOrder>> GetPendingApprovalsAsync(long? businessId = null);
 
     /// <summary>
+    /// Sets the formatted PO number after initial creation.
+    /// </summary>
+    Task SetPoNumberAsync(long id, string poNumber);
+
+    /// <summary>
     /// Gets total amount for purchase orders by status and date range
     /// </summary>
     Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null, long? businessId = null);

@@ -1,8 +1,11 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Models;
+using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.API.Services;
@@ -44,6 +47,12 @@ public class RoleSwitchService : IRoleSwitchService
         {
             var outlet = await _db.Outlets.FirstOrDefaultAsync(o => o.Id == request.ActingOutletId.Value)
                 ?? throw new InvalidOperationException($"Outlet {request.ActingOutletId} not found.");
+
+            if (!user.BusinessId.HasValue || outlet.BusinessId != user.BusinessId)
+            {
+                throw new UnauthorizedAccessException("Selected outlet does not belong to your business.");
+            }
+
             actingOutletName = outlet.Name;
         }
 
@@ -59,6 +68,8 @@ public class RoleSwitchService : IRoleSwitchService
         var token = _tokenService.GenerateAccessToken(user, user.Role, acting);
         var refresh = _tokenService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwt.ExpirationMinutes);
+
+        await PersistRefreshTokenAsync(user.Id, refresh);
 
         return new LoginResponseDto
         {
@@ -77,6 +88,8 @@ public class RoleSwitchService : IRoleSwitchService
         var token = _tokenService.GenerateAccessToken(user, user.Role);
         var refresh = _tokenService.GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwt.ExpirationMinutes);
+
+        await PersistRefreshTokenAsync(user.Id, refresh);
 
         var ownerPerms = TryParsePermissions(user.Role?.Permissions);
         return new LoginResponseDto
@@ -132,5 +145,24 @@ public class RoleSwitchService : IRoleSwitchService
             IsBusinessOwner = string.Equals(user.Role?.Name, RoleSwitchClaims.BusinessOwnerRoleName, StringComparison.OrdinalIgnoreCase),
             MustResetPassword = user.MustResetPassword
         };
+    }
+
+    private async Task PersistRefreshTokenAsync(long userId, string refreshToken)
+    {
+        _db.UserRefreshTokens.Add(new UserRefreshToken
+        {
+            UserId = userId,
+            TokenHash = HashToken(refreshToken),
+            ExpiresAt = DateTime.UtcNow.AddDays(_jwt.RefreshTokenExpirationDays),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+    }
+
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
     }
 }

@@ -64,6 +64,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   // Cart state
   cartItems = signal<CartItem[]>([]);
+  duplicateCartVariantId = signal<number | null>(null);
   discountPercent = signal<number>(0);
   paymentMethod = signal<string>('cash');
   cashTendered = signal<number>(0);
@@ -226,6 +227,30 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.selectedCategory.set(id);
   }
 
+  isVariantInCart(variantId: number): boolean {
+    return this.cartItems().some(item => item.variantId === variantId);
+  }
+
+  highlightCartVariant(variantId: number): void {
+    this.duplicateCartVariantId.set(variantId);
+    setTimeout(() => this.duplicateCartVariantId.set(null), 1500);
+  }
+
+  onProductCardClick(product: PosProduct): void {
+    if (product.stockQty <= 0) {
+      this.alertService.error('This product is out of stock');
+      return;
+    }
+
+    if (this.isVariantInCart(product.variantId)) {
+      this.alertService.warning(`${product.name} is already in cart`);
+      this.highlightCartVariant(product.variantId);
+      return;
+    }
+
+    this.addToCart(product);
+  }
+
   addToCart(product: PosProduct): void {
     if (product.stockQty <= 0) {
       this.alertService.error('This product is out of stock');
@@ -234,13 +259,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const items = this.cartItems();
     const idx = items.findIndex(i => i.variantId === product.variantId);
     if (idx >= 0) {
-      const updated = [...items];
-      updated[idx] = {
-        ...updated[idx],
-        quantity: updated[idx].quantity + 1,
-        subtotal: (updated[idx].quantity + 1) * updated[idx].unitPrice
-      };
-      this.cartItems.set(updated);
+      this.alertService.warning(`${product.name} is already in cart`);
+      this.highlightCartVariant(product.variantId);
+      return;
     } else {
       this.cartItems.set([...items, {
         variantId: product.variantId,
@@ -465,13 +486,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         const items = this.cartItems();
         const idx = items.findIndex(i => i.variantId === product.variantId);
         if (idx >= 0) {
-          const updated = [...items];
-          updated[idx] = {
-            ...updated[idx],
-            quantity: updated[idx].quantity + 1,
-            subtotal: (updated[idx].quantity + 1) * updated[idx].unitPrice
-          };
-          this.cartItems.set(updated);
+          this.alertService.warning(`${product.name} is already in cart`);
+          this.highlightCartVariant(product.variantId);
         } else {
           this.cartItems.set([...items, {
             variantId: product.variantId,

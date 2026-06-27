@@ -1,11 +1,12 @@
 {
   "Company": {
-    "CompanyName": "Retail POS",
-    "Address": "",
-    "Phone": "",
-    "Email": "",
-    "Website": "",
+    "CompanyName": "IraniMart",
+    "Address": "Dhaka, Bangladesh",
+    "Phone": "\u002B8801711000000",
+    "Email": "info@iranimartbd.com",
+    "Website": "iranimartbd.com",
     "TaxNumber": "",
+    "LogoBase64": "",
     "Currency": "BDT",
     "CurrencySymbol": "\u09F3",
     "DateFormat": "dd/MM/yyyy",

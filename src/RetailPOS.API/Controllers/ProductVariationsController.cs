@@ -6,7 +6,7 @@ using RetailPOS.API.Services;
 
 namespace RetailPOS.API.Controllers;
 
-[Authorize]
+[Authorize(Policy = "products.view")]
 [ApiController]
 [Route("api/products/{productId}/variations")]
 public class ProductVariationsController : ControllerBase
@@ -36,6 +36,7 @@ public class ProductVariationsController : ControllerBase
     /// Assign variations to a product (with per-variation selected options)
     /// </summary>
     [HttpPost("assign")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse>> AssignVariations(long productId, [FromBody] AssignVariationsRequest request)
     {
         await _service.AssignVariationsToProductAsync(productId, request.VariationIds, request.SelectedOptionsByVariation);
@@ -56,6 +57,7 @@ public class ProductVariationsController : ControllerBase
     /// Generate all possible combinations
     /// </summary>
     [HttpPost("combinations/generate-all")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GenerateAllCombinations(long productId)
     {
         var combinations = await _service.GenerateAllCombinationsAsync(productId);
@@ -69,6 +71,7 @@ public class ProductVariationsController : ControllerBase
     /// Generate combinations for selected variations
     /// </summary>
     [HttpPost("combinations/generate-selected")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GenerateSelectedCombinations(
         long productId,
         [FromBody] GenerateCombinationsRequest request)
@@ -84,6 +87,7 @@ public class ProductVariationsController : ControllerBase
     /// Create a manual combination
     /// </summary>
     [HttpPost("combinations")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<CombinationDto>>> CreateManualCombination(
         long productId,
         [FromBody] CreateCombinationRequest request)
@@ -99,6 +103,7 @@ public class ProductVariationsController : ControllerBase
     /// Update a combination
     /// </summary>
     [HttpPut("combinations/{variantId}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse>> UpdateCombination(
         long productId,
         long variantId,
@@ -112,6 +117,7 @@ public class ProductVariationsController : ControllerBase
     /// Delete a combination
     /// </summary>
     [HttpDelete("combinations/{variantId}")]
+    [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse>> DeleteCombination(long productId, long variantId)
     {
         await _service.DeleteCombinationAsync(variantId);

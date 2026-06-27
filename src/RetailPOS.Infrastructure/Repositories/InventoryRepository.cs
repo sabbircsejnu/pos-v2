@@ -37,7 +37,7 @@ public class InventoryRepository : IInventoryRepository
             .Include(i => i.Variant)
                 .ThenInclude(v => v.Product)
                     .ThenInclude(p => p.Category)
-            .Where(i => i.LocationType == "outlet" && i.LocationId == outletId)
+            .Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId)
             .ToListAsync();
     }
 
@@ -47,19 +47,21 @@ public class InventoryRepository : IInventoryRepository
             .Include(i => i.Variant)
                 .ThenInclude(v => v.Product)
                     .ThenInclude(p => p.Category)
-            .Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId)
+            .Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId)
             .ToListAsync();
     }
 
     public async Task<Inventory?> GetByVariantAndLocationAsync(long variantId, long locationId, string locationType)
     {
+        var normalizedType = NormalizeLocationType(locationType);
+
         return await _context.Inventories
             .Include(i => i.Variant)
                 .ThenInclude(v => v.Product)
                     .ThenInclude(p => p.Category)
             .FirstOrDefaultAsync(i => i.VariantId == variantId && 
                                     i.LocationId == locationId && 
-                                    i.LocationType == locationType);
+                                    i.LocationType.ToLower() == normalizedType);
     }
 
     public async Task<List<Inventory>> GetLowStockAsync(long? outletId = null, long? warehouseId = null)
@@ -71,9 +73,9 @@ public class InventoryRepository : IInventoryRepository
             .Where(i => i.Quantity <= i.LowStockThreshold);
 
         if (outletId.HasValue)
-            query = query.Where(i => i.LocationType == "outlet" && i.LocationId == outletId);
+            query = query.Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId);
         else if (warehouseId.HasValue)
-            query = query.Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId);
+            query = query.Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId);
 
         return await query.OrderBy(i => i.Quantity).ToListAsync();
     }
@@ -87,9 +89,9 @@ public class InventoryRepository : IInventoryRepository
             .Where(i => i.Quantity == 0);
 
         if (outletId.HasValue)
-            query = query.Where(i => i.LocationType == "outlet" && i.LocationId == outletId);
+            query = query.Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId);
         else if (warehouseId.HasValue)
-            query = query.Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId);
+            query = query.Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId);
 
         return await query.ToListAsync();
     }
@@ -107,16 +109,17 @@ public class InventoryRepository : IInventoryRepository
                        i.Quantity > 0);
 
         if (outletId.HasValue)
-            query = query.Where(i => i.LocationType == "outlet" && i.LocationId == outletId);
+            query = query.Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId);
         else if (warehouseId.HasValue)
-            query = query.Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId);
+            query = query.Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId);
 
         return await query.OrderBy(i => i.ExpiryDate).ToListAsync();
     }
 
     public async Task<List<Inventory>> SearchAsync(
-        string? productName = null,
-        string? sku = null,
+        string? productSearch = null,
+        long? variantId = null,
+        string? variantSearch = null,
         long? categoryId = null,
         long? outletId = null,
         long? warehouseId = null,
@@ -129,20 +132,37 @@ public class InventoryRepository : IInventoryRepository
                     .ThenInclude(p => p.Category)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(productName))
-            query = query.Where(i => i.Variant.Product.Name.Contains(productName));
+        if (!string.IsNullOrWhiteSpace(productSearch))
+        {
+            var search = productSearch.Trim().ToLower();
+            query = query.Where(i =>
+                i.Variant.Product.Name.ToLower().Contains(search) ||
+                (i.Variant.Product.ProductCode != null && i.Variant.Product.ProductCode.ToLower().Contains(search))
+            );
+        }
 
-        if (!string.IsNullOrWhiteSpace(sku))
-            query = query.Where(i => i.Variant.Sku != null && i.Variant.Sku.Contains(sku));
+        if (variantId.HasValue)
+            query = query.Where(i => i.VariantId == variantId.Value);
+
+        if (!string.IsNullOrWhiteSpace(variantSearch))
+        {
+            var search = variantSearch.Trim().ToLower();
+            query = query.Where(i =>
+                i.Variant.Name.ToLower().Contains(search) ||
+                (i.Variant.Attributes != null && i.Variant.Attributes.ToLower().Contains(search)) ||
+                (i.Variant.Sku != null && i.Variant.Sku.ToLower().Contains(search)) ||
+                (i.Variant.Barcode != null && i.Variant.Barcode.ToLower().Contains(search))
+            );
+        }
 
         if (categoryId.HasValue)
             query = query.Where(i => i.Variant.Product.CategoryId == categoryId);
 
         if (outletId.HasValue)
-            query = query.Where(i => i.LocationType == "outlet" && i.LocationId == outletId);
+            query = query.Where(i => i.LocationType.ToLower() == "outlet" && i.LocationId == outletId);
 
         if (warehouseId.HasValue)
-            query = query.Where(i => i.LocationType == "warehouse" && i.LocationId == warehouseId);
+            query = query.Where(i => i.LocationType.ToLower() == "warehouse" && i.LocationId == warehouseId);
 
         if (lowStockOnly == true)
             query = query.Where(i => i.Quantity <= i.LowStockThreshold && i.Quantity > 0);
@@ -155,10 +175,12 @@ public class InventoryRepository : IInventoryRepository
 
     public async Task<bool> ExistsAsync(long variantId, long locationId, string locationType)
     {
+        var normalizedType = NormalizeLocationType(locationType);
+
         return await _context.Inventories
             .AnyAsync(i => i.VariantId == variantId && 
                          i.LocationId == locationId && 
-                         i.LocationType == locationType);
+                         i.LocationType.ToLower() == normalizedType);
     }
 
     public async Task<Inventory> CreateAsync(Inventory inventory)
@@ -190,5 +212,17 @@ public class InventoryRepository : IInventoryRepository
         return await _context.Inventories
             .Where(i => i.VariantId == variantId)
             .SumAsync(i => i.Quantity);
+    }
+
+    private static string NormalizeLocationType(string locationType)
+    {
+        if (string.IsNullOrWhiteSpace(locationType))
+            throw new InvalidOperationException("Location type is required.");
+
+        var normalized = locationType.Trim().ToLowerInvariant();
+        if (normalized != "outlet" && normalized != "warehouse")
+            throw new InvalidOperationException($"Invalid location type '{locationType}'.");
+
+        return normalized;
     }
 }

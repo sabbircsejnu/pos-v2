@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RetailPOS.Infrastructure.Data;
@@ -27,6 +28,7 @@ public class RetailPosApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<RetailPOSDbContext>(options =>
             {
                 options.UseInMemoryDatabase(_dbName);
+                options.ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning));
             });
 
             services.AddAuthentication(options =>

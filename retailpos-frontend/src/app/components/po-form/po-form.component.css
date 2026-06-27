@@ -1,1 +1,81 @@
-/* Component-specific styles (using Tailwind) */
+:host {
+	display: block;
+}
+
+.line-clamp-2 {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+}
+
+.input,
+.select,
+.textarea {
+	width: 100%;
+	border: 1px solid rgb(203 213 225);
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+	outline: none;
+	box-shadow: 0 0 0 2px rgb(15 23 42);
+}
+
+.textarea {
+	resize: vertical;
+}
+
+.label {
+	display: block;
+	margin-bottom: 0.25rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: rgb(51 65 85);
+}
+
+.label-required::after {
+	content: ' *';
+	color: rgb(239 68 68);
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.875rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.btn:disabled {
+	cursor: not-allowed;
+	opacity: 0.7;
+}
+
+.btn-outline {
+	border: 1px solid rgb(203 213 225);
+	background: white;
+	color: rgb(30 41 59);
+}
+
+.btn-outline:hover:not(:disabled) {
+	background: rgb(248 250 252);
+}
+
+.btn-primary {
+	border: 1px solid rgb(15 23 42);
+	background: rgb(15 23 42);
+	color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+	background: rgb(30 41 59);
+}

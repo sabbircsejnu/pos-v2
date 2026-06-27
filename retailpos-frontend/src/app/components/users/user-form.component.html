@@ -159,19 +159,112 @@
           }
         </div>
 
-        <!-- Outlet (Optional) -->
-        <div class="col-span-1">
-          <label for="outletId" class="label">
-            Outlet <span class="text-gray-400 text-xs">(Optional)</span>
-          </label>
-          <input
-            id="outletId"
-            type="number"
-            formControlName="outletId"
-            class="input"
-            placeholder="Enter outlet ID"
-          />
-          <p class="mt-1.5 text-xs text-gray-500">Leave empty if not assigned to specific outlet</p>
+        <div class="col-span-1 md:col-span-2">
+          <label class="label label-required">Inventory Location Access</label>
+          <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" formControlName="inventoryLocationAccessScope" value="assigned_only" class="w-4 h-4" />
+              <span class="text-sm text-gray-800">Assigned Location Only</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" formControlName="inventoryLocationAccessScope" value="specific_locations" class="w-4 h-4" />
+              <span class="text-sm text-gray-800">Specific Outlets/Warehouses</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" formControlName="inventoryLocationAccessScope" value="all_locations" class="w-4 h-4" />
+              <span class="text-sm text-gray-800">All Outlets & Warehouses</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="col-span-1 md:col-span-2">
+          <label class="label label-required">Default Inventory Location</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
+            <div>
+              <label class="label">Location Type</label>
+              <select formControlName="defaultLocationType" class="select" (change)="onDefaultLocationTypeChange()">
+                <option value="outlet">Outlet</option>
+                <option value="warehouse">Warehouse</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Location</label>
+              <select formControlName="defaultLocationId" class="select">
+                <option [ngValue]="null">Select default inventory location</option>
+                @if (userForm.get('defaultLocationType')?.value === 'outlet') {
+                  @for (outlet of outlets(); track outlet.id) {
+                    <option [ngValue]="outlet.id">{{ outlet.name }}</option>
+                  }
+                } @else {
+                  @for (warehouse of warehouses(); track warehouse.id) {
+                    <option [ngValue]="warehouse.id">{{ warehouse.name }}</option>
+                  }
+                }
+              </select>
+            </div>
+          </div>
+          <p class="mt-1.5 text-xs text-gray-500">
+            Default location is the user's starting working location. Assigned locations remain separate.
+          </p>
+        </div>
+
+        <div class="col-span-1 md:col-span-2">
+          <label class="label">Outlet Assignments</label>
+          <div class="p-4 bg-white border border-gray-200 rounded-lg">
+            @if (outlets().length > 0) {
+              <div class="space-y-2 max-h-48 overflow-y-auto">
+                @for (outlet of outlets(); track outlet.id) {
+                  <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      (change)="toggleOutletSelection(outlet.id)"
+                      [checked]="isOutletSelected(outlet.id)"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    />
+                    <span class="text-sm text-gray-700">{{ outlet.name }}</span>
+                  </label>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-gray-500 text-center py-3">
+                <i class="fas fa-inbox"></i>
+                No outlets available
+              </p>
+            }
+          </div>
+        </div>
+
+        <div class="col-span-1 md:col-span-2">
+          <label class="label">Warehouse Assignments</label>
+          <div class="p-4 bg-white border border-gray-200 rounded-lg">
+            @if (warehouses().length > 0) {
+              <div class="space-y-2 max-h-48 overflow-y-auto">
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      (change)="toggleWarehouseSelection(warehouse.id)"
+                      [checked]="isWarehouseSelected(warehouse.id)"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    />
+                    <span class="text-sm text-gray-700">
+                      {{ warehouse.name }}
+                      <span class="text-gray-500">
+                        @if (warehouse.address) {
+                          ({{ warehouse.address }})
+                        }
+                      </span>
+                    </span>
+                  </label>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-gray-500 text-center py-3">
+                <i class="fas fa-inbox"></i>
+                No warehouses available
+              </p>
+            }
+          </div>
         </div>
 
         <!-- Active Status -->

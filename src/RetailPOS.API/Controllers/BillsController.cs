@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "accounts.view")]
 public class BillsController : ControllerBase
 {
     private readonly IBillService _billService;
@@ -49,6 +49,7 @@ public class BillsController : ControllerBase
 
     /// <summary>Create a new bill</summary>
     [HttpPost]
+    [Authorize(Policy = "accounts.create")]
     public async Task<ActionResult<ApiResponse<BillDto>>> Create([FromBody] CreateBillDto dto)
     {
         var bill = await _billService.CreateAsync(dto);
@@ -60,6 +61,7 @@ public class BillsController : ControllerBase
 
     /// <summary>Update the payment status of a bill</summary>
     [HttpPut("{id}/status")]
+    [Authorize(Policy = "accounts.edit")]
     public async Task<ActionResult<ApiResponse<BillDto>>> UpdateStatus(long id, [FromBody] UpdateBillStatusDto dto)
     {
         var bill = await _billService.UpdateStatusAsync(id, dto);

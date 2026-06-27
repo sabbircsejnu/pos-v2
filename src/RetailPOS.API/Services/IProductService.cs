@@ -17,5 +17,5 @@ public interface IProductService
     Task<ProductDto> UpdateAsync(long id, UpdateProductDto updateDto);
     Task DeleteAsync(long id);
     Task<string> GenerateSkuAsync(string productName);
-    Task<IEnumerable<ProductVariantSearchDto>> SearchVariantsAsync(string query, int pageNumber, int pageSize);
+    Task<IEnumerable<ProductVariantSearchDto>> SearchVariantsAsync(string query, int pageNumber, int pageSize, long? locationId = null, string? locationType = null);
 }

@@ -1,1 +1,71 @@
-/* Component-specific styles (using Tailwind) */
+:host {
+	display: block;
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.875rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.btn:disabled {
+	cursor: not-allowed;
+	opacity: 0.7;
+}
+
+.btn-outline {
+	border: 1px solid rgb(203 213 225);
+	background: white;
+	color: rgb(30 41 59);
+}
+
+.btn-outline:hover:not(:disabled) {
+	background: rgb(248 250 252);
+}
+
+.btn-primary {
+	border: 1px solid rgb(15 23 42);
+	background: rgb(15 23 42);
+	color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+	background: rgb(30 41 59);
+}
+
+.btn-blue,
+.btn-green,
+.btn-red,
+.btn-orange,
+.btn-yellow,
+.btn-slate {
+	border: 1px solid transparent;
+	border-radius: 0.5rem;
+	padding: 0.5rem 0.875rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: white;
+}
+
+.btn-blue { background: rgb(37 99 235); }
+.btn-blue:hover:not(:disabled) { background: rgb(29 78 216); }
+
+.btn-green { background: rgb(22 163 74); }
+.btn-green:hover:not(:disabled) { background: rgb(21 128 61); }
+
+.btn-red { background: rgb(220 38 38); }
+.btn-red:hover:not(:disabled) { background: rgb(185 28 28); }
+
+.btn-orange { background: rgb(249 115 22); }
+.btn-orange:hover:not(:disabled) { background: rgb(234 88 12); }
+
+.btn-yellow { background: rgb(202 138 4); }
+.btn-yellow:hover:not(:disabled) { background: rgb(161 98 7); }
+
+.btn-slate { background: rgb(71 85 105); }
+.btn-slate:hover:not(:disabled) { background: rgb(51 65 85); }

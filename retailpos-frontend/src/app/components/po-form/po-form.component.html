@@ -1,313 +1,366 @@
-<div class="container mx-auto px-4 py-8">
-  <!-- Header -->
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">
-      {{ isEditMode() ? 'Edit Purchase Order' : 'Create Purchase Order' }}
-    </h1>
-    <p class="mt-2 text-sm text-gray-600">
-      {{ isEditMode() ? 'Update purchase order details and items' : 'Fill in the details below to create a new purchase order' }}
-    </p>
-  </div>
-
-  <!-- Loading State -->
+<div class="mx-auto max-w-[96rem] px-2 py-3 sm:px-3 lg:px-4">
   @if (isLoading()) {
-    <div class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    <div class="flex items-center justify-center py-16">
+      <div class="h-12 w-12 animate-spin rounded-full border-b-2 border-slate-900"></div>
     </div>
   } @else {
-    <!-- Form -->
-    <div class="bg-white shadow-sm rounded-lg">
-      <!-- Basic Information Section -->
-      <div class="p-6 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Supplier -->
+    <div class="space-y-3">
+      <div class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Supplier <span class="text-red-500">*</span>
-            </label>
-            <app-searchable-dropdown
-              #supplierDropdown
-              [placeholder]="'Search suppliers...'"
-              [selectedId]="supplierId()"
-              [disabled]="isSaving()"
-              [showSecondaryText]="true"
-              [secondaryTextField]="'contact'"
-              (onSearch)="onSupplierSearch($event)"
-              (onLoadMore)="onSupplierLoadMore($event)"
-              (onSelect)="onSupplierSelect($event)"
-            ></app-searchable-dropdown>
+            <h1 class="text-lg font-semibold text-slate-900">{{ isEditMode() ? 'Edit Purchase Order' : 'Create Purchase Order' }}</h1>
+            <p class="text-xs text-slate-600">
+              {{ isEditMode() ? 'Update key details and line items, then continue approval workflow.' : 'Add supplier, warehouse, and products quickly for purchase approval.' }}
+            </p>
           </div>
-
-          <!-- Warehouse -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Warehouse <span class="text-red-500">*</span>
-            </label>
-            <app-searchable-dropdown
-              #warehouseDropdown
-              [placeholder]="'Search warehouses...'"
-              [selectedId]="warehouseId()"
-              [disabled]="isSaving()"
-              [showSecondaryText]="true"
-              [secondaryTextField]="'location'"
-              (onSearch)="onWarehouseSearch($event)"
-              (onLoadMore)="onWarehouseLoadMore($event)"
-              (onSelect)="onWarehouseSelect($event)"
-            ></app-searchable-dropdown>
-          </div>
-
-          <!-- Order Date -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Order Date <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              [(ngModel)]="orderDate"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-              [disabled]="isSaving()"
-            />
-          </div>
-
-          <!-- Expected Delivery Date -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Expected Delivery Date
-            </label>
-            <input
-              type="date"
-              [(ngModel)]="expectedDeliveryDate"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
-              [disabled]="isSaving()"
-            />
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="text-xs text-slate-500">
+              @if (isEditMode() && poId()) {
+                <span class="rounded-md bg-slate-100 px-2 py-1">PO #{{ poId() }}</span>
+              } @else {
+                <span class="rounded-md bg-slate-100 px-2 py-1">New Purchase Order</span>
+              }
+            </div>
+            <button type="button" (click)="cancel()" class="btn btn-outline min-w-24" [disabled]="isSaving()">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+            <button type="button" (click)="saveDraft()" class="btn btn-outline min-w-28" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <i class="fas fa-spinner fa-spin"></i>
+                Saving...
+              } @else {
+                <i class="fas fa-pen"></i>
+                Save Draft
+              }
+            </button>
+            <button type="button" (click)="submitForApproval()" class="btn btn-primary min-w-32" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <i class="fas fa-spinner fa-spin"></i>
+                Submitting...
+              } @else {
+                <i class="fas fa-paper-plane"></i>
+                Submit for Approval
+              }
+            </button>
+            @if (!isEditMode() && canPurchaseAndReceive()) {
+              <button type="button" (click)="purchaseAndReceive()" class="btn min-w-36 bg-emerald-600 text-white hover:bg-emerald-700" [disabled]="isSaving()">
+                @if (isSaving()) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Processing...
+                } @else {
+                  <i class="fas fa-box-open"></i>
+                  Purchase &amp; Receive
+                }
+              </button>
+            }
           </div>
         </div>
       </div>
 
-      <!-- Items Section -->
-      <div class="p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold text-gray-900">Items</h2>
-        </div>
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-start">
+        <section class="space-y-3 lg:col-span-8 xl:col-span-9">
+          <div class="rounded-xl border border-slate-300 bg-white p-3 shadow-md">
+            <div class="space-y-3">
+              <div class="relative">
+                <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Search Product</label>
+                <div class="pointer-events-none absolute left-3 top-[2.15rem] flex items-center text-slate-400">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  [id]="'variant-input-' + getSearchRowIndex()"
+                  [value]="variantSearchQuery()[getSearchRowIndex()] || ''"
+                  (input)="onVariantSearchInput($any($event.target).value, getSearchRowIndex())"
+                  (focus)="onVariantInputFocus(getSearchRowIndex())"
+                  (blur)="onVariantInputBlur(getSearchRowIndex())"
+                  placeholder="Search by main code, SKU, product name, or variant attributes..."
+                  class="h-11 w-full rounded-md border border-slate-300 py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  [disabled]="isSaving()" />
 
-        <!-- Items Table -->
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <!-- Only show headers when there's at least one selected item -->
-            @if (hasSelectedItems()) {
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">#</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">SKU</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product / Variant</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Qty <span class="text-red-500">*</span></th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">Unit Price <span class="text-red-500">*</span></th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Total</th>
-                  <th class="px-4 py-3 w-10"></th>
-                </tr>
-              </thead>
-            }
-            <tbody class="bg-white divide-y divide-gray-200">
-              @for (item of items(); track $index) {
-                @if (item.variantId && item.variantId !== 0) {
-                  <!-- Selected item row -->
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {{ getSelectedItemNumber($index) }}
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      @if (item.sku) {
-                        <span class="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ item.sku }}</span>
-                      } @else {
-                        <span class="text-xs text-gray-400">—</span>
-                      }
-                    </td>
-                    <td class="px-4 py-3 text-sm">
-                      <div class="flex items-center gap-2">
-                        @if (item.primaryImageThumb) {
-                          <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName"
-                               loading="lazy" decoding="async"
-                               class="w-8 h-8 rounded object-cover border border-gray-200 flex-shrink-0" />
-                        } @else {
-                          <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-box text-gray-400 text-xs"></i>
-                          </div>
-                        }
-                        <div>
-                          <div class="font-medium text-gray-900">{{ item.productName }}</div>
-                          <div class="text-xs text-gray-500">{{ item.variantName }}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="number"
-                        [value]="item.quantity"
-                        (input)="updateItemQuantity($index, +$any($event.target).value)"
-                        min="1"
-                        class="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                        [disabled]="isSaving()"
-                      />
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <input
-                        type="number"
-                        [value]="item.unitPrice"
-                        (input)="updateItemPrice($index, +$any($event.target).value)"
-                        min="0"
-                        step="0.01"
-                        class="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                        [disabled]="isSaving()"
-                      />
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {{ formatCurrency(calculateItemTotal(item)) }}
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <button
-                        (click)="removeItem($index)"
-                        class="text-red-400 hover:text-red-600"
-                        [disabled]="isSaving()"
-                        title="Remove"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                } @else {
-                  <!-- Search row: only shown for unselected (empty) items -->
-                  <tr>
-                    <td [attr.colspan]="searchRowColspan()" class="px-4 py-3">
-                      <div class="relative">
-                        <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          [id]="'variant-input-' + $index"
-                          [value]="variantSearchQuery()[$index] || ''"
-                          (input)="onVariantSearchInput($any($event.target).value, $index)"
-                          (focus)="onVariantInputFocus($index)"
-                          (blur)="onVariantInputBlur($index)"
-                          placeholder="Search product by name, SKU or barcode..."
-                          class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm"
-                          [disabled]="isSaving()"
-                        />
-                        @if (searchingVariants()[$index] && (!variantSearchResults()[$index] || variantSearchResults()[$index].length === 0)) {
-                          <div class="absolute right-3 top-2.5">
-                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                          </div>
-                        }
+                @if (searchingVariants()[getSearchRowIndex()] && (!variantSearchResults()[getSearchRowIndex()] || variantSearchResults()[getSearchRowIndex()].length === 0)) {
+                  <div class="absolute right-3 top-[2.35rem]">
+                    <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-slate-900"></div>
+                  </div>
+                }
 
-                        <!-- Search Results Dropdown -->
-                        @if (variantSearchResults()[$index] && variantSearchResults()[$index].length > 0 && variantInputFocused()[$index]) {
-                          <div class="fixed z-[9999] bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-hidden"
-                               [style.top.px]="dropdownPosition()[$index]?.top || 0"
-                               [style.left.px]="dropdownPosition()[$index]?.left || 0"
-                               [style.width.px]="dropdownPosition()[$index]?.width || 400">
-                            <div class="max-h-52 overflow-y-auto" (scroll)="onVariantScroll($event, $index)">
-                              @for (variant of variantSearchResults()[$index]; track variant.id) {
-                                <div
-                                  (click)="selectVariant(variant, $index)"
-                                  class="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex items-center gap-2"
-                                >
-                                  @if (variant.primaryImageThumb) {
-                                    <img [src]="resolveImage(variant.primaryImageThumb)" [alt]="variant.productName"
-                                         loading="lazy" decoding="async"
-                                         class="w-6 h-6 rounded object-cover border border-gray-200 flex-shrink-0" />
-                                  } @else {
-                                    <div class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                      <i class="fas fa-box text-gray-300 text-[10px]"></i>
-                                    </div>
-                                  }
-                                  <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-medium text-gray-900 truncate">{{ variant.productName }} — {{ variant.name }}</div>
-                                    <div class="text-xs text-gray-500 flex gap-3 mt-0.5">
-                                      @if (variant.sku) { <span>SKU: {{ variant.sku }}</span> }
-                                      @if (variant.costPrice) { <span>Cost: {{ formatCurrency(variant.costPrice) }}</span> }
-                                      @if (variant.stockQuantity !== undefined) { <span>Stock: {{ variant.stockQuantity }}</span> }
-                                    </div>
-                                  </div>
-                                </div>
-                              }
-                              @if (hasMoreVariants()[$index]) {
-                                <div class="px-3 py-2 text-center text-gray-500 text-xs border-t">Scroll for more...</div>
-                              }
-                              @if (searchingVariants()[$index]) {
-                                <div class="px-3 py-2 text-center text-gray-500 border-t">
-                                  <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                                  <span class="ml-2 text-sm">Loading...</span>
-                                </div>
+                @if (variantSearchResults()[getSearchRowIndex()] && variantSearchResults()[getSearchRowIndex()].length > 0 && variantInputFocused()[getSearchRowIndex()]) {
+                  <div class="fixed z-[9999] max-h-60 overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl"
+                       [style.top.px]="dropdownPosition()[getSearchRowIndex()]?.top || 0"
+                       [style.left.px]="dropdownPosition()[getSearchRowIndex()]?.left || 0"
+                       [style.width.px]="dropdownPosition()[getSearchRowIndex()]?.width || 400">
+                    <div class="max-h-52 overflow-y-auto" (scroll)="onVariantScroll($event, getSearchRowIndex())">
+                      @for (variant of variantSearchResults()[getSearchRowIndex()]; track variant.id) {
+                        <div
+                          (click)="onVariantResultClick(variant, getSearchRowIndex())"
+                          [ngClass]="isVariantAlreadyAdded(variant.id, getSearchRowIndex())
+                            ? 'flex cursor-not-allowed items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 opacity-70 last:border-b-0'
+                            : 'flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 hover:bg-slate-50 last:border-b-0'">
+                          @if (variant.primaryImageThumb) {
+                            <img [src]="resolveImage(variant.primaryImageThumb)" [alt]="variant.productName" loading="lazy" decoding="async" class="h-6 w-6 flex-shrink-0 rounded border border-slate-200 object-cover" />
+                          } @else {
+                            <div class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-slate-100">
+                              <i class="fas fa-box text-[10px] text-slate-300"></i>
+                            </div>
+                          }
+                          <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                              <div class="truncate text-sm font-medium text-slate-900">{{ variant.productName }} - {{ variant.name }}</div>
+                              @if (isVariantAlreadyAdded(variant.id, getSearchRowIndex())) {
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Already Added</span>
                               }
                             </div>
+                            <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                              @if (variant.productCode) { <span>Main Code: {{ variant.productCode }}</span> }
+                              @if (variant.sku) { <span>SKU: {{ variant.sku }}</span> }
+                              @if (variant.barcode) { <span>Barcode: {{ variant.barcode }}</span> }
+                              @if (canViewCost() && variant.costPrice) { <span>Cost: {{ formatCurrency(variant.costPrice) }}</span> }
+                            </div>
                           </div>
-                        }
-                      </div>
-                    </td>
-                  </tr>
+                        </div>
+                      }
+                      @if (hasMoreVariants()[getSearchRowIndex()]) {
+                        <div class="border-t border-slate-100 px-3 py-2 text-center text-xs text-slate-500">Scroll for more...</div>
+                      }
+                      @if (searchingVariants()[getSearchRowIndex()]) {
+                        <div class="border-t border-slate-100 px-3 py-2 text-center text-slate-500">
+                          <div class="inline-block h-4 w-4 animate-spin rounded-full border-b-2 border-slate-900"></div>
+                          <span class="ml-2 text-sm">Loading...</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
                 }
-              }
-            </tbody>
-            @if (hasSelectedItems()) {
-              <tfoot class="bg-gray-50">
-                <tr>
-                  <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-gray-900">Grand Total:</td>
-                  <td colspan="2" class="px-4 py-3 text-left text-base font-bold text-gray-900">{{ formatCurrency(calculateGrandTotal()) }}</td>
-                </tr>
-              </tfoot>
-            }
-          </table>
-        </div>
-      </div>
+              </div>
 
-      <!-- Action Buttons -->
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-        <button
-          (click)="cancel()"
-          class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-          [disabled]="isSaving()"
-        >
-          Cancel
-        </button>
-        <button
-          (click)="saveDraft()"
-          class="px-6 py-2 bg-white border border-gray-300 rounded-md text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-          [disabled]="isSaving()"
-        >
-          @if (isSaving()) {
-            <span class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Saving...
-            </span>
-          } @else {
-            Save as Draft
-          }
-        </button>
-        <button
-          (click)="submitForApproval()"
-          class="px-6 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-          [disabled]="isSaving()"
-        >
-          @if (isSaving()) {
-            <span class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Submitting...
-            </span>
-          } @else {
-            Submit for Approval
-          }
-        </button>
+              @if (!hasSelectedItems()) {
+                <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                  <div class="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
+                    <i class="fas fa-box-open text-lg"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-slate-900">No line items yet</h3>
+                  <p class="mt-1 text-sm text-slate-600">Search for a product above to add the first item to this purchase order.</p>
+                </div>
+              } @else {
+                <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table class="min-w-[920px] w-full table-fixed divide-y divide-slate-200">
+                    <colgroup>
+                      <col class="w-14" />
+                      <col class="w-[44%]" />
+                      <col class="w-32" />
+                      <col class="w-24" />
+                      <col class="w-28" />
+                      <col class="w-32" />
+                      <col class="w-16" />
+                    </colgroup>
+                    <thead class="bg-slate-50">
+                      <tr>
+                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">#</th>
+                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Product / Variant</th>
+                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Product Code</th>
+                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Qty</th>
+                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Unit Price</th>
+                        <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Total</th>
+                        <th class="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                      @for (item of items(); track $index) {
+                        @if (item.variantId && item.variantId !== 0) {
+                          <tr
+                            [ngClass]="duplicateHighlightedVariantId() === item.variantId
+                              ? 'align-top bg-amber-50 ring-1 ring-amber-300 transition-colors'
+                              : 'align-top transition-colors hover:bg-slate-50'">
+                            <td class="whitespace-nowrap px-3 py-2.5 text-sm font-medium text-slate-500">
+                              {{ getSelectedItemNumber($index) }}
+                            </td>
+                            <td class="px-3 py-2.5">
+                              <div class="flex min-w-0 items-start gap-3">
+                                @if (item.primaryImageThumb) {
+                                  <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName" loading="lazy" decoding="async" class="h-10 w-10 flex-shrink-0 rounded-lg border border-slate-200 bg-white object-cover" />
+                                } @else {
+                                  <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
+                                    <i class="fas fa-box text-xs"></i>
+                                  </div>
+                                }
+
+                                <div class="min-w-0 flex-1">
+                                  <div class="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{{ item.productName }}</div>
+                                  <div class="mt-0.5 text-xs text-slate-600">
+                                    @if (formatVariantAttributes(item.variantAttributes) || item.variantName) {
+                                      <span class="font-medium text-slate-700">Variant:</span>
+                                      <span class="break-words">{{ formatVariantAttributes(item.variantAttributes) || item.variantName }}</span>
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td class="px-3 py-2.5 align-top">
+                              @if (item.productCode) {
+                                <span class="inline-flex max-w-full items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold font-mono text-emerald-700">{{ item.productCode }}</span>
+                              } @else {
+                                <span class="text-xs text-slate-400">-</span>
+                              }
+                            </td>
+                            <td class="px-3 py-2.5 align-top">
+                              <input type="number" [value]="item.quantity" (input)="updateItemQuantity($index, +$any($event.target).value)" min="1" class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900" [disabled]="isSaving()" />
+                            </td>
+                            <td class="px-3 py-2.5 align-top">
+                              <input type="number" [value]="item.unitPrice" (input)="updateItemPrice($index, +$any($event.target).value)" min="0" step="0.01" class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900" [disabled]="isSaving()" />
+                            </td>
+                            <td class="px-3 py-2.5 text-right align-top text-sm font-semibold whitespace-nowrap text-slate-900">
+                              {{ formatCurrency(calculateItemTotal(item)) }}
+                            </td>
+                            <td class="px-3 py-2.5 text-center align-top">
+                              <button (click)="removeItem($index)" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700" [disabled]="isSaving()" title="Remove">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        }
+                      }
+                    </tbody>
+
+                    @if (hasSelectedItems()) {
+                      <tfoot class="bg-slate-50">
+                        <tr>
+                          <td colspan="5" class="px-3 py-3"></td>
+                          <td colspan="2" class="px-3 py-3">
+                            <div class="flex items-center justify-end gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm">
+                              <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Grand Total</span>
+                              <span class="text-base font-bold text-slate-900">{{ formatCurrency(calculateGrandTotal()) }}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    }
+                  </table>
+                </div>
+              }
+            </div>
+              </div>
+        </section>
+
+            <aside class="space-y-3 lg:col-span-4 xl:col-span-3 lg:sticky lg:top-3 self-start">
+              <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="mb-3 flex items-center justify-between gap-2">
+                  <div>
+                    <h2 class="text-sm font-semibold text-slate-900">Document Details</h2>
+                    <p class="text-xs text-slate-600">Supplier, warehouse, and dates.</p>
+                  </div>
+                  <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">Header</span>
+                </div>
+
+                <div class="space-y-3">
+                  <div>
+                    <label class="label label-required">Supplier</label>
+                    <app-searchable-dropdown
+                      #supplierDropdown
+                      [placeholder]="'Search suppliers...'"
+                      [selectedId]="supplierId()"
+                      [disabled]="isSaving()"
+                      [showSecondaryText]="true"
+                      [secondaryTextField]="'contact'"
+                      (onSearch)="onSupplierSearch($event)"
+                      (onLoadMore)="onSupplierLoadMore($event)"
+                      (onSelect)="onSupplierSelect($event)">
+                    </app-searchable-dropdown>
+                  </div>
+
+                  <div>
+                    <label class="label label-required">Warehouse</label>
+                    <app-searchable-dropdown
+                      #warehouseDropdown
+                      [placeholder]="'Search warehouses...'"
+                      [selectedId]="warehouseId()"
+                      [disabled]="isSaving()"
+                      [showSecondaryText]="true"
+                      [secondaryTextField]="'location'"
+                      (onSearch)="onWarehouseSearch($event)"
+                      (onLoadMore)="onWarehouseLoadMore($event)"
+                      (onSelect)="onWarehouseSelect($event)">
+                    </app-searchable-dropdown>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="label label-required">Order Date</label>
+                      <input type="date" [(ngModel)]="orderDate" class="input" [disabled]="isSaving()" />
+                    </div>
+
+                    <div>
+                      <label class="label">Expected Delivery</label>
+                      <input type="date" [(ngModel)]="expectedDeliveryDate" class="input" [disabled]="isSaving()" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="label">Notes</label>
+                    <textarea
+                      [(ngModel)]="notes"
+                      rows="3"
+                      placeholder="Optional notes for supplier, warehouse, or receiving instructions..."
+                      class="textarea"
+                      [disabled]="isSaving()">
+                    </textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <h2 class="text-sm font-semibold text-slate-900">Summary</h2>
+                <p class="mb-3 text-xs text-slate-600">Live totals and entry progress.</p>
+
+                <div class="space-y-2 text-sm">
+                  <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                    <span class="text-slate-600">Selected Items</span>
+                    <span class="font-medium text-slate-900">{{ selectedItemCount() }}</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                    <span class="text-slate-600">Total Quantity</span>
+                    <span class="font-medium text-slate-900">{{ totalQuantity() }}</span>
+                  </div>
+                  <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                    <span class="text-slate-600">Grand Total</span>
+                    <span class="font-semibold text-slate-900">{{ formatCurrency(calculateGrandTotal()) }}</span>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <div class="mb-1 flex items-center justify-between text-xs text-slate-600">
+                    <span>PO Setup Progress</span>
+                    <span class="font-medium text-slate-800">{{ setupPercent() }}%</span>
+                  </div>
+                  <div class="h-2 rounded-full bg-slate-100">
+                    <div class="h-2 rounded-full bg-slate-900" [style.width.%]="setupPercent()"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+                <h2 class="text-sm font-semibold text-slate-900">Workflow Notes</h2>
+                <ul class="mt-2 space-y-2 text-xs leading-5 text-slate-700">
+                  <li class="flex gap-2">
+                    <i class="fas fa-info-circle mt-0.5 text-slate-500"></i>
+                    <span>Use Save Draft while negotiating quantities or rates.</span>
+                  </li>
+                  <li class="flex gap-2">
+                    <i class="fas fa-info-circle mt-0.5 text-slate-500"></i>
+                    <span>Submit for Approval when totals are finalized.</span>
+                  </li>
+                  @if (canPurchaseAndReceive()) {
+                    <li class="flex gap-2">
+                      <i class="fas fa-info-circle mt-0.5 text-slate-500"></i>
+                      <span>Use Purchase &amp; Receive for direct stock-in with system-generated GRN.</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+        </aside>
       </div>
     </div>
   }

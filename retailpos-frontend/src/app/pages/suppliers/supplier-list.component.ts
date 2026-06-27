@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { SupplierService } from '../../services/supplier.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
 import { Supplier, SupplierSearchRequest } from '../../models/supplier.model';
 import { CurrencyService } from '../../services/currency.service';
 
@@ -39,14 +40,42 @@ export class SupplierListComponent implements OnInit, OnDestroy {
   constructor(
     public supplierService: SupplierService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
     private currencyService: CurrencyService
   ) {}
 
   ngOnInit(): void {
+    this.restoreFromUrl();
     this.setupDebouncedSearch();
-    this.search();
+    this.performSearch();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    const min = p['minCreditLimit'] != null ? Number(p['minCreditLimit']) : undefined;
+    this.minCreditLimit.set(!isNaN(min as number) && min !== undefined ? min : undefined);
+    const max = p['maxCreditLimit'] != null ? Number(p['maxCreditLimit']) : undefined;
+    this.maxCreditLimit.set(!isNaN(max as number) && max !== undefined ? max : undefined);
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+    this.sortBy.set(this.listState.str(p, 'sortBy', 'name'));
+    this.sortOrder.set(this.listState.str(p, 'sortOrder', 'asc'));
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      minCreditLimit: this.minCreditLimit(),
+      maxCreditLimit: this.maxCreditLimit(),
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+      sortBy: this.sortBy(),
+      sortOrder: this.sortOrder(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -57,6 +86,7 @@ export class SupplierListComponent implements OnInit, OnDestroy {
     this.searchSubscription = this.searchSubject
       .pipe(debounceTime(500))
       .subscribe(() => {
+        this.syncUrl();
         this.performSearch();
       });
   }
@@ -88,7 +118,8 @@ export class SupplierListComponent implements OnInit, OnDestroy {
     this.minCreditLimit.set(undefined);
     this.maxCreditLimit.set(undefined);
     this.pageNumber.set(1);
-    this.search();
+    this.listState.clear(this.route);
+    this.performSearch();
   }
 
   createSupplier(): void {
@@ -125,13 +156,15 @@ export class SupplierListComponent implements OnInit, OnDestroy {
 
   changePage(page: number): void {
     this.pageNumber.set(page);
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   sort(column: string): void {
@@ -141,7 +174,8 @@ export class SupplierListComponent implements OnInit, OnDestroy {
       this.sortBy.set(column);
       this.sortOrder.set('asc');
     }
-    this.search();
+    this.syncUrl();
+    this.performSearch();
   }
 
   getSortIcon(column: string): string {

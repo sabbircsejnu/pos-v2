@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CategoryService } from '../../services/category.service';
@@ -32,6 +32,7 @@ export class CategoryFormComponent implements OnInit {
   constructor(
     private categoryService: CategoryService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute
   ) {}
 
@@ -108,7 +109,7 @@ export class CategoryFormComponent implements OnInit {
       // Update existing category
       this.categoryService.updateCategory(this.categoryId()!, request as UpdateCategoryRequest).subscribe({
         next: () => {
-          this.router.navigate(['/categories']);
+          this.location.back();
         },
         error: (err) => {
           this.errorMessage.set(err.error?.error || 'Failed to update category');
@@ -119,7 +120,7 @@ export class CategoryFormComponent implements OnInit {
       // Create new category
       this.categoryService.createCategory(request as CreateCategoryRequest).subscribe({
         next: () => {
-          this.router.navigate(['/categories']);
+          this.location.back();
         },
         error: (err) => {
           this.errorMessage.set(err.error?.error || 'Failed to create category');
@@ -130,7 +131,7 @@ export class CategoryFormComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/categories']);
+    this.location.back();
   }
 
   getCategoryIndentation(level: number): string {

@@ -1,8 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { WarehouseService } from '../../services/warehouse.service';
+import { ListStateService } from '../../services/list-state.service';
 import { Warehouse } from '../../models/warehouse.model';
 
 @Component({
@@ -19,11 +20,14 @@ export class WarehouseListComponent implements OnInit {
 
   constructor(
     public warehouseService: WarehouseService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
   ) {}
 
   ngOnInit(): void {
-    this.loadWarehouses();
+    this.searchQuery = this.listState.str(this.route.snapshot.queryParams, 'search');
+    this.performSearch();
   }
 
   loadWarehouses(): void {
@@ -35,7 +39,7 @@ export class WarehouseListComponent implements OnInit {
     });
   }
 
-  onSearch(): void {
+  private performSearch(): void {
     if (this.searchQuery.trim()) {
       this.warehouseService.searchWarehouses(this.searchQuery).subscribe({
         error: (error) => {
@@ -46,6 +50,11 @@ export class WarehouseListComponent implements OnInit {
     } else {
       this.loadWarehouses();
     }
+  }
+
+  onSearch(): void {
+    this.listState.update(this.route, { search: this.searchQuery || undefined });
+    this.performSearch();
   }
 
   createWarehouse(): void {

@@ -1,310 +1,234 @@
-<div class="container mx-auto px-4 py-6">
-  <!-- Header -->
-  <div class="flex justify-between items-center mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Purchase Orders</h1>
-      <p class="text-sm text-gray-600 mt-1">Manage procurement and supplier orders</p>
-    </div>
-    <button *ngIf="can('purchases.create')" (click)="createNew()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
-      + New Purchase Order
-    </button>
-  </div>
+<div class="container mx-auto px-4 py-3">
+  <div class="card px-3 py-2 mb-3">
+    <div class="space-y-2.5">
+      <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div class="min-w-0">
+          <h1 class="text-base font-semibold text-gray-900 leading-tight">Purchase Orders</h1>
+          <p class="text-xs text-gray-500">Manage procurement lifecycle, approvals, and supplier commitments</p>
+        </div>
 
-  <!-- Filters -->
-  <div class="bg-white rounded-lg shadow p-4 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      <!-- Status Filter -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-        <select 
-          [(ngModel)]="status" 
-          (ngModelChange)="onSearchChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent">
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+          <span class="rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-700">Total {{ poService.totalCount() }}</span>
+          <span class="rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-700">Pending {{ statusCount('pending') }}</span>
+          <span class="rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700">Approved {{ statusCount('approved') }}</span>
+          <span class="rounded-md bg-sky-50 px-2 py-1 font-medium text-sky-700">Fully Received {{ statusCount('fully_received') }}</span>
+          @if (hasActiveFilters()) {
+            <span class="rounded-md bg-indigo-50 px-2 py-1 font-medium text-indigo-700">Filters {{ activeFilterCount() }}</span>
+          }
+        </div>
+
+        @if (can('purchases.create')) {
+          <button (click)="createNew()" class="btn btn-primary h-8 text-sm px-3 gap-1.5 whitespace-nowrap" type="button">
+            <i class="fas fa-plus text-xs"></i>
+            <span>New Purchase Order</span>
+          </button>
+        }
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative min-w-0 flex-1 sm:max-w-xs">
+          <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+          <input
+            type="text"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event); onSearchChange()"
+            placeholder="Search PO #, supplier, warehouse..."
+            class="input pl-8 h-8 text-sm" />
+        </div>
+
+        <select [ngModel]="status()" (ngModelChange)="status.set($event); onFilterChange()" class="select h-8 text-sm sm:w-40 shrink-0">
           <option value="">All Statuses</option>
           <option value="draft">Draft</option>
           <option value="pending">Pending Approval</option>
+          <option value="sent_back">Sent Back</option>
           <option value="approved">Approved</option>
-          <option value="received">Received</option>
+          <option value="partially_received">Partially Received</option>
+          <option value="fully_received">Fully Received</option>
+          <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
           <option value="rejected">Rejected</option>
         </select>
-      </div>
 
-      <!-- Supplier Filter -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
-        <select 
-          [ngModel]="supplierId()" 
-          (ngModelChange)="supplierId.set($event); onSearchChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent">
-          <option [value]="undefined">All Suppliers</option>
-          <option *ngFor="let supplier of supplierService.suppliers()" [value]="supplier.id">
-            {{ supplier.name }}
-          </option>
+        <select [ngModel]="supplierId()" (ngModelChange)="supplierId.set($event); onFilterChange()" class="select h-8 text-sm sm:w-40 shrink-0">
+          <option [ngValue]="undefined">All Suppliers</option>
+          <option *ngFor="let supplier of supplierService.suppliers()" [ngValue]="supplier.id">{{ supplier.name }}</option>
         </select>
-      </div>
 
-      <!-- Warehouse Filter -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
-        <select 
-          [ngModel]="warehouseId()" 
-          (ngModelChange)="warehouseId.set($event); onSearchChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent">
-          <option [value]="undefined">All Warehouses</option>
-          <option *ngFor="let warehouse of warehouseService.warehouses()" [value]="warehouse.id">
-            {{ warehouse.name }}
-          </option>
+        <select [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event); onFilterChange()" class="select h-8 text-sm sm:w-40 shrink-0">
+          <option [ngValue]="undefined">All Warehouses</option>
+          <option *ngFor="let warehouse of warehouseService.warehouses()" [ngValue]="warehouse.id">{{ warehouse.name }}</option>
         </select>
-      </div>
 
-      <!-- Start Date -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-        <input 
-          type="date" 
-          [(ngModel)]="startDate"
-          (ngModelChange)="onSearchChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent">
-      </div>
-
-      <!-- End Date -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-        <input 
-          type="date" 
-          [(ngModel)]="endDate"
-          (ngModelChange)="onSearchChange()"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent">
-      </div>
-    </div>
-
-    <!-- Clear Filters Button -->
-    <div class="mt-4 flex justify-end">
-      <button (click)="clearFilters()" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-        Clear Filters
-      </button>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div *ngIf="poService.isLoading()" class="text-center py-8">
-    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-    <p class="mt-2 text-gray-600">Loading purchase orders...</p>
-  </div>
-
-  <!-- Error State -->
-  <div *ngIf="poService.error()" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-    <p class="text-red-800">{{ poService.error() }}</p>
-  </div>
-
-  <!-- Purchase Orders Table -->
-  <div *ngIf="!poService.isLoading()" class="bg-white rounded-lg shadow overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th (click)="sort('id')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
-              PO # {{ getSortIcon('id') }}
-            </th>
-            <th (click)="sort('order_date')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
-              Order Date {{ getSortIcon('order_date') }}
-            </th>
-            <th (click)="sort('supplier')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
-              Supplier {{ getSortIcon('supplier') }}
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Warehouse
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Items
-            </th>
-            <th (click)="sort('total_amount')" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
-              Total Amount {{ getSortIcon('total_amount') }}
-            </th>
-            <th (click)="sort('status')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
-              Status {{ getSortIcon('status') }}
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr *ngFor="let po of poService.purchaseOrders()" class="hover:bg-gray-50 transition-colors">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              PO-{{ po.id }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-              {{ formatDate(po.orderDate) }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              {{ po.supplierName }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-              {{ po.warehouseName }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
-              {{ po.totalItems }} ({{ po.totalQuantity }} units)
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
-              {{ formatCurrency(po.totalAmount) }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span [class]="'px-3 py-1 text-xs font-semibold rounded-full text-white ' + getStatusColor(po.status)">
-                {{ getStatusLabel(po.status) }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <div class="flex justify-end space-x-2">
-                <!-- View Button -->
-                <button (click)="viewDetails(po.id)" class="text-blue-600 hover:text-blue-900" title="View Details">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                  </svg>
-                </button>
-
-                <!-- Edit Button (only for draft/pending) -->
-                <button *ngIf="(po.status === 'draft' || po.status === 'pending') && can('purchases.edit')" (click)="editPo(po)" class="text-green-600 hover:text-green-900" title="Edit">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                  </svg>
-                </button>
-
-                <!-- Submit Button (only for draft) -->
-                <button *ngIf="po.status === 'draft' && can('purchases.edit')" (click)="submitForApproval(po.id)" class="text-purple-600 hover:text-purple-900" title="Submit for Approval">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                </button>
-
-                <!-- Approve Button (only for pending) -->
-                <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="approvePo(po.id)" class="text-green-600 hover:text-green-900" title="Approve">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                </button>
-
-                <!-- Reject Button (only for pending) -->
-                <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="rejectPo(po.id)" class="text-red-600 hover:text-red-900" title="Reject">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                </button>
-
-                <!-- Cancel Button (not for received/cancelled/rejected) -->
-                <button *ngIf="po.status !== 'received' && po.status !== 'cancelled' && po.status !== 'rejected' && can('purchases.approve')" (click)="cancelPo(po.id)" class="text-orange-600 hover:text-orange-900" title="Cancel">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-
-                <!-- Delete Button (only for draft/pending) -->
-                <button *ngIf="(po.status === 'draft' || po.status === 'pending') && can('purchases.edit')" (click)="deletePo(po.id)" class="text-red-600 hover:text-red-900" title="Delete">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Empty State -->
-          <tr *ngIf="poService.purchaseOrders().length === 0">
-            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              <p class="mt-2 text-sm">No purchase orders found</p>
-              <button *ngIf="can('purchases.create')" (click)="createNew()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
-                Create First Purchase Order
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination -->
-    <div *ngIf="poService.purchaseOrders().length > 0" class="bg-gray-50 px-6 py-3 border-t border-gray-200">
-      <div class="flex items-center justify-between">
-        <!-- Page Size Selector -->
-        <div class="flex items-center space-x-2">
-          <label class="text-sm text-gray-700">Show:</label>
-          <select 
-            [ngModel]="pageSize()" 
-            (ngModelChange)="changePageSize($event)"
-            class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent">
-            <option [value]="10">10</option>
-            <option [value]="25">25</option>
-            <option [value]="50">50</option>
-            <option [value]="100">100</option>
-          </select>
-          <span class="text-sm text-gray-700">
-            Showing {{ Math.min((pageNumber() - 1) * pageSize() + 1, poService.totalCount()) }} 
-            to {{ Math.min(pageNumber() * pageSize(), poService.totalCount()) }} 
-            of {{ poService.totalCount() }} results
-          </span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
+          <span class="text-xs text-gray-400">to</span>
+          <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
         </div>
 
-        <!-- Page Navigation -->
-        <div class="flex items-center space-x-2">
-          <button 
-            (click)="changePage(pageNumber() - 1)" 
-            [disabled]="pageNumber() === 1"
-            [class.opacity-50]="pageNumber() === 1"
-            [class.cursor-not-allowed]="pageNumber() === 1"
-            class="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors disabled:hover:bg-white">
-            Previous
-          </button>
-          
-          <div class="flex items-center space-x-1">
-            <span class="px-3 py-1 bg-gray-900 text-white rounded-lg text-sm">
-              {{ pageNumber() }}
-            </span>
+        <button type="button" class="btn btn-outline h-8 text-sm px-3 gap-1.5 whitespace-nowrap" [class.btn-active]="hasActiveFilters()">
+          <i class="fas fa-sliders-h text-xs"></i>
+          <span>Advanced Filters</span>
+        </button>
+
+        <button type="button" (click)="clearFilters()" class="btn btn-outline h-8 text-sm px-3 gap-1.5 whitespace-nowrap text-gray-600">
+          <i class="fas fa-times text-xs"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+    <div *ngIf="poService.isLoading()" class="rounded-xl border border-slate-200 bg-white py-10 text-center shadow-sm">
+      <div class="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-slate-900"></div>
+      <p class="mt-2 text-sm text-slate-600">Loading purchase orders...</p>
+    </div>
+
+    <div *ngIf="poService.error()" class="rounded-xl border border-rose-200 bg-rose-50 p-4">
+      <p class="text-sm text-rose-800">{{ poService.error() }}</p>
+    </div>
+
+    <div *ngIf="!poService.isLoading()" class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th (click)="sort('id')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">PO # {{ getSortIcon('id') }}</th>
+              <th (click)="sort('order_date')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Order Date {{ getSortIcon('order_date') }}</th>
+              <th (click)="sort('supplier')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Supplier {{ getSortIcon('supplier') }}</th>
+              <th class="px-4 py-2.5">Warehouse</th>
+              <th class="px-4 py-2.5 text-right">Items</th>
+              <th (click)="sort('total_amount')" class="px-4 py-2.5 text-right cursor-pointer hover:bg-gray-100">Total Amount {{ getSortIcon('total_amount') }}</th>
+              <th (click)="sort('status')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Status {{ getSortIcon('status') }}</th>
+              <th class="px-4 py-2.5 text-right">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let po of poService.purchaseOrders()">
+              <td class="px-4 py-2.5 font-semibold text-slate-900">{{ po.poNumber || ('PO-' + po.id) }}</td>
+              <td class="px-4 py-2.5 text-slate-700">{{ formatDate(po.orderDate) }}</td>
+              <td class="px-4 py-2.5 text-slate-900">{{ po.supplierName }}</td>
+              <td class="px-4 py-2.5 text-slate-700">{{ po.warehouseName }}</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ po.totalItems }} ({{ po.totalQuantity }} units)</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-slate-900">{{ formatCurrency(po.totalAmount) }}</td>
+              <td class="px-4 py-2.5">
+                <span [class]="'rounded-full px-2.5 py-1 text-xs font-semibold ' + getStatusColor(po.status)">
+                  {{ getStatusLabel(po.status) }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-right">
+                <div class="action-row">
+                  <button (click)="viewDetails(po.id)" class="icon-btn icon-view" title="View Details" type="button">
+                    <i class="fas fa-eye"></i>
+                  </button>
+
+                  <button *ngIf="can('purchases.view')" (click)="downloadPoPdf(po)" class="icon-btn icon-view" title="Download PDF" type="button">
+                    <i class="fas fa-file-pdf"></i>
+                  </button>
+
+                  <button *ngIf="(po.status === 'draft' || po.status === 'sent_back') && can('purchases.edit')" (click)="editPo(po)" class="icon-btn icon-edit" title="Edit" type="button">
+                    <i class="fas fa-pen"></i>
+                  </button>
+
+                  <button *ngIf="(po.status === 'draft' || po.status === 'sent_back') && can('purchases.edit')" (click)="submitForApproval(po.id)" class="icon-btn icon-submit" title="Submit for Approval" type="button">
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+
+                  <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="approvePo(po.id)" class="icon-btn icon-approve" title="Approve" type="button">
+                    <i class="fas fa-check"></i>
+                  </button>
+
+                  <button *ngIf="po.status === 'pending' && can('purchases.approve')" (click)="rejectPo(po.id)" class="icon-btn icon-reject" title="Reject" type="button">
+                    <i class="fas fa-xmark"></i>
+                  </button>
+
+                  <button *ngIf="po.status !== 'partially_received' && po.status !== 'fully_received' && po.status !== 'completed' && po.status !== 'cancelled' && po.status !== 'rejected' && can('purchases.approve')" (click)="cancelPo(po.id)" class="icon-btn icon-cancel" title="Cancel" type="button">
+                    <i class="fas fa-ban"></i>
+                  </button>
+
+                  <button *ngIf="po.status === 'draft' && can('purchases.edit')" (click)="deletePo(po.id)" class="icon-btn icon-delete" title="Delete" type="button">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <tr *ngIf="poService.purchaseOrders().length === 0">
+              <td colspan="8" class="px-6 py-10 text-center text-slate-500">
+                <i class="fas fa-file-invoice text-3xl text-slate-300"></i>
+                <p class="mt-2 text-sm">No purchase orders found</p>
+                <button *ngIf="can('purchases.create')" (click)="createNew()" class="btn btn-primary mt-4" type="button">Create First Purchase Order</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div *ngIf="poService.purchaseOrders().length > 0" class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
             <span class="text-sm text-gray-700">
-              of {{ Math.ceil(poService.totalCount() / pageSize()) }}
+              Showing {{ Math.min((pageNumber() - 1) * pageSize() + 1, poService.totalCount()) }} to
+              {{ Math.min(pageNumber() * pageSize(), poService.totalCount()) }} of
+              {{ poService.totalCount() }}
             </span>
+            <select
+              [ngModel]="pageSize()"
+              (ngModelChange)="changePageSize($event)"
+              class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+              <option [value]="10">10 per page</option>
+              <option [value]="25">25 per page</option>
+              <option [value]="50">50 per page</option>
+              <option [value]="100">100 per page</option>
+            </select>
           </div>
 
-          <button 
-            (click)="changePage(pageNumber() + 1)" 
-            [disabled]="pageNumber() >= Math.ceil(poService.totalCount() / pageSize())"
-            [class.opacity-50]="pageNumber() >= Math.ceil(poService.totalCount() / pageSize())"
-            [class.cursor-not-allowed]="pageNumber() >= Math.ceil(poService.totalCount() / pageSize())"
-            class="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors disabled:hover:bg-white">
-            Next
-          </button>
+          <div class="flex gap-2">
+            <button
+              [disabled]="pageNumber() === 1"
+              (click)="changePage(pageNumber() - 1)"
+              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              type="button">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+              {{ pageNumber() }}
+            </span>
+            <button
+              [disabled]="pageNumber() >= Math.ceil(poService.totalCount() / pageSize())"
+              (click)="changePage(pageNumber() + 1)"
+              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              type="button">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Reason Modal (Reject / Cancel) -->
 @if (showReasonModal()) {
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-      <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-bold text-gray-900">{{ reasonModalTitle() }}</h2>
-        <button (click)="closeReasonModal()" class="text-gray-400 hover:text-gray-600">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div class="mx-4 w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <h2 class="text-base font-semibold text-slate-900">{{ reasonModalTitle() }}</h2>
+        <button (click)="closeReasonModal()" class="text-slate-400 hover:text-slate-600" type="button">
           <i class="fas fa-times"></i>
         </button>
       </div>
-      <div class="px-6 py-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Reason <span class="text-red-500">*</span></label>
+      <div class="px-5 py-4">
+        <label class="label">Reason <span class="text-red-500">*</span></label>
         <textarea
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+          class="input min-h-24 resize-none"
           rows="3"
           placeholder="Enter reason..."
           [ngModel]="reasonText()"
           (ngModelChange)="reasonText.set($event)">
         </textarea>
       </div>
-      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-        <button (click)="closeReasonModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-        <button (click)="submitReason()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">Submit</button>
+      <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+        <button (click)="closeReasonModal()" class="btn btn-outline" type="button">Cancel</button>
+        <button (click)="submitReason()" class="btn btn-primary" type="button">Submit</button>
       </div>
     </div>
   </div>

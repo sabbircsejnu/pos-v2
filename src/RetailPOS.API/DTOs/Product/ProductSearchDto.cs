@@ -7,7 +7,8 @@ public class ProductSearchDto
 {
     public string? SearchQuery { get; set; }
     public long? CategoryId { get; set; }
-    public bool? IsActive { get; set; }
+    /// <summary>Filter by status. Accepted values: "active", "inactive", "draft". Null returns all products.</summary>
+    public string? Status { get; set; }
     public bool? HasVariants { get; set; }
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }

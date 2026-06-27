@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RoleService } from '../../services/role.service';
+import { UserService } from '../../services/user.service';
 import { Role } from '../../models/role.model';
+import { User } from '../../models/user.model';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
@@ -15,6 +17,7 @@ import { HasPermissionDirective } from '../../directives/has-permission.directiv
 })
 export class RoleListComponent implements OnInit {
   private roleService = inject(RoleService);
+  private userService = inject(UserService);
   private router = inject(Router);
 
   roles = signal<Role[]>([]);
@@ -22,6 +25,12 @@ export class RoleListComponent implements OnInit {
   isLoading = signal(false);
   error = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+
+  // Role users modal
+  selectedRole = signal<Role | null>(null);
+  roleUsers = signal<User[]>([]);
+  isLoadingUsers = signal(false);
+  usersModalError = signal<string | null>(null);
 
   ngOnInit() {
     this.loadRoles();
@@ -86,5 +95,34 @@ export class RoleListComponent implements OnInit {
 
   getPermissionCount(role: Role): number {
     return role.permissions.includes('*') ? this.permissions().length : role.permissions.length;
+  }
+
+  viewRoleUsers(role: Role, event: Event) {
+    event.stopPropagation();
+    this.selectedRole.set(role);
+    this.roleUsers.set([]);
+    this.usersModalError.set(null);
+
+    if (role.userCount === 0) {
+      return; // modal shows "No users" immediately
+    }
+
+    this.isLoadingUsers.set(true);
+    this.userService.getUsers(1, 100, undefined, role.id, undefined, true).subscribe({
+      next: (response) => {
+        this.roleUsers.set(response?.users ?? []);
+        this.isLoadingUsers.set(false);
+      },
+      error: () => {
+        this.usersModalError.set('Failed to load users for this role.');
+        this.isLoadingUsers.set(false);
+      }
+    });
+  }
+
+  closeUsersModal() {
+    this.selectedRole.set(null);
+    this.roleUsers.set([]);
+    this.usersModalError.set(null);
   }
 }

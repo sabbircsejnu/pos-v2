@@ -232,11 +232,24 @@ export class ProductService {
   /**
    * Search product variants (for PO form)
    */
-  searchVariants(query: string, page: number = 1, pageSize: number = 20): Observable<any> {
-    const params = new HttpParams()
+  searchVariants(
+    query: string,
+    page: number = 1,
+    pageSize: number = 20,
+    locationId?: number | null,
+    locationType?: string | null
+  ): Observable<any> {
+    let params = new HttpParams()
       .set('query', query)
       .set('pageNumber', page.toString())
       .set('pageSize', pageSize.toString());
+
+    if (locationId && locationType) {
+      params = params
+        .set('locationId', locationId.toString())
+        .set('locationType', locationType);
+    }
+
     return this.http.get<any>(`${this.apiUrl}/variants/search`, { params }).pipe(
       catchError(error => {
         console.error('Failed to search variants:', error);

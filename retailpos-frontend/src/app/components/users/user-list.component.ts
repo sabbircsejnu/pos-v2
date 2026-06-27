@@ -1,11 +1,14 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { UserService } from '../../services/user.service';
 import { RoleService } from '../../services/role.service';
+import { OutletService } from '../../services/outlet.service';
+import { ListStateService } from '../../services/list-state.service';
 import { User } from '../../models/user.model';
 import { Role } from '../../models/role.model';
+import { Outlet } from '../../models/outlet.model';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
@@ -18,10 +21,14 @@ import { HasPermissionDirective } from '../../directives/has-permission.directiv
 export class UserListComponent implements OnInit {
   private userService = inject(UserService);
   private roleService = inject(RoleService);
+  private outletService = inject(OutletService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private listState = inject(ListStateService);
 
   users = signal<User[]>([]);
   roles = signal<Role[]>([]);
+  outlets = signal<Outlet[]>([]);
   isLoading = signal(false);
   error = signal<string | null>(null);
   successMessage = signal<string | null>(null);
@@ -35,17 +42,48 @@ export class UserListComponent implements OnInit {
   // Filters
   searchQuery = signal('');
   selectedRoleId = signal<number | undefined>(undefined);
+  selectedOutletId = signal<number | undefined>(undefined);
   selectedStatus = signal<boolean | undefined>(undefined);
 
   ngOnInit() {
     this.loadRoles();
+    this.loadOutlets();
+    this.restoreFromUrl();
     this.loadUsers();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    this.selectedRoleId.set(this.listState.optionalId(p, 'roleId'));
+    this.selectedOutletId.set(this.listState.numOrZero(p, 'outletId'));
+    this.selectedStatus.set(this.listState.boolOrUndef(p, 'status'));
+    this.currentPage.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      roleId: this.selectedRoleId(),
+      outletId: this.selectedOutletId(),
+      status: this.selectedStatus(),
+      page: this.currentPage(),
+      pageSize: this.pageSize(),
+    });
   }
 
   loadRoles() {
     this.roleService.getAllRoles().subscribe({
       next: (roles) => this.roles.set(roles),
       error: (error) => console.error('Error loading roles:', error)
+    });
+  }
+
+  loadOutlets() {
+    this.outletService.getAllOutlets().subscribe({
+      next: () => this.outlets.set(this.outletService.outlets()),
+      error: (error) => console.error('Error loading outlets:', error)
     });
   }
 
@@ -58,7 +96,7 @@ export class UserListComponent implements OnInit {
       this.pageSize(),
       this.searchQuery() || undefined,
       this.selectedRoleId(),
-      undefined,
+      this.selectedOutletId(),
       this.selectedStatus()
     ).subscribe({
       next: (response) => {
@@ -77,25 +115,30 @@ export class UserListComponent implements OnInit {
 
   onSearch() {
     this.currentPage.set(1);
+    this.syncUrl();
     this.loadUsers();
   }
 
   onFilterChange() {
     this.currentPage.set(1);
+    this.syncUrl();
     this.loadUsers();
   }
 
   clearFilters() {
     this.searchQuery.set('');
     this.selectedRoleId.set(undefined);
+    this.selectedOutletId.set(undefined);
     this.selectedStatus.set(undefined);
     this.currentPage.set(1);
+    this.listState.clear(this.route);
     this.loadUsers();
   }
 
   goToPage(page: number) {
     if (page >= 1 && page <= this.totalPages()) {
       this.currentPage.set(page);
+      this.syncUrl();
       this.loadUsers();
     }
   }

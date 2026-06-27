@@ -14,6 +14,9 @@ public class CreateProductDto
     [StringLength(1000, ErrorMessage = "Description cannot exceed 1000 characters")]
     public string? Description { get; set; }
     
+    [StringLength(50, ErrorMessage = "Product code cannot exceed 50 characters")]
+    public string? ProductCode { get; set; }
+    
     [StringLength(50, ErrorMessage = "SKU cannot exceed 50 characters")]
     public string? Sku { get; set; }
     
@@ -33,7 +36,10 @@ public class CreateProductDto
     [Range(0, 100, ErrorMessage = "Tax rate must be between 0 and 100")]
     public decimal TaxRate { get; set; } = 0;
 
-    public bool IsActive { get; set; } = true;
+    /// <summary>
+    /// Initial product status. Accepted values: "active" (default), "inactive", "draft".
+    /// </summary>
+    public string Status { get; set; } = "active";
     
     public bool HasVariants { get; set; } = false;
     

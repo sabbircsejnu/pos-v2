@@ -29,6 +29,15 @@ public static class StockLedgerTransactionType
 
     /// <summary>Stock dispatched from the source of an inter-location transfer.</summary>
     public const string TransferOut = "transfer_out";
+
+    /// <summary>Stock dispatched as part of a return transfer.</summary>
+    public const string ReturnTransferOut = "return_transfer_out";
+
+    /// <summary>Stock received as part of a return transfer.</summary>
+    public const string ReturnTransferIn = "return_transfer_in";
+
+    /// <summary>Transfer was rejected at destination during receiving.</summary>
+    public const string TransferRejection = "transfer_rejection";
 }
 
 /// <summary>

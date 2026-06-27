@@ -9,7 +9,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/grns")]
-[Authorize]
+[Authorize(Policy = "grn.view")]
 public class GrnsController : ControllerBase
 {
     private readonly IGrnService _grnService;
@@ -86,6 +86,7 @@ public class GrnsController : ControllerBase
     /// Create a new GRN from an approved PO
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "grn.create")]
     public async Task<ActionResult<ApiResponse<GrnDto>>> Create([FromBody] CreateGrnDto dto)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -102,6 +103,7 @@ public class GrnsController : ControllerBase
     /// Complete a GRN: update inventory stock and PO status
     /// </summary>
     [HttpPost("{id}/complete")]
+    [Authorize(Policy = "grn.receive")]
     public async Task<ActionResult<ApiResponse<GrnDto>>> Complete(long id)
     {
         var grn = await _grnService.CompleteAsync(id);

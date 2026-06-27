@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { OutletService } from '../../services/outlet.service';
@@ -26,6 +26,7 @@ export class OutletFormComponent implements OnInit {
     private outletService: OutletService,
     private userService: UserService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute
   ) {
     this.outletForm = this.fb.group({
@@ -96,7 +97,7 @@ export class OutletFormComponent implements OnInit {
     request.subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.router.navigate(['/outlets']);
+        this.location.back();
       },
       error: (error) => {
         console.error('Error saving outlet:', error);
@@ -107,7 +108,7 @@ export class OutletFormComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/outlets']);
+    this.location.back();
   }
 
   getFieldError(fieldName: string): string {

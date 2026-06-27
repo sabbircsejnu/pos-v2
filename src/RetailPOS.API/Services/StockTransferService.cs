@@ -78,51 +78,43 @@ public class StockTransferService : IStockTransferService
 
     public async Task<StockTransferDto> CreateAsync(CreateStockTransferDto dto, long? userId = null)
     {
-        if (dto.Items == null || dto.Items.Count == 0)
-            throw new InvalidOperationException("Stock transfer must have at least one item");
+        ValidateCreateOrUpdateRequest(dto);
 
-        if (dto.FromLocationId == dto.ToLocationId && dto.FromLocationType == dto.ToLocationType)
-            throw new InvalidOperationException("Source and destination locations cannot be the same");
+        var now = DateTime.UtcNow;
+        var normalizedFromType = NormalizeLocationType(dto.FromLocationType);
+        var normalizedToType = NormalizeLocationType(dto.ToLocationType);
 
-        // Validate source has enough stock for each item
-        foreach (var item in dto.Items)
-        {
-            if (item.Quantity <= 0)
-                throw new InvalidOperationException($"Quantity for variant {item.VariantId} must be greater than zero");
-
-            var variant = await _variantRepository.GetByIdAsync(item.VariantId);
-            if (variant == null)
-                throw new KeyNotFoundException($"Product variant with ID {item.VariantId} not found");
-
-            var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
-                i.VariantId == item.VariantId &&
-                i.LocationId == dto.FromLocationId &&
-                i.LocationType == dto.FromLocationType);
-
-            if (sourceInventory == null || sourceInventory.Quantity < item.Quantity)
-                throw new InvalidOperationException(
-                    $"Insufficient stock for variant {variant.Sku}. Available: {sourceInventory?.Quantity ?? 0}, Requested: {item.Quantity}");
-        }
+        await ValidateSourceStockAsync(dto.Items, dto.FromLocationId, normalizedFromType);
 
         var transfer = new StockTransfer
         {
+            TransferNo = await GenerateTransferNumberAsync(),
+            TransferType = NormalizeTransferType(dto.TransferType),
+            RelatedRequisitionId = dto.RelatedRequisitionId,
             FromLocationId = dto.FromLocationId,
-            FromLocationType = dto.FromLocationType.ToLower(),
+            FromLocationType = normalizedFromType,
             ToLocationId = dto.ToLocationId,
-            ToLocationType = dto.ToLocationType.ToLower(),
+            ToLocationType = normalizedToType,
             TransferDate = DateTime.SpecifyKind(dto.TransferDate, DateTimeKind.Utc),
-            Status = "pending",
+            Status = StockTransfer.StatusDraft,
+            Notes = dto.Notes,
             CreatedBy = userId,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             Items = dto.Items.Select(i => new StockTransferItem
             {
                 VariantId = i.VariantId,
-                Quantity = i.Quantity
+                Quantity = ResolveRequestedQuantity(i),
+                RequestedQuantity = ResolveRequestedQuantity(i),
+                TransferQuantity = ResolveTransferQuantity(i),
+                AcceptedQuantity = 0,
+                RejectedQuantity = 0,
+                UnitCost = i.UnitCost,
+                Remarks = i.Remarks
             }).ToList()
         };
 
         var created = await _transferRepository.CreateAsync(transfer);
-        _logger.LogInformation("Stock transfer {TransferId} created by user {UserId}", created.Id, userId);
+        _logger.LogInformation("Stock transfer {TransferNo} ({TransferId}) created by user {UserId}", created.TransferNo, created.Id, userId);
 
         return await MapToDtoAsync(created);
     }
@@ -133,43 +125,26 @@ public class StockTransferService : IStockTransferService
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() != "pending")
-            throw new InvalidOperationException($"Can only update pending stock transfers. Current status: {transfer.Status}");
+        if (!transfer.Status.Equals(StockTransfer.StatusDraft, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Cannot edit transfer in status '{transfer.Status}'. Only draft transfers are editable.");
 
-        if (dto.Items == null || dto.Items.Count == 0)
-            throw new InvalidOperationException("Stock transfer must have at least one item");
-
-        if (dto.FromLocationId == dto.ToLocationId && dto.FromLocationType == dto.ToLocationType)
-            throw new InvalidOperationException("Source and destination locations cannot be the same");
-
-        // Validate stock availability
-        foreach (var item in dto.Items)
-        {
-            if (item.Quantity <= 0)
-                throw new InvalidOperationException($"Quantity for variant {item.VariantId} must be greater than zero");
-
-            var variant = await _variantRepository.GetByIdAsync(item.VariantId);
-            if (variant == null)
-                throw new KeyNotFoundException($"Product variant with ID {item.VariantId} not found");
-
-            var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
-                i.VariantId == item.VariantId &&
-                i.LocationId == dto.FromLocationId &&
-                i.LocationType == dto.FromLocationType);
-
-            if (sourceInventory == null || sourceInventory.Quantity < item.Quantity)
-                throw new InvalidOperationException(
-                    $"Insufficient stock for variant {variant.Sku}. Available: {sourceInventory?.Quantity ?? 0}, Requested: {item.Quantity}");
-        }
+        ValidateCreateOrUpdateRequest(dto);
+        var normalizedFromType = NormalizeLocationType(dto.FromLocationType);
+        var normalizedToType = NormalizeLocationType(dto.ToLocationType);
+        await ValidateSourceStockAsync(dto.Items, dto.FromLocationId, normalizedFromType);
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             transfer.FromLocationId = dto.FromLocationId;
-            transfer.FromLocationType = dto.FromLocationType.ToLower();
+            transfer.FromLocationType = normalizedFromType;
             transfer.ToLocationId = dto.ToLocationId;
-            transfer.ToLocationType = dto.ToLocationType.ToLower();
+            transfer.ToLocationType = normalizedToType;
             transfer.TransferDate = DateTime.SpecifyKind(dto.TransferDate, DateTimeKind.Utc);
+            transfer.TransferType = NormalizeTransferType(dto.TransferType);
+            transfer.RelatedRequisitionId = dto.RelatedRequisitionId;
+            transfer.Notes = dto.Notes;
+            transfer.UpdatedAt = DateTime.UtcNow;
 
             // Replace items atomically
             _context.StockTransferItems.RemoveRange(transfer.Items);
@@ -177,7 +152,13 @@ public class StockTransferService : IStockTransferService
             {
                 TransferId = id,
                 VariantId = i.VariantId,
-                Quantity = i.Quantity
+                Quantity = ResolveRequestedQuantity(i),
+                RequestedQuantity = ResolveRequestedQuantity(i),
+                TransferQuantity = ResolveTransferQuantity(i),
+                AcceptedQuantity = 0,
+                RejectedQuantity = 0,
+                UnitCost = i.UnitCost,
+                Remarks = i.Remarks
             }).ToList();
 
             var updated = await _transferRepository.UpdateAsync(transfer);
@@ -194,43 +175,113 @@ public class StockTransferService : IStockTransferService
         }
     }
 
+    public async Task<StockTransferDto> SubmitAsync(long id, long? submittedBy = null)
+    {
+        var transfer = await _transferRepository.GetByIdAsync(id);
+        if (transfer == null)
+            throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
+
+        if (!transfer.Status.Equals(StockTransfer.StatusDraft, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Can only submit draft transfers. Current status: {transfer.Status}");
+
+        transfer.Status = StockTransfer.StatusSubmitted;
+        transfer.SubmittedBy = submittedBy;
+        transfer.SubmittedAt = DateTime.UtcNow;
+        transfer.UpdatedBy = submittedBy;
+        transfer.UpdatedAt = DateTime.UtcNow;
+        await _transferRepository.UpdateAsync(transfer);
+
+        _logger.LogInformation("Stock transfer {TransferNo} ({TransferId}) submitted by user {UserId}", transfer.TransferNo, id, submittedBy);
+        return await GetByIdAsync(id);
+    }
+
     public async Task<StockTransferDto> ApproveAsync(long id, long? approverId = null)
     {
         var transfer = await _transferRepository.GetByIdAsync(id);
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() != "pending")
-            throw new InvalidOperationException($"Can only approve pending transfers. Current status: {transfer.Status}");
+        if (!transfer.Status.Equals(StockTransfer.StatusSubmitted, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Can only approve submitted transfers. Current status: {transfer.Status}");
 
-        await _transferRepository.UpdateStatusAsync(id, "approved", approverId);
+        transfer.Status = StockTransfer.StatusApproved;
+        transfer.ApprovedBy = approverId;
+        transfer.ApprovedAt = DateTime.UtcNow;
+        transfer.UpdatedBy = approverId;
+        transfer.UpdatedAt = DateTime.UtcNow;
+        await _transferRepository.UpdateAsync(transfer);
+
         _logger.LogInformation("Stock transfer {TransferId} approved by user {UserId}", id, approverId);
 
         return await GetByIdAsync(id);
     }
 
-    public async Task<StockTransferDto> RejectAsync(long id, string? reason = null)
+    public async Task<StockTransferDto> RejectAsync(long id, string? reason = null, long? rejectedBy = null)
     {
         var transfer = await _transferRepository.GetByIdAsync(id);
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() != "pending")
-            throw new InvalidOperationException($"Can only reject pending transfers. Current status: {transfer.Status}");
+        var status = transfer.Status.ToLowerInvariant();
+        if (status != StockTransfer.StatusSubmitted && status != StockTransfer.StatusInTransit && status != StockTransfer.StatusApproved)
+            throw new InvalidOperationException($"Cannot reject transfer in status '{transfer.Status}'.");
 
-        await _transferRepository.UpdateStatusAsync(id, "rejected");
-        _logger.LogInformation("Stock transfer {TransferId} rejected. Reason: {Reason}", id, reason);
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            transfer.Status = StockTransfer.StatusRejected;
+            transfer.RejectedBy = rejectedBy;
+            transfer.RejectedAt = DateTime.UtcNow;
+            transfer.UpdatedBy = rejectedBy;
+            transfer.UpdatedAt = DateTime.UtcNow;
+
+            if (status == StockTransfer.StatusInTransit)
+            {
+                foreach (var item in transfer.Items)
+                {
+                    var rejectedQty = ResolveTransferQuantity(item);
+                    item.AcceptedQuantity = 0;
+                    item.RejectedQuantity = rejectedQty;
+
+                    _stockLedger.WriteEntry(
+                        variantId: item.VariantId,
+                        locationId: transfer.ToLocationId,
+                        locationType: transfer.ToLocationType,
+                        transactionType: StockLedgerTransactionType.TransferRejection,
+                        qtyIn: 0,
+                        qtyOut: 0,
+                        balanceAfter: await GetCurrentInventoryBalanceAsync(item.VariantId, transfer.ToLocationId, transfer.ToLocationType),
+                        referenceType: StockLedgerReferenceType.StockTransfer,
+                        referenceId: transfer.Id,
+                        remarks: $"Transfer rejected. Reason: {reason}",
+                        createdBy: rejectedBy ?? transfer.CreatedBy);
+                }
+
+                await CreateReturnTransferForRejectedAsync(transfer, rejectedBy ?? transfer.CreatedBy);
+            }
+
+            await _transferRepository.UpdateAsync(transfer);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        _logger.LogInformation("Stock transfer {TransferId} rejected by user {UserId}. Reason: {Reason}", id, rejectedBy, reason);
 
         return await GetByIdAsync(id);
     }
 
-    public async Task<StockTransferDto> SendAsync(long id)
+    public async Task<StockTransferDto> SendAsync(long id, long? dispatchedBy = null)
     {
         var transfer = await _transferRepository.GetByIdAsync(id);
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() != "approved")
+        if (!transfer.Status.Equals(StockTransfer.StatusApproved, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Can only send approved transfers. Current status: {transfer.Status}");
 
         // Deduct source inventory at dispatch time and write transfer_out ledger entries.
@@ -238,27 +289,35 @@ public class StockTransferService : IStockTransferService
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
+            var normalizedFromType = NormalizeLocationType(transfer.FromLocationType);
+
             foreach (var item in transfer.Items)
             {
                 var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
                     i.VariantId == item.VariantId &&
                     i.LocationId == transfer.FromLocationId &&
-                    i.LocationType == transfer.FromLocationType);
+                    i.LocationType.ToLower() == normalizedFromType);
 
-                if (sourceInventory == null || sourceInventory.Quantity < item.Quantity)
+                var transferQty = ResolveTransferQuantity(item);
+
+                if (sourceInventory == null || sourceInventory.Quantity < transferQty)
                     throw new InvalidOperationException(
                         $"Insufficient stock for variant {item.VariantId} at source. " +
-                        $"Available: {sourceInventory?.Quantity ?? 0}, Required: {item.Quantity}");
+                        $"Available: {sourceInventory?.Quantity ?? 0}, Required: {transferQty}");
 
-                sourceInventory.Quantity -= item.Quantity;
+                sourceInventory.Quantity -= transferQty;
+
+                var transactionType = transfer.TransferType.Equals(StockTransfer.TransferTypeReturn, StringComparison.OrdinalIgnoreCase)
+                    ? StockLedgerTransactionType.ReturnTransferOut
+                    : StockLedgerTransactionType.TransferOut;
 
                 _stockLedger.WriteEntry(
                     variantId: item.VariantId,
                     locationId: transfer.FromLocationId,
-                    locationType: transfer.FromLocationType,
-                    transactionType: StockLedgerTransactionType.TransferOut,
+                    locationType: normalizedFromType,
+                    transactionType: transactionType,
                     qtyIn: 0,
-                    qtyOut: item.Quantity,
+                    qtyOut: transferQty,
                     balanceAfter: sourceInventory.Quantity,
                     referenceType: StockLedgerReferenceType.StockTransfer,
                     referenceId: transfer.Id,
@@ -266,7 +325,11 @@ public class StockTransferService : IStockTransferService
                     createdBy: transfer.CreatedBy);
             }
 
-            transfer.Status = "in_transit";
+            transfer.Status = StockTransfer.StatusInTransit;
+            transfer.DispatchedBy = dispatchedBy ?? transfer.UpdatedBy ?? transfer.CreatedBy;
+            transfer.DispatchedAt = DateTime.UtcNow;
+            transfer.UpdatedBy = transfer.DispatchedBy;
+            transfer.UpdatedAt = DateTime.UtcNow;
             _context.StockTransfers.Update(transfer);
 
             await _context.SaveChangesAsync();
@@ -288,13 +351,13 @@ public class StockTransferService : IStockTransferService
         return await GetByIdAsync(id);
     }
 
-    public async Task<StockTransferDto> ReceiveAsync(long id)
+    public async Task<StockTransferDto> ReceiveAsync(long id, ReceiveStockTransferDto? dto = null, long? receivedBy = null)
     {
         var transfer = await _transferRepository.GetByIdAsync(id);
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() != "in_transit")
+        if (!transfer.Status.Equals(StockTransfer.StatusInTransit, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Can only receive in-transit transfers. Current status: {transfer.Status}");
 
         // Source stock was already deducted at SendAsync (in_transit transition).
@@ -302,12 +365,17 @@ public class StockTransferService : IStockTransferService
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
+            var normalizedToType = NormalizeLocationType(transfer.ToLocationType);
+            var requestedLines = dto?.Items.ToDictionary(x => x.VariantId, x => x);
+            var totalAccepted = 0;
+            var totalRejected = 0;
+
             foreach (var item in transfer.Items)
             {
                 var destInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
                     i.VariantId == item.VariantId &&
                     i.LocationId == transfer.ToLocationId &&
-                    i.LocationType == transfer.ToLocationType);
+                    i.LocationType.ToLower() == normalizedToType);
 
                 if (destInventory == null)
                 {
@@ -315,29 +383,67 @@ public class StockTransferService : IStockTransferService
                     {
                         VariantId = item.VariantId,
                         LocationId = transfer.ToLocationId,
-                        LocationType = transfer.ToLocationType,
+                        LocationType = normalizedToType,
                         Quantity = 0
                     };
                     _context.Inventories.Add(destInventory);
                 }
-                destInventory.Quantity += item.Quantity;
+
+                var transferQty = ResolveTransferQuantity(item);
+                var acceptedQty = transferQty;
+                var rejectedQty = 0;
+                string? lineRemarks = item.Remarks;
+
+                if (requestedLines != null && requestedLines.TryGetValue(item.VariantId, out var receiveLine))
+                {
+                    acceptedQty = receiveLine.AcceptedQuantity;
+                    rejectedQty = receiveLine.RejectedQuantity;
+                    lineRemarks = receiveLine.Remarks;
+
+                    if (acceptedQty < 0 || rejectedQty < 0)
+                        throw new InvalidOperationException("Accepted and rejected quantities cannot be negative.");
+
+                    if (acceptedQty + rejectedQty > transferQty)
+                        throw new InvalidOperationException(
+                            $"Accepted + rejected quantities exceed transfer quantity for variant {item.VariantId}. " +
+                            $"Transfer: {transferQty}, Accepted: {acceptedQty}, Rejected: {rejectedQty}");
+                }
+
+                item.AcceptedQuantity = acceptedQty;
+                item.RejectedQuantity = rejectedQty;
+                item.Remarks = lineRemarks;
+                destInventory.Quantity += acceptedQty;
+                totalAccepted += acceptedQty;
+                totalRejected += rejectedQty;
+
+                var transactionType = transfer.TransferType.Equals(StockTransfer.TransferTypeReturn, StringComparison.OrdinalIgnoreCase)
+                    ? StockLedgerTransactionType.ReturnTransferIn
+                    : StockLedgerTransactionType.TransferIn;
 
                 _stockLedger.WriteEntry(
                     variantId: item.VariantId,
                     locationId: transfer.ToLocationId,
-                    locationType: transfer.ToLocationType,
-                    transactionType: StockLedgerTransactionType.TransferIn,
-                    qtyIn: item.Quantity,
+                    locationType: normalizedToType,
+                    transactionType: transactionType,
+                    qtyIn: acceptedQty,
                     qtyOut: 0,
                     balanceAfter: destInventory.Quantity,
                     referenceType: StockLedgerReferenceType.StockTransfer,
                     referenceId: transfer.Id,
                     remarks: $"Received from {transfer.FromLocationType} {transfer.FromLocationId}",
-                    createdBy: transfer.CreatedBy);
+                    createdBy: receivedBy ?? transfer.CreatedBy);
             }
 
-            transfer.Status = "received";
+            transfer.Status = ResolveReceiveStatus(totalAccepted, totalRejected);
+            transfer.ReceivedBy = receivedBy ?? transfer.UpdatedBy ?? transfer.CreatedBy;
+            transfer.ReceivedAt = DateTime.UtcNow;
+            transfer.Notes = string.IsNullOrWhiteSpace(dto?.Notes) ? transfer.Notes : dto!.Notes;
+            transfer.UpdatedBy = transfer.ReceivedBy;
+            transfer.UpdatedAt = DateTime.UtcNow;
             _context.StockTransfers.Update(transfer);
+
+            if (totalRejected > 0)
+                await CreateReturnTransferForRejectedAsync(transfer, transfer.ReceivedBy);
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -358,67 +464,27 @@ public class StockTransferService : IStockTransferService
         return await GetByIdAsync(id);
     }
 
-    public async Task<StockTransferDto> CancelAsync(long id, string? reason = null)
+    public async Task<StockTransferDto> CancelAsync(long id, string? reason = null, long? cancelledBy = null)
     {
         var transfer = await _transferRepository.GetByIdAsync(id);
         if (transfer == null)
             throw new KeyNotFoundException($"Stock transfer with ID {id} not found");
 
-        if (transfer.Status.ToLower() == "received")
-            throw new InvalidOperationException("Cannot cancel a received stock transfer");
-
-        if (transfer.Status.ToLower() == "cancelled")
+        if (transfer.Status.Equals(StockTransfer.StatusCancelled, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Transfer is already cancelled");
 
-        // If in_transit, source stock was already deducted at SendAsync — restore it.
-        if (transfer.Status.ToLower() == "in_transit")
-        {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                foreach (var item in transfer.Items)
-                {
-                    var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
-                        i.VariantId == item.VariantId &&
-                        i.LocationId == transfer.FromLocationId &&
-                        i.LocationType == transfer.FromLocationType);
+        if (transfer.Status.Equals(StockTransfer.StatusInTransit, StringComparison.OrdinalIgnoreCase)
+            || transfer.Status.Equals(StockTransfer.StatusReceived, StringComparison.OrdinalIgnoreCase)
+            || transfer.Status.Equals(StockTransfer.StatusPartiallyReceived, StringComparison.OrdinalIgnoreCase)
+            || transfer.Status.Equals(StockTransfer.StatusRejected, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Cannot cancel transfer in status '{transfer.Status}'. Cancellation is allowed only before dispatch.");
 
-                    if (sourceInventory != null)
-                    {
-                        sourceInventory.Quantity += item.Quantity;
-
-                        _stockLedger.WriteEntry(
-                            variantId: item.VariantId,
-                            locationId: transfer.FromLocationId,
-                            locationType: transfer.FromLocationType,
-                            transactionType: StockLedgerTransactionType.TransferIn,
-                            qtyIn: item.Quantity,
-                            qtyOut: 0,
-                            balanceAfter: sourceInventory.Quantity,
-                            referenceType: StockLedgerReferenceType.StockTransfer,
-                            referenceId: transfer.Id,
-                            remarks: $"Transfer cancelled — stock returned to source. Reason: {reason}",
-                            createdBy: transfer.CreatedBy);
-                    }
-                }
-
-                transfer.Status = "cancelled";
-                _context.StockTransfers.Update(transfer);
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-        else
-        {
-            // pending or approved — no inventory was touched, just update status
-            await _transferRepository.UpdateStatusAsync(id, "cancelled");
-        }
+        transfer.Status = StockTransfer.StatusCancelled;
+        transfer.CancelledBy = cancelledBy;
+        transfer.CancelledAt = DateTime.UtcNow;
+        transfer.UpdatedBy = cancelledBy;
+        transfer.UpdatedAt = DateTime.UtcNow;
+        await _transferRepository.UpdateAsync(transfer);
 
         _logger.LogInformation("Stock transfer {TransferId} cancelled. Reason: {Reason}", id, reason);
 
@@ -433,6 +499,9 @@ public class StockTransferService : IStockTransferService
         return new StockTransferDto
         {
             Id = transfer.Id,
+            TransferNo = transfer.TransferNo,
+            TransferType = transfer.TransferType,
+            RelatedRequisitionId = transfer.RelatedRequisitionId,
             FromLocationId = transfer.FromLocationId,
             FromLocationType = transfer.FromLocationType,
             FromLocationName = fromLocationName,
@@ -441,8 +510,22 @@ public class StockTransferService : IStockTransferService
             ToLocationName = toLocationName,
             TransferDate = transfer.TransferDate,
             Status = transfer.Status,
+            Notes = transfer.Notes,
             ApprovedBy = transfer.ApprovedBy,
             ApproverName = transfer.Approver?.Name,
+            ApprovedAt = transfer.ApprovedAt,
+            SubmittedBy = transfer.SubmittedBy,
+            SubmittedAt = transfer.SubmittedAt,
+            DispatchedBy = transfer.DispatchedBy,
+            DispatchedAt = transfer.DispatchedAt,
+            ReceivedBy = transfer.ReceivedBy,
+            ReceivedAt = transfer.ReceivedAt,
+            RejectedBy = transfer.RejectedBy,
+            RejectedAt = transfer.RejectedAt,
+            CancelledBy = transfer.CancelledBy,
+            CancelledAt = transfer.CancelledAt,
+            UpdatedBy = transfer.UpdatedBy,
+            UpdatedAt = transfer.UpdatedAt,
             CreatedBy = transfer.CreatedBy,
             CreatorName = transfer.Creator?.Name,
             CreatedAt = transfer.CreatedAt,
@@ -452,9 +535,177 @@ public class StockTransferService : IStockTransferService
                 VariantId = i.VariantId,
                 VariantSku = i.Variant?.Sku ?? string.Empty,
                 ProductName = i.Variant?.Product?.Name ?? string.Empty,
-                Quantity = i.Quantity
+                Quantity = ResolveTransferQuantity(i),
+                RequestedQuantity = i.RequestedQuantity,
+                TransferQuantity = ResolveTransferQuantity(i),
+                AcceptedQuantity = i.AcceptedQuantity,
+                RejectedQuantity = i.RejectedQuantity,
+                UnitCost = i.UnitCost,
+                Remarks = i.Remarks
             }).ToList() ?? new List<StockTransferItemDto>()
         };
+    }
+
+    private static string NormalizeTransferType(string transferType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(transferType)
+            ? StockTransfer.TransferTypeDirect
+            : transferType.Trim().ToLowerInvariant();
+
+        if (normalized != StockTransfer.TransferTypeDirect
+            && normalized != StockTransfer.TransferTypeRequisition
+            && normalized != StockTransfer.TransferTypeReturn)
+        {
+            throw new InvalidOperationException($"Invalid transfer type '{transferType}'.");
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeLocationType(string locationType)
+    {
+        if (string.IsNullOrWhiteSpace(locationType))
+            throw new InvalidOperationException("Location type is required.");
+
+        var normalized = locationType.Trim().ToLowerInvariant();
+        if (normalized != "outlet" && normalized != "warehouse")
+            throw new InvalidOperationException($"Invalid location type '{locationType}'.");
+
+        return normalized;
+    }
+
+    private static void ValidateCreateOrUpdateRequest(CreateStockTransferDto dto)
+    {
+        if (dto.Items == null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Stock transfer must have at least one item.");
+
+        var fromType = NormalizeLocationType(dto.FromLocationType);
+        var toType = NormalizeLocationType(dto.ToLocationType);
+        if (dto.FromLocationId == dto.ToLocationId && fromType == toType)
+            throw new InvalidOperationException("Source and destination locations cannot be the same.");
+
+        if (dto.Items.Any(i => ResolveTransferQuantity(i) <= 0))
+            throw new InvalidOperationException("All transfer quantities must be greater than zero.");
+    }
+
+    private async Task ValidateSourceStockAsync(IEnumerable<CreateStockTransferItemDto> items, long sourceLocationId, string sourceLocationType)
+    {
+        var normalizedSourceType = NormalizeLocationType(sourceLocationType);
+
+        foreach (var item in items)
+        {
+            var variant = await _variantRepository.GetByIdAsync(item.VariantId)
+                ?? throw new KeyNotFoundException($"Product variant with ID {item.VariantId} not found");
+
+            var sourceInventory = await _context.Inventories.FirstOrDefaultAsync(i =>
+                i.VariantId == item.VariantId &&
+                i.LocationId == sourceLocationId &&
+                i.LocationType.ToLower() == normalizedSourceType);
+
+            var transferQty = ResolveTransferQuantity(item);
+            if (sourceInventory == null || sourceInventory.Quantity < transferQty)
+                throw new InvalidOperationException(
+                    $"Insufficient stock for variant {variant.Sku}. Available: {sourceInventory?.Quantity ?? 0}, Requested: {transferQty}");
+        }
+    }
+
+    private static int ResolveRequestedQuantity(CreateStockTransferItemDto item)
+    {
+        if (item.RequestedQuantity.HasValue && item.RequestedQuantity.Value > 0)
+            return item.RequestedQuantity.Value;
+
+        if (item.Quantity > 0)
+            return item.Quantity;
+
+        if (item.TransferQuantity.HasValue && item.TransferQuantity.Value > 0)
+            return item.TransferQuantity.Value;
+
+        return item.Quantity;
+    }
+
+    private static int ResolveTransferQuantity(CreateStockTransferItemDto item)
+    {
+        if (item.TransferQuantity.HasValue && item.TransferQuantity.Value > 0)
+            return item.TransferQuantity.Value;
+
+        if (item.Quantity > 0)
+            return item.Quantity;
+
+        if (item.RequestedQuantity.HasValue && item.RequestedQuantity.Value > 0)
+            return item.RequestedQuantity.Value;
+
+        return item.Quantity;
+    }
+
+    private static string ResolveReceiveStatus(int totalAccepted, int totalRejected)
+    {
+        if (totalAccepted > 0 && totalRejected > 0)
+            return StockTransfer.StatusPartiallyReceived;
+
+        if (totalAccepted == 0 && totalRejected > 0)
+            return StockTransfer.StatusRejected;
+
+        return StockTransfer.StatusReceived;
+    }
+
+    private static int ResolveTransferQuantity(StockTransferItem item)
+        => item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
+
+    private async Task<int> GetCurrentInventoryBalanceAsync(long variantId, long locationId, string locationType)
+    {
+        var normalizedType = NormalizeLocationType(locationType);
+
+        var inventory = await _context.Inventories.FirstOrDefaultAsync(i =>
+            i.VariantId == variantId &&
+            i.LocationId == locationId &&
+            i.LocationType.ToLower() == normalizedType);
+        return inventory?.Quantity ?? 0;
+    }
+
+    private async Task<string> GenerateTransferNumberAsync()
+    {
+        var year = DateTime.UtcNow.Year;
+        var maxId = await _context.StockTransfers.MaxAsync(x => (long?)x.Id) ?? 0;
+        return $"TRF-{year}-{(maxId + 1):D5}";
+    }
+
+    private async Task CreateReturnTransferForRejectedAsync(StockTransfer rejectedTransfer, long? createdBy)
+    {
+        var returnItems = rejectedTransfer.Items
+            .Select(i => new { i.VariantId, Qty = i.RejectedQuantity > 0 ? i.RejectedQuantity : ResolveTransferQuantity(i) })
+            .Where(x => x.Qty > 0)
+            .ToList();
+
+        if (returnItems.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        var returnTransfer = new StockTransfer
+        {
+            TransferNo = await GenerateTransferNumberAsync(),
+            TransferType = StockTransfer.TransferTypeReturn,
+            FromLocationId = rejectedTransfer.ToLocationId,
+            FromLocationType = rejectedTransfer.ToLocationType,
+            ToLocationId = rejectedTransfer.FromLocationId,
+            ToLocationType = rejectedTransfer.FromLocationType,
+            TransferDate = now,
+            Status = StockTransfer.StatusDraft,
+            CreatedBy = createdBy,
+            CreatedAt = now,
+            Notes = $"Auto-created return transfer for rejected transfer #{rejectedTransfer.TransferNo ?? rejectedTransfer.Id.ToString()}.",
+            Items = returnItems.Select(x => new StockTransferItem
+            {
+                VariantId = x.VariantId,
+                Quantity = x.Qty,
+                RequestedQuantity = x.Qty,
+                TransferQuantity = x.Qty,
+                AcceptedQuantity = 0,
+                RejectedQuantity = 0,
+                UnitCost = 0m
+            }).ToList()
+        };
+
+        _context.StockTransfers.Add(returnTransfer);
     }
 
     private async Task<string> ResolveLocationNameAsync(long locationId, string locationType)

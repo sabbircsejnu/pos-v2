@@ -1,12 +1,14 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { GrnService } from '../../services/grn.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
+import { SettingsService } from '../../services/settings.service';
 import { GrnSearchRequest } from '../../models/grn.model';
 
 @Component({
@@ -22,6 +24,7 @@ export class GrnListComponent implements OnInit, OnDestroy {
   statusFilter = signal<string>('');
   pageNumber = signal<number>(1);
   pageSize = signal<number>(10);
+  businessTimeZone = signal<string>('Asia/Dhaka');
 
   private searchSubject = new Subject<void>();
   private searchSubscription?: Subscription;
@@ -29,13 +32,43 @@ export class GrnListComponent implements OnInit, OnDestroy {
   constructor(
     public grnService: GrnService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
+    const p = this.route.snapshot.queryParams;
+    this.statusFilter.set(this.listState.str(p, 'status'));
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+    this.loadBusinessTimeZone();
     this.setupDebouncedSearch();
-    this.search();
+    this.performSearch();
+  }
+
+  private loadBusinessTimeZone(): void {
+    this.settingsService.getCompanySettings().subscribe({
+      next: (res) => {
+        const tz = res?.data?.timeZone;
+        if (typeof tz === 'string' && tz.trim()) {
+          this.businessTimeZone.set(tz.trim());
+        }
+      },
+      error: () => {
+        // Fall back to default timezone if settings cannot be loaded.
+      }
+    });
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      status: this.statusFilter() || undefined,
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -45,7 +78,10 @@ export class GrnListComponent implements OnInit, OnDestroy {
   private setupDebouncedSearch(): void {
     this.searchSubscription = this.searchSubject
       .pipe(debounceTime(400))
-      .subscribe(() => this.performSearch());
+      .subscribe(() => {
+        this.syncUrl();
+        this.performSearch();
+      });
   }
 
   onFilterChange(): void {
@@ -66,22 +102,26 @@ export class GrnListComponent implements OnInit, OnDestroy {
 
   search(): void {
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
   clearFilters(): void {
     this.statusFilter.set('');
+    this.listState.clear(this.route);
     this.search();
   }
 
   changePage(page: number): void {
     this.pageNumber.set(page);
+    this.syncUrl();
     this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
@@ -101,10 +141,29 @@ export class GrnListComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatDate(date: string): string {
+  formatDateTime(date: string): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric'
-    });
+
+    const value = new Date(date);
+    if (Number.isNaN(value.getTime())) return '-';
+
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: this.businessTimeZone(),
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).formatToParts(value);
+
+    const day = parts.find(p => p.type === 'day')?.value ?? '--';
+    const month = parts.find(p => p.type === 'month')?.value ?? '---';
+    const year = parts.find(p => p.type === 'year')?.value ?? '----';
+    const hour = parts.find(p => p.type === 'hour')?.value ?? '--';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '--';
+    const dayPeriod = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toUpperCase();
+
+    return `${day} ${month}, ${year} ${hour}:${minute} ${dayPeriod}`.trim();
   }
 }

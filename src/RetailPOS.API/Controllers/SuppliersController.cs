@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "suppliers.view")]
 public class SuppliersController : ControllerBase
 {
     private readonly ISupplierService _supplierService;
@@ -56,6 +56,7 @@ public class SuppliersController : ControllerBase
     /// Create new supplier
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "suppliers.create")]
     public async Task<ActionResult<ApiResponse<SupplierDto>>> Create([FromBody] CreateSupplierDto dto)
     {
         var supplier = await _supplierService.CreateSupplierAsync(dto);
@@ -69,6 +70,7 @@ public class SuppliersController : ControllerBase
     /// Update supplier
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "suppliers.edit")]
     public async Task<ActionResult<ApiResponse<SupplierDto>>> Update(long id, [FromBody] UpdateSupplierDto dto)
     {
         var supplier = await _supplierService.UpdateSupplierAsync(id, dto);
@@ -79,6 +81,7 @@ public class SuppliersController : ControllerBase
     /// Delete supplier
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "suppliers.delete")]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {
         await _supplierService.DeleteSupplierAsync(id);

@@ -9,6 +9,8 @@ public static class AuditActionType
     public const string Cancel = "Cancel";
     public const string Login = "Login";
     public const string Logout = "Logout";
+    public const string TokenRefresh = "TokenRefresh";
+    public const string TokenReuseAttempt = "TokenReuseAttempt";
     public const string RoleSwitch = "RoleSwitch";
     public const string Export = "Export";
     public const string Import = "Import";
@@ -34,6 +36,7 @@ public static class AuditModule
     public const string Reports = "Reports";
     public const string Auth = "Auth";
     public const string System = "System";
+    public const string BusinessSetup = "BusinessSetup";
 }
 
 public static class AuditSource

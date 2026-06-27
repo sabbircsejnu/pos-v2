@@ -1,15 +1,20 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
+import { AuthService } from '../../services/auth.service';
+import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import {
   StockTransferDto,
+  ReceiveStockTransferDto,
   StockTransferSearchRequest,
+  getTransferTypeLabel,
   getTransferStatusLabel,
   getTransferStatusColor
 } from '../../models/stock-transfer.model';
@@ -23,6 +28,7 @@ import {
 })
 export class TransferListComponent implements OnInit, OnDestroy {
   Math = Math;
+  defaultLocation = signal<{ id: number; type: 'outlet' | 'warehouse' } | null>(null);
 
   statusFilter = signal<string>('');
   pageNumber = signal<number>(1);
@@ -38,14 +44,48 @@ export class TransferListComponent implements OnInit, OnDestroy {
 
   constructor(
     public transferService: StockTransferService,
+    public auth: AuthService,
+    private userOutletAccess: UserOutletAccessService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
   ) {}
 
   ngOnInit(): void {
+    const p = this.route.snapshot.queryParams;
+    this.statusFilter.set(this.listState.str(p, 'status'));
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
     this.setupDebouncedSearch();
-    this.search();
+    this.loadDefaultLocation();
+    this.performSearch();
+  }
+
+  private loadDefaultLocation(): void {
+    this.userOutletAccess.load().subscribe({
+      next: (response) => {
+        const auth = response?.data;
+        if (auth?.defaultLocationId && auth?.defaultLocationType) {
+          this.defaultLocation.set({ id: auth.defaultLocationId, type: auth.defaultLocationType });
+          return;
+        }
+
+        this.defaultLocation.set(null);
+      },
+      error: () => {
+        this.defaultLocation.set(null);
+      }
+    });
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      status: this.statusFilter() || undefined,
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -55,7 +95,10 @@ export class TransferListComponent implements OnInit, OnDestroy {
   private setupDebouncedSearch(): void {
     this.searchSubscription = this.searchSubject
       .pipe(debounceTime(400))
-      .subscribe(() => this.performSearch());
+      .subscribe(() => {
+        this.syncUrl();
+        this.performSearch();
+      });
   }
 
   onFilterChange(): void {
@@ -76,26 +119,34 @@ export class TransferListComponent implements OnInit, OnDestroy {
 
   search(): void {
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
   clearFilters(): void {
     this.statusFilter.set('');
+    this.listState.clear(this.route);
     this.search();
   }
 
   changePage(page: number): void {
     this.pageNumber.set(page);
+    this.syncUrl();
     this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 
   createTransfer(): void {
+    if (!this.auth.hasPermission('stock_transfers.create')) {
+      this.alertService.error('You do not have permission to create stock transfers');
+      return;
+    }
     this.router.navigate(['/stock-transfers/create']);
   }
 
@@ -144,8 +195,15 @@ export class TransferListComponent implements OnInit, OnDestroy {
 
   receiveTransfer(id: number, event: Event): void {
     event.stopPropagation();
+    const transfer = this.transferService.transfers().find(t => t.id === id);
+    if (!transfer) {
+      this.alertService.error('Transfer details not found for receiving');
+      return;
+    }
+
+    const payload = this.buildFullReceivePayload(transfer);
     this.alertService.confirm('Receive this transfer and update stock?', () => {
-      this.transferService.receive(id).subscribe({
+      this.transferService.receive(id, payload).subscribe({
         next: () => {
           this.alertService.success('Transfer received and stock updated');
           this.performSearch();
@@ -196,6 +254,10 @@ export class TransferListComponent implements OnInit, OnDestroy {
     return getTransferStatusLabel(status);
   }
 
+  getTypeLabel(type: string): string {
+    return getTransferTypeLabel(type);
+  }
+
   getStatusColor(status: string): string {
     return getTransferStatusColor(status);
   }
@@ -205,5 +267,27 @@ export class TransferListComponent implements OnInit, OnDestroy {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric'
     });
+  }
+
+  canReceiveOrRejectTransfer(transfer: StockTransferDto): boolean {
+    const userDefault = this.defaultLocation();
+    if (!userDefault) {
+      return false;
+    }
+
+    return transfer.toLocationId === userDefault.id
+      && transfer.toLocationType.toLowerCase() === userDefault.type;
+  }
+
+  private buildFullReceivePayload(transfer: StockTransferDto): ReceiveStockTransferDto {
+    return {
+      notes: 'Full acceptance from list action',
+      items: transfer.items.map(item => ({
+        variantId: item.variantId,
+        acceptedQuantity: item.transferQuantity > 0 ? item.transferQuantity : item.quantity,
+        rejectedQuantity: 0,
+        remarks: item.remarks
+      }))
+    };
   }
 }

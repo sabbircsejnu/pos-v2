@@ -1,136 +1,267 @@
-<div class="container mx-auto px-4 py-4 max-w-2xl">
-  <!-- Header -->
-  <div class="flex items-center gap-3 mb-6">
-    <button (click)="cancel()" class="btn btn-ghost">
-      <i class="fas fa-arrow-left"></i>
-    </button>
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Create Stock Adjustment</h1>
-      <p class="text-sm text-gray-600 mt-0.5">Manually adjust inventory stock levels</p>
-    </div>
-  </div>
-
+<div class="mx-auto max-w-[96rem] px-2 py-3 sm:px-3 lg:px-4">
   @if (isLoadingData()) {
-    <div class="card p-8 text-center">
-      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
-      <p class="text-sm text-gray-600">Loading data...</p>
+    <div class="flex items-center justify-center py-16">
+      <div class="h-12 w-12 animate-spin rounded-full border-b-2 border-slate-900"></div>
     </div>
   } @else {
-    <form (ngSubmit)="onSubmit()" class="space-y-6">
-      <div class="card p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <form (ngSubmit)="onSubmit()" class="space-y-3">
+      <div class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <label class="label">Location Type</label>
-            <select [(ngModel)]="locationType" name="locationType"
-                    (ngModelChange)="onLocationTypeChange()" class="input">
-              <option value="outlet">Outlet</option>
-              <option value="warehouse">Warehouse</option>
-            </select>
+            <h1 class="text-lg font-semibold text-slate-900">{{ isEditMode() ? 'Edit Stock Adjustment Draft' : 'Create Stock Adjustment' }}</h1>
+            <p class="text-xs text-slate-600">
+              {{ isEditMode() ? 'Update the draft before submission.' : 'Add multiple products in one stock adjustment transaction.' }}
+            </p>
           </div>
-          <div>
-            <label class="label">Location <span class="text-red-500">*</span></label>
-            <select [(ngModel)]="locationId" name="locationId"
-                    (ngModelChange)="onLocationChange()" class="input" required>
-              <option [ngValue]="null">-- Select Location --</option>
-              @for (loc of getLocations(); track loc.id) {
-                <option [ngValue]="loc.id">{{ loc.name }}</option>
-              }
-            </select>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">New Adjustment</span>
+            <button type="button" (click)="cancel()" class="btn btn-outline min-w-24" [disabled]="isSubmitting()">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+            @if (isEditMode()) {
+              <button type="button" class="btn btn-primary min-w-36" [disabled]="!canSubmit()" (click)="onSubmit()">
+                @if (isSubmitting()) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Saving...
+                } @else {
+                  <i class="fas fa-save"></i>
+                  Update Draft
+                }
+              </button>
+            } @else {
+              <button type="button" class="btn btn-outline min-w-28" [disabled]="!canSubmit()" (click)="saveDraft()">
+                @if (isSubmitting()) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Saving...
+                } @else {
+                  Save Draft
+                }
+              </button>
+              <button type="button" class="btn btn-primary min-w-28" [disabled]="!canSubmit()" (click)="submitForApproval()">
+                Submit
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary min-w-36"
+                [disabled]="!canSubmit() || !auth.hasPermission('stock_adjustments.approve')"
+                (click)="submitAndApprove()">
+                Submit & Approve
+              </button>
+            }
           </div>
         </div>
       </div>
 
-      <div class="card p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Product</h2>
-        <div>
-          <label class="label">Product Variant <span class="text-red-500">*</span></label>
-          <select [(ngModel)]="variantId" name="variantId"
-                  (ngModelChange)="onVariantChange()" class="input" required>
-            <option [ngValue]="null">-- Select Product Variant --</option>
-            @for (v of variantOptions(); track v.id) {
-              <option [ngValue]="v.id">{{ v.displayName }}</option>
-            }
-          </select>
-        </div>
+      <div class="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:items-start">
+        <section class="space-y-3 lg:col-span-8 xl:col-span-9">
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-900">Add Adjustment Items</h2>
+                <p class="text-xs text-slate-600">{{ isEditMode() ? 'Draft editing supports one adjustment line.' : 'Select location first, then search and add one or more products.' }}</p>
+              </div>
+            </div>
 
-        @if (variantId() && locationId()) {
-          <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div class="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p class="text-xs text-gray-500 uppercase tracking-wide">Current Stock</p>
-                @if (isLoadingStock()) {
-                  <i class="fas fa-spinner fa-spin text-gray-400 mt-1"></i>
-                } @else {
-                  <p class="text-xl font-bold text-gray-900 mt-1">{{ currentStock() ?? '-' }}</p>
-                }
+            <app-variant-search-picker
+              [disabled]="isSubmitting() || !locationId()"
+              [locationId]="locationId()"
+              [locationType]="locationType()"
+              [existingVariantIds]="existingVariantIds()"
+              [placeholder]="locationId() ? 'Search by main code, SKU, product name, or variant attributes...' : 'Select location first to search products'"
+              (selected)="onVariantSelected($event)">
+            </app-variant-search-picker>
+
+            @if (items().length === 0) {
+              <div class="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                <div class="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
+                  <i class="fas fa-box-open text-lg"></i>
+                </div>
+                <h3 class="text-sm font-semibold text-slate-900">No items added yet</h3>
+                <p class="mt-1 text-sm text-slate-600">Use the search above to add products to this adjustment.</p>
               </div>
-              <div>
-                <p class="text-xs text-gray-500 uppercase tracking-wide">Change</p>
-                <p class="text-xl font-bold mt-1"
-                   [ngClass]="quantityChange() >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ quantityChange() > 0 ? '+' : '' }}{{ quantityChange() }}
-                </p>
+            } @else {
+              <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="min-w-[1080px] w-full table-fixed divide-y divide-slate-200">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Product</th>
+                      <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">SKU</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Current Stock</th>
+                      <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Adjustment Qty</th>
+                      <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-slate-500">New Stock</th>
+                      <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Line Reason (Optional)</th>
+                      <th class="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white">
+                    @for (item of items(); track item.variantId; let i = $index) {
+                      <tr [ngClass]="isLineInvalid(item) ? 'bg-rose-50/30' : 'hover:bg-slate-50'">
+                        <td class="px-3 py-2.5">
+                          <div class="flex min-w-0 items-start gap-3">
+                            @if (item.primaryImageThumb) {
+                              <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName" loading="lazy" decoding="async" class="h-10 w-10 flex-shrink-0 rounded-lg border border-slate-200 bg-white object-cover" />
+                            } @else {
+                              <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-400">
+                                <i class="fas fa-box text-xs"></i>
+                              </div>
+                            }
+
+                            <div class="min-w-0 flex-1">
+                              <div class="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{{ item.productName }} - {{ item.variantName }}</div>
+                              <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                                @if (item.productCode) { <span>Main Code: {{ item.productCode }}</span> }
+                                @if (item.attributes) { <span>{{ item.attributes }}</span> }
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2.5 text-sm text-slate-700">{{ item.sku || '-' }}</td>
+                        <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ item.currentStock }}</td>
+                        <td class="px-3 py-2.5">
+                          <input
+                            type="number"
+                            [value]="item.quantityChange"
+                            (input)="updateLineQuantity(i, +$any($event.target).value)"
+                            class="h-9 w-28 rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            [disabled]="isSubmitting()"
+                            placeholder="+/-" />
+                          @if (item.quantityChange === 0) {
+                            <p class="mt-1 text-[11px] text-rose-600">Qty cannot be 0</p>
+                          }
+                        </td>
+                        <td class="px-3 py-2.5 text-right text-sm font-semibold" [ngClass]="isLineNegativeInvalid(item) ? 'text-rose-700' : 'text-slate-900'">
+                          {{ getLineNewStock(item) }}
+                          @if (isLineNegativeInvalid(item)) {
+                            <p class="mt-1 text-[11px] font-normal text-rose-600">Negative stock not allowed</p>
+                          }
+                        </td>
+                        <td class="px-3 py-2.5">
+                          <select
+                            [ngModel]="item.reason || ''"
+                            (ngModelChange)="updateLineReason(i, $event)"
+                            [ngModelOptions]="{ standalone: true }"
+                            class="h-9 w-full rounded-md border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            [disabled]="isSubmitting()">
+                            <option value="">Default ({{ reason() || 'None' }})</option>
+                            @for (r of ADJUSTMENT_REASONS; track r) {
+                              <option [value]="r">{{ r }}</option>
+                            }
+                          </select>
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                          <button
+                            type="button"
+                            (click)="removeLine(i)"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rose-200 bg-rose-50 text-rose-600 transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700"
+                            [disabled]="isSubmitting()"
+                            title="Remove">
+                            <i class="fas fa-times text-xs"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
               </div>
+            }
+          </div>
+        </section>
+
+        <aside class="space-y-3 lg:col-span-4 xl:col-span-3 lg:sticky lg:top-3 self-start">
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
               <div>
-                <p class="text-xs text-gray-500 uppercase tracking-wide">New Stock</p>
-                @if (newStockLevel() !== null) {
-                  <p class="text-xl font-bold mt-1"
-                     [ngClass]="(newStockLevel() ?? 0) < 0 ? 'text-red-600' : 'text-gray-900'">
-                    {{ newStockLevel() }}
-                  </p>
-                } @else {
-                  <p class="text-xl font-bold text-gray-400 mt-1">-</p>
-                }
+                <h2 class="text-sm font-semibold text-slate-900">Location & Details</h2>
+                <p class="text-xs text-slate-600">Location applies to all line items.</p>
+              </div>
+              <span class="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">Required</span>
+            </div>
+
+            <div class="space-y-3">
+              <div>
+                <label class="label label-required">Location Type</label>
+                <select
+                  [ngModel]="locationType()"
+                  (ngModelChange)="onLocationTypeChange($event)"
+                  name="locationType"
+                  class="input"
+                  required>
+                  <option value="outlet">Outlet</option>
+                  <option value="warehouse">Warehouse</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="label label-required">Location</label>
+                <select
+                  [ngModel]="locationId()"
+                  (ngModelChange)="onLocationChange($event)"
+                  name="locationId"
+                  class="input"
+                  required>
+                  <option [ngValue]="null">-- Select Location --</option>
+                  @for (loc of getLocations(); track loc.id) {
+                    <option [ngValue]="loc.id">{{ loc.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label class="label label-required">Default Reason</label>
+                <select [(ngModel)]="reason" name="reason" class="input" required>
+                  <option value="">-- Select Reason --</option>
+                  @for (r of ADJUSTMENT_REASONS; track r) {
+                    <option [value]="r">{{ r }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label class="label">Notes</label>
+                <textarea [(ngModel)]="notes" name="notes" rows="3" class="textarea" placeholder="Optional details for audit trail..."></textarea>
               </div>
             </div>
           </div>
-        }
-      </div>
 
-      <div class="card p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Adjustment Details</h2>
-        <div class="space-y-4">
-          <div>
-            <label class="label">Quantity Change <span class="text-red-500">*</span></label>
-            <p class="text-xs text-gray-500 mb-1">Positive to add stock, negative to remove stock</p>
-            <input type="number" [(ngModel)]="quantityChange" name="quantityChange"
-                   class="input" placeholder="e.g. 10 or -5" required />
+          <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">Summary</h2>
+            <p class="mb-3 text-xs text-slate-600">Calculated from all line items.</p>
+
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Location</span>
+                <span class="max-w-[11rem] truncate font-medium text-slate-900">{{ getSelectedLocationName() }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Total Products</span>
+                <span class="font-medium text-slate-900">{{ totals().totalProducts }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Total Increase</span>
+                <span class="font-medium text-emerald-700">+{{ totals().totalIncrease }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Total Decrease</span>
+                <span class="font-medium text-rose-700">-{{ totals().totalDecrease }}</span>
+              </div>
+              <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                <span class="text-slate-600">Net Adjustment</span>
+                <span class="font-semibold" [ngClass]="totals().netAdjustment >= 0 ? 'text-emerald-700' : 'text-rose-700'">{{ totals().netAdjustment >= 0 ? '+' : '' }}{{ totals().netAdjustment }}</span>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="mb-1 flex items-center justify-between text-xs text-slate-600">
+                <span>Readiness</span>
+                <span class="font-medium text-slate-800">{{ checklistPercent() }}%</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100">
+                <div class="h-2 rounded-full bg-slate-900" [style.width.%]="checklistPercent()"></div>
+              </div>
+            </div>
           </div>
-
-          <div>
-            <label class="label">Reason <span class="text-red-500">*</span></label>
-            <select [(ngModel)]="reason" name="reason" class="input" required>
-              <option value="">-- Select Reason --</option>
-              @for (r of ADJUSTMENT_REASONS; track r) {
-                <option [value]="r">{{ r }}</option>
-              }
-            </select>
-          </div>
-
-          <div>
-            <label class="label">Notes (optional)</label>
-            <textarea [(ngModel)]="notes" name="notes"
-                      rows="3" class="input resize-none"
-                      placeholder="Additional notes..."></textarea>
-          </div>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex justify-end gap-3">
-        <button type="button" (click)="cancel()" class="btn btn-outline">
-          Cancel
-        </button>
-        <button type="submit" [disabled]="isSubmitting()" class="btn btn-primary">
-          @if (isSubmitting()) {
-            <i class="fas fa-spinner fa-spin"></i>
-            Saving...
-          } @else {
-            <i class="fas fa-save"></i>
-            Create Adjustment
-          }
-        </button>
+        </aside>
       </div>
     </form>
   }

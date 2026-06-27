@@ -117,22 +117,36 @@ public class ProductVariantRepository : IProductVariantRepository
 
     public async Task<IEnumerable<ProductVariant>> SearchAsync(string query, int pageNumber, int pageSize)
     {
-        var queryLower = query?.ToLower() ?? "";
-        
-        var variants = await _context.ProductVariants
+        var queryLower = query?.Trim().ToLower() ?? "";
+
+        try
+        {
+            var variants = await _context.ProductVariants
+            .AsNoTracking()
             .Include(v => v.Product)
-            .Where(v => v.Product.IsActive &&
+                .ThenInclude(p => p.Category)
+            .Include(v => v.Product)
+                .ThenInclude(p => p.Images.Where(i => i.IsPrimary))
+            .Where(v => v.Product.Status == ProductStatus.Active &&
                         (string.IsNullOrEmpty(queryLower) ||
-                         v.Product.Name.ToLower().Contains(queryLower) ||
-                         v.Name.ToLower().Contains(queryLower) ||
-                         (v.Sku != null && v.Sku.ToLower().Contains(queryLower)) ||
-                         (v.Barcode != null && v.Barcode.ToLower().Contains(queryLower))))
+                         ((v.Product.ProductCode ?? string.Empty).ToLower() == queryLower) ||
+                         ((v.Product.ProductCode ?? string.Empty).ToLower().Contains(queryLower)) ||
+                         ((v.Product.Name ?? string.Empty).ToLower().Contains(queryLower)) ||
+                         ((v.Name ?? string.Empty).ToLower().Contains(queryLower)) ||
+                         ((v.Sku ?? string.Empty).ToLower().Contains(queryLower)) ||
+                         ((v.Barcode ?? string.Empty).ToLower().Contains(queryLower))))
             .OrderBy(v => v.Product.Name)
             .ThenBy(v => v.Name)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
-            
-        return variants;
+
+            return variants;
+        }
+        catch(Exception)
+        {
+            return new List<ProductVariant>(); // Return an empty list in case of an exception
+        }
+        
     }
 }

@@ -22,6 +22,7 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .Include(po => po.Supplier)
             .Include(po => po.Warehouse)
             .Include(po => po.Creator)
+            .Include(po => po.Grns)
             .Include(po => po.Items)
                 .ThenInclude(i => i.Variant)
                     .ThenInclude(v => v.Product)
@@ -296,6 +297,14 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return await query
             .OrderBy(po => po.OrderDate)
             .ToListAsync();
+    }
+
+    public async Task SetPoNumberAsync(long id, string poNumber)
+    {
+        var po = await _context.PurchaseOrders.FindAsync(id);
+        if (po == null) return;
+        po.PoNumber = poNumber;
+        await _context.SaveChangesAsync();
     }
 
     public async Task<decimal> GetTotalAmountAsync(string? status = null, DateTime? startDate = null, DateTime? endDate = null, long? businessId = null)

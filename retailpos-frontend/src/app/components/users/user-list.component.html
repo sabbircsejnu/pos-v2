@@ -24,7 +24,7 @@
 
   <!-- Filters -->
   <div class="card p-3 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
       <!-- Search -->
       <div>
         <label class="label">Search</label>
@@ -48,6 +48,22 @@
           <option [ngValue]="undefined">All Roles</option>
           @for (role of roles(); track role.id) {
             <option [ngValue]="role.id">{{ role.name }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Outlet Filter -->
+      <div>
+        <label class="label">Outlet</label>
+        <select
+          [(ngModel)]="selectedOutletId"
+          (change)="onFilterChange()"
+          class="select"
+        >
+          <option [ngValue]="undefined">All Outlets</option>
+          <option [ngValue]="0">No Outlet</option>
+          @for (outlet of outlets(); track outlet.id) {
+            <option [ngValue]="outlet.id">{{ outlet.name }}</option>
           }
         </select>
       </div>
@@ -102,6 +118,7 @@
             <th class="px-4 py-2.5">Email</th>
             <th class="px-4 py-2.5">Role</th>
             <th class="px-4 py-2.5">Outlet</th>
+            <th class="px-4 py-2.5">Warehouse</th>
             <th class="px-4 py-2.5">Status</th>
             <th class="px-4 py-2.5 text-right">Actions</th>
           </tr>
@@ -122,6 +139,17 @@
               </td>
               <td class="px-4 py-2.5">
                 <div class="text-sm text-gray-600">{{ user.outletName || 'N/A' }}</div>
+              </td>
+              <td class="px-4 py-2.5">
+                @if (user.warehouseAssignments && user.warehouseAssignments.length > 0) {
+                  <div class="flex flex-wrap gap-1">
+                    @for (wa of user.warehouseAssignments; track wa.warehouseId) {
+                      <span class="badge badge-info text-xs">{{ wa.warehouseName }}</span>
+                    }
+                  </div>
+                } @else {
+                  <div class="text-sm text-gray-600">N/A</div>
+                }
               </td>
               <td class="px-4 py-2.5">
                 <span
@@ -161,7 +189,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">
+              <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
                 No users found. Try adjusting your filters or create a new user.
               </td>
             </tr>

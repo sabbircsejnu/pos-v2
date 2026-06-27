@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { WarehouseService } from '../../services/warehouse.service';
@@ -26,6 +26,7 @@ export class WarehouseFormComponent implements OnInit {
     private warehouseService: WarehouseService,
     private userService: UserService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute
   ) {
     this.warehouseForm = this.fb.group({
@@ -96,7 +97,7 @@ export class WarehouseFormComponent implements OnInit {
     request.subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.router.navigate(['/warehouses']);
+        this.location.back();
       },
       error: (error) => {
         console.error('Error saving warehouse:', error);
@@ -107,7 +108,7 @@ export class WarehouseFormComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/warehouses']);
+    this.location.back();
   }
 
   getFieldError(fieldName: string): string {

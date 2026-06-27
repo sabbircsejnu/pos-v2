@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "expenses.view")]
 public class ExpensesController : ControllerBase
 {
     private readonly IExpenseService _expenseService;
@@ -57,6 +57,7 @@ public class ExpensesController : ControllerBase
 
     /// <summary>Create a new expense</summary>
     [HttpPost]
+    [Authorize(Policy = "expenses.create")]
     public async Task<ActionResult<ApiResponse<ExpenseDto>>> Create([FromBody] CreateExpenseDto dto)
     {
         var expense = await _expenseService.CreateAsync(dto);
@@ -68,6 +69,7 @@ public class ExpensesController : ControllerBase
 
     /// <summary>Update an expense</summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "expenses.edit")]
     public async Task<ActionResult<ApiResponse<ExpenseDto>>> Update(long id, [FromBody] UpdateExpenseDto dto)
     {
         var expense = await _expenseService.UpdateAsync(id, dto);
@@ -76,6 +78,7 @@ public class ExpensesController : ControllerBase
 
     /// <summary>Delete an expense</summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "expenses.delete")]
     public async Task<ActionResult<ApiResponse>> Delete(long id)
     {
         await _expenseService.DeleteAsync(id);

@@ -5,8 +5,7 @@ import { InventoryService } from '../../services/inventory.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { LowStock } from '../../models/inventory.model';
-import { OutletService } from '../../services/outlet.service';
-import { WarehouseService } from '../../services/warehouse.service';
+import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { Outlet } from '../../models/outlet.model';
 import { Warehouse } from '../../models/warehouse.model';
 
@@ -161,8 +160,7 @@ export class LowStockAlertsComponent implements OnInit {
 
   constructor(
     private inventoryService: InventoryService,
-    private outletService: OutletService,
-    private warehouseService: WarehouseService,
+    private userOutletAccess: UserOutletAccessService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
   ) {}
@@ -172,22 +170,17 @@ export class LowStockAlertsComponent implements OnInit {
   }
 
   loadData(): void {
-    this.loadOutlets();
-    this.loadWarehouses();
+    this.loadAuthorizedLocations();
     this.loadLowStockItems();
   }
 
-  loadOutlets(): void {
-    this.outletService.getAllOutlets().subscribe({
-      next: (response: any) => this.outlets.set(response.data),
-      error: (err: any) => console.error('Failed to load outlets', err)
-    });
-  }
-
-  loadWarehouses(): void {
-    this.warehouseService.getAllWarehouses().subscribe({
-      next: (response: any) => this.warehouses.set(response.data),
-      error: (err: any) => console.error('Failed to load warehouses', err)
+  loadAuthorizedLocations(): void {
+    this.userOutletAccess.load().subscribe({
+      next: (response: any) => {
+        this.outlets.set(response?.data?.outlets || []);
+        this.warehouses.set(response?.data?.warehouses || []);
+      },
+      error: (err: any) => console.error('Failed to load authorized locations', err)
     });
   }
 

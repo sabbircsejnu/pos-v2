@@ -6,6 +6,7 @@ namespace RetailPOS.API.DTOs.Variation
         public string Name { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsActive { get; set; }
+        public bool AutoSelectAllOptions { get; set; }
         public List<VariationOptionDto> Options { get; set; } = new();
     }
 
@@ -14,6 +15,7 @@ namespace RetailPOS.API.DTOs.Variation
         public string Name { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool AutoSelectAllOptions { get; set; } = false;
         public List<CreateVariationOptionDto> Options { get; set; } = new();
     }
 
@@ -22,6 +24,7 @@ namespace RetailPOS.API.DTOs.Variation
         public string Name { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsActive { get; set; }
+        public bool AutoSelectAllOptions { get; set; }
     }
 
     public class VariationOptionDto

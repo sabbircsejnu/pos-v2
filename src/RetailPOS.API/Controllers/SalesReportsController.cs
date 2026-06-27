@@ -8,7 +8,7 @@ namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/reports/sales")]
-[Authorize]
+[Authorize(Policy = "reports.sales")]
 public class SalesReportsController : ControllerBase
 {
     private readonly ISalesReportService _salesReportService;

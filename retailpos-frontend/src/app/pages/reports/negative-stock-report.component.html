@@ -1,0 +1,249 @@
+<div class="flex flex-col h-full">
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="flex justify-between items-start mb-4 px-4 pt-4 flex-shrink-0">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Negative Stock Report</h1>
+      <p class="text-sm text-gray-500 mt-0.5">
+        <i class="fas fa-exclamation-triangle text-purple-500 mr-1"></i>
+        Items with stock quantities below zero — requires immediate investigation
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (report() && totalCount() > 0) {
+        <div class="relative group">
+          <button class="btn btn-outline text-sm">
+            <i class="fas fa-download"></i> Export <i class="fas fa-chevron-down ml-1"></i>
+          </button>
+          <div class="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-20
+                      invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150">
+            <button (click)="export('csv')"
+                    class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg">
+              <i class="fas fa-file-csv text-green-600 w-4"></i> Export CSV
+            </button>
+            <button (click)="export('excel')"
+                    class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
+              <i class="fas fa-file-excel text-green-700 w-4"></i> Export Excel
+            </button>
+          </div>
+        </div>
+      }
+      <button (click)="loadReport()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+        <i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────────────────────────────── -->
+  <div class="card mx-4 mb-4 p-4 flex-shrink-0">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+      <div>
+        <label class="label">Outlet</label>
+        <select class="input" [ngModel]="outletId()" (ngModelChange)="outletId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Outlets</option>
+          @for (o of outletService.outlets(); track o.id) {
+            <option [ngValue]="o.id">{{ o.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Warehouse</label>
+        <select class="input" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Warehouses</option>
+          @for (w of warehouseService.warehouses(); track w.id) {
+            <option [ngValue]="w.id">{{ w.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Category</label>
+        <select class="input" [ngModel]="categoryId()" (ngModelChange)="categoryId.set($event ? +$event : null)">
+          <option [ngValue]="null">All Categories</option>
+          @for (c of categoryService.categories(); track c.id) {
+            <option [ngValue]="c.id">{{ c.name }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="label">Search</label>
+        <input type="text" class="input" placeholder="Name, SKU or barcode…"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button (click)="resetFilters()" class="btn btn-outline text-sm">
+        <i class="fas fa-times"></i> Reset
+      </button>
+      <button (click)="applyFilters()" class="btn btn-primary text-sm" [disabled]="isLoading()">
+        <i class="fas fa-search"></i> Apply
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16 flex-shrink-0">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-400"></i>
+    </div>
+  } @else {
+
+    <!-- ── Summary Cards ────────────────────────────────────────────────── -->
+    @if (summary()) {
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mx-4 mb-4 flex-shrink-0">
+        <div class="card p-3 bg-purple-50 border-purple-200">
+          <p class="text-xs text-purple-600 font-medium">Total Negative Stock SKUs</p>
+          <p class="text-xl font-bold text-purple-800">{{ summary()!.totalSkus | number }}</p>
+        </div>
+        <div class="card p-3 bg-red-50 border-red-200">
+          <p class="text-xs text-red-600 font-medium">Total Negative Quantity</p>
+          <p class="text-xl font-bold text-red-800">{{ summary()!.totalNegativeQty | number }}</p>
+          <p class="text-xs text-red-500">Sum of all negative quantities</p>
+        </div>
+        <div class="card p-3 bg-red-50 border-red-200">
+          <p class="text-xs text-red-600 font-medium">Total Negative Value</p>
+          <p class="text-xl font-bold text-red-800">{{ formatCurrency(summary()!.totalNegativeValue) }}</p>
+          <p class="text-xs text-red-500">Estimated inventory discrepancy</p>
+        </div>
+      </div>
+    }
+
+    <!-- ── Alert Banner ─────────────────────────────────────────────────── -->
+    @if (totalCount() > 0) {
+      <div class="mx-4 mb-4 flex-shrink-0 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-start gap-3">
+        <i class="fas fa-exclamation-triangle text-purple-600 mt-0.5"></i>
+        <div class="text-sm text-purple-800">
+          <strong>{{ totalCount() }} negative stock {{ totalCount() === 1 ? 'line' : 'lines' }} detected.</strong>
+          Negative stock usually indicates overselling, manual adjustments, or data entry errors.
+          Review recent stock movements to identify the cause.
+        </div>
+      </div>
+    }
+
+    <!-- ── Table ────────────────────────────────────────────────────────── -->
+    <div class="mx-4 mb-4 card flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div class="text-sm text-gray-600">
+          @if (totalCount() > 0) {
+            Showing {{ (page() - 1) * pageSize() + 1 }}–{{ page() * pageSize() < totalCount() ? page() * pageSize() : totalCount() }}
+            of <strong>{{ totalCount() | number }}</strong> rows
+          } @else { No data }
+        </div>
+        <select class="input py-1 text-sm w-20"
+                [ngModel]="pageSize()"
+                (ngModelChange)="onPageSizeChange(+$event)">
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+          <option [ngValue]="100">100</option>
+          <option [ngValue]="200">200</option>
+        </select>
+      </div>
+
+      <div class="overflow-auto flex-1">
+        <table class="table min-w-full">
+          <thead class="sticky top-0 z-10 bg-gray-50">
+            <tr>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('productName')">
+                Product <i [class]="sortIcon('productName')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('sku')">
+                SKU <i [class]="sortIcon('sku')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('category')">
+                Category <i [class]="sortIcon('category')"></i>
+              </th>
+              <th class="cursor-pointer whitespace-nowrap" (click)="sort('location')">
+                Location <i [class]="sortIcon('location')"></i>
+              </th>
+              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('currentStock')">
+                Current Stock <i [class]="sortIcon('currentStock')"></i>
+              </th>
+              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitCost')">
+                Unit Cost <i [class]="sortIcon('unitCost')"></i>
+              </th>
+              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('stockValue')">
+                Stock Value <i [class]="sortIcon('stockValue')"></i>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.variantId + '_' + row.locationId) {
+              <tr class="hover:bg-purple-50 transition-colors">
+                <td>
+                  <div class="font-medium text-gray-900 text-sm">{{ row.productName }}</div>
+                  @if (row.productCode) {
+                    <div class="text-xs text-gray-400">{{ row.productCode }}</div>
+                  }
+                </td>
+                <td class="font-mono text-xs text-gray-500">{{ row.sku }}</td>
+                <td class="text-sm text-gray-600">{{ row.categoryName }}</td>
+                <td class="text-sm text-gray-600">
+                  {{ row.locationName }}
+                  <span class="ml-1 text-xs text-gray-400">({{ row.locationType }})</span>
+                </td>
+                <td class="text-right font-bold text-red-700">{{ row.currentStock | number }}</td>
+                <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
+                <td class="text-right font-bold text-red-700">{{ formatCurrency(row.stockValue) }}</td>
+              </tr>
+            }
+            @if (rows().length === 0) {
+              <tr>
+                <td colspan="7" class="text-center text-gray-500 py-12">
+                  <i class="fas fa-check-circle text-4xl text-green-300 mb-3 block"></i>
+                  No negative stock found. All inventory levels are at or above zero.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Sticky Footer -->
+      @if (summary() && totalCount() > 0) {
+        <div class="sticky bottom-0 border-t-2 border-gray-300 bg-purple-50 flex-shrink-0">
+          <div class="overflow-x-auto">
+            <table class="table min-w-full">
+              <tfoot>
+                <tr class="font-bold text-gray-800">
+                  <td colspan="4" class="text-xs uppercase text-gray-500 whitespace-nowrap">
+                    TOTAL ({{ totalCount() | number }} rows)
+                  </td>
+                  <td class="text-right text-red-700">{{ summary()!.totalNegativeQty | number }}</td>
+                  <td></td>
+                  <td class="text-right text-red-700">{{ formatCurrency(summary()!.totalNegativeValue) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
+          <button (click)="goToPage(page() - 1)" [disabled]="page() === 1"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            <i class="fas fa-chevron-left"></i> Prev
+          </button>
+          <div class="flex items-center gap-1">
+            @if (pages()[0] > 1) {
+              <button (click)="goToPage(1)" class="btn btn-outline text-sm py-1 px-3">1</button>
+              @if (pages()[0] > 2) { <span class="px-1 text-gray-400">…</span> }
+            }
+            @for (p of pages(); track p) {
+              <button (click)="goToPage(p)"
+                      [class.btn-primary]="p === page()"
+                      [class.btn-outline]="p !== page()"
+                      class="btn text-sm py-1 px-3">{{ p }}</button>
+            }
+            @if (pages()[pages().length - 1] < totalPages()) {
+              @if (pages()[pages().length - 1] < totalPages() - 1) { <span class="px-1 text-gray-400">…</span> }
+              <button (click)="goToPage(totalPages())" class="btn btn-outline text-sm py-1 px-3">{{ totalPages() }}</button>
+            }
+          </div>
+          <button (click)="goToPage(page() + 1)" [disabled]="page() === totalPages()"
+                  class="btn btn-outline text-sm py-1 px-3 disabled:opacity-40">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

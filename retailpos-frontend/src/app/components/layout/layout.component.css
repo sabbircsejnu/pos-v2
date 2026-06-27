@@ -1,1 +1,3 @@
-/* Layout Component Styles */
+:host {
+	display: block;
+}

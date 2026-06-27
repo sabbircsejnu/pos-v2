@@ -187,19 +187,19 @@ public static class DbSeeder
 
         // 9. Seed Products
         // Product 1: Laptop (no variants)
-        var laptopProduct = new Product { Name = "ProBook Laptop 15", Description = "High-performance 15-inch laptop", Sku = "LPTP-001", Barcode = "8901234567890", CategoryId = laptopCategory.Id, BasePrice = 999.99m, CostPrice = 750.00m, TaxRate = 8.5m, HasVariants = false, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var laptopProduct = new Product { Name = "ProBook Laptop 15", Description = "High-performance 15-inch laptop", Sku = "LPTP-001", Barcode = "8901234567890", CategoryId = laptopCategory.Id, BasePrice = 999.99m, CostPrice = 750.00m, TaxRate = 8.5m, HasVariants = false, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 2: Smartphone (with storage variants)
-        var phoneProduct = new Product { Name = "SmartPhone X12", Description = "Latest flagship smartphone", Sku = "PHN-X12", Barcode = "8901234567891", CategoryId = phonesCategory.Id, BasePrice = 699.99m, CostPrice = 500.00m, TaxRate = 8.5m, HasVariants = true, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var phoneProduct = new Product { Name = "SmartPhone X12", Description = "Latest flagship smartphone", Sku = "PHN-X12", Barcode = "8901234567891", CategoryId = phonesCategory.Id, BasePrice = 699.99m, CostPrice = 500.00m, TaxRate = 8.5m, HasVariants = true, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 3: USB Cable (no variants)
-        var cableProduct = new Product { Name = "USB-C Cable 2m", Description = "High-speed USB-C cable 2 meters", Sku = "ACC-USB-C-2M", Barcode = "8901234567892", CategoryId = accessoriesCategory.Id, BasePrice = 19.99m, CostPrice = 5.00m, TaxRate = 8.5m, HasVariants = false, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var cableProduct = new Product { Name = "USB-C Cable 2m", Description = "High-speed USB-C cable 2 meters", Sku = "ACC-USB-C-2M", Barcode = "8901234567892", CategoryId = accessoriesCategory.Id, BasePrice = 19.99m, CostPrice = 5.00m, TaxRate = 8.5m, HasVariants = false, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 4: Men's T-Shirt (with color and size variants)
-        var tshirtProduct = new Product { Name = "Classic Crew T-Shirt", Description = "100% cotton crew-neck t-shirt", Sku = "CLT-MENS-TS", Barcode = "8901234567893", CategoryId = mensWearCategory.Id, BasePrice = 29.99m, CostPrice = 10.00m, TaxRate = 0m, HasVariants = true, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var tshirtProduct = new Product { Name = "Classic Crew T-Shirt", Description = "100% cotton crew-neck t-shirt", Sku = "CLT-MENS-TS", Barcode = "8901234567893", CategoryId = mensWearCategory.Id, BasePrice = 29.99m, CostPrice = 10.00m, TaxRate = 0m, HasVariants = true, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 5: Women's Dress (with color and size variants)
-        var dressProduct = new Product { Name = "Summer Floral Dress", Description = "Light and elegant summer dress", Sku = "CLT-WMN-DRS", Barcode = "8901234567894", CategoryId = womensWearCategory.Id, BasePrice = 49.99m, CostPrice = 18.00m, TaxRate = 0m, HasVariants = true, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var dressProduct = new Product { Name = "Summer Floral Dress", Description = "Light and elegant summer dress", Sku = "CLT-WMN-DRS", Barcode = "8901234567894", CategoryId = womensWearCategory.Id, BasePrice = 49.99m, CostPrice = 18.00m, TaxRate = 0m, HasVariants = true, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 6: Coffee Beans (no variants)
-        var coffeeProduct = new Product { Name = "Arabica Coffee Beans 1kg", Description = "Premium single-origin Arabica beans", Sku = "FOOD-COF-1KG", Barcode = "8901234567895", CategoryId = coffeeCategory.Id, BasePrice = 24.99m, CostPrice = 12.00m, TaxRate = 5m, HasVariants = false, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var coffeeProduct = new Product { Name = "Arabica Coffee Beans 1kg", Description = "Premium single-origin Arabica beans", Sku = "FOOD-COF-1KG", Barcode = "8901234567895", CategoryId = coffeeCategory.Id, BasePrice = 24.99m, CostPrice = 12.00m, TaxRate = 5m, HasVariants = false, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         // Product 7: Wireless Earbuds (with color variants)
-        var earbudsProduct = new Product { Name = "TrueWireless Earbuds", Description = "Noise-cancelling wireless earbuds", Sku = "ACC-EAR-TWS", Barcode = "8901234567896", CategoryId = accessoriesCategory.Id, BasePrice = 89.99m, CostPrice = 35.00m, TaxRate = 8.5m, HasVariants = true, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var earbudsProduct = new Product { Name = "TrueWireless Earbuds", Description = "Noise-cancelling wireless earbuds", Sku = "ACC-EAR-TWS", Barcode = "8901234567896", CategoryId = accessoriesCategory.Id, BasePrice = 89.99m, CostPrice = 35.00m, TaxRate = 8.5m, HasVariants = true, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
 
         await context.Products.AddRangeAsync(laptopProduct, phoneProduct, cableProduct, tshirtProduct, dressProduct, coffeeProduct, earbudsProduct);
         await context.SaveChangesAsync();
@@ -504,8 +504,62 @@ public static class DbSeeder
         // 19. Seed Stock Adjustments
         var stockAdjustments = new List<StockAdjustment>
         {
-            new StockAdjustment { LocationId = mainOutlet.Id, LocationType = "outlet", VariantId = coffeeVariant.Id, QuantityChange = -5, Reason = "Damaged goods - water damage", AdjustedBy = sarahManager.Id, AdjustmentDate = now.AddDays(-8) },
-            new StockAdjustment { LocationId = centralWarehouse.Id, LocationType = "warehouse", VariantId = cableVariant.Id, QuantityChange = 50, Reason = "Stock count correction after audit", AdjustedBy = tomStock.Id, AdjustmentDate = now.AddDays(-6) }
+            new StockAdjustment
+            {
+                AdjustmentNumber = "ADJ-2026-00001",
+                Status = StockAdjustment.StatusApproved,
+                LocationId = mainOutlet.Id,
+                LocationType = "outlet",
+                AdjustedBy = sarahManager.Id,
+                AdjustmentDate = now.AddDays(-8),
+                CreatedAt = now.AddDays(-8),
+                UpdatedAt = now.AddDays(-8),
+                SubmittedAt = now.AddDays(-8),
+                ApprovedBy = sarahManager.Id,
+                ApprovedAt = now.AddDays(-8),
+                Lines = new List<StockAdjustmentLine>
+                {
+                    new StockAdjustmentLine
+                    {
+                        VariantId = coffeeVariant.Id,
+                        PreviousQuantity = 25,
+                        QuantityChange = -5,
+                        NewQuantity = 20,
+                        Reason = "Damaged",
+                        Notes = "Water damage",
+                        CreatedAt = now.AddDays(-8),
+                        UpdatedAt = now.AddDays(-8)
+                    }
+                }
+            },
+            new StockAdjustment
+            {
+                AdjustmentNumber = "ADJ-2026-00002",
+                Status = StockAdjustment.StatusApproved,
+                LocationId = centralWarehouse.Id,
+                LocationType = "warehouse",
+                AdjustedBy = tomStock.Id,
+                AdjustmentDate = now.AddDays(-6),
+                CreatedAt = now.AddDays(-6),
+                UpdatedAt = now.AddDays(-6),
+                SubmittedAt = now.AddDays(-6),
+                ApprovedBy = sarahManager.Id,
+                ApprovedAt = now.AddDays(-6),
+                Lines = new List<StockAdjustmentLine>
+                {
+                    new StockAdjustmentLine
+                    {
+                        VariantId = cableVariant.Id,
+                        PreviousQuantity = 150,
+                        QuantityChange = 50,
+                        NewQuantity = 200,
+                        Reason = "StockCountCorrection",
+                        Notes = "After physical audit",
+                        CreatedAt = now.AddDays(-6),
+                        UpdatedAt = now.AddDays(-6)
+                    }
+                }
+            }
         };
         await context.StockAdjustments.AddRangeAsync(stockAdjustments);
         await context.SaveChangesAsync();
@@ -631,6 +685,11 @@ public static class DbSeeder
                     ""products.view"", ""products.create"", ""products.edit"",
                     ""categories.view"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"",
+                    ""stock_adjustments.view"", ""stock_adjustments.create"",
+                    ""StockCount.ViewOwn"", ""StockCount.Create"", ""StockCount.Download"", ""StockCount.Print"", ""StockCount.Upload"", ""StockCount.Submit"", ""StockCount.Reject"", ""StockCount.Reopen"",
+                    ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
+                    ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
+                    ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"", ""sales.edit"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
@@ -646,6 +705,9 @@ public static class DbSeeder
                 Permissions = @"[
                     ""products.view"",
                     ""inventory.view"",
+                    ""stock_requisitions.view"",
+                    ""stock_transfers.view"",
+                    ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"",
                     ""customers.view"", ""customers.create""
                 ]",
@@ -661,6 +723,11 @@ public static class DbSeeder
                     ""products.view"", ""products.create"", ""products.edit"", ""products.delete"",
                     ""categories.view"", ""categories.create"", ""categories.edit"", ""categories.delete"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"", ""inventory.delete"",
+                    ""stock_adjustments.view"", ""stock_adjustments.create"", ""stock_adjustments.edit"", ""stock_adjustments.delete"", ""stock_adjustments.approve"", ""stock_adjustments.cancel"",
+                    ""StockCount.ViewOwn"", ""StockCount.ViewAll"", ""StockCount.Create"", ""StockCount.Download"", ""StockCount.Print"", ""StockCount.Upload"", ""StockCount.Submit"", ""StockCount.Approve"", ""StockCount.Reject"", ""StockCount.Reopen"",
+                    ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.edit"", ""stock_transfers.delete"", ""stock_transfers.approve"", ""stock_transfers.cancel"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"", ""stock_transfers.transfer_from_any_location"",
+                    ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
+                    ""low_stock_alerts.view"", ""low_stock_alerts.create"", ""low_stock_alerts.edit"", ""low_stock_alerts.delete"",
                     ""sales.view"", ""sales.create"", ""sales.edit"", ""sales.delete"",
                     ""purchases.view"", ""purchases.create"", ""purchases.edit"", ""purchases.delete"",
                     ""customers.view"", ""customers.create"", ""customers.edit"", ""customers.delete"",
@@ -680,6 +747,11 @@ public static class DbSeeder
                     ""products.view"", ""products.create"", ""products.edit"",
                     ""categories.view"", ""categories.create"", ""categories.edit"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"",
+                    ""stock_adjustments.view"", ""stock_adjustments.create"",
+                    ""StockCount.ViewOwn"", ""StockCount.Create"", ""StockCount.Download"", ""StockCount.Print"", ""StockCount.Upload"", ""StockCount.Submit"", ""StockCount.Reject"", ""StockCount.Reopen"",
+                    ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
+                    ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
+                    ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"", ""sales.edit"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
@@ -695,6 +767,7 @@ public static class DbSeeder
                 Permissions = @"[
                     ""products.view"",
                     ""inventory.view"",
+                    ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"",
                     ""customers.view"", ""customers.create""
                 ]",
@@ -708,6 +781,11 @@ public static class DbSeeder
                     ""products.view"",
                     ""categories.view"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"", ""inventory.delete"",
+                    ""stock_adjustments.view"", ""stock_adjustments.create"", ""stock_adjustments.edit"", ""stock_adjustments.delete"", ""stock_adjustments.approve"", ""stock_adjustments.cancel"",
+                    ""StockCount.ViewOwn"", ""StockCount.Create"", ""StockCount.Download"", ""StockCount.Print"", ""StockCount.Upload"", ""StockCount.Submit"", ""StockCount.Reject"", ""StockCount.Reopen"",
+                    ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.edit"", ""stock_transfers.delete"", ""stock_transfers.approve"", ""stock_transfers.cancel"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"", ""stock_transfers.transfer_from_any_location"",
+                    ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
+                    ""low_stock_alerts.view"", ""low_stock_alerts.edit"",
                     ""purchases.view"", ""purchases.create"", ""purchases.edit"",
                     ""suppliers.view"", ""suppliers.create"", ""suppliers.edit"",
                     ""warehouses.view"",
@@ -722,6 +800,7 @@ public static class DbSeeder
                 Permissions = @"[
                     ""products.view"",
                     ""inventory.view"",
+                    ""low_stock_alerts.view"",
                     ""sales.view"",
                     ""reports.view""
                 ]",

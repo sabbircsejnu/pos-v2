@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.Pos;
 using RetailPOS.API.DTOs.Pricing;
+using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.API.Services;
@@ -130,7 +131,7 @@ public sealed class PosLookupService : IPosLookupService
                 ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
-                IsActive    = v.Product.IsActive
+                IsActive    = v.Product.Status == ProductStatus.Active
             })
             .FirstOrDefaultAsync();
 
@@ -138,7 +139,7 @@ public sealed class PosLookupService : IPosLookupService
         if (proj is null)
         {
             proj = await _context.Products
-                .Where(p => p.Barcode == barcode && p.IsActive)
+                .Where(p => p.Barcode == barcode && p.Status == ProductStatus.Active)
                 .SelectMany(
                     p => p.ProductVariants.Take(1),
                     (p, v) => new VariantProjection
@@ -152,7 +153,7 @@ public sealed class PosLookupService : IPosLookupService
                         ImageUrl    = p.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                         BasePrice   = p.BasePrice + v.PriceAdjustment,
                         TaxRate     = p.TaxRate,
-                        IsActive    = p.IsActive
+                        IsActive    = p.Status == ProductStatus.Active
                     })
                 .FirstOrDefaultAsync();
         }
@@ -176,7 +177,7 @@ public sealed class PosLookupService : IPosLookupService
                 ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
-                IsActive    = v.Product.IsActive
+                IsActive    = v.Product.Status == ProductStatus.Active
             })
             .FirstOrDefaultAsync();
 
@@ -199,7 +200,7 @@ public sealed class PosLookupService : IPosLookupService
                 ImageUrl    = v.Product.Images.Where(i => i.IsPrimary).Select(i => i.ThumbPath).FirstOrDefault(),
                 BasePrice   = v.Product.BasePrice + v.PriceAdjustment,
                 TaxRate     = v.Product.TaxRate,
-                IsActive    = v.Product.IsActive
+                IsActive    = v.Product.Status == ProductStatus.Active
             })
             .FirstOrDefaultAsync();
 

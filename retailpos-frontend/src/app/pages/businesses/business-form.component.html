@@ -1,0 +1,112 @@
+<div class="p-6 space-y-6 max-w-5xl">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Create Business</h1>
+    <p class="text-sm text-gray-600">Onboard a new tenant with default users and outlet.</p>
+  </div>
+
+  <form class="space-y-6" (ngSubmit)="submit()">
+    <div class="bg-white border rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 class="md:col-span-2 text-sm font-semibold text-gray-700">Business Details</h2>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Business Name *</label>
+        <input required name="businessName" [(ngModel)]="model.businessName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Business Email</label>
+        <input name="businessEmail" [(ngModel)]="model.businessEmail" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Business Phone</label>
+        <input name="businessPhone" [(ngModel)]="model.businessPhone" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Default Outlet Name *</label>
+        <input required name="defaultOutletName" [(ngModel)]="model.defaultOutletName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Business Address</label>
+        <input name="businessAddress" [(ngModel)]="model.businessAddress" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 class="md:col-span-2 text-sm font-semibold text-gray-700">Default Users</h2>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Owner Name *</label>
+        <input required name="ownerName" [(ngModel)]="model.ownerName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Owner Email *</label>
+        <input required name="ownerEmail" [(ngModel)]="model.ownerEmail" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Outlet Manager Name *</label>
+        <input required name="outletManagerName" [(ngModel)]="model.outletManagerName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Outlet Manager Email *</label>
+        <input required name="outletManagerEmail" [(ngModel)]="model.outletManagerEmail" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Sales Person Name *</label>
+        <input required name="salesPersonName" [(ngModel)]="model.salesPersonName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Sales Person Email *</label>
+        <input required name="salesPersonEmail" [(ngModel)]="model.salesPersonEmail" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Accounts Admin Name *</label>
+        <input required name="accountsAdminName" [(ngModel)]="model.accountsAdminName" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Accounts Admin Email *</label>
+        <input required name="accountsAdminEmail" [(ngModel)]="model.accountsAdminEmail" class="w-full border rounded-lg px-3 py-2" />
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 class="md:col-span-2 text-sm font-semibold text-gray-700">Optional Warehouse</h2>
+
+      <label class="flex items-center gap-2 md:col-span-2 text-sm text-gray-700">
+        <input type="checkbox" name="createDefaultWarehouse" [(ngModel)]="model.createDefaultWarehouse" />
+        Create default warehouse and warehouse manager
+      </label>
+
+      @if (model.createDefaultWarehouse) {
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Warehouse Name *</label>
+          <input required name="defaultWarehouseName" [(ngModel)]="model.defaultWarehouseName" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Warehouse Manager Name *</label>
+          <input required name="warehouseManagerName" [(ngModel)]="model.warehouseManagerName" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Warehouse Manager Email *</label>
+          <input required name="warehouseManagerEmail" [(ngModel)]="model.warehouseManagerEmail" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+      }
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        type="submit"
+        class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+        [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Creating...' : 'Create Business' }}
+      </button>
+      <button
+        type="button"
+        class="px-4 py-2 rounded-lg border hover:bg-gray-50"
+        (click)="cancel()">
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

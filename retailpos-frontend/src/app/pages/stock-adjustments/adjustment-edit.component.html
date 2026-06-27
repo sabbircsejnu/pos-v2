@@ -1,0 +1,51 @@
+<div class="container mx-auto px-4 py-4">
+  @if (isLoading()) {
+    <div class="bg-white rounded-lg shadow-md p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
+      <p class="text-sm text-gray-600">Loading draft adjustment...</p>
+    </div>
+  } @else if (adjustment(); as adj) {
+    <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-6 space-y-5">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Edit {{ adj.adjustmentNumber }}</h1>
+        <p class="text-sm text-gray-600 mt-1">Only draft adjustments can be edited.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Location Type</label>
+          <select [(ngModel)]="locationType" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option value="outlet">Outlet</option>
+            <option value="warehouse">Warehouse</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+          <select [(ngModel)]="locationId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            @for (loc of getLocations(); track loc.id) {
+              <option [ngValue]="loc.id">{{ loc.name }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Default Reason (for new lines)</label>
+          <select [(ngModel)]="reason" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option value="">-- Select Default Reason --</option>
+            @for (r of reasons; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea [(ngModel)]="notes" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button (click)="cancel()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+        <button (click)="save()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">Save Changes</button>
+      </div>
+    </div>
+  }
+</div>

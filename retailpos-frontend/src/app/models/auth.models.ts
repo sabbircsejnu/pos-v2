@@ -1,5 +1,7 @@
 export interface User {
   id: number;
+  businessId?: number;
+  businessName?: string;
   name: string;
   email: string;
   roleName?: string;

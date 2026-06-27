@@ -1,60 +1,97 @@
-<!-- Sidebar -->
 <aside
-  [class.translate-x-0]="menuService.sidebarOpen()"
-  [class.-translate-x-full]="!menuService.sidebarOpen()"
-  class="fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-56 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out z-40 overflow-y-auto scrollbar-thin"
->
-  @if (activeParentMenu) {
-    <!-- Sidebar Header -->
-    <div class="bg-gray-900 text-white px-4 py-3 sticky top-0 z-10 border-b border-gray-800">
-      <div class="flex items-center space-x-2.5">
-        <div class="p-1.5 bg-white/10 rounded">
-          <i [class]="activeParentMenu.icon" class="text-base"></i>
+  class="app-sidebar fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] -translate-x-full border-r border-slate-200 bg-[#f7f7f8] transition-all duration-200 ease-in-out lg:translate-x-0"
+  [class.sidebar-density-comfortable]="menuService.sidebarDensity() === 'comfortable'"
+  [class.sidebar-density-compact]="menuService.sidebarDensity() === 'compact'"
+  [class.translate-x-0]="menuService.mobileSidebarOpen()"
+  [ngClass]="menuService.sidebarCollapsed()
+    ? 'w-72 lg:w-14'
+    : (menuService.sidebarDensity() === 'comfortable' ? 'w-72 lg:w-[18rem]' : 'w-72 lg:w-[17rem]')">
+  <div class="h-full overflow-y-auto px-0 py-0">
+    <header class="border-b border-[#e6e6ea] bg-white px-5 py-3.5" [class.compact]="menuService.sidebarCollapsed()">
+      <div class="flex items-center justify-between gap-2" [class.justify-center]="menuService.sidebarCollapsed()">
+        <div class="flex items-center gap-2.5" [class.hidden]="menuService.sidebarCollapsed()">
+          <div class="brand-mark inline-flex h-9 w-9 items-center justify-center rounded-lg text-white shadow-sm">
+            <i class="fas fa-layer-group text-sm"></i>
+          </div>
+          <div>
+            <p class="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#64748b]">RetailPOS</p>
+            <p class="text-[15px] font-semibold leading-4 text-[#0f172a]">ERP Workspace</p>
+          </div>
         </div>
-        <div>
-          <h2 class="font-semibold text-sm">{{ activeParentMenu.label }}</h2>
-          <p class="text-xs text-gray-400">{{ childMenuItems.length }} items</p>
-        </div>
+        <button
+          type="button"
+          (click)="menuService.toggleSidebar()"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-md text-[#444a5c] hover:bg-slate-100"
+          title="Toggle Sidebar">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="px-5 py-4" [class.hidden]="menuService.sidebarCollapsed()">
+      <div class="relative">
+        <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#a2a7b4]"></i>
+        <input
+          type="text"
+          placeholder="Search here"
+          class="w-full rounded-lg border border-[#e3e5ea] bg-[#f8f8fb] py-2.5 pl-11 pr-3 text-[14px] text-[#666d80] placeholder:text-[#a2a7b4] focus:border-[#cfd3df] focus:bg-white focus:outline-none" />
       </div>
     </div>
 
-    <!-- Child Menu Items -->
-    <nav class="py-1">
-      @for (child of childMenuItems; track child.id) {
-        <a
-          [routerLink]="child.route"
-          routerLinkActive="bg-gray-100 text-gray-900 border-l-3 border-gray-900 font-semibold"
-          class="flex items-center space-x-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-l-3 border-transparent"
-        >
-          <i [class]="child.icon" class="text-sm text-gray-500"></i>
-          <span class="font-medium">{{ child.label }}</span>
-        </a>
+    <div class="space-y-4 px-4 pb-5">
+      @for (section of sections; track section.id) {
+        <section>
+          <button
+            type="button"
+            (click)="toggleGroup(section.id)"
+            class="group-header flex w-full items-center gap-2 rounded px-2 py-1 text-left"
+            [class.hidden]="menuService.sidebarCollapsed()">
+            <span class="text-[11px] uppercase font-semibold tracking-[0.18em] text-[#94a3b8]">
+              {{ formatSectionLabel(section.label) }}
+            </span>
+            <span class="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-[#b2b7c5] transition"
+              [class.rotate-180]="!isGroupCollapsed(section.id)">
+              <i class="fas fa-chevron-down text-[11px]"></i>
+            </span>
+          </button>
+
+          <div
+            class="group-items mt-2 space-y-1.5"
+            [class.group-items-collapsed]="isGroupCollapsed(section.id)"
+            [class.group-items-expanded]="!isGroupCollapsed(section.id)">
+            <div class="group-items-inner space-y-1">
+              @for (item of section.items; track item.id) {
+                <button
+                  type="button"
+                  (click)="navigateToItem(item)"
+                  [disabled]="item.disabled"
+                  [title]="item.label"
+                  class="nav-item group flex w-full items-center gap-2.5 rounded-lg border-l-[3px] px-3 py-2 text-[15px] leading-5 transition"
+                  [ngClass]="isItemActive(item)
+                    ? 'is-active text-[#1e3a8a] font-semibold'
+                    : 'border-l-transparent text-[#475569] hover:bg-white hover:text-[#0f172a]'"
+                  [class.justify-center]="menuService.sidebarCollapsed()"
+                  [class.cursor-not-allowed]="item.disabled"
+                  [class.opacity-50]="item.disabled">
+                  <span class="nav-icon inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-current">
+                    <i [class]="item.icon" class="text-[18px]"></i>
+                  </span>
+                  <span class="truncate" [class.hidden]="menuService.sidebarCollapsed()">{{ item.label }}</span>
+                  @if (item.disabled && !menuService.sidebarCollapsed()) {
+                    <span class="ml-auto rounded-full bg-[#eceef4] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#7d8497]">Soon</span>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        </section>
       }
-    </nav>
-
-    <!-- Sidebar Footer -->
-    <div class="absolute bottom-0 left-0 right-0 bg-gray-50 px-4 py-3 border-t border-gray-200">
-      <div class="text-xs text-gray-500 text-center flex items-center justify-center gap-1.5">
-        <i class="fas fa-info-circle text-gray-400"></i>
-        <span>Click items to navigate</span>
-      </div>
     </div>
-  } @else {
-    <!-- No Parent Menu Selected -->
-    <div class="flex flex-col items-center justify-center h-full px-6 text-center">
-      <div class="p-5 bg-gray-100 rounded-lg mb-3">
-        <i class="fas fa-arrow-up text-4xl text-gray-300"></i>
-      </div>
-      <h3 class="text-base font-semibold text-gray-700 mb-1">Select a Menu</h3>
-      <p class="text-xs text-gray-500">Choose a menu from the top bar</p>
-    </div>
-  }
+  </div>
 </aside>
 
-<!-- Overlay for mobile -->
-@if (menuService.sidebarOpen()) {
+@if (menuService.mobileSidebarOpen()) {
   <div
-    (click)="menuService.toggleSidebar()"
-    class="fixed inset-0 bg-black/40 z-30 lg:hidden top-14"
-  ></div>
+    (click)="menuService.closeMobileSidebar()"
+    class="fixed inset-0 z-30 bg-slate-900/45 lg:hidden top-14"></div>
 }

@@ -1,26 +1,47 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { AuthService } from '../../services/auth.service';
+import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import {
+  ReceiveStockTransferDto,
   StockTransferDto,
+  getTransferTypeLabel,
   getTransferStatusLabel,
   getTransferStatusColor
 } from '../../models/stock-transfer.model';
 
+interface ReceiveLineInput {
+  variantId: number;
+  variantSku: string;
+  productName: string;
+  transferQuantity: number;
+  acceptedQuantity: number;
+  rejectedQuantity: number;
+  remarks: string;
+}
+
 @Component({
   selector: 'app-transfer-details',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './transfer-details.component.html',
   styleUrls: ['./transfer-details.component.css']
 })
 export class TransferDetailsComponent implements OnInit {
   transfer = signal<StockTransferDto | null>(null);
   isLoading = signal(true);
+  defaultLocation = signal<{ id: number; type: 'outlet' | 'warehouse' } | null>(null);
+
+  showReceiveModal = signal(false);
+  receiveItems = signal<ReceiveLineInput[]>([]);
+  receiveNotes = signal('');
+  isReceiving = signal(false);
 
   showReasonModal = signal(false);
   reasonModalTitle = signal('');
@@ -29,17 +50,39 @@ export class TransferDetailsComponent implements OnInit {
 
   constructor(
     private transferService: StockTransferService,
+    public auth: AuthService,
+    private userOutletAccess: UserOutletAccessService,
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
   ) {}
 
   ngOnInit(): void {
+    this.loadDefaultLocation();
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.loadTransfer(+id);
     }
+  }
+
+  private loadDefaultLocation(): void {
+    this.userOutletAccess.load().subscribe({
+      next: (response) => {
+        const auth = response?.data;
+        if (auth?.defaultLocationId && auth?.defaultLocationType) {
+          this.defaultLocation.set({ id: auth.defaultLocationId, type: auth.defaultLocationType });
+          return;
+        }
+
+        this.defaultLocation.set(null);
+      },
+      error: () => {
+        this.defaultLocation.set(null);
+      }
+    });
   }
 
   loadTransfer(id: number): void {
@@ -52,7 +95,7 @@ export class TransferDetailsComponent implements OnInit {
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
         this.isLoading.set(false);
-        this.router.navigate(['/stock-transfers']);
+        this.location.back();
       }
     });
   }
@@ -102,15 +145,22 @@ export class TransferDetailsComponent implements OnInit {
   receive(): void {
     const t = this.transfer();
     if (!t) return;
-    this.alertService.confirm('Receive this transfer and update stock?', () => {
-      this.transferService.receive(t.id).subscribe({
-        next: () => {
-          this.alertService.success('Transfer received and stock updated');
-          this.loadTransfer(t.id);
-        },
-        error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
-      });
-    });
+    this.receiveItems.set(
+      t.items.map(item => {
+        const transferQty = item.transferQuantity > 0 ? item.transferQuantity : item.quantity;
+        return {
+          variantId: item.variantId,
+          variantSku: item.variantSku,
+          productName: item.productName,
+          transferQuantity: transferQty,
+          acceptedQuantity: transferQty,
+          rejectedQuantity: 0,
+          remarks: item.remarks || ''
+        };
+      })
+    );
+    this.receiveNotes.set('');
+    this.showReceiveModal.set(true);
   }
 
   cancel(): void {
@@ -151,12 +201,100 @@ export class TransferDetailsComponent implements OnInit {
     this.pendingAction = undefined;
   }
 
+  closeReceiveModal(): void {
+    this.showReceiveModal.set(false);
+    this.receiveItems.set([]);
+    this.receiveNotes.set('');
+    this.isReceiving.set(false);
+  }
+
+  updateReceiveAccepted(index: number, value: number): void {
+    this.receiveItems.update(items => {
+      const updated = [...items];
+      const row = updated[index];
+      const accepted = Math.max(0, Number(value) || 0);
+      const boundedAccepted = Math.min(accepted, row.transferQuantity);
+      updated[index] = {
+        ...row,
+        acceptedQuantity: boundedAccepted,
+        rejectedQuantity: row.transferQuantity - boundedAccepted
+      };
+      return updated;
+    });
+  }
+
+  updateReceiveRejected(index: number, value: number): void {
+    this.receiveItems.update(items => {
+      const updated = [...items];
+      const row = updated[index];
+      const rejected = Math.max(0, Number(value) || 0);
+      const boundedRejected = Math.min(rejected, row.transferQuantity);
+      updated[index] = {
+        ...row,
+        rejectedQuantity: boundedRejected,
+        acceptedQuantity: row.transferQuantity - boundedRejected
+      };
+      return updated;
+    });
+  }
+
+  updateReceiveRemarks(index: number, value: string): void {
+    this.receiveItems.update(items => {
+      const updated = [...items];
+      updated[index] = { ...updated[index], remarks: value };
+      return updated;
+    });
+  }
+
+  submitReceive(): void {
+    const t = this.transfer();
+    if (!t) return;
+
+    const invalidRow = this.receiveItems().find(
+      row => row.acceptedQuantity < 0 ||
+        row.rejectedQuantity < 0 ||
+        row.acceptedQuantity + row.rejectedQuantity !== row.transferQuantity
+    );
+
+    if (invalidRow) {
+      this.alertService.error('Accepted and rejected quantities must total transfer quantity for every row');
+      return;
+    }
+
+    const payload: ReceiveStockTransferDto = {
+      notes: this.receiveNotes().trim() || undefined,
+      items: this.receiveItems().map(row => ({
+        variantId: row.variantId,
+        acceptedQuantity: row.acceptedQuantity,
+        rejectedQuantity: row.rejectedQuantity,
+        remarks: row.remarks?.trim() || undefined
+      }))
+    };
+
+    this.isReceiving.set(true);
+    this.transferService.receive(t.id, payload).subscribe({
+      next: () => {
+        this.alertService.success('Transfer received and stock updated');
+        this.closeReceiveModal();
+        this.loadTransfer(t.id);
+      },
+      error: (err) => {
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.isReceiving.set(false);
+      }
+    });
+  }
+
   goBack(): void {
-    this.router.navigate(['/stock-transfers']);
+    this.location.back();
   }
 
   getStatusLabel(status: string): string {
     return getTransferStatusLabel(status);
+  }
+
+  getTypeLabel(type: string): string {
+    return getTransferTypeLabel(type);
   }
 
   getStatusColor(status: string): string {
@@ -176,5 +314,20 @@ export class TransferDetailsComponent implements OnInit {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  }
+
+  getEffectiveTransferQty(item: { transferQuantity: number; quantity: number }): number {
+    return item.transferQuantity > 0 ? item.transferQuantity : item.quantity;
+  }
+
+  canReceiveOrRejectCurrentTransfer(): boolean {
+    const transfer = this.transfer();
+    const userDefault = this.defaultLocation();
+    if (!transfer || !userDefault) {
+      return false;
+    }
+
+    return transfer.toLocationId === userDefault.id
+      && transfer.toLocationType.toLowerCase() === userDefault.type;
   }
 }

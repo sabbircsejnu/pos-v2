@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Services;
 using RetailPOS.Core.Entities.Audit;
@@ -27,6 +28,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-login")]
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
     {
         try
@@ -66,6 +68,8 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [Authorize(Roles = "SuperAdmin")]
+    [EnableRateLimiting("auth-register")]
     public async Task<ActionResult<LoginResponseDto>> Register([FromBody] RegisterRequestDto request)
     {
         try
@@ -108,20 +112,48 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh-token")]
+    [EnableRateLimiting("auth-refresh")]
     public async Task<ActionResult<LoginResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto request)
     {
         try
         {
             var response = await _authService.RefreshTokenAsync(request);
+
+            try
+            {
+                await _audit.RecordAsync(new AuditEventInput
+                {
+                    ActionType = AuditActionType.TokenRefresh,
+                    Module = AuditModule.Auth,
+                    Summary = $"Token refresh successful for user {response.User?.Id}",
+                    PrimaryEntity = ("User", response.User?.Id.ToString() ?? ""),
+                });
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit token refresh success"); }
+
             return Ok(response);
         }
         catch (UnauthorizedAccessException ex)
         {
+            try
+            {
+                var isReuseAttempt = ex.Message.Contains("reuse", StringComparison.OrdinalIgnoreCase) ||
+                                     ex.Message.Contains("revoked", StringComparison.OrdinalIgnoreCase);
+
+                if (isReuseAttempt)
+                {
+                    await _audit.RecordFailureAsync(AuditActionType.TokenReuseAttempt, AuditModule.Auth,
+                        "Revoked refresh token reuse attempt", "Auth", null, ex.Message);
+                }
+                else
+                {
+                    await _audit.RecordFailureAsync(AuditActionType.TokenRefresh, AuditModule.Auth,
+                        "Token refresh failed", "Auth", null, ex.Message);
+                }
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit token refresh failure"); }
+
             return Unauthorized(new { message = ex.Message });
-        }
-        catch (NotImplementedException)
-        {
-            return StatusCode(501, new { message = "Refresh token feature coming soon" });
         }
         catch (Exception ex)
         {

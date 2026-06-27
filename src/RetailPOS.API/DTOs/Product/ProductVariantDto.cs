@@ -7,6 +7,8 @@ public class ProductVariantDto
 {
     public long Id { get; set; }
     public long ProductId { get; set; }
+    /// <summary>Main product code from the parent product. Included so callers never need a second lookup.</summary>
+    public string? ProductCode { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Sku { get; set; }
     public string? Barcode { get; set; }

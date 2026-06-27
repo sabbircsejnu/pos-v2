@@ -14,10 +14,9 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('should expose application title', () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, retailpos-frontend');
+    const app = fixture.componentInstance as unknown as { title: () => string };
+    expect(app.title()).toBe('retailpos-frontend');
   });
 });

@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { CustomerService } from '../../services/customer.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ListStateService } from '../../services/list-state.service';
 
 @Component({
   selector: 'app-customer-list',
@@ -28,13 +29,31 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   constructor(
     public customerService: CustomerService,
     private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService
   ) {}
 
   ngOnInit(): void {
+    this.restoreFromUrl();
     this.setupDebouncedSearch();
-    this.loadCustomers();
+    this.performSearch();
+  }
+
+  private restoreFromUrl(): void {
+    const p = this.route.snapshot.queryParams;
+    this.searchQuery.set(this.listState.str(p, 'search'));
+    this.pageNumber.set(this.listState.num(p, 'page', 1));
+    this.pageSize.set(this.listState.num(p, 'pageSize', 10));
+  }
+
+  private syncUrl(): void {
+    this.listState.update(this.route, {
+      search: this.searchQuery() || undefined,
+      page: this.pageNumber(),
+      pageSize: this.pageSize(),
+    });
   }
 
   ngOnDestroy(): void {
@@ -44,7 +63,10 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   private setupDebouncedSearch(): void {
     this.searchSubscription = this.searchSubject
       .pipe(debounceTime(400))
-      .subscribe(() => this.performSearch());
+      .subscribe(() => {
+        this.syncUrl();
+        this.performSearch();
+      });
   }
 
   onSearchChange(): void {
@@ -69,17 +91,20 @@ export class CustomerListComponent implements OnInit, OnDestroy {
   clearFilters(): void {
     this.searchQuery.set('');
     this.pageNumber.set(1);
+    this.listState.clear(this.route);
     this.performSearch();
   }
 
   changePage(page: number): void {
     this.pageNumber.set(page);
+    this.syncUrl();
     this.performSearch();
   }
 
   changePageSize(size: number): void {
     this.pageSize.set(size);
     this.pageNumber.set(1);
+    this.syncUrl();
     this.performSearch();
   }
 

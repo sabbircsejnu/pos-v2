@@ -14,7 +14,7 @@ public interface IProductRepository
     Task<(IEnumerable<Product> Products, int TotalCount)> SearchAsync(
         string? searchQuery,
         long? categoryId,
-        bool? isActive,
+        string? status,
         bool? hasVariants,
         decimal? minPrice,
         decimal? maxPrice,
@@ -29,5 +29,6 @@ public interface IProductRepository
     Task<bool> ExistsAsync(string name, long? excludeId = null);
     Task<bool> SkuExistsAsync(string sku, long? excludeProductId = null);
     Task<bool> BarcodeExistsAsync(string barcode, long? excludeProductId = null);
+    Task<bool> ProductCodeExistsAsync(string productCode, long? excludeProductId = null);
     Task<int> GetTotalStockAsync(long productId);
 }

@@ -1,0 +1,172 @@
+<div class="container mx-auto px-4 py-4 space-y-4 template-page">
+  <div class="card p-4 template-hero">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold tracking-wide text-slate-500 uppercase">Catalog</p>
+        <h1 class="text-xl font-semibold text-slate-900">Barcode Templates</h1>
+        <p class="text-sm text-slate-500">Create and manage business-specific templates for barcode label printing.</p>
+      </div>
+      <div class="flex gap-2">
+        <a routerLink="/barcode-labels" class="btn btn-outline h-9 px-3 text-sm">Back to Barcode Labels</a>
+        <button *ngIf="can('barcode.template_manage')" type="button" class="btn btn-primary h-9 px-3 text-sm" (click)="openCreate()">
+          <i class="fas fa-plus mr-1"></i>
+          New Template
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    @if (isLoading()) {
+      <div class="py-10 text-center text-sm text-slate-500">Loading templates...</div>
+    } @else if (templates().length === 0) {
+      <div class="px-6 py-12 text-center text-slate-500">
+        <i class="fas fa-layer-group text-3xl text-slate-300"></i>
+        <p class="mt-3 text-sm font-semibold text-slate-700">No templates available yet</p>
+        <p class="mt-1 text-xs text-slate-500">Create a template to start barcode printing with consistent layout and fields.</p>
+        <div class="mt-4 flex justify-center gap-2">
+          <a routerLink="/barcode-labels" class="btn btn-outline h-9 px-3 text-sm">Back to Barcode Labels</a>
+          <button *ngIf="can('barcode.template_manage')" type="button" class="btn btn-primary h-9 px-3 text-sm" (click)="openCreate()">
+            <i class="fas fa-plus mr-1"></i>
+            Create Template
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Paper</th>
+              <th>Size</th>
+              <th>Status</th>
+              <th>Default</th>
+              <th class="text-right">Enabled Fields</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (template of templates(); track template.id) {
+              <tr>
+                <td class="font-medium text-slate-900">{{ template.name }}</td>
+                <td class="capitalize">{{ template.templateType }}</td>
+                <td class="capitalize">{{ template.paperType }}</td>
+                <td>{{ template.labelWidthMm }} x {{ template.labelHeightMm }} mm</td>
+                <td>
+                  <span class="rounded-full px-2 py-1 text-xs font-semibold" [class.bg-emerald-50]="template.isActive" [class.text-emerald-700]="template.isActive" [class.bg-slate-100]="!template.isActive" [class.text-slate-600]="!template.isActive">
+                    {{ template.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td>
+                  @if (template.isDefault) {
+                    <span class="rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700">Default</span>
+                  } @else {
+                    <button *ngIf="can('barcode.template_manage')" type="button" class="btn btn-outline h-7 px-2 text-xs" (click)="setDefault(template)">Set Default</button>
+                  }
+                </td>
+                <td class="text-right">{{ getEnabledFieldCount(template) }}</td>
+                <td class="text-right">
+                  <div class="inline-flex gap-1.5">
+                    <button *ngIf="can('barcode.template_manage')" type="button" class="icon-btn icon-edit" title="Edit" (click)="openEdit(template)">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button *ngIf="can('barcode.template_manage')" type="button" class="icon-btn icon-delete" title="Delete" (click)="deleteTemplate(template)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (showModal()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div class="w-full max-w-3xl rounded-xl border border-slate-200 bg-white shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div>
+          <h2 class="text-base font-semibold text-slate-900">{{ editingTemplateId() ? 'Edit Template' : 'Create Template' }}</h2>
+          <p class="text-xs text-slate-500">Configure size, fields, and default behavior for this barcode template.</p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-600" (click)="closeModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="max-h-[72vh] overflow-y-auto px-5 py-4 space-y-4">
+        <div class="grid gap-3 md:grid-cols-2">
+          <div>
+            <label class="label">Template Name</label>
+            <input type="text" class="input" [ngModel]="form().name" (ngModelChange)="form.set({ ...form(), name: $event })" />
+          </div>
+          <div>
+            <label class="label">Template Type</label>
+            <select class="select" [ngModel]="form().templateType" (ngModelChange)="form.set({ ...form(), templateType: $event })">
+              <option value="small">Small</option>
+              <option value="retail">Retail</option>
+              <option value="detailed">Detailed</option>
+              <option value="warehouse">Warehouse</option>
+              <option value="shelf">Shelf</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Paper Type</label>
+            <select class="select" [ngModel]="form().paperType" (ngModelChange)="form.set({ ...form(), paperType: $event })">
+              <option value="label">Label Roll</option>
+              <option value="a4">A4 Sheet</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="label">Width (mm)</label>
+              <input type="number" min="1" class="input" [ngModel]="form().labelWidthMm" (ngModelChange)="form.set({ ...form(), labelWidthMm: +$event })" />
+            </div>
+            <div>
+              <label class="label">Height (mm)</label>
+              <input type="number" min="1" class="input" [ngModel]="form().labelHeightMm" (ngModelChange)="form.set({ ...form(), labelHeightMm: +$event })" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" [ngModel]="form().isDefault" (ngModelChange)="form.set({ ...form(), isDefault: $event })" />
+            Set as default template
+          </label>
+          <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" [ngModel]="form().isActive" (ngModelChange)="form.set({ ...form(), isActive: $event })" />
+            Active
+          </label>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-slate-900 mb-2">Template Fields</h3>
+          <div class="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+            @for (field of availableFields; track field.key) {
+              <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  [ngModel]="isFieldEnabled(field.key)"
+                  (ngModelChange)="updateFieldEnabled(field.key, $event)" />
+                {{ field.label }}
+              </label>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+        <a routerLink="/barcode-labels" class="btn btn-outline">Back to Barcode Labels</a>
+        <button type="button" class="btn btn-outline" (click)="closeModal()">Back to List</button>
+        <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="saveTemplate()">{{ editingTemplateId() ? 'Update' : 'Create' }}</button>
+      </div>
+    </div>
+  </div>
+}

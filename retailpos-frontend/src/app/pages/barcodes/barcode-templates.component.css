@@ -1,0 +1,25 @@
+.template-page .card {
+  border-radius: 14px;
+}
+
+.template-hero {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.icon-delete {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.icon-delete:hover {
+  background: #ffe4e6;
+}
+
+.icon-edit {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.icon-edit:hover {
+  background: #dbeafe;
+}

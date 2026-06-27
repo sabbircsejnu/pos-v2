@@ -1,8 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CategoryService } from '../../services/category.service';
+import { ListStateService } from '../../services/list-state.service';
 import { Category, CategoryTree } from '../../models/category.model';
 
 @Component({
@@ -22,10 +23,16 @@ export class CategoryListComponent implements OnInit {
 
   constructor(
     public categoryService: CategoryService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private listState: ListStateService,
   ) {}
 
   ngOnInit(): void {
+    const p = this.route.snapshot.queryParams;
+    const mode = this.listState.str(p, 'view', 'tree');
+    this.viewMode.set(mode === 'list' ? 'list' : 'tree');
+    this.searchQuery.set(this.listState.str(p, 'search'));
     this.loadCategories();
   }
 
@@ -47,6 +54,10 @@ export class CategoryListComponent implements OnInit {
 
   toggleViewMode(): void {
     this.viewMode.update(mode => mode === 'tree' ? 'list' : 'tree');
+    this.listState.update(this.route, {
+      view: this.viewMode() !== 'tree' ? this.viewMode() : undefined,
+      search: this.searchQuery() || undefined,
+    });
     this.loadCategories();
   }
 

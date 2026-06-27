@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import {
   StockTransferDto,
   CreateStockTransferDto,
+  ReceiveStockTransferDto,
   TransferStatusUpdateDto,
   StockTransferSearchRequest
 } from '../models/stock-transfer.model';
@@ -29,8 +30,8 @@ export class StockTransferService {
     return this.http.get<any>(this.apiUrl).pipe(
       tap({
         next: (response) => {
-          this.transfers.set(response.data?.stockTransfers || response.data || []);
-          this.totalCount.set(response.data?.totalCount || response.data?.length || 0);
+          this.transfers.set(response.data || []);
+          this.totalCount.set(response.data?.length || 0);
           this.isLoading.set(false);
         },
         error: (err) => {
@@ -48,7 +49,7 @@ export class StockTransferService {
     return this.http.post<any>(`${this.apiUrl}/search`, request).pipe(
       tap({
         next: (response) => {
-          this.transfers.set(response.data?.transfers || response.data || []);
+          this.transfers.set(response.data?.stockTransfers || []);
           this.totalCount.set(response.data?.totalCount || response.data?.length || 0);
           this.isLoading.set(false);
         },
@@ -95,6 +96,11 @@ export class StockTransferService {
     return this.http.post<any>(`${this.apiUrl}/${id}/approve`, dto || {});
   }
 
+  /** Submit a stock transfer */
+  submit(id: number): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/submit`, {});
+  }
+
   /** Reject a stock transfer */
   reject(id: number, dto: TransferStatusUpdateDto): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/${id}/reject`, dto);
@@ -102,12 +108,12 @@ export class StockTransferService {
 
   /** Mark as in-transit */
   send(id: number): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/${id}/send`, {});
+    return this.http.post<any>(`${this.apiUrl}/${id}/dispatch`, {});
   }
 
   /** Receive and update stock */
-  receive(id: number): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/${id}/receive`, {});
+  receive(id: number, dto: ReceiveStockTransferDto): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/receive`, dto);
   }
 
   /** Cancel a stock transfer */

@@ -6,8 +6,10 @@ namespace RetailPOS.API.DTOs.Inventory;
 public class InventoryDto
 {
     public long Id { get; set; }
+    public long ProductId { get; set; }
     public long ProductVariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
+    public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
     public string? Sku { get; set; }
     public string? Barcode { get; set; }
@@ -54,6 +56,7 @@ public class LowStockDto
 {
     public long InventoryId { get; set; }
     public long ProductVariantId { get; set; }
+    public long LocationId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;
     public string? Sku { get; set; }
@@ -107,8 +110,9 @@ public class UpdateStockThresholdDto
 /// </summary>
 public class InventorySearchDto
 {
-    public string? ProductName { get; set; }
-    public string? Sku { get; set; }
+    public string? ProductSearch { get; set; }
+    public long? VariantId { get; set; }
+    public string? VariantSearch { get; set; }
     public long? CategoryId { get; set; }
     public long? OutletId { get; set; }
     public long? WarehouseId { get; set; }

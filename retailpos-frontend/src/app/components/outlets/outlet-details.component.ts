@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { OutletService } from '../../services/outlet.service';
 import { Outlet } from '../../models/outlet.model';
@@ -19,6 +19,7 @@ export class OutletDetailsComponent implements OnInit {
   constructor(
     private outletService: OutletService,
     private router: Router,
+    private location: Location,
     private route: ActivatedRoute
   ) {}
 
@@ -52,6 +53,6 @@ export class OutletDetailsComponent implements OnInit {
   }
 
   backToList(): void {
-    this.router.navigate(['/outlets']);
+    this.location.back();
   }
 }

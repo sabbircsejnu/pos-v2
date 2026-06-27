@@ -5,7 +5,10 @@ import { environment } from '../../environments/environment';
 import {
   SalesReportDto, TopProductDto, SalesByOutletDto, SalesByPaymentMethodDto,
   DailySalesTrendDto, StockLevelDto, InventoryValuationDto, SlowMovingItemDto,
-  PurchaseSummaryDto, PurchaseBySupplierDto, StockTransactionReportDto
+  PurchaseSummaryDto, PurchaseBySupplierDto, StockTransactionReportDto,
+  CurrentStockReportDto, ProductLedgerReportDto, StockMovementReportDto,
+  StockValuationReportDto, OutletWiseStockReportDto,
+  LowStockReportDto, OutOfStockReportDto, NegativeStockReportDto
 } from '../models/report.model';
 
 @Injectable({ providedIn: 'root' })
@@ -28,6 +31,15 @@ export class ReportService {
   purchaseBySupplier = signal<PurchaseBySupplierDto[]>([]);
 
   stockTransactionReport = signal<StockTransactionReportDto | null>(null);
+
+  currentStockReport = signal<CurrentStockReportDto | null>(null);
+  productLedgerReport = signal<ProductLedgerReportDto | null>(null);
+  stockMovementReport = signal<StockMovementReportDto | null>(null);
+  stockValuationReport = signal<StockValuationReportDto | null>(null);
+  outletWiseStockReport  = signal<OutletWiseStockReportDto  | null>(null);
+  lowStockReport         = signal<LowStockReportDto         | null>(null);
+  outOfStockReport       = signal<OutOfStockReportDto       | null>(null);
+  negativeStockReport    = signal<NegativeStockReportDto    | null>(null);
 
   constructor(private http: HttpClient) {}
 
@@ -128,5 +140,431 @@ export class ReportService {
     return this.http.get<any>(`${this.reportsUrl}/stock-transactions`, { params }).pipe(
       tap({ next: (res) => this.stockTransactionReport.set(res.data) })
     );
+  }
+
+  getCurrentStockReport(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    productId?: number;
+    stockStatus?: string;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)     params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId)  params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)   params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.productId)    params = params.set('productId', filter.productId.toString());
+    if (filter.stockStatus && filter.stockStatus !== 'all')
+                             params = params.set('stockStatus', filter.stockStatus);
+    if (filter.search)       params = params.set('search', filter.search);
+    if (filter.sortBy)       params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)      params = params.set('sortDir', filter.sortDir);
+    params = params.set('page', (filter.page ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/current-stock`, { params }).pipe(
+      tap({ next: (res) => this.currentStockReport.set(res.data) })
+    );
+  }
+
+  buildCurrentStockExportUrl(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    productId?: number;
+    stockStatus?: string;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)     params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId)  params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)   params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.productId)    params = params.set('productId', filter.productId.toString());
+    if (filter.stockStatus && filter.stockStatus !== 'all')
+                             params = params.set('stockStatus', filter.stockStatus);
+    if (filter.search)       params = params.set('search', filter.search);
+    if (filter.sortBy)       params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)      params = params.set('sortDir', filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/current-stock/export?${params.toString()}`;
+  }
+
+  getProductLedgerReport(filter: {
+    productId: number;
+    variantId?: number;
+    outletId?: number;
+    warehouseId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    transactionType?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams().set('productId', filter.productId.toString());
+    if (filter.variantId)       params = params.set('variantId', filter.variantId.toString());
+    if (filter.outletId)        params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId)     params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.dateFrom)        params = params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo)          params = params.set('dateTo', filter.dateTo);
+    if (filter.transactionType && filter.transactionType !== 'all')
+                                params = params.set('transactionType', filter.transactionType);
+    params = params.set('page',     (filter.page ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/product-ledger`, { params }).pipe(
+      tap({ next: (res) => this.productLedgerReport.set(res.data) })
+    );
+  }
+
+  buildProductLedgerExportUrl(filter: {
+    productId: number;
+    variantId?: number;
+    outletId?: number;
+    warehouseId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    transactionType?: string;
+    format?: string;
+  }): string {
+    let params = new HttpParams().set('productId', filter.productId.toString());
+    if (filter.variantId)       params = params.set('variantId', filter.variantId.toString());
+    if (filter.outletId)        params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId)     params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.dateFrom)        params = params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo)          params = params.set('dateTo', filter.dateTo);
+    if (filter.transactionType && filter.transactionType !== 'all')
+                                params = params.set('transactionType', filter.transactionType);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/product-ledger/export?${params.toString()}`;
+  }
+
+  getStockMovementReport(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    sortBy?: string;
+    sortDir?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)      params = params.set('search', filter.search);
+    if (filter.dateFrom)    params = params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo)      params = params.set('dateTo', filter.dateTo);
+    if (filter.sortBy)      params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir', filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/stock-movement`, { params }).pipe(
+      tap({ next: (res) => this.stockMovementReport.set(res.data) })
+    );
+  }
+
+  buildStockMovementExportUrl(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    sortBy?: string;
+    sortDir?: string;
+    format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)      params = params.set('search', filter.search);
+    if (filter.dateFrom)    params = params.set('dateFrom', filter.dateFrom);
+    if (filter.dateTo)      params = params.set('dateTo', filter.dateTo);
+    if (filter.sortBy)      params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir', filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/stock-movement/export?${params.toString()}`;
+  }
+
+  getStockValuationReport(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)      params = params.set('search', filter.search);
+    if (filter.sortBy)      params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir', filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/stock-valuation`, { params }).pipe(
+      tap({ next: (res) => this.stockValuationReport.set(res.data) })
+    );
+  }
+
+  buildStockValuationExportUrl(filter: {
+    outletId?: number;
+    warehouseId?: number;
+    categoryId?: number;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId', filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)      params = params.set('search', filter.search);
+    if (filter.sortBy)      params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir', filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/stock-valuation/export?${params.toString()}`;
+  }
+
+  getOutletWiseStockReport(filter: {
+    outletId?: number;
+    categoryId?: number;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    page?: number;
+    pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)   params = params.set('outletId', filter.outletId.toString());
+    if (filter.categoryId) params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)     params = params.set('search', filter.search);
+    if (filter.sortBy)     params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)    params = params.set('sortDir', filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/outlet-wise-stock`, { params }).pipe(
+      tap({ next: (res) => this.outletWiseStockReport.set(res.data) })
+    );
+  }
+
+  buildOutletWiseStockExportUrl(filter: {
+    outletId?: number;
+    categoryId?: number;
+    search?: string;
+    sortBy?: string;
+    sortDir?: string;
+    format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)   params = params.set('outletId', filter.outletId.toString());
+    if (filter.categoryId) params = params.set('categoryId', filter.categoryId.toString());
+    if (filter.search)     params = params.set('search', filter.search);
+    if (filter.sortBy)     params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDir)    params = params.set('sortDir', filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/outlet-wise-stock/export?${params.toString()}`;
+  }
+
+  // ── Report #6: Low Stock ─────────────────────────────────────────────────
+  getLowStockReport(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; page?: number; pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/low-stock`, { params }).pipe(
+      tap({ next: (res) => this.lowStockReport.set(res.data) })
+    );
+  }
+
+  buildLowStockExportUrl(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId!.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId!.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId!.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/low-stock/export?${params.toString()}`;
+  }
+
+  // ── Report #7: Out Of Stock ──────────────────────────────────────────────
+  getOutOfStockReport(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; page?: number; pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/out-of-stock`, { params }).pipe(
+      tap({ next: (res) => this.outOfStockReport.set(res.data) })
+    );
+  }
+
+  buildOutOfStockExportUrl(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId!.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId!.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId!.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/out-of-stock/export?${params.toString()}`;
+  }
+
+  // ── Report #8: Negative Stock ────────────────────────────────────────────
+  getNegativeStockReport(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; page?: number; pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/negative-stock`, { params }).pipe(
+      tap({ next: (res) => this.negativeStockReport.set(res.data) })
+    );
+  }
+
+  buildNegativeStockExportUrl(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; sortBy?: string; sortDir?: string; format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId!.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId!.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId!.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/negative-stock/export?${params.toString()}`;
+  }
+
+  // ── Report #9: Stock Adjustment ───────────────────────────────────────────
+  stockAdjustmentReport = signal<any | null>(null);
+
+  getStockAdjustmentReport(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; dateFrom?: string; dateTo?: string;
+    sortBy?: string; sortDir?: string; page?: number; pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.dateFrom)    params = params.set('dateFrom',    filter.dateFrom);
+    if (filter.dateTo)      params = params.set('dateTo',      filter.dateTo);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/stock-adjustments`, { params }).pipe(
+      tap({ next: (res) => this.stockAdjustmentReport.set(res.data) })
+    );
+  }
+
+  buildStockAdjustmentExportUrl(filter: {
+    outletId?: number | null; warehouseId?: number | null; categoryId?: number | null;
+    search?: string; dateFrom?: string; dateTo?: string;
+    sortBy?: string; sortDir?: string; format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.outletId)    params = params.set('outletId',    filter.outletId!.toString());
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId!.toString());
+    if (filter.categoryId)  params = params.set('categoryId',  filter.categoryId!.toString());
+    if (filter.search)      params = params.set('search',      filter.search);
+    if (filter.dateFrom)    params = params.set('dateFrom',    filter.dateFrom);
+    if (filter.dateTo)      params = params.set('dateTo',      filter.dateTo);
+    if (filter.sortBy)      params = params.set('sortBy',      filter.sortBy);
+    if (filter.sortDir)     params = params.set('sortDir',     filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/stock-adjustments/export?${params.toString()}`;
+  }
+
+  // ── Report #10: Stock Transfer ────────────────────────────────────────────
+  stockTransferReport = signal<any | null>(null);
+
+  getStockTransferReport(filter: {
+    fromOutletId?: number | null; toOutletId?: number | null; categoryId?: number | null;
+    status?: string; search?: string; dateFrom?: string; dateTo?: string;
+    sortBy?: string; sortDir?: string; page?: number; pageSize?: number;
+  }): Observable<any> {
+    let params = new HttpParams();
+    if (filter.fromOutletId) params = params.set('fromOutletId', filter.fromOutletId.toString());
+    if (filter.toOutletId)   params = params.set('toOutletId',   filter.toOutletId.toString());
+    if (filter.categoryId)   params = params.set('categoryId',   filter.categoryId.toString());
+    if (filter.status)       params = params.set('status',       filter.status);
+    if (filter.search)       params = params.set('search',       filter.search);
+    if (filter.dateFrom)     params = params.set('dateFrom',     filter.dateFrom);
+    if (filter.dateTo)       params = params.set('dateTo',       filter.dateTo);
+    if (filter.sortBy)       params = params.set('sortBy',       filter.sortBy);
+    if (filter.sortDir)      params = params.set('sortDir',      filter.sortDir);
+    params = params.set('page',     (filter.page     ?? 1).toString());
+    params = params.set('pageSize', (filter.pageSize ?? 50).toString());
+    return this.http.get<any>(`${this.reportsUrl}/inventory/stock-transfers-report`, { params }).pipe(
+      tap({ next: (res) => this.stockTransferReport.set(res.data) })
+    );
+  }
+
+  buildStockTransferReportExportUrl(filter: {
+    fromOutletId?: number | null; toOutletId?: number | null; categoryId?: number | null;
+    status?: string; search?: string; dateFrom?: string; dateTo?: string;
+    sortBy?: string; sortDir?: string; format?: string;
+  }): string {
+    let params = new HttpParams();
+    if (filter.fromOutletId) params = params.set('fromOutletId', filter.fromOutletId!.toString());
+    if (filter.toOutletId)   params = params.set('toOutletId',   filter.toOutletId!.toString());
+    if (filter.categoryId)   params = params.set('categoryId',   filter.categoryId!.toString());
+    if (filter.status)       params = params.set('status',       filter.status);
+    if (filter.search)       params = params.set('search',       filter.search);
+    if (filter.dateFrom)     params = params.set('dateFrom',     filter.dateFrom);
+    if (filter.dateTo)       params = params.set('dateTo',       filter.dateTo);
+    if (filter.sortBy)       params = params.set('sortBy',       filter.sortBy);
+    if (filter.sortDir)      params = params.set('sortDir',      filter.sortDir);
+    params = params.set('format', filter.format ?? 'csv');
+    return `${this.reportsUrl}/inventory/stock-transfers-report/export?${params.toString()}`;
   }
 }
