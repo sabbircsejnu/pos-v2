@@ -15,6 +15,7 @@ public class Outlet
     public virtual Business? Business { get; set; }
     public virtual User? Manager { get; set; }
     public virtual ICollection<User> Users { get; set; } = new List<User>();
+    public virtual ICollection<PosTerminal> PosTerminals { get; set; } = new List<PosTerminal>();
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
     public virtual ICollection<Expense> Expenses { get; set; } = new List<Expense>();
 }

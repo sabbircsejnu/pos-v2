@@ -19,6 +19,7 @@ public static class DbSeeder
         // Always ensure the BusinessOwner role + seed user exist (idempotent).
         // This runs even on already-seeded databases so older deployments pick up new roles.
         await EnsureBusinessOwnerAsync(context);
+        await EnsureDefaultPosTerminalsAsync(context);
 
         if (await context.Roles.AnyAsync())
         {
@@ -48,6 +49,35 @@ public static class DbSeeder
 
         var mainOutlet = outlets[0];
         var branchOutlet = outlets[1];
+
+        var terminals = new List<PosTerminal>
+        {
+            new PosTerminal
+            {
+                OutletId = mainOutlet.Id,
+                Name = "Main Counter 1",
+                Code = "MAIN-01",
+                IsActive = true,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new PosTerminal
+            {
+                OutletId = branchOutlet.Id,
+                Name = "Branch Counter 1",
+                Code = "BR-01",
+                IsActive = true,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        };
+        await context.PosTerminals.AddRangeAsync(terminals);
+        await context.SaveChangesAsync();
+
+        var mainTerminal = terminals[0];
+        var branchTerminal = terminals[1];
 
         // 3. Seed Warehouses (no managers yet)
         var warehouses = new List<Warehouse>
@@ -364,11 +394,12 @@ public static class DbSeeder
         // 14. Seed Customers
         var customers = new List<Customer>
         {
-            new Customer { Name = "Alice Johnson", Phone = "+1-555-1001", Email = "alice.johnson@example.com", LoyaltyPoints = 250, CreatedAt = DateTime.UtcNow },
-            new Customer { Name = "Bob Williams", Phone = "+1-555-1002", Email = "bob.williams@example.com", LoyaltyPoints = 100, CreatedAt = DateTime.UtcNow },
-            new Customer { Name = "Carol Davis", Phone = "+1-555-1003", Email = "carol.davis@example.com", LoyaltyPoints = 500, CreatedAt = DateTime.UtcNow },
-            new Customer { Name = "David Brown", Phone = "+1-555-1004", Email = "david.brown@example.com", LoyaltyPoints = 75, CreatedAt = DateTime.UtcNow },
-            new Customer { Name = "Emma Wilson", Phone = "+1-555-1005", Email = "emma.wilson@example.com", LoyaltyPoints = 320, CreatedAt = DateTime.UtcNow }
+            new Customer { Name = Customer.WalkInCustomerName, CustomerCode = Customer.WalkInCustomerCode, IsSystem = true, IsActive = true, LoyaltyPoints = 0, CreatedAt = DateTime.UtcNow },
+            new Customer { Name = "Alice Johnson", IsSystem = false, IsActive = true, Phone = "+1-555-1001", Email = "alice.johnson@example.com", LoyaltyPoints = 250, CreatedAt = DateTime.UtcNow },
+            new Customer { Name = "Bob Williams", IsSystem = false, IsActive = true, Phone = "+1-555-1002", Email = "bob.williams@example.com", LoyaltyPoints = 100, CreatedAt = DateTime.UtcNow },
+            new Customer { Name = "Carol Davis", IsSystem = false, IsActive = true, Phone = "+1-555-1003", Email = "carol.davis@example.com", LoyaltyPoints = 500, CreatedAt = DateTime.UtcNow },
+            new Customer { Name = "David Brown", IsSystem = false, IsActive = true, Phone = "+1-555-1004", Email = "david.brown@example.com", LoyaltyPoints = 75, CreatedAt = DateTime.UtcNow },
+            new Customer { Name = "Emma Wilson", IsSystem = false, IsActive = true, Phone = "+1-555-1005", Email = "emma.wilson@example.com", LoyaltyPoints = 320, CreatedAt = DateTime.UtcNow }
         };
         await context.Customers.AddRangeAsync(customers);
         await context.SaveChangesAsync();
@@ -461,19 +492,22 @@ public static class DbSeeder
         var mikeCashier = users[3];
         var sale1 = new Sale
         {
-            OutletId = mainOutlet.Id, CustomerId = customers[0].Id, SaleDate = now.AddDays(-10),
+            OutletId = mainOutlet.Id, CustomerId = customers[1].Id, SaleDate = now.AddDays(-10),
+            TerminalId = mainTerminal.Id,
             TotalAmount = 1089.97m, Discount = 0, Tax = 92.65m, PaymentMethod = "cash",
             Status = "completed", CashierId = mikeCashier.Id, CreatedAt = now.AddDays(-10)
         };
         var sale2 = new Sale
         {
-            OutletId = mainOutlet.Id, CustomerId = customers[1].Id, SaleDate = now.AddDays(-7),
+            OutletId = mainOutlet.Id, CustomerId = customers[2].Id, SaleDate = now.AddDays(-7),
+            TerminalId = mainTerminal.Id,
             TotalAmount = 89.97m, Discount = 5, Tax = 0, PaymentMethod = "card",
             Status = "completed", CashierId = mikeCashier.Id, CreatedAt = now.AddDays(-7)
         };
         var sale3 = new Sale
         {
-            OutletId = branchOutlet.Id, CustomerId = customers[2].Id, SaleDate = now.AddDays(-3),
+            OutletId = branchOutlet.Id, CustomerId = customers[3].Id, SaleDate = now.AddDays(-3),
+            TerminalId = branchTerminal.Id,
             TotalAmount = 749.97m, Discount = 10, Tax = 63.75m, PaymentMethod = "card",
             Status = "completed", CashierId = lisaManager.Id, CreatedAt = now.AddDays(-3)
         };
@@ -657,6 +691,33 @@ public static class DbSeeder
         }
     }
 
+    private static async Task EnsureDefaultPosTerminalsAsync(RetailPOSDbContext context)
+    {
+        var outlets = await context.Outlets.AsNoTracking().ToListAsync();
+        if (outlets.Count == 0)
+            return;
+
+        foreach (var outlet in outlets)
+        {
+            var hasTerminal = await context.PosTerminals.AnyAsync(t => t.OutletId == outlet.Id);
+            if (hasTerminal)
+                continue;
+
+            context.PosTerminals.Add(new PosTerminal
+            {
+                OutletId = outlet.Id,
+                Name = $"{outlet.Name} Counter 1",
+                Code = $"OUTLET-{outlet.Id:D2}",
+                IsActive = true,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     /// <summary>
     /// Gets the default roles with their permissions.
     /// </summary>
@@ -690,7 +751,7 @@ public static class DbSeeder
                     ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
                     ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
                     ""low_stock_alerts.view"",
-                    ""sales.view"", ""sales.create"", ""sales.edit"",
+                    ""sales.view"", ""sales.create"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
                     ""suppliers.view"",
@@ -728,7 +789,7 @@ public static class DbSeeder
                     ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.edit"", ""stock_transfers.delete"", ""stock_transfers.approve"", ""stock_transfers.cancel"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"", ""stock_transfers.transfer_from_any_location"",
                     ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
                     ""low_stock_alerts.view"", ""low_stock_alerts.create"", ""low_stock_alerts.edit"", ""low_stock_alerts.delete"",
-                    ""sales.view"", ""sales.create"", ""sales.edit"", ""sales.delete"",
+                    ""sales.view"", ""sales.create"",
                     ""purchases.view"", ""purchases.create"", ""purchases.edit"", ""purchases.delete"",
                     ""customers.view"", ""customers.create"", ""customers.edit"", ""customers.delete"",
                     ""suppliers.view"", ""suppliers.create"", ""suppliers.edit"", ""suppliers.delete"",
@@ -752,7 +813,7 @@ public static class DbSeeder
                     ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
                     ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
                     ""low_stock_alerts.view"",
-                    ""sales.view"", ""sales.create"", ""sales.edit"",
+                    ""sales.view"", ""sales.create"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
                     ""suppliers.view"", ""suppliers.create"", ""suppliers.edit"",

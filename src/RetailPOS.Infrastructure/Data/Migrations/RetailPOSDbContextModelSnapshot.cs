@@ -961,10 +961,27 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CustomerCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("customer_code");
+
                     b.Property<string>("Email")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("email");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsSystem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_system");
 
                     b.Property<int>("LoyaltyPoints")
                         .HasColumnType("integer")
@@ -982,6 +999,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_customers");
+
+                    b.HasIndex("CustomerCode")
+                        .IsUnique()
+                        .HasFilter("customer_code IS NOT NULL");
 
                     b.ToTable("customers");
                 });
@@ -1336,6 +1357,62 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasFilter("is_active = true");
 
                     b.ToTable("outlet_price_overrides");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.PosTerminal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_pos_terminals");
+
+                    b.HasIndex("OutletId", "Code")
+                        .IsUnique();
+
+                    b.HasIndex("OutletId", "IsDefault");
+
+                    b.ToTable("pos_terminals");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.PriceRule", b =>
@@ -1903,6 +1980,54 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("purchase_order_items");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.ReceiptPrintHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action_type");
+
+                    b.Property<DateTime>("PrintedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("printed_at");
+
+                    b.Property<long?>("PrintedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("printed_by_user_id");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<long?>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_receipt_print_histories");
+
+                    b.HasIndex("PrintedAt");
+
+                    b.HasIndex("PrintedByUserId")
+                        .HasDatabaseName("i_x_receipt_print_histories_printed_by_user_id");
+
+                    b.HasIndex("SaleId")
+                        .HasDatabaseName("i_x_receipt_print_histories_sale_id");
+
+                    b.HasIndex("TerminalId")
+                        .HasDatabaseName("i_x_receipt_print_histories_terminal_id");
+
+                    b.ToTable("receipt_print_histories");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Role", b =>
                 {
                     b.Property<long>("Id")
@@ -2002,6 +2127,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("tax");
 
+                    b.Property<long?>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -2020,6 +2149,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_sales_outlet_id");
 
                     b.HasIndex("SaleDate");
+
+                    b.HasIndex("TerminalId")
+                        .HasDatabaseName("i_x_sales_terminal_id");
 
                     b.HasIndex("OutletId", "IdempotencyKey")
                         .IsUnique()
@@ -2123,6 +2255,54 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("sale_payments");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleVoid", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("previous_status");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<DateTime>("VoidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voided_at");
+
+                    b.Property<long?>("VoidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("voided_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_voids");
+
+                    b.HasIndex("SaleId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_sale_voids_sale_id");
+
+                    b.HasIndex("VoidedAt");
+
+                    b.HasIndex("VoidedByUserId")
+                        .HasDatabaseName("i_x_sale_voids_voided_by_user_id");
+
+                    b.ToTable("sale_voids");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
                 {
                     b.Property<long>("Id")
@@ -2189,6 +2369,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("rejection_reason");
 
+                    b.Property<long?>("SourceStockCountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_stock_count_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -2216,6 +2400,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("CancelledBy");
 
                     b.HasIndex("RejectedBy");
+
+                    b.HasIndex("SourceStockCountId")
+                        .IsUnique()
+                        .HasFilter("source_stock_count_id is not null");
 
                     b.HasIndex("Status");
 
@@ -3784,6 +3972,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("ProductVariant");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.PosTerminal", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
+                        .WithMany("PosTerminals")
+                        .HasForeignKey("OutletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_pos_terminals_outlets_outlet_id");
+
+                    b.Navigation("Outlet");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Product", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Category", "Category")
@@ -3942,6 +4142,34 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Variant");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.ReceiptPrintHistory", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.User", "PrintedByUser")
+                        .WithMany("ReceiptPrintHistories")
+                        .HasForeignKey("PrintedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_receipt_print_histories__users_printed_by_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Sale", "Sale")
+                        .WithMany("ReceiptPrintHistories")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_receipt_print_histories__sales_sale_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.PosTerminal", "Terminal")
+                        .WithMany("ReceiptPrintHistories")
+                        .HasForeignKey("TerminalId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_receipt_print_histories_pos_terminals_terminal_id");
+
+                    b.Navigation("PrintedByUser");
+
+                    b.Navigation("Sale");
+
+                    b.Navigation("Terminal");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Sale", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.User", "Cashier")
@@ -3964,11 +4192,19 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("f_k_sales_outlets_outlet_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.PosTerminal", "Terminal")
+                        .WithMany("Sales")
+                        .HasForeignKey("TerminalId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_sales_pos_terminals_terminal_id");
+
                     b.Navigation("Cashier");
 
                     b.Navigation("Customer");
 
                     b.Navigation("Outlet");
+
+                    b.Navigation("Terminal");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.SaleItem", b =>
@@ -4002,6 +4238,26 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasConstraintName("f_k_sale_payments_sales_sale_id");
 
                     b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleVoid", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Sale", "Sale")
+                        .WithMany("SaleVoids")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_voids_sales_sale_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", "VoidedByUser")
+                        .WithMany("SaleVoids")
+                        .HasForeignKey("VoidedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_sale_voids__users_voided_by_user_id");
+
+                    b.Navigation("Sale");
+
+                    b.Navigation("VoidedByUser");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
@@ -4518,9 +4774,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                 {
                     b.Navigation("Expenses");
 
+                    b.Navigation("PosTerminals");
+
                     b.Navigation("Sales");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.PosTerminal", b =>
+                {
+                    b.Navigation("ReceiptPrintHistories");
+
+                    b.Navigation("Sales");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Product", b =>
@@ -4571,6 +4836,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+
+                    b.Navigation("ReceiptPrintHistories");
+
+                    b.Navigation("SaleVoids");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
@@ -4614,7 +4883,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.Navigation("PurchaseOrders");
 
+                    b.Navigation("ReceiptPrintHistories");
+
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("SaleVoids");
 
                     b.Navigation("Sales");
 

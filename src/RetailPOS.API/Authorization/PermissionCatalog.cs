@@ -16,7 +16,7 @@ public static class PermissionCatalog
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "StockCount.ViewOwn", "StockCount.ViewAll", "StockCount.Create", "StockCount.Download", "StockCount.Print", "StockCount.Upload", "StockCount.Submit", "StockCount.Approve", "StockCount.Reject", "StockCount.Reopen",
         "low_stock_alerts.view", "low_stock_alerts.create", "low_stock_alerts.edit", "low_stock_alerts.delete",
-        "sales.view", "sales.create", "sales.void", "sales.refund",
+        "sales.view", "sales.create", "sales.backdate", "sales.void", "sales.refund",
         "purchases.view", "purchases.create", "purchases.edit", "purchases.approve", "purchases.receive",
         "grn.view", "grn.create", "grn.receive",
         "customers.view", "customers.create", "customers.edit", "customers.delete",

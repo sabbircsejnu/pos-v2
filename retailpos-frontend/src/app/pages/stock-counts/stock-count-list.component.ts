@@ -11,6 +11,7 @@ import { ListStateService } from '../../services/list-state.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { AuthorizedLocationDto } from '../../models/report.model';
 import { STOCK_COUNT_STATUSES, StockCountStatus } from '../../models/stock-count.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-stock-count-list',
@@ -21,6 +22,7 @@ import { STOCK_COUNT_STATUSES, StockCountStatus } from '../../models/stock-count
 })
 export class StockCountListComponent implements OnInit, OnDestroy {
   Math = Math;
+  readonly phase3Enabled = environment.stockCountPhase3Enabled;
   readonly statuses = STOCK_COUNT_STATUSES;
   readonly rejectionReasonMaxLength = 500;
 
@@ -186,7 +188,7 @@ export class StockCountListComponent implements OnInit, OnDestroy {
   }
 
   canReject(status: string): boolean {
-    return status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
+    return status === 'Submitted' && this.auth.hasPermission('StockCount.Reject');
   }
 
   canReopen(status: string): boolean {
@@ -194,11 +196,11 @@ export class StockCountListComponent implements OnInit, OnDestroy {
   }
 
   canApprove(status: string): boolean {
-    return status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
+    return this.phase3Enabled && status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
   }
 
   canGenerateAdjustmentDraft(status: string): boolean {
-    return status === 'Approved' && this.auth.hasPermission('StockCount.Approve');
+    return this.phase3Enabled && status === 'Approved' && this.auth.hasPermission('StockCount.Approve');
   }
 
   submit(id: number): void {

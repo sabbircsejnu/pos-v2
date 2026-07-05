@@ -27,6 +27,7 @@ public class CustomerRepository : ICustomerRepository
     {
         var q = _context.Customers
             .Include(c => c.Sales)
+            .Where(c => c.IsActive)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -53,6 +54,7 @@ public class CustomerRepository : ICustomerRepository
     {
         var lower = query.ToLower();
         return await _context.Customers
+            .Where(c => c.IsActive)
             .Where(c =>
                 (c.Name != null && c.Name.ToLower().Contains(lower)) ||
                 (c.Phone != null && c.Phone.Contains(lower)) ||
@@ -60,6 +62,13 @@ public class CustomerRepository : ICustomerRepository
             .OrderBy(c => c.Name)
             .Take(limit)
             .ToListAsync();
+    }
+
+    public async Task<Customer?> GetByCodeAsync(string customerCode)
+    {
+        var normalized = customerCode.Trim().ToUpperInvariant();
+        return await _context.Customers
+            .FirstOrDefaultAsync(c => c.CustomerCode != null && c.CustomerCode.ToUpper() == normalized);
     }
 
     public async Task<Customer?> GetByPhoneAsync(string phone)

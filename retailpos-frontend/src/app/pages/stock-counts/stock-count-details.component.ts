@@ -7,6 +7,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { StockCountService } from '../../services/stock-count.service';
 import { StockCountDto } from '../../models/stock-count.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-stock-count-details',
@@ -16,6 +17,7 @@ import { StockCountDto } from '../../models/stock-count.model';
   styleUrls: ['./stock-count-details.component.css']
 })
 export class StockCountDetailsComponent implements OnInit {
+  readonly phase3Enabled = environment.stockCountPhase3Enabled;
   stockCount = signal<StockCountDto | null>(null);
   isLoading = signal(true);
   isWorking = signal(false);
@@ -68,7 +70,7 @@ export class StockCountDetailsComponent implements OnInit {
   }
 
   canReject(item: StockCountDto): boolean {
-    return item.status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
+    return item.status === 'Submitted' && this.auth.hasPermission('StockCount.Reject');
   }
 
   canReopen(item: StockCountDto): boolean {
@@ -76,11 +78,11 @@ export class StockCountDetailsComponent implements OnInit {
   }
 
   canApprove(item: StockCountDto): boolean {
-    return item.status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
+    return this.phase3Enabled && item.status === 'Submitted' && this.auth.hasPermission('StockCount.Approve');
   }
 
   canGenerateAdjustmentDraft(item: StockCountDto): boolean {
-    return item.status === 'Approved' && this.auth.hasPermission('StockCount.Approve');
+    return this.phase3Enabled && item.status === 'Approved' && this.auth.hasPermission('StockCount.Approve');
   }
 
   uploadExcel(fileInput: HTMLInputElement): void {

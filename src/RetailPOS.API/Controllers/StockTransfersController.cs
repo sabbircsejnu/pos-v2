@@ -321,14 +321,18 @@ public class StockTransfersController : ControllerBase
     private async Task EnsureCanReceiveTransferAsync(StockTransferDto transfer)
     {
         var auth = await _outletAccess.GetAuthorizedOutletsAsync();
-        if (!auth.DefaultLocationId.HasValue || string.IsNullOrWhiteSpace(auth.DefaultLocationType))
-            throw new UnauthorizedAccessException("Your account does not have a default inventory location configured.");
+        if (auth.IsGlobalAccess)
+            return;
 
-        var isDefaultDestination = transfer.ToLocationId == auth.DefaultLocationId.Value
-            && transfer.ToLocationType.Equals(auth.DefaultLocationType, StringComparison.OrdinalIgnoreCase);
+        var normalizedType = transfer.ToLocationType.Trim().ToLowerInvariant();
+        var isAuthorizedDestination = normalizedType == "outlet"
+            ? auth.Outlets.Any(o => o.Id == transfer.ToLocationId)
+            : normalizedType == "warehouse"
+                ? auth.Warehouses.Any(w => w.Id == transfer.ToLocationId)
+                : false;
 
-        if (!isDefaultDestination)
-            throw new UnauthorizedAccessException("You can only receive or reject transfers for your default inventory location.");
+        if (!isAuthorizedDestination)
+            throw new UnauthorizedAccessException("You are not authorized to receive or reject transfers for this destination location.");
     }
 
     private static void ValidateLocationType(string? locationType)

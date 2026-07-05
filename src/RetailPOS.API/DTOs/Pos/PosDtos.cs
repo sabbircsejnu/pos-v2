@@ -60,3 +60,11 @@ public class PosStockHintDto
     /// <summary>True when the value was read from the Redis cache (≤30 s stale).</summary>
     public bool FromCache    { get; set; }
 }
+
+public class PosTerminalDto
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+}

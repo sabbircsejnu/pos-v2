@@ -6,6 +6,7 @@ export const environment = {
   production: false,
   apiUrl: 'http://localhost:5005/api',
   apiTimeout: 30000, // 30 seconds
+  stockCountPhase3Enabled: true,
   enableDebugMode: true,
   version: '1.0.0'
 };

@@ -59,7 +59,7 @@ export const NAV_SECTIONS: MenuSection[] = [
     label: 'SALES',
     items: [
       { id: 'pos-sales', label: 'POS Sales', icon: 'fas fa-cash-register', route: '/pos', permission: 'sales.create' },
-      { id: 'sales-orders', label: 'Sales Orders', icon: 'fas fa-receipt', route: '/sales', permission: 'sales.view' },
+      { id: 'sales', label: 'Sales', icon: 'fas fa-receipt', route: '/sales', permission: 'sales.view' },
       { id: 'customers', label: 'Customers', icon: 'fas fa-user-friends', route: '/customers', permission: 'customers.view' },
     ]
   },

@@ -4,6 +4,8 @@ using RetailPOS.API.DTOs.Pos;
 using RetailPOS.API.DTOs.Pricing;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace RetailPOS.API.Controllers;
 
@@ -35,15 +37,46 @@ public class PosController : ControllerBase
     private readonly IPosLookupService      _posLookup;
     private readonly IPricingService        _pricingService;
     private readonly ILogger<PosController> _logger;
+    private readonly IUserOutletAccessService _outletAccess;
+    private readonly RetailPOSDbContext _db;
 
     public PosController(
         IPosLookupService      posLookup,
         IPricingService        pricingService,
-        ILogger<PosController> logger)
+        ILogger<PosController> logger,
+        IUserOutletAccessService outletAccess,
+        RetailPOSDbContext db)
     {
         _posLookup      = posLookup;
         _pricingService = pricingService;
         _logger         = logger;
+        _outletAccess   = outletAccess;
+        _db             = db;
+    }
+
+    [HttpGet("terminals")]
+    [ProducesResponseType(typeof(ApiResponse<List<PosTerminalDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<List<PosTerminalDto>>>> GetTerminals([FromQuery] long? outletId = null)
+    {
+        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        if (!resolvedOutletId.HasValue)
+            return BadRequest(ApiResponse<List<PosTerminalDto>>.ErrorResponse("OutletId is required to load POS terminals."));
+
+        var terminals = await _db.PosTerminals
+            .AsNoTracking()
+            .Where(t => t.OutletId == resolvedOutletId.Value && t.IsActive)
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Name)
+            .Select(t => new PosTerminalDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Code = t.Code,
+                IsDefault = t.IsDefault
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<List<PosTerminalDto>>.SuccessResponse(terminals));
     }
 
     // ── GET /api/pos/lookup ───────────────────────────────────────────────────

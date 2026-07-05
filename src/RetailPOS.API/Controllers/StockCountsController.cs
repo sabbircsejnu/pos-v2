@@ -13,6 +13,8 @@ namespace RetailPOS.API.Controllers;
 [Authorize]
 public class StockCountsController : ControllerBase
 {
+    private const string StockCountPhase3FeatureKey = "stockcount.phase3";
+
     public sealed class UploadStockCountRequest
     {
         public IFormFile File { get; set; } = default!;
@@ -24,10 +26,17 @@ public class StockCountsController : ControllerBase
     }
 
     private readonly IStockCountService _service;
+    private readonly IFeatureEntitlementService _featureEntitlement;
+    private readonly IConfiguration _configuration;
 
-    public StockCountsController(IStockCountService service)
+    public StockCountsController(
+        IStockCountService service,
+        IFeatureEntitlementService featureEntitlement,
+        IConfiguration configuration)
     {
         _service = service;
+        _featureEntitlement = featureEntitlement;
+        _configuration = configuration;
     }
 
     [HttpPost("search")]
@@ -138,6 +147,12 @@ public class StockCountsController : ControllerBase
     [HttpPost("{id:long}/approve")]
     public async Task<ActionResult<ApiResponse<StockCountDto>>> Approve(long id)
     {
+        var phase3Allowed = await IsStockCountPhase3EnabledAsync();
+        if (!phase3Allowed)
+        {
+            return ForbidResponse<StockCountDto>("Stock Count Phase 3 actions are currently disabled.");
+        }
+
         if (!User.HasPermission("StockCount.Approve"))
         {
             return ForbidResponse<StockCountDto>();
@@ -155,7 +170,7 @@ public class StockCountsController : ControllerBase
     [HttpPost("{id:long}/reject")]
     public async Task<ActionResult<ApiResponse<StockCountDto>>> Reject(long id, [FromBody] RejectStockCountRequest? request)
     {
-        if (!User.HasPermission("StockCount.Approve"))
+        if (!User.HasPermission("StockCount.Reject"))
         {
             return ForbidResponse<StockCountDto>();
         }
@@ -189,6 +204,12 @@ public class StockCountsController : ControllerBase
     [HttpPost("{id:long}/generate-adjustment-draft")]
     public async Task<ActionResult<ApiResponse<StockCountDto>>> GenerateAdjustmentDraft(long id)
     {
+        var phase3Allowed = await IsStockCountPhase3EnabledAsync();
+        if (!phase3Allowed)
+        {
+            return ForbidResponse<StockCountDto>("Stock Count Phase 3 actions are currently disabled.");
+        }
+
         if (!User.HasPermission("StockCount.Approve"))
         {
             return ForbidResponse<StockCountDto>();
@@ -208,10 +229,21 @@ public class StockCountsController : ControllerBase
         return User.HasPermission("StockCount.ViewOwn") || User.HasPermission("StockCount.ViewAll");
     }
 
-    private ActionResult<ApiResponse<T>> ForbidResponse<T>()
+    private ActionResult<ApiResponse<T>> ForbidResponse<T>(string? message = null)
     {
         return StatusCode(StatusCodes.Status403Forbidden,
-            ApiResponse<T>.ErrorResponse("You do not have permission to perform this action"));
+            ApiResponse<T>.ErrorResponse(message ?? "You do not have permission to perform this action"));
+    }
+
+    private async Task<bool> IsStockCountPhase3EnabledAsync()
+    {
+        var globalFlag = _configuration.GetValue<bool>("FeatureFlags:StockCountPhase3Enabled");
+        if (!globalFlag)
+        {
+            return false;
+        }
+
+        return await _featureEntitlement.IsFeatureEnabledAsync(StockCountPhase3FeatureKey);
     }
 
     private bool TryGetCurrentUserId(out long userId)

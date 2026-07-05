@@ -198,7 +198,7 @@ public class ProductService : IProductService
                     Name = variantDto.Name,
                     Sku = variantSku,
                     Barcode = variantBarcode,
-                    Attributes = variantDto.Attributes,
+                    Attributes = variantDto.Attributes ?? "{}",
                     PriceAdjustment = variantDto.PriceAdjustment
                 };
 

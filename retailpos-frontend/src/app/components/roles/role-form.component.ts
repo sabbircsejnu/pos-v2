@@ -118,7 +118,7 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Sales Management',
-      permissions: ['sales.view', 'sales.create', 'sales.void', 'sales.refund']
+      permissions: ['sales.view', 'sales.create', 'sales.backdate', 'sales.void', 'sales.refund']
     },
     {
       name: 'Purchase Management',

@@ -25,6 +25,7 @@ public class RetailPOSDbContext : DbContext
 
     // Locations
     public DbSet<Outlet> Outlets => Set<Outlet>();
+    public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
     // Products & Inventory
@@ -55,6 +56,8 @@ public class RetailPOSDbContext : DbContext
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleItem> SaleItems => Set<SaleItem>();
     public DbSet<SalePayment> SalePayments => Set<SalePayment>(); // NEW — split-payment rows
+    public DbSet<ReceiptPrintHistory> ReceiptPrintHistories => Set<ReceiptPrintHistory>();
+    public DbSet<SaleVoid> SaleVoids => Set<SaleVoid>();
     public DbSet<HeldSale> HeldSales => Set<HeldSale>();           // NEW — parked/held carts
 
     // Stock Management
@@ -214,6 +217,23 @@ public class RetailPOSDbContext : DbContext
                 .HasForeignKey(e => e.ManagerId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+
+            modelBuilder.Entity<PosTerminal>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).HasMaxLength(120).IsRequired();
+                entity.Property(e => e.Code).HasMaxLength(40).IsRequired();
+                entity.Property(e => e.IsActive).HasDefaultValue(true).IsRequired();
+                entity.Property(e => e.IsDefault).HasDefaultValue(false).IsRequired();
+
+                entity.HasIndex(e => new { e.OutletId, e.Code }).IsUnique();
+                entity.HasIndex(e => new { e.OutletId, e.IsDefault });
+
+                entity.HasOne(e => e.Outlet)
+                .WithMany(o => o.PosTerminals)
+                .HasForeignKey(e => e.OutletId)
+                .OnDelete(DeleteBehavior.Cascade);
+            });
 
         // Warehouse Configuration
         modelBuilder.Entity<Warehouse>(entity =>
@@ -717,6 +737,12 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.CustomerCode).HasMaxLength(30);
+            entity.HasIndex(e => e.CustomerCode)
+                .IsUnique()
+                .HasFilter("customer_code IS NOT NULL");
+            entity.Property(e => e.IsSystem).HasDefaultValue(false).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true).IsRequired();
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Email).HasMaxLength(255);
@@ -736,6 +762,7 @@ public class RetailPOSDbContext : DbContext
 
             entity.HasIndex(e => e.SaleDate);
             entity.HasIndex(e => e.OutletId);
+            entity.HasIndex(e => e.TerminalId);
             // Idempotency: unique per outlet to prevent double-submission
             entity.HasIndex(e => new { e.OutletId, e.IdempotencyKey })
                   .IsUnique()
@@ -745,6 +772,11 @@ public class RetailPOSDbContext : DbContext
                 .WithMany(o => o.Sales)
                 .HasForeignKey(e => e.OutletId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Terminal)
+                .WithMany(t => t.Sales)
+                .HasForeignKey(e => e.TerminalId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.Customer)
                 .WithMany(c => c.Sales)
@@ -819,6 +851,50 @@ public class RetailPOSDbContext : DbContext
             entity.HasOne(e => e.Customer)
                 .WithMany()
                 .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ReceiptPrintHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ActionType).HasMaxLength(20).IsRequired();
+
+            entity.HasIndex(e => e.SaleId);
+            entity.HasIndex(e => e.PrintedAt);
+
+            entity.HasOne(e => e.Sale)
+                .WithMany(s => s.ReceiptPrintHistories)
+                .HasForeignKey(e => e.SaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Terminal)
+                .WithMany(t => t.ReceiptPrintHistories)
+                .HasForeignKey(e => e.TerminalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.PrintedByUser)
+                .WithMany(u => u.ReceiptPrintHistories)
+                .HasForeignKey(e => e.PrintedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SaleVoid>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PreviousStatus).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(500).IsRequired();
+
+            entity.HasIndex(e => e.SaleId).IsUnique();
+            entity.HasIndex(e => e.VoidedAt);
+
+            entity.HasOne(e => e.Sale)
+                .WithMany(s => s.SaleVoids)
+                .HasForeignKey(e => e.SaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.VoidedByUser)
+                .WithMany(u => u.SaleVoids)
+                .HasForeignKey(e => e.VoidedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -986,6 +1062,10 @@ public class RetailPOSDbContext : DbContext
                 .IsUnique();
 
             entity.HasIndex(e => e.Status);
+
+            entity.HasIndex(e => e.SourceStockCountId)
+                .IsUnique()
+                .HasFilter("source_stock_count_id is not null");
 
             entity.HasOne(e => e.Adjuster)
                 .WithMany(u => u.StockAdjustments)

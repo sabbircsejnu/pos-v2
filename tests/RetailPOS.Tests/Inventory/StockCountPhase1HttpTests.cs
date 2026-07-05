@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ClosedXML.Excel;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 using RetailPOS.Tests.Infrastructure;
@@ -340,7 +342,7 @@ public class StockCountPhase1HttpTests : IClassFixture<RetailPosApiFactory>
             workbook.SaveAs(uploadStream);
             uploadStream.Position = 0;
 
-            using var uploader = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Upload,StockCount.Submit,StockCount.Approve,StockCount.Reopen");
+            using var uploader = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Upload,StockCount.Submit,StockCount.Reject,StockCount.Reopen");
             using var form = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(uploadStream.ToArray());
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -498,6 +500,110 @@ public class StockCountPhase1HttpTests : IClassFixture<RetailPosApiFactory>
     }
 
     [Fact]
+    public async Task GenerateAdjustmentDraft_ConcurrentRequests_CreateSingleDraft()
+    {
+        await ResetAndSeedAsync();
+        using var creator = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Create,StockCount.Download");
+        var stockCountId = await CreateStockCountAsync(creator, 11, "outlet");
+
+        var templateResponse = await creator.GetAsync($"/api/stock-counts/{stockCountId}/download");
+        Assert.Equal(HttpStatusCode.OK, templateResponse.StatusCode);
+        var templateBytes = await templateResponse.Content.ReadAsByteArrayAsync();
+
+        using (var templateStream = new MemoryStream(templateBytes))
+        using (var workbook = new XLWorkbook(templateStream))
+        await using (var uploadStream = new MemoryStream())
+        {
+            workbook.Worksheets.First().Cell(8, 6).Value = 13m;
+            workbook.SaveAs(uploadStream);
+            uploadStream.Position = 0;
+
+            using var actor = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Upload,StockCount.Submit,StockCount.Approve");
+            using var form = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(uploadStream.ToArray());
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            form.Add(fileContent, "file", "stock-count-upload.xlsx");
+
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/upload", form)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/submit", null)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/approve", null)).StatusCode);
+
+            var request1 = actor.PostAsync($"/api/stock-counts/{stockCountId}/generate-adjustment-draft", null);
+            var request2 = actor.PostAsync($"/api/stock-counts/{stockCountId}/generate-adjustment-draft", null);
+            await Task.WhenAll(request1, request2);
+
+            var response1 = await request1;
+            var response2 = await request2;
+            var statuses = new[] { response1.StatusCode, response2.StatusCode };
+            Assert.Contains(HttpStatusCode.OK, statuses);
+            Assert.Contains(HttpStatusCode.BadRequest, statuses);
+
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
+            Assert.Single(db.StockAdjustments);
+
+            var adjustment = db.StockAdjustments.Single();
+            Assert.Equal(stockCountId, adjustment.SourceStockCountId);
+        }
+    }
+
+    [Fact]
+    public async Task GeneratedAdjustment_Approval_MarksStockCountCompleted()
+    {
+        await ResetAndSeedAsync();
+        using var creator = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Create,StockCount.Download");
+        var stockCountId = await CreateStockCountAsync(creator, 11, "outlet");
+
+        var templateResponse = await creator.GetAsync($"/api/stock-counts/{stockCountId}/download");
+        Assert.Equal(HttpStatusCode.OK, templateResponse.StatusCode);
+        var templateBytes = await templateResponse.Content.ReadAsByteArrayAsync();
+
+        using (var templateStream = new MemoryStream(templateBytes))
+        using (var workbook = new XLWorkbook(templateStream))
+        await using (var uploadStream = new MemoryStream())
+        {
+            workbook.Worksheets.First().Cell(8, 6).Value = 13m;
+            workbook.SaveAs(uploadStream);
+            uploadStream.Position = 0;
+
+            using var actor = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Upload,StockCount.Submit,StockCount.Approve");
+            using var form = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(uploadStream.ToArray());
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            form.Add(fileContent, "file", "stock-count-upload.xlsx");
+
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/upload", form)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/submit", null)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await actor.PostAsync($"/api/stock-counts/{stockCountId}/approve", null)).StatusCode);
+
+            var generateResponse = await actor.PostAsync($"/api/stock-counts/{stockCountId}/generate-adjustment-draft", null);
+            Assert.Equal(HttpStatusCode.OK, generateResponse.StatusCode);
+
+            long adjustmentId;
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
+                adjustmentId = db.StockAdjustments.Single().Id;
+            }
+
+            using var approver = CreateClient(
+                userId: 201,
+                permissions: "stock_adjustments.view,stock_adjustments.create,stock_adjustments.approve,StockCount.ViewOwn");
+
+            var submitAdjustment = await approver.PostAsync($"/api/stock-adjustments/{adjustmentId}/submit", null);
+            Assert.Equal(HttpStatusCode.OK, submitAdjustment.StatusCode);
+
+            var approveAdjustment = await approver.PostAsync($"/api/stock-adjustments/{adjustmentId}/approve", null);
+            Assert.Equal(HttpStatusCode.OK, approveAdjustment.StatusCode);
+        }
+
+        var view = await creator.GetAsync($"/api/stock-counts/{stockCountId}");
+        Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+        var completed = await ReadApiData<StockCountResponse>(view);
+        Assert.Equal("Completed", completed!.Status);
+    }
+
+    [Fact]
     public async Task GenerateAdjustmentDraft_WithZeroDifferences_ReturnsBadRequest()
     {
         await ResetAndSeedAsync();
@@ -535,7 +641,7 @@ public class StockCountPhase1HttpTests : IClassFixture<RetailPosApiFactory>
     }
 
     [Fact]
-    public async Task Reject_WithOnlyStockCountRejectPermission_ReturnsForbidden()
+    public async Task Reject_WithOnlyStockCountRejectPermission_Succeeds()
     {
         await ResetAndSeedAsync();
         using var creator = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Create,StockCount.Download");
@@ -565,7 +671,9 @@ public class StockCountPhase1HttpTests : IClassFixture<RetailPosApiFactory>
 
         using var rejectOnly = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Reject");
         var rejectResponse = await rejectOnly.PostAsJsonAsync($"/api/stock-counts/{stockCountId}/reject", new { reason = "No permission now" });
-        Assert.Equal(HttpStatusCode.Forbidden, rejectResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, rejectResponse.StatusCode);
+        var rejected = await ReadApiData<StockCountResponse>(rejectResponse);
+        Assert.Equal("Rejected", rejected!.Status);
     }
 
     [Theory]
@@ -584,6 +692,39 @@ public class StockCountPhase1HttpTests : IClassFixture<RetailPosApiFactory>
             : await actor.PostAsync($"/api/stock-counts/{stockCountId}/{actionRoute}", null);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("approve")]
+    [InlineData("generate-adjustment-draft")]
+    public async Task Phase3Actions_WhenFeatureDisabled_ReturnForbidden(string actionRoute)
+    {
+        await ResetAndSeedAsync();
+        using var creator = CreateClient(userId: 201, permissions: "StockCount.ViewOwn,StockCount.Create");
+        var stockCountId = await CreateStockCountAsync(creator, 11, "outlet");
+
+        using var phase3DisabledFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:StockCountPhase3Enabled"] = "false"
+                });
+            });
+        });
+
+        using var actor = phase3DisabledFactory.CreateClient();
+        actor.DefaultRequestHeaders.Add("X-Test-BusinessId", "1");
+        actor.DefaultRequestHeaders.Add("X-Test-UserId", "201");
+        actor.DefaultRequestHeaders.Add("X-Test-Role", "AccountsAdmin");
+        actor.DefaultRequestHeaders.Add("X-Test-Permissions", "StockCount.ViewOwn,StockCount.Approve");
+
+        var response = await actor.PostAsync($"/api/stock-counts/{stockCountId}/{actionRoute}", null);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        var envelope = await ReadApiEnvelope(response);
+        Assert.Contains("Phase 3", envelope.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

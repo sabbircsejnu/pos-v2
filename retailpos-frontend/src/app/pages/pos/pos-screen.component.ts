@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, signal, computed, inject
+  Component, OnInit, OnDestroy, signal, computed, inject, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
@@ -11,6 +11,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { SaleService } from '../../services/sale.service';
 import { PosService } from '../../services/pos.service';
+import { PosTerminalDto } from '../../services/pos.service';
+import { CustomerService } from '../../services/customer.service';
 import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
@@ -26,6 +28,17 @@ interface Category {
   name: string;
 }
 
+interface QuickCustomerForm {
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  address: string;
+}
+
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
@@ -37,6 +50,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private saleService = inject(SaleService);
   private posService  = inject(PosService);
+  private customerService = inject(CustomerService);
   private settingsService = inject(SettingsService);
   private alertService = inject(AlertService);
   private errorHandler = inject(ErrorHandlerService);
@@ -55,6 +69,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   allProducts = signal<PosProduct[]>([]);
   categories = signal<Category[]>([]);
   searchQuery = signal('');
+  smartSearchQuery = signal('');
+  showSmartSearchDropdown = signal(false);
+  showProductBrowser = signal(false);
   selectedCategory = signal<number | null>(null);
   isLoadingProducts = signal(false);
 
@@ -78,11 +95,33 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   customerSearchQuery = signal('');
   customerResults = signal<CustomerDto[]>([]);
   showCustomerDropdown = signal(false);
+  showQuickCustomerModal = signal(false);
+  isSavingCustomer = signal(false);
+  quickCustomerForm = signal<QuickCustomerForm>({
+    salutation: '',
+    firstName: '',
+    lastName: '',
+    displayName: '',
+    email: '',
+    phone: '',
+    mobile: '',
+    address: ''
+  });
+
+  // POS header context
+  shiftStartedAt = signal<Date>(new Date());
+  now = signal<Date>(new Date());
+  salesOrderDate = signal<string>('');
+  saleSequence = signal(1);
+  currentUser = signal<any | null>(null);
 
   // Hold/park state
   showHeldSalesPanel = signal(false);
   heldSales = this.posService.heldSales;
   isLoadingHeld = this.posService.isLoadingHeld;
+
+  terminals = signal<PosTerminalDto[]>([]);
+  selectedTerminalId = signal<number | null>(null);
 
   // Processing
   isProcessing = signal(false);
@@ -90,6 +129,19 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   completedSale = signal<any>(null);
 
   // Computed
+  smartSearchResults = computed(() => {
+    const q = this.smartSearchQuery().toLowerCase().trim();
+    if (!q) return [];
+
+    return this.allProducts()
+      .filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.categoryName ?? '').toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  });
+
   filteredProducts = computed(() => {
     let products = this.allProducts();
     const q = this.searchQuery().toLowerCase().trim();
@@ -122,8 +174,113 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     Math.round((this.subtotal() - this.discountAmount() + this.taxAmount()) * 100) / 100
   );
 
+  roundOff = computed(() => 0);
+
+  grandTotal = computed(() =>
+    Math.round((this.totalAmount() + this.roundOff()) * 100) / 100
+  );
+
+  payableAmount = computed(() => this.grandTotal());
+
+  itemCount = computed(() => this.cartItems().length);
+
+  quantityCount = computed(() =>
+    this.cartItems().reduce((sum, item) => sum + item.quantity, 0)
+  );
+
+  dueAmount = computed(() => {
+    if (this.useSplitPayment()) {
+      return Math.max(0, Math.round((this.payableAmount() - this.splitTotal()) * 100) / 100);
+    }
+    if (this.paymentMethod() === 'cash') {
+      return Math.max(0, Math.round((this.payableAmount() - this.cashTendered()) * 100) / 100);
+    }
+    return 0;
+  });
+
+  headerOutlet = computed(() => this.currentUser()?.outletName ?? 'Outlet not assigned');
+  headerCashier = computed(() => this.currentUser()?.fullName ?? this.currentUser()?.username ?? 'Cashier');
+  headerTerminal = computed(() => {
+    const selectedId = this.selectedTerminalId();
+    const terminal = this.terminals().find((t) => t.id === selectedId);
+    return terminal ? `${terminal.name} (${terminal.code})` : 'No terminal selected';
+  });
+
+  canViewCustomers = computed(() =>
+    this.authService.hasPermission('customers.view') || this.authService.hasPermission('*')
+  );
+
+  canCreateCustomers = computed(() =>
+    this.authService.hasPermission('customers.create') || this.authService.hasPermission('*')
+  );
+
+  canBackdateSale = computed(() =>
+    this.authService.hasPermission('sales.backdate') || this.authService.hasPermission('*')
+  );
+
+  saleOrderNumber = computed(() => {
+    const now = this.now();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const seq = String(this.saleSequence()).padStart(3, '0');
+    return `SO-${y}${m}${d}-${seq}`;
+  });
+
+  shiftDuration = computed(() => {
+    const ms = this.now().getTime() - this.shiftStartedAt().getTime();
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  });
+
+  canCompleteSale = computed(() => {
+    if (this.cartItems().length === 0 || this.isProcessing() || !this.selectedTerminalId()) {
+      return false;
+    }
+
+    if (this.useSplitPayment()) {
+      return Math.abs(this.splitTotal() - this.payableAmount()) <= 0.01;
+    }
+
+    if (this.paymentMethod() === 'cash') {
+      return this.cashTendered() >= this.payableAmount();
+    }
+
+    return true;
+  });
+
+  cashBreakdown = computed(() => {
+    if (this.useSplitPayment()) {
+      return this.splitPayments()
+        .filter((p) => p.method === 'cash')
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+    }
+    return this.paymentMethod() === 'cash' ? this.payableAmount() : 0;
+  });
+
+  cardBreakdown = computed(() => {
+    if (this.useSplitPayment()) {
+      return this.splitPayments()
+        .filter((p) => p.method === 'card')
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+    }
+    return this.paymentMethod() === 'card' ? this.payableAmount() : 0;
+  });
+
+  mobileBreakdown = computed(() => {
+    if (this.useSplitPayment()) {
+      return this.splitPayments()
+        .filter((p) => p.method === 'mobile')
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+    }
+    return this.paymentMethod() === 'mobile' ? this.payableAmount() : 0;
+  });
+
   change = computed(() =>
-    Math.max(0, Math.round((this.cashTendered() - this.totalAmount()) * 100) / 100)
+    Math.max(0, Math.round((this.cashTendered() - this.payableAmount()) * 100) / 100)
   );
 
   splitTotal = computed(() =>
@@ -131,19 +288,30 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   );
 
   splitRemaining = computed(() =>
-    Math.max(0, Math.round((this.totalAmount() - this.splitTotal()) * 100) / 100)
+    Math.max(0, Math.round((this.payableAmount() - this.splitTotal()) * 100) / 100)
   );
 
   private customerSearchSubject = new Subject<string>();
   private subs: Subscription[] = [];
 
+  private readonly walkInCustomer: CustomerDto = {
+    id: 0,
+    name: 'Walk-in Customer',
+    loyaltyPoints: 0,
+    createdAt: new Date(0).toISOString()
+  };
+
   ngOnInit(): void {
+    this.currentUser.set(this.authService.getUserValue());
+    this.salesOrderDate.set(this.formatDateForInput(new Date()));
+    this.selectedCustomer.set(this.walkInCustomer);
     this.loadCategories();
     this.loadProducts();
     this.loadTaxSettings();
     const user = this.authService.getUserValue();
     if (user?.outletId) {
       this.posService.loadHeldSales(user.outletId);
+      this.loadTerminals(user.outletId);
     }
     this.subs.push(
       this.customerSearchSubject.pipe(
@@ -151,10 +319,88 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         distinctUntilChanged()
       ).subscribe(q => this.doCustomerSearch(q))
     );
+
+    const intervalId = window.setInterval(() => {
+      this.now.set(new Date());
+    }, 1000);
+
+    this.subs.push(
+      new Subscription(() => clearInterval(intervalId))
+    );
   }
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
+  }
+
+  private formatDateForInput(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  private buildRequestedSalesDate(): string | undefined {
+    if (!this.canBackdateSale()) {
+      return undefined;
+    }
+
+    const date = this.salesOrderDate().trim();
+    if (!date) {
+      return undefined;
+    }
+
+    // Keep date-only value without timezone conversion drift.
+    return `${date}T00:00:00`;
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'F2':
+        event.preventDefault();
+        this.focusSmartSearch();
+        break;
+      case 'F4':
+        event.preventDefault();
+        this.openProductBrowser();
+        break;
+      case 'F6':
+        event.preventDefault();
+        this.holdSale();
+        break;
+      case 'F7':
+        event.preventDefault();
+        this.toggleHeldSalesPanel();
+        break;
+      case 'F9':
+        event.preventDefault();
+        this.completeSale();
+        break;
+      case '1':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.useSplitPayment.set(false);
+          this.setPaymentMethod('cash');
+        }
+        break;
+      case '2':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.useSplitPayment.set(false);
+          this.setPaymentMethod('card');
+        }
+        break;
+      case '3':
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.useSplitPayment.set(false);
+          this.setPaymentMethod('mobile');
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   private loadTaxSettings(): void {
@@ -223,6 +469,40 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadTerminals(outletId: number): void {
+    this.posService.getTerminals(outletId).subscribe({
+      next: (res) => {
+        const data = (res?.data ?? res ?? []) as PosTerminalDto[];
+        this.terminals.set(data);
+        const preferred = data.find(t => t.isDefault) ?? data[0];
+        this.selectedTerminalId.set(preferred?.id ?? null);
+      },
+      error: () => {
+        this.terminals.set([]);
+        this.selectedTerminalId.set(null);
+      }
+    });
+  }
+
+  onTerminalChange(value: string): void {
+    const id = Number(value);
+    this.selectedTerminalId.set(Number.isFinite(id) && id > 0 ? id : null);
+  }
+
+  focusSmartSearch(): void {
+    const element = document.getElementById('smart-pos-search') as HTMLInputElement | null;
+    element?.focus();
+    element?.select();
+  }
+
+  openProductBrowser(): void {
+    this.showProductBrowser.set(true);
+  }
+
+  closeProductBrowser(): void {
+    this.showProductBrowser.set(false);
+  }
+
   selectCategory(id: number | null): void {
     this.selectedCategory.set(id);
   }
@@ -242,12 +522,6 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.isVariantInCart(product.variantId)) {
-      this.alertService.warning(`${product.name} is already in cart`);
-      this.highlightCartVariant(product.variantId);
-      return;
-    }
-
     this.addToCart(product);
   }
 
@@ -259,7 +533,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const items = this.cartItems();
     const idx = items.findIndex(i => i.variantId === product.variantId);
     if (idx >= 0) {
-      this.alertService.warning(`${product.name} is already in cart`);
+      const nextQty = items[idx].quantity + 1;
+      const updated = [...items];
+      updated[idx] = {
+        ...updated[idx],
+        quantity: nextQty,
+        subtotal: nextQty * updated[idx].unitPrice
+      };
+      this.cartItems.set(updated);
       this.highlightCartVariant(product.variantId);
       return;
     } else {
@@ -274,6 +555,176 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         primaryImageThumb: product.primaryImageThumb,
       }]);
     }
+
+    this.showSmartSearchDropdown.set(false);
+  }
+
+  onSmartSearchChange(value: string): void {
+    this.smartSearchQuery.set(value);
+    this.showSmartSearchDropdown.set(!!value.trim());
+  }
+
+  onSmartSearchSubmit(): void {
+    const query = this.smartSearchQuery().trim();
+    if (!query) return;
+
+    const firstMatch = this.smartSearchResults()[0];
+    if (firstMatch && !this.looksLikeCode(query)) {
+      this.addToCart(firstMatch);
+      this.smartSearchQuery.set('');
+      this.showSmartSearchDropdown.set(false);
+      return;
+    }
+
+    this.lookupAndAddProduct(query);
+  }
+
+  selectSmartSearchResult(product: PosProduct): void {
+    this.addToCart(product);
+    this.smartSearchQuery.set('');
+    this.showSmartSearchDropdown.set(false);
+    this.focusSmartSearch();
+  }
+
+  private looksLikeCode(value: string): boolean {
+    const q = value.trim();
+    return /^\d{5,}$/.test(q) || /^[A-Za-z0-9\-]{4,}$/.test(q);
+  }
+
+  private lookupAndAddProduct(code: string): void {
+    const user = this.authService.getUserValue();
+    if (!user?.outletId) return;
+
+    this.isBarcodeScanning.set(true);
+    this.posService.lookup(code, user.outletId, 'barcode').subscribe({
+      next: (res) => {
+        const result = res?.data ?? res;
+        if (!result) {
+          this.trySkuLookup(code, user.outletId!);
+          return;
+        }
+
+        this.addLookupResultToCart(result);
+      },
+      error: () => this.trySkuLookup(code, user.outletId!)
+    });
+  }
+
+  private trySkuLookup(code: string, outletId: number): void {
+    this.posService.lookup(code, outletId, 'sku').subscribe({
+      next: (res) => {
+        const result = res?.data ?? res;
+        if (!result) {
+          this.alertService.error(`No product found for: ${code}`);
+          this.isBarcodeScanning.set(false);
+          return;
+        }
+
+        this.addLookupResultToCart(result);
+      },
+      error: () => {
+        this.alertService.error(`No product found for: ${code}`);
+        this.isBarcodeScanning.set(false);
+      }
+    });
+  }
+
+  private addLookupResultToCart(result: any): void {
+    const product: PosProduct = {
+      variantId: result.variantId,
+      productId: result.productId,
+      name: result.productName + (result.variantName ? ` - ${result.variantName}` : ''),
+      sku: result.sku,
+      price: result.effectivePrice,
+      stockQty: result.stockQty,
+      primaryImageThumb: result.imageUrl,
+    };
+
+    if (!result.inStock) {
+      this.alertService.error(`${product.name} is out of stock`);
+      this.isBarcodeScanning.set(false);
+      return;
+    }
+
+    this.addToCart(product);
+    this.smartSearchQuery.set('');
+    this.barcodeInput.set('');
+    this.showSmartSearchDropdown.set(false);
+    this.isBarcodeScanning.set(false);
+  }
+
+  quickAddCustomer(): void {
+    if (!this.canCreateCustomers()) {
+      this.alertService.error('You do not have permission to create customers.');
+      return;
+    }
+
+    this.quickCustomerForm.set({
+      salutation: '',
+      firstName: '',
+      lastName: '',
+      displayName: '',
+      email: '',
+      phone: '',
+      mobile: '',
+      address: ''
+    });
+    this.showQuickCustomerModal.set(true);
+  }
+
+  closeQuickCustomerModal(): void {
+    if (this.isSavingCustomer()) return;
+    this.showQuickCustomerModal.set(false);
+  }
+
+  updateQuickCustomerField(field: keyof QuickCustomerForm, value: string): void {
+    this.quickCustomerForm.update((form) => ({
+      ...form,
+      [field]: value,
+    }));
+  }
+
+  saveQuickCustomer(): void {
+    if (!this.canCreateCustomers()) {
+      this.alertService.error('You do not have permission to create customers.');
+      return;
+    }
+
+    const form = this.quickCustomerForm();
+    const name = form.displayName.trim() || `${form.firstName} ${form.lastName}`.trim();
+    const mobile = form.mobile.trim();
+
+    if (!name) {
+      this.alertService.error('Display Name is required.');
+      return;
+    }
+
+    if (!mobile) {
+      this.alertService.error('Mobile is required.');
+      return;
+    }
+
+    this.isSavingCustomer.set(true);
+
+    this.customerService.create({
+      name,
+      phone: mobile,
+      email: form.email.trim() || undefined,
+    }).subscribe({
+      next: (res) => {
+        const created = (res?.data ?? res) as CustomerDto;
+        if (created?.id) {
+          this.selectCustomer(created);
+          this.alertService.success('Customer created and selected.');
+        }
+        this.isSavingCustomer.set(false);
+        this.showQuickCustomerModal.set(false);
+      },
+      error: (err) => {
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.isSavingCustomer.set(false);
+      }
+    });
   }
 
   removeFromCart(index: number): void {
@@ -310,7 +761,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.cartItems.set([]);
     this.discountPercent.set(0);
     this.cashTendered.set(0);
-    this.selectedCustomer.set(null);
+    this.selectedCustomer.set(this.walkInCustomer);
     this.customerSearchQuery.set('');
     this.paymentMethod.set('cash');
     this.splitPayments.set([]);
@@ -318,6 +769,11 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   onCustomerSearch(query: string): void {
+    if (!this.canViewCustomers()) {
+      this.alertService.error('You do not have permission to view customers.');
+      return;
+    }
+
     this.customerSearchQuery.set(query);
     if (!query.trim()) {
       this.customerResults.set([]);
@@ -346,7 +802,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   clearCustomer(): void {
-    this.selectedCustomer.set(null);
+    this.selectedCustomer.set(this.walkInCustomer);
     this.customerSearchQuery.set('');
     this.customerResults.set([]);
     this.showCustomerDropdown.set(false);
@@ -370,14 +826,19 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.paymentMethod() === 'cash' && !this.useSplitPayment() && this.cashTendered() < this.totalAmount()) {
+    if (!this.selectedTerminalId()) {
+      this.alertService.error('Please select a POS terminal before completing sale.');
+      return;
+    }
+
+    if (this.paymentMethod() === 'cash' && !this.useSplitPayment() && this.cashTendered() < this.payableAmount()) {
       this.alertService.error('Cash tendered is less than total amount');
       return;
     }
 
     if (this.useSplitPayment()) {
-      if (Math.abs(this.splitTotal() - this.totalAmount()) > 0.01) {
-        this.alertService.error(`Split payment total (${this.currencyService.format(this.splitTotal())}) must equal sale total (${this.currencyService.format(this.totalAmount())})`);
+      if (Math.abs(this.splitTotal() - this.payableAmount()) > 0.01) {
+        this.alertService.error(`Split payment total (${this.currencyService.format(this.splitTotal())}) must equal sale total (${this.currencyService.format(this.payableAmount())})`);
         return;
       }
     }
@@ -387,8 +848,10 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
     const dto: CreateSaleDto = {
       outletId: user.outletId!,
+      terminalId: this.selectedTerminalId()!,
       cashierId: user.id,
-      customerId: this.selectedCustomer()?.id,
+      customerId: (this.selectedCustomer()?.id ?? 0) > 0 ? this.selectedCustomer()!.id : undefined,
+      salesDate: this.buildRequestedSalesDate(),
       items: this.cartItems().map(i => ({
         variantId: i.variantId,
         quantity: i.quantity,
@@ -409,6 +872,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         this.completedSale.set(res.data || res);
         this.showReceiptModal.set(true);
         this.isProcessing.set(false);
+        this.saleSequence.update((v) => v + 1);
         // Refresh held sales count after a successful sale
         this.posService.loadHeldSales(user.outletId!);
       },
@@ -427,6 +891,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.clearCart();
     this.showReceiptModal.set(false);
     this.completedSale.set(null);
+    this.saleSequence.update((v) => v + 1);
+    this.focusSmartSearch();
   }
 
   setPaymentMethod(method: string): void {
@@ -434,12 +900,12 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   onDiscountChange(val: string): void {
-    const n = parseFloat(val);
+    const n = parseFloat(String(val));
     this.discountPercent.set(isNaN(n) ? 0 : Math.min(100, Math.max(0, n)));
   }
 
   onCashTenderedChange(val: string): void {
-    const n = parseFloat(val);
+    const n = parseFloat(String(val));
     this.cashTendered.set(isNaN(n) ? 0 : n);
   }
 
@@ -453,63 +919,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   onBarcodeScan(): void {
     const code = this.barcodeInput().trim();
     if (!code) return;
-
-    const user = this.authService.getUserValue();
-    if (!user?.outletId) return;
-
-    this.isBarcodeScanning.set(true);
-    this.posService.lookup(code, user.outletId, 'barcode').subscribe({
-      next: (res) => {
-        const result = res?.data ?? res;
-        if (!result) {
-          this.alertService.error(`Product not found for barcode: ${code}`);
-          this.isBarcodeScanning.set(false);
-          return;
-        }
-        // Inject into cart using the lookup result
-        const product: PosProduct = {
-          variantId: result.variantId,
-          productId: result.productId,
-          name: result.productName + (result.variantName ? ` - ${result.variantName}` : ''),
-          sku: result.sku,
-          price: result.effectivePrice,
-          stockQty: result.stockQty,
-          primaryImageThumb: result.imageUrl,
-        };
-
-        if (!result.inStock) {
-          this.alertService.error(`${product.name} is out of stock`);
-          this.isBarcodeScanning.set(false);
-          return;
-        }
-
-        const items = this.cartItems();
-        const idx = items.findIndex(i => i.variantId === product.variantId);
-        if (idx >= 0) {
-          this.alertService.warning(`${product.name} is already in cart`);
-          this.highlightCartVariant(product.variantId);
-        } else {
-          this.cartItems.set([...items, {
-            variantId: product.variantId,
-            productName: product.name,
-            variantSku: product.sku,
-            quantity: 1,
-            unitPrice: product.price,
-            discountAmount: 0,
-            subtotal: product.price,
-            appliedRuleName: result.appliedRuleName,
-            primaryImageThumb: product.primaryImageThumb,
-          }]);
-        }
-
-        this.barcodeInput.set('');
-        this.isBarcodeScanning.set(false);
-      },
-      error: () => {
-        this.alertService.error(`No product found for: ${code}`);
-        this.isBarcodeScanning.set(false);
-      }
-    });
+    this.lookupAndAddProduct(code);
   }
 
   // ── Hold / Park ───────────────────────────────────────────────────────────
@@ -533,7 +943,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.posService.holdSale({
       outletId: user.outletId,
       cashierId: user.id,
-      customerId: this.selectedCustomer()?.id,
+      customerId: (this.selectedCustomer()?.id ?? 0) > 0 ? this.selectedCustomer()!.id : undefined,
       items: this.cartItems().map(i => ({
         variantId: i.variantId,
         productName: i.productName,
@@ -572,6 +982,16 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         })));
         this.discountPercent.set(data.discountPercent);
         this.paymentMethod.set(data.paymentMethod);
+        this.selectedCustomer.set(
+          data.customerId && data.customerId > 0
+            ? {
+                id: data.customerId,
+                name: data.customerName ?? `Customer #${data.customerId}`,
+                loyaltyPoints: 0,
+                createdAt: new Date(0).toISOString()
+              }
+            : this.walkInCustomer
+        );
         this.showHeldSalesPanel.set(false);
 
         // Delete the held sale now that it's been recalled

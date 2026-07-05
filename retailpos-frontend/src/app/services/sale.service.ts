@@ -97,4 +97,9 @@ export class SaleService {
   getSaleReceipt(id: number): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/${id}/receipt`);
   }
+
+  /** Reprint sale receipt payload */
+  reprintSaleReceipt(id: number): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/reprint`, {});
+  }
 }

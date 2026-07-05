@@ -1,383 +1,374 @@
-<div class="pos-wrapper">
-  <!-- LEFT PANEL: Products -->
-  <div class="pos-left">
-    <!-- Barcode Scan Input -->
-    <div class="barcode-row">
-      <div class="relative flex-1">
-        <i class="fas fa-barcode absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input
-          type="text"
-          placeholder="Scan barcode or enter SKU + Enter..."
-          class="input pl-9"
-          [ngModel]="barcodeInput()"
-          (ngModelChange)="onBarcodeInputChange($event)"
-          (keydown.enter)="onBarcodeScan()"
-          [disabled]="isBarcodeScanning()"
-        />
-      </div>
-      @if (isBarcodeScanning()) {
-        <i class="fas fa-spinner fa-spin text-gray-400 ml-2"></i>
-      }
-    </div>
-
-    <!-- Search Bar -->
-    <div class="pos-search-bar">
-      <div class="relative">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input
-          type="text"
-          placeholder="Search products by name or SKU..."
-          class="input pl-9"
-          [ngModel]="searchQuery()"
-          (ngModelChange)="searchQuery.set($event)"
-        />
-      </div>
-    </div>
-
-    <!-- Category Tabs -->
-    <div class="category-tabs">
-      <button
-        class="cat-tab"
-        [class.active]="selectedCategory() === null"
-        (click)="selectCategory(null)"
-      >All</button>
-      @for (cat of categories(); track cat.id) {
-        <button
-          class="cat-tab"
-          [class.active]="selectedCategory() === cat.id"
-          (click)="selectCategory(cat.id)"
-        >{{ cat.name }}</button>
-      }
-    </div>
-
-    <!-- Product Grid -->
-    @if (isLoadingProducts()) {
-      <div class="flex-1 flex items-center justify-center">
-        <div class="text-center">
-          <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-2"></i>
-          <p class="text-sm text-gray-500">Loading products...</p>
-        </div>
-      </div>
-    } @else if (filteredProducts().length === 0) {
-      <div class="flex-1 flex items-center justify-center">
-        <div class="text-center text-gray-400">
-          <i class="fas fa-box-open text-4xl mb-2"></i>
-          <p class="text-sm">No products found</p>
-        </div>
-      </div>
-    } @else {
-      <div class="product-grid">
-        @for (product of filteredProducts(); track product.variantId) {
-          <div
-            class="product-card"
-            [class.out-of-stock]="product.stockQty <= 0"
-            [class.in-cart]="isVariantInCart(product.variantId)"
-            (click)="onProductCardClick(product)"
-          >
-            @if (isVariantInCart(product.variantId)) {
-              <div class="product-badge">Already Added</div>
-            }
-            <div class="product-icon">
-              @if (product.primaryImageThumb) {
-                <img [src]="resolveImage(product.primaryImageThumb)"
-                     [alt]="product.name" loading="lazy" decoding="async"
-                     class="w-12 h-12 object-cover rounded" />
-              } @else {
-                <i class="fas fa-box text-gray-400"></i>
-              }
-            </div>
-            <div class="product-name">{{ product.name }}</div>
-            <div class="product-sku">{{ product.sku }}</div>
-            <div class="product-price">{{ product.price | appCurrency }}</div>
-            <div class="product-stock" [class.low]="product.stockQty <= 5 && product.stockQty > 0" [class.out]="product.stockQty <= 0">
-              @if (product.stockQty <= 0) {
-                <span>Out of Stock</span>
-              } @else {
-                <span>Stock: {{ product.stockQty }}</span>
-              }
-            </div>
-          </div>
-        }
-      </div>
-    }
+<div class="pos-shell">
+  <div class="cash-open-strip">
+    <p class="cash-open-line">Cash opening: {{ shiftStartedAt() | date:'dd MMM yyyy, hh:mm a' }}</p>
+    <p class="cash-open-line">Open for: {{ shiftDuration() }}</p>
+    <div class="header-clock">{{ now() | date:'HH:mm:ss' }}</div>
   </div>
 
-  <!-- RIGHT PANEL: Cart -->
-  <div class="pos-right">
-    <!-- Cart Header -->
-    <div class="cart-header">
-      <h2 class="text-lg font-bold text-gray-900">
-        <i class="fas fa-shopping-cart mr-2"></i>Cart
-        @if (cartItems().length > 0) {
-          <span class="cart-count">{{ cartItems().length }}</span>
-        }
-      </h2>
-      <div class="flex items-center gap-2">
-        <!-- Hold sale button (only when cart has items) -->
-        @if (cartItems().length > 0) {
-          <button
-            class="btn btn-sm btn-outline text-xs"
-            title="Hold / Park cart"
-            (click)="holdSale()"
-          >
-            <i class="fas fa-pause-circle mr-1"></i>Hold
-          </button>
-        }
-        <!-- Parked sales panel toggle -->
-        <button
-          class="btn btn-sm btn-outline text-xs relative"
-          title="Parked sales"
-          (click)="toggleHeldSalesPanel()"
-        >
-          <i class="fas fa-layer-group mr-1"></i>Parked
-          @if (heldSales().length > 0) {
-            <span class="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-              {{ heldSales().length }}
-            </span>
+  <div class="pos-header-card">
+    <div class="header-metric">
+      <span class="metric-label">Outlet</span>
+      <span class="metric-value">{{ headerOutlet() }}</span>
+    </div>
+
+    <div class="header-metric">
+      <span class="metric-label">Terminal</span>
+      <select
+        class="select"
+        [ngModel]="selectedTerminalId()"
+        (ngModelChange)="onTerminalChange($event)"
+        [disabled]="terminals().length === 0"
+      >
+        @if (terminals().length === 0) {
+          <option [ngValue]="null">No terminals</option>
+        } @else {
+          @for (terminal of terminals(); track terminal.id) {
+            <option [ngValue]="terminal.id">{{ terminal.name }} ({{ terminal.code }})</option>
           }
-        </button>
-      </div>
-    </div>
-
-    <!-- Customer Selection -->
-    <div class="customer-section">
-      <div class="relative">
-        <div class="flex items-center gap-2">
-          <i class="fas fa-user text-gray-400 text-sm"></i>
-          @if (selectedCustomer()) {
-            <div class="flex-1 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5">
-              <span class="text-sm font-medium text-gray-800">{{ selectedCustomer()?.name }}</span>
-              <button (click)="clearCustomer()" class="text-gray-400 hover:text-red-500 ml-2">
-                <i class="fas fa-times text-xs"></i>
-              </button>
-            </div>
-          } @else {
-            <input
-              type="text"
-              placeholder="Search customer..."
-              class="input flex-1 text-sm"
-              [ngModel]="customerSearchQuery()"
-              (ngModelChange)="onCustomerSearch($event)"
-            />
-          }
-        </div>
-        @if (showCustomerDropdown() && customerResults().length > 0) {
-          <div class="customer-dropdown">
-            @for (c of customerResults(); track c.id) {
-              <button class="customer-option" (click)="selectCustomer(c)">
-                <span class="font-medium">{{ c.name }}</span>
-                <span class="text-xs text-gray-500 ml-2">{{ c.phone || c.email || '' }}</span>
-              </button>
-            }
-          </div>
         }
-      </div>
+      </select>
     </div>
 
-    <!-- Cart Items -->
-    <div class="cart-items">
-      @if (cartItems().length === 0) {
-        <div class="empty-cart">
-          <i class="fas fa-shopping-cart text-4xl text-gray-200 mb-3"></i>
-          <p class="text-gray-400 text-sm">Cart is empty</p>
-          <p class="text-gray-300 text-xs mt-1">Click products to add them</p>
-        </div>
-      } @else {
-        @for (item of cartItems(); track item.variantId; let i = $index) {
-          <div class="cart-item" [class.duplicate-highlight]="duplicateCartVariantId() === item.variantId">
-            @if (item.primaryImageThumb) {
-              <img [src]="resolveImage(item.primaryImageThumb)" [alt]="item.productName"
-                   loading="lazy" decoding="async"
-                   class="w-8 h-8 rounded object-cover border border-gray-200 flex-shrink-0" />
-            } @else {
-              <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <i class="fas fa-box text-gray-400 text-xs"></i>
-              </div>
-            }
-            <div class="cart-item-info">
-              <div class="font-medium text-sm text-gray-900">{{ item.productName }}</div>
-              <div class="text-xs text-gray-500">{{ item.variantSku }}</div>
-              <div class="text-xs text-gray-600">{{ item.unitPrice | appCurrency }} each</div>
-            </div>
-            <div class="cart-item-qty">
-              <button class="qty-btn" (click)="decreaseQty(i)">
-                <i class="fas fa-minus text-xs"></i>
-              </button>
-              <span class="qty-val">{{ item.quantity }}</span>
-              <button class="qty-btn" (click)="increaseQty(i)">
-                <i class="fas fa-plus text-xs"></i>
-              </button>
-            </div>
-            <div class="cart-item-total">
-              <div class="font-semibold text-sm text-gray-900">{{ item.subtotal | appCurrency }}</div>
-              <button class="remove-btn" (click)="removeFromCart(i)">
-                <i class="fas fa-trash text-xs"></i>
-              </button>
-            </div>
-          </div>
-        }
-      }
+    <div class="header-metric">
+      <span class="metric-label">Cashier</span>
+      <span class="metric-value">{{ headerCashier() }}</span>
     </div>
 
-    <!-- Totals -->
-    <div class="cart-totals">
-      <div class="total-row">
-        <span class="text-sm text-gray-600">Subtotal</span>
-        <span class="text-sm font-medium text-gray-900">{{ subtotal() | appCurrency }}</span>
+    <div class="header-metric">
+      <span class="metric-label">Sale Order Number</span>
+      <span class="metric-value">{{ saleOrderNumber() }}</span>
+    </div>
+
+    @if (canBackdateSale()) {
+      <div class="header-metric">
+        <span class="metric-label">Sales Order Date</span>
+        <input
+          type="date"
+          class="input"
+          [ngModel]="salesOrderDate()"
+          (ngModelChange)="salesOrderDate.set($event)"
+          [max]="now() | date:'yyyy-MM-dd'"
+        />
       </div>
-      <div class="total-row">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Discount</span>
+    }
+
+    <div class="header-metric">
+      <span class="metric-label">Item Count</span>
+      <span class="metric-value">{{ itemCount() }}</span>
+    </div>
+
+    <div class="header-metric">
+      <span class="metric-label">Quantity Count</span>
+      <span class="metric-value">{{ quantityCount() }}</span>
+    </div>
+  </div>
+
+  <div class="pos-workflow">
+    <section class="cart-lane">
+      <div class="entry-headings">
+        <span>Item code / barcode</span>
+        <span>Customer</span>
+        <span>Name</span>
+      </div>
+
+      <div class="smart-search-bar">
+        <div class="relative search-column">
           <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.1"
-            class="w-14 border border-gray-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-gray-900"
-            [ngModel]="discountPercent()"
-            (ngModelChange)="onDiscountChange($event)"
+            id="smart-pos-search"
+            type="text"
+            placeholder="Product code / description (F2)"
+            class="input"
+            [ngModel]="smartSearchQuery()"
+            (ngModelChange)="onSmartSearchChange($event)"
+            (keydown.enter)="onSmartSearchSubmit()"
+            (focus)="showSmartSearchDropdown.set(!!smartSearchQuery().trim())"
+            [disabled]="isBarcodeScanning()"
           />
-          <span class="text-sm text-gray-500">%</span>
-        </div>
-        <span class="text-sm text-red-600">-{{ discountAmount() | appCurrency }}</span>
-      </div>
-      <div class="total-row">
-        <span class="text-sm text-gray-600">Tax (10%)</span>
-        <span class="text-sm text-gray-700">{{ taxAmount() | appCurrency }}</span>
-      </div>
-      <div class="total-row border-t border-gray-200 pt-2 mt-1">
-        <span class="text-lg font-bold text-gray-900">Total</span>
-        <span class="text-xl font-bold text-gray-900">{{ totalAmount() | appCurrency }}</span>
-      </div>
-    </div>
 
-    <!-- Payment Method -->
-    <div class="payment-section">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Method</p>
-        <button
-          class="text-xs text-blue-600 hover:underline"
-          (click)="toggleSplitPayment()"
-        >{{ useSplitPayment() ? 'Single Payment' : 'Split Payment' }}</button>
-      </div>
-
-      @if (!useSplitPayment()) {
-        <div class="flex gap-2">
-          <button
-            class="pay-method-btn"
-            [class.active]="paymentMethod() === 'cash'"
-            (click)="setPaymentMethod('cash')"
-          >
-            <i class="fas fa-money-bill-wave"></i> Cash
-          </button>
-          <button
-            class="pay-method-btn"
-            [class.active]="paymentMethod() === 'card'"
-            (click)="setPaymentMethod('card')"
-          >
-            <i class="fas fa-credit-card"></i> Card
-          </button>
-          <button
-            class="pay-method-btn"
-            [class.active]="paymentMethod() === 'mobile'"
-            (click)="setPaymentMethod('mobile')"
-          >
-            <i class="fas fa-mobile-alt"></i> Mobile
-          </button>
-        </div>
-      } @else {
-        <!-- Split Payment Rows -->
-        <div class="split-payment-rows">
-          @for (row of splitPayments(); track $index; let i = $index) {
-            <div class="split-row flex items-center gap-2 mb-1">
-              <select
-                class="border border-gray-300 rounded px-2 py-1 text-sm flex-shrink-0 w-24"
-                [ngModel]="row.method"
-                (ngModelChange)="updateSplitMethod(i, $event)"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="mobile">Mobile</option>
-                <option value="loyalty">Loyalty</option>
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Amount"
-                class="input text-sm flex-1"
-                [ngModel]="row.amount"
-                (ngModelChange)="updateSplitAmount(i, $event)"
-              />
-              @if (row.method === 'cash') {
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Tendered"
-                  class="input text-sm w-20"
-                  [ngModel]="row.tendered"
-                  (ngModelChange)="updateSplitTendered(i, $event)"
-                />
-              }
-              @if (splitPayments().length > 1) {
-                <button class="text-red-400 hover:text-red-600" (click)="removeSplitRow(i)">
-                  <i class="fas fa-times text-xs"></i>
+          @if (showSmartSearchDropdown() && smartSearchResults().length > 0) {
+            <div class="smart-search-dropdown">
+              @for (product of smartSearchResults(); track product.variantId) {
+                <button class="smart-option" (click)="selectSmartSearchResult(product)">
+                  <div class="smart-option-main">
+                    <span class="font-medium text-sm text-gray-900">{{ product.name }}</span>
+                    <span class="text-xs text-gray-500">{{ product.sku }}</span>
+                  </div>
+                  <span class="text-sm font-semibold text-gray-800">{{ product.price | appCurrency }}</span>
                 </button>
               }
             </div>
           }
-          <div class="flex justify-between text-xs mt-1">
-            <button class="text-blue-600 hover:underline" (click)="addSplitRow()">
-              <i class="fas fa-plus mr-1"></i>Add method
-            </button>
-            <span [class.text-red-600]="splitRemaining() > 0.01" [class.text-green-600]="splitRemaining() <= 0.01">
-              Remaining: {{ splitRemaining() | appCurrency }}
-            </span>
-          </div>
         </div>
-      }
-    </div>
 
-    <!-- Cash Tendered (single cash payment only) -->
-    @if (paymentMethod() === 'cash' && !useSplitPayment()) {
-      <div class="cash-section">
-        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cash Tendered</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          class="input mt-1 text-lg font-medium"
-          [ngModel]="cashTendered()"
-          (ngModelChange)="onCashTenderedChange($event)"
-          placeholder="0.00"
-        />
-        <div class="flex justify-between mt-2">
-          <span class="text-sm text-gray-600">Change:</span>
-          <span class="text-lg font-bold" [class.text-green-600]="change() > 0" [class.text-gray-900]="change() === 0">
-            {{ change() | appCurrency }}
-          </span>
+        <div class="relative customer-column">
+          <input
+            type="text"
+            class="input"
+            placeholder="Search customer (F6)"
+            [ngModel]="customerSearchQuery()"
+            (ngModelChange)="onCustomerSearch($event)"
+            [disabled]="!canViewCustomers()"
+          />
+          @if (showCustomerDropdown() && customerResults().length > 0) {
+            <div class="customer-dropdown">
+              @for (c of customerResults(); track c.id) {
+                <button class="customer-option" (click)="selectCustomer(c)">
+                  <span class="font-medium text-sm">{{ c.name }}</span>
+                  <span class="text-xs text-gray-500">{{ c.phone || c.email || '' }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <button class="btn btn-outline btn-icon" (click)="quickAddCustomer()" [disabled]="!canCreateCustomers()" title="Quick Add Customer">
+          <i class="fas fa-plus"></i>
+        </button>
+
+        <div class="customer-name-pill">
+          {{ selectedCustomer()?.name || 'Walk-in Customer' }}
+        </div>
+
+        <button class="btn btn-outline" (click)="holdSale()" [disabled]="cartItems().length === 0">
+          Hold Invoice
+          <span class="shortcut-tag">F6</span>
+        </button>
+        <button class="btn btn-outline relative" (click)="toggleHeldSalesPanel()">
+          Recall Invoice
+          <span class="shortcut-tag">F7</span>
+          @if (heldSales().length > 0) {
+            <span class="held-count-badge">{{ heldSales().length }}</span>
+          }
+        </button>
+        <button class="btn btn-ghost" (click)="openProductBrowser()">
+          Browse
+          <span class="shortcut-tag">F4</span>
+        </button>
+        @if (isBarcodeScanning()) {
+          <i class="fas fa-spinner fa-spin text-gray-400"></i>
+        }
+      </div>
+
+      <div class="cart-table-wrap">
+        <div class="cart-table-header">
+          <span>SL</span>
+          <span>Barcode</span>
+          <span>Product Key</span>
+          <span>Description</span>
+          <span class="text-right">Price</span>
+          <span class="text-center">Qty</span>
+          <span class="text-center">Discount (%)</span>
+          <span class="text-right">Amount</span>
+          <span class="text-right">Action</span>
+        </div>
+
+        <div class="cart-rows">
+          @if (cartItems().length === 0) {
+            <div class="cart-row cart-row-empty">
+              <span>1</span>
+              <span>-</span>
+              <span>-</span>
+              <span class="text-gray-400">Scan barcode or search product to begin sale</span>
+              <span class="text-right">0.00</span>
+              <span class="text-center">0</span>
+              <span class="text-center">0</span>
+              <span class="text-right">0.00</span>
+              <span class="text-right">-</span>
+            </div>
+          } @else {
+            @for (item of cartItems(); track item.variantId; let i = $index) {
+              <div class="cart-row" [class.duplicate-highlight]="duplicateCartVariantId() === item.variantId">
+                <span class="text-sm text-gray-600">{{ i + 1 }}</span>
+                <span class="text-sm text-gray-700">{{ item.variantSku }}</span>
+                <span class="text-sm text-gray-700">{{ item.variantSku }}</span>
+                <div class="cart-product min-w-0">
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ item.productName }}</p>
+                </div>
+                <span class="text-right text-sm text-gray-700">{{ item.unitPrice | appCurrency }}</span>
+                <div class="qty-controls">
+                  <button class="qty-btn" (click)="decreaseQty(i)"><i class="fas fa-minus text-xs"></i></button>
+                  <span class="qty-value">{{ item.quantity }}</span>
+                  <button class="qty-btn" (click)="increaseQty(i)"><i class="fas fa-plus text-xs"></i></button>
+                </div>
+                <span class="text-center text-sm text-gray-700">0</span>
+                <span class="text-right text-sm font-semibold text-gray-900">{{ item.subtotal | appCurrency }}</span>
+                <div class="text-right">
+                  <button class="remove-btn" (click)="removeFromCart(i)">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          }
         </div>
       </div>
-    }
+    </section>
 
-    <!-- Action Buttons -->
-    <div class="cart-actions">
-      <button class="btn-clear" (click)="clearCart()" [disabled]="cartItems().length === 0">
-        <i class="fas fa-trash-alt"></i> Clear
-      </button>
-      <button
-        class="btn-checkout"
-        [disabled]="cartItems().length === 0 || isProcessing()"
-        (click)="completeSale()"
-      >
-        @if (isProcessing()) {
-          <i class="fas fa-spinner fa-spin mr-2"></i>Processing...
-        } @else {
-          <i class="fas fa-check-circle mr-2"></i>Complete Sale
-        }
-      </button>
-    </div>
+    <aside class="payment-lane">
+      <div class="payment-scroll">
+        <section class="summary-card">
+          <p class="section-title">Payment Summary</p>
+
+          <div class="summary-row">
+            <span>Item Count</span>
+            <strong>{{ itemCount() }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Quantity</span>
+            <strong>{{ quantityCount() }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <strong>{{ subtotal() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row with-inline-input">
+            <span>Discount</span>
+            <div class="inline-edit">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                class="input discount-input"
+                [ngModel]="discountPercent()"
+                (ngModelChange)="onDiscountChange($event)"
+              />
+              <span class="text-xs text-gray-500">%</span>
+              <strong class="text-red-600">-{{ discountAmount() | appCurrency }}</strong>
+            </div>
+          </div>
+          <div class="summary-row">
+            <span>Tax</span>
+            <strong>{{ taxAmount() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Round Off</span>
+            <strong>{{ roundOff() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row total-line">
+            <span>Grand Total</span>
+            <strong>{{ grandTotal() | appCurrency }}</strong>
+          </div>
+        </section>
+
+        <section class="payment-method-card">
+          <p class="section-title">Tender Details</p>
+          <div class="summary-row">
+            <span>Payable</span>
+            <strong>{{ payableAmount() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Round Off</span>
+            <strong>{{ roundOff() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Cash (Ctrl+1)</span>
+            <strong>{{ cashBreakdown() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Card (Ctrl+2)</span>
+            <strong>{{ cardBreakdown() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Mobile (Ctrl+3)</span>
+            <strong>{{ mobileBreakdown() | appCurrency }}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Change</span>
+            <strong>{{ change() | appCurrency }}</strong>
+          </div>
+
+          <div class="section-title-row">
+            <p class="section-title">Payment Breakdown</p>
+            <button class="text-xs text-blue-600 hover:underline" (click)="toggleSplitPayment()">
+              {{ useSplitPayment() ? 'Single Payment' : 'Split Payment' }}
+            </button>
+          </div>
+
+          @if (!useSplitPayment()) {
+            <div class="pay-method-grid">
+              <button class="pay-method-btn" [class.active]="paymentMethod() === 'cash'" (click)="setPaymentMethod('cash')">
+                <i class="fas fa-money-bill-wave"></i>Cash
+              </button>
+              <button class="pay-method-btn" [class.active]="paymentMethod() === 'card'" (click)="setPaymentMethod('card')">
+                <i class="fas fa-credit-card"></i>Card
+              </button>
+              <button class="pay-method-btn" [class.active]="paymentMethod() === 'mobile'" (click)="setPaymentMethod('mobile')">
+                <i class="fas fa-mobile-alt"></i>Mobile
+              </button>
+            </div>
+          } @else {
+            <div class="split-payment-rows">
+              @for (row of splitPayments(); track $index; let i = $index) {
+                <div class="split-row">
+                  <select class="select w-24" [ngModel]="row.method" (ngModelChange)="updateSplitMethod(i, $event)">
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="mobile">Mobile</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Amount"
+                    class="input"
+                    [ngModel]="row.amount"
+                    (ngModelChange)="updateSplitAmount(i, $event)"
+                  />
+                  @if (splitPayments().length > 1) {
+                    <button class="text-red-500" (click)="removeSplitRow(i)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  }
+                </div>
+              }
+              <div class="split-footer">
+                <button class="text-xs text-blue-600 hover:underline" (click)="addSplitRow()">+ Add Method</button>
+                <span [class.text-red-600]="splitRemaining() > 0.01" [class.text-green-600]="splitRemaining() <= 0.01">
+                  Remaining: {{ splitRemaining() | appCurrency }}
+                </span>
+              </div>
+            </div>
+          }
+
+          @if (paymentMethod() === 'cash' && !useSplitPayment()) {
+            <div class="cash-entry">
+              <label class="label">Cash Tendered</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                class="input"
+                [ngModel]="cashTendered()"
+                (ngModelChange)="onCashTenderedChange($event)"
+                placeholder="0.00"
+              />
+              <div class="summary-row mt-2">
+                <span>Due</span>
+                <strong [class.text-red-600]="dueAmount() > 0">{{ dueAmount() | appCurrency }}</strong>
+              </div>
+            </div>
+          }
+        </section>
+      </div>
+
+      <div class="checkout-footer">
+        <button class="btn btn-outline" (click)="clearCart()" [disabled]="cartItems().length === 0">Clear</button>
+        <button class="btn btn-primary" (click)="holdSale()" [disabled]="cartItems().length === 0">
+          Hold
+          <span class="shortcut-tag">F6</span>
+        </button>
+        <button class="btn btn-primary checkout-btn" [disabled]="!canCompleteSale()" (click)="completeSale()">
+          @if (isProcessing()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            Processing...
+          } @else {
+            Complete Sale
+            <span class="shortcut-tag">F9</span>
+          }
+        </button>
+      </div>
+    </aside>
   </div>
 </div>
 
@@ -477,7 +468,7 @@
     <div class="held-sales-modal">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-gray-900">
-          <i class="fas fa-layer-group mr-2"></i>Parked Sales
+          <i class="fas fa-layer-group mr-2"></i>Recall Invoice Queue
         </h3>
         <button class="text-gray-400 hover:text-gray-600" (click)="showHeldSalesPanel.set(false)">
           <i class="fas fa-times"></i>
@@ -487,12 +478,12 @@
       @if (isLoadingHeld()) {
         <div class="text-center py-8 text-gray-400">
           <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-          <p class="text-sm">Loading parked sales...</p>
+          <p class="text-sm">Loading held invoices...</p>
         </div>
       } @else if (heldSales().length === 0) {
         <div class="text-center py-8 text-gray-400">
           <i class="fas fa-layer-group text-4xl mb-3"></i>
-          <p class="text-sm">No parked sales</p>
+          <p class="text-sm">No held invoices</p>
         </div>
       } @else {
         <div class="held-sales-list">
@@ -517,7 +508,7 @@
                 <button
                   class="btn btn-sm btn-primary text-xs"
                   (click)="recallHeldSale(held)"
-                  title="Recall into cart"
+                  title="Recall invoice"
                 >
                   <i class="fas fa-redo-alt mr-1"></i>Recall
                 </button>
@@ -533,6 +524,140 @@
           }
         </div>
       }
+    </div>
+  </div>
+}
+
+<!-- Product Browser Drawer -->
+@if (showProductBrowser()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeProductBrowser()">
+    <div class="product-browser-drawer">
+      <div class="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+        <h3 class="text-base font-semibold text-gray-900">Browse Products</h3>
+        <button class="btn btn-ghost" (click)="closeProductBrowser()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="drawer-search mb-3">
+        <input
+          type="text"
+          class="input"
+          placeholder="Filter products in browser"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+
+      <div class="category-tabs mb-3">
+        <button class="cat-tab" [class.active]="selectedCategory() === null" (click)="selectCategory(null)">All</button>
+        @for (cat of categories(); track cat.id) {
+          <button class="cat-tab" [class.active]="selectedCategory() === cat.id" (click)="selectCategory(cat.id)">
+            {{ cat.name }}
+          </button>
+        }
+      </div>
+
+      @if (isLoadingProducts()) {
+        <div class="text-center py-8 text-gray-500">
+          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <p>Loading products...</p>
+        </div>
+      } @else if (filteredProducts().length === 0) {
+        <div class="text-center py-8 text-gray-500">
+          <i class="fas fa-box-open text-3xl mb-2"></i>
+          <p>No products found.</p>
+        </div>
+      } @else {
+        <div class="product-grid">
+          @for (product of filteredProducts(); track product.variantId) {
+            <button
+              class="product-card"
+              [class.out-of-stock]="product.stockQty <= 0"
+              [class.in-cart]="isVariantInCart(product.variantId)"
+              (click)="onProductCardClick(product)"
+            >
+              <div class="product-name">{{ product.name }}</div>
+              <div class="product-sku">{{ product.sku }}</div>
+              <div class="product-price">{{ product.price | appCurrency }}</div>
+              <div class="product-stock" [class.low]="product.stockQty <= 5 && product.stockQty > 0" [class.out]="product.stockQty <= 0">
+                @if (product.stockQty <= 0) {
+                  Out of Stock
+                } @else {
+                  Stock: {{ product.stockQty }}
+                }
+              </div>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (showQuickCustomerModal()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeQuickCustomerModal()">
+    <div class="quick-customer-modal">
+      <div class="quick-customer-head">
+        <h3>Customers</h3>
+        <button class="btn btn-ghost" (click)="closeQuickCustomerModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="quick-customer-body">
+        <div class="quick-grid three">
+          <div>
+            <label class="label">Salutation</label>
+            <input class="input" [ngModel]="quickCustomerForm().salutation" (ngModelChange)="updateQuickCustomerField('salutation', $event)" />
+          </div>
+          <div>
+            <label class="label">First Name</label>
+            <input class="input" [ngModel]="quickCustomerForm().firstName" (ngModelChange)="updateQuickCustomerField('firstName', $event)" />
+          </div>
+          <div>
+            <label class="label">Last Name</label>
+            <input class="input" [ngModel]="quickCustomerForm().lastName" (ngModelChange)="updateQuickCustomerField('lastName', $event)" />
+          </div>
+        </div>
+
+        <div class="quick-grid two mt-2">
+          <div>
+            <label class="label label-required">Display Name</label>
+            <input class="input" [ngModel]="quickCustomerForm().displayName" (ngModelChange)="updateQuickCustomerField('displayName', $event)" />
+          </div>
+          <div>
+            <label class="label">Email</label>
+            <input class="input" [ngModel]="quickCustomerForm().email" (ngModelChange)="updateQuickCustomerField('email', $event)" />
+          </div>
+        </div>
+
+        <div class="quick-grid two mt-2">
+          <div>
+            <label class="label">Phone</label>
+            <input class="input" [ngModel]="quickCustomerForm().phone" (ngModelChange)="updateQuickCustomerField('phone', $event)" />
+          </div>
+          <div>
+            <label class="label label-required">Mobile</label>
+            <input class="input" [ngModel]="quickCustomerForm().mobile" (ngModelChange)="updateQuickCustomerField('mobile', $event)" />
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <label class="label">Address</label>
+          <textarea class="textarea" rows="2" [ngModel]="quickCustomerForm().address" (ngModelChange)="updateQuickCustomerField('address', $event)"></textarea>
+        </div>
+      </div>
+
+      <div class="quick-customer-actions">
+        <button class="btn btn-outline" (click)="closeQuickCustomerModal()" [disabled]="isSavingCustomer()">Cancel</button>
+        <button class="btn btn-success" (click)="saveQuickCustomer()" [disabled]="isSavingCustomer()">
+          @if (isSavingCustomer()) {
+            <i class="fas fa-spinner fa-spin"></i>
+          }
+          Save & Select
+        </button>
+      </div>
     </div>
   </div>
 }

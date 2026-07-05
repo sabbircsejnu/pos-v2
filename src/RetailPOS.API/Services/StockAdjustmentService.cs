@@ -833,6 +833,17 @@ public class StockAdjustmentService : IStockAdjustmentService
         adjustment.ApprovedBy = approvedBy;
         adjustment.ApprovedAt = now;
         adjustment.UpdatedAt = now;
+
+        if (adjustment.SourceStockCountId.HasValue)
+        {
+            var sourceStockCount = await _context.StockCounts
+                .FirstOrDefaultAsync(s => s.Id == adjustment.SourceStockCountId.Value);
+
+            if (sourceStockCount != null && sourceStockCount.Status == StockCount.StatusAdjustmentGenerated)
+            {
+                sourceStockCount.Status = StockCount.StatusCompleted;
+            }
+        }
     }
 
     private async Task EnsureVariantExistsAsync(long variantId)

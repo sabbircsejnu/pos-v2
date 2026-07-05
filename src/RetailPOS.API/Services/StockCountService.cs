@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using RetailPOS.API.DTOs.StockCount;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
+using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace RetailPOS.API.Services;
 
@@ -11,6 +13,7 @@ public class StockCountService : IStockCountService
 {
     private const string NumberPrefix = "SC";
     private const string AdjustmentNumberPrefix = "ADJ";
+    private static readonly ConcurrentDictionary<long, SemaphoreSlim> AdjustmentGenerationLocks = new();
 
     private readonly RetailPOSDbContext _context;
     private readonly ITenantAccessService _tenantAccess;
@@ -364,6 +367,7 @@ public class StockCountService : IStockCountService
             ?? throw new InvalidOperationException("Uploaded workbook does not contain any worksheet.");
 
         var updates = 0;
+        var meaningfulUpdates = 0;
 
         // Data rows start at row 8 in the generated template.
         var lastRow = ws.LastRowUsed()?.RowNumber() ?? 7;
@@ -380,10 +384,13 @@ public class StockCountService : IStockCountService
 
             if (!int.TryParse(slCell, out var sl) || sl < 1 || sl > orderedLines.Count)
             {
-                continue;
+                throw new InvalidOperationException($"Invalid serial number at row {row}: '{slCell}'");
             }
 
             var line = orderedLines[sl - 1];
+            var previousPhysical = line.PhysicalStock;
+            var previousDifference = line.Difference;
+            var previousRemarks = line.Remarks;
 
             if (string.IsNullOrWhiteSpace(physicalCell))
             {
@@ -392,9 +399,15 @@ public class StockCountService : IStockCountService
             }
             else
             {
-                if (!decimal.TryParse(physicalCell, out var physicalStock))
+                if (!decimal.TryParse(physicalCell, NumberStyles.Number, CultureInfo.InvariantCulture, out var physicalStock)
+                    && !decimal.TryParse(physicalCell, NumberStyles.Number, CultureInfo.CurrentCulture, out physicalStock))
                 {
                     throw new InvalidOperationException($"Invalid physical count value at row {row}: '{physicalCell}'");
+                }
+
+                if (physicalStock < 0)
+                {
+                    throw new InvalidOperationException($"Physical count cannot be negative at row {row}.");
                 }
 
                 line.PhysicalStock = physicalStock;
@@ -403,11 +416,23 @@ public class StockCountService : IStockCountService
 
             line.Remarks = string.IsNullOrWhiteSpace(remarksCell) ? null : remarksCell.Trim();
             updates++;
+
+            if (line.PhysicalStock != previousPhysical
+                || line.Difference != previousDifference
+                || !string.Equals(line.Remarks, previousRemarks, StringComparison.Ordinal))
+            {
+                meaningfulUpdates++;
+            }
         }
 
         if (updates == 0)
         {
             throw new InvalidOperationException("No stock count rows were detected in uploaded Excel.");
+        }
+
+        if (meaningfulUpdates == 0)
+        {
+            throw new InvalidOperationException("Uploaded Excel does not contain any changes to physical count or remarks.");
         }
 
         await _context.SaveChangesAsync();
@@ -499,84 +524,103 @@ public class StockCountService : IStockCountService
 
     public async Task<StockCountDto> GenerateAdjustmentDraftAsync(long id, long userId)
     {
-        var stockCount = await GetEditableStockCountAsync(id);
-        if (stockCount.Status != StockCount.StatusApproved)
+        var generationLock = AdjustmentGenerationLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        await generationLock.WaitAsync();
+        try
         {
-            throw new InvalidOperationException("Stock adjustment draft can only be generated from Approved stock counts.");
-        }
-
-        var changedLines = stockCount.Lines
-            .Where(l => l.Difference.HasValue && l.Difference.Value != 0)
-            .ToList();
-
-        if (changedLines.Count == 0)
-        {
-            throw new InvalidOperationException("No stock differences found to generate adjustment draft.");
-        }
-
-        var now = DateTime.UtcNow;
-        var adjustmentLines = new List<StockAdjustmentLine>(changedLines.Count);
-
-        foreach (var line in changedLines)
-        {
-            var difference = line.Difference!.Value;
-            if (difference != decimal.Truncate(difference))
+            var stockCount = await GetEditableStockCountAsync(id);
+            if (stockCount.Status != StockCount.StatusApproved)
             {
-                throw new InvalidOperationException(
-                    $"Difference for variant '{line.VariantName}' has fractional quantity and cannot be converted to stock adjustment draft.");
+                throw new InvalidOperationException("Stock adjustment draft can only be generated from Approved stock counts.");
             }
 
-            var quantityChange = decimal.ToInt32(difference);
-            var inventory = await _context.Inventories
-                .FirstOrDefaultAsync(i => i.VariantId == line.VariantId
-                    && i.LocationId == stockCount.LocationId
-                    && i.LocationType == stockCount.LocationType);
+            var existingDraft = await _context.StockAdjustments
+                .AsNoTracking()
+                .AnyAsync(a => a.SourceStockCountId == stockCount.Id);
 
-            var currentQuantity = inventory?.Quantity ?? 0;
-            var newQuantity = currentQuantity + quantityChange;
-            if (newQuantity < 0)
+            if (existingDraft)
             {
-                throw new InvalidOperationException(
-                    $"Generated adjustment would make inventory negative for variant '{line.VariantName}'.");
+                throw new InvalidOperationException("Adjustment draft has already been generated for this stock count.");
             }
 
-            adjustmentLines.Add(new StockAdjustmentLine
+            var changedLines = stockCount.Lines
+                .Where(l => l.Difference.HasValue && l.Difference.Value != 0)
+                .ToList();
+
+            if (changedLines.Count == 0)
             {
-                VariantId = line.VariantId,
-                PreviousQuantity = currentQuantity,
-                QuantityChange = quantityChange,
-                NewQuantity = newQuantity,
-                Reason = "StockCountCorrection",
-                Notes = $"Generated from Stock Count {stockCount.StockCountNo}",
+                throw new InvalidOperationException("No stock differences found to generate adjustment draft.");
+            }
+
+            var now = DateTime.UtcNow;
+            var adjustmentLines = new List<StockAdjustmentLine>(changedLines.Count);
+
+            foreach (var line in changedLines)
+            {
+                var difference = line.Difference!.Value;
+                if (difference != decimal.Truncate(difference))
+                {
+                    throw new InvalidOperationException(
+                        $"Difference for variant '{line.VariantName}' has fractional quantity and cannot be converted to stock adjustment draft.");
+                }
+
+                var quantityChange = decimal.ToInt32(difference);
+                var inventory = await _context.Inventories
+                    .FirstOrDefaultAsync(i => i.VariantId == line.VariantId
+                        && i.LocationId == stockCount.LocationId
+                        && i.LocationType == stockCount.LocationType);
+
+                var currentQuantity = inventory?.Quantity ?? 0;
+                var newQuantity = currentQuantity + quantityChange;
+                if (newQuantity < 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Generated adjustment would make inventory negative for variant '{line.VariantName}'.");
+                }
+
+                adjustmentLines.Add(new StockAdjustmentLine
+                {
+                    VariantId = line.VariantId,
+                    PreviousQuantity = currentQuantity,
+                    QuantityChange = quantityChange,
+                    NewQuantity = newQuantity,
+                    Reason = "StockCountCorrection",
+                    Notes = $"Generated from Stock Count {stockCount.StockCountNo}",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+
+            var adjustment = new StockAdjustment
+            {
+                AdjustmentNumber = await GenerateAdjustmentNumberAsync(),
+                Status = StockAdjustment.StatusDraft,
+                LocationId = stockCount.LocationId,
+                LocationType = stockCount.LocationType,
+                SourceStockCountId = stockCount.Id,
+                AdjustedBy = userId,
+                AdjustmentDate = now,
                 CreatedAt = now,
-                UpdatedAt = now
-            });
+                UpdatedAt = now,
+                Lines = adjustmentLines
+            };
+
+            _context.StockAdjustments.Add(adjustment);
+
+            stockCount.Status = StockCount.StatusAdjustmentGenerated;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Stock adjustment {AdjustmentNumber} drafted from stock count {StockCountNo}",
+                adjustment.AdjustmentNumber,
+                stockCount.StockCountNo);
+
+            return await GetByIdAsync(stockCount.Id);
         }
-
-        var adjustment = new StockAdjustment
+        finally
         {
-            AdjustmentNumber = await GenerateAdjustmentNumberAsync(),
-            Status = StockAdjustment.StatusDraft,
-            LocationId = stockCount.LocationId,
-            LocationType = stockCount.LocationType,
-            AdjustedBy = userId,
-            AdjustmentDate = now,
-            CreatedAt = now,
-            UpdatedAt = now,
-            Lines = adjustmentLines
-        };
-
-        _context.StockAdjustments.Add(adjustment);
-
-        stockCount.Status = StockCount.StatusAdjustmentGenerated;
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation(
-            "Stock adjustment {AdjustmentNumber} drafted from stock count {StockCountNo}",
-            adjustment.AdjustmentNumber,
-            stockCount.StockCountNo);
-
-        return await GetByIdAsync(stockCount.Id);
+            generationLock.Release();
+        }
     }
 
     private async Task<StockCount> GetEditableStockCountAsync(long id)

@@ -133,6 +133,7 @@ public class ProductVariantRepository : IProductVariantRepository
                          ((v.Product.ProductCode ?? string.Empty).ToLower().Contains(queryLower)) ||
                          ((v.Product.Name ?? string.Empty).ToLower().Contains(queryLower)) ||
                          ((v.Name ?? string.Empty).ToLower().Contains(queryLower)) ||
+                         ((v.Attributes ?? string.Empty).ToLower().Contains(queryLower)) ||
                          ((v.Sku ?? string.Empty).ToLower().Contains(queryLower)) ||
                          ((v.Barcode ?? string.Empty).ToLower().Contains(queryLower))))
             .OrderBy(v => v.Product.Name)

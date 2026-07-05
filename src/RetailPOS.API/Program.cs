@@ -40,11 +40,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     // Trust only loopback by default. Add production proxy IPs here or via environment variables.
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
     // Allow loopback proxies (safe default for Docker-compose where Nginx → API on same host)
-    options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Loopback, 8));
-    options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.IPv6Loopback, 128));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Loopback, 8));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.IPv6Loopback, 128));
 });
 
 // Add services to the container.

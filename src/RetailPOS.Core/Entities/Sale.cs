@@ -8,6 +8,7 @@ public class Sale
     public string SaleNumber { get; set; } = string.Empty;
 
     public long OutletId { get; set; }
+    public long? TerminalId { get; set; }
     public long? CustomerId { get; set; }
     public DateTime SaleDate { get; set; } = DateTime.UtcNow;
     public decimal TotalAmount { get; set; }
@@ -33,10 +34,13 @@ public class Sale
 
     // Navigation properties
     public virtual Outlet Outlet { get; set; } = null!;
+    public virtual PosTerminal? Terminal { get; set; }
     public virtual Customer? Customer { get; set; }
     public virtual User Cashier { get; set; } = null!;
     public virtual ICollection<SaleItem> Items { get; set; } = new List<SaleItem>();
 
     // UPDATED — full split-payment breakdown (1 row per payment method used)
     public virtual ICollection<SalePayment> Payments { get; set; } = new List<SalePayment>();
+    public virtual ICollection<ReceiptPrintHistory> ReceiptPrintHistories { get; set; } = new List<ReceiptPrintHistory>();
+    public virtual ICollection<SaleVoid> SaleVoids { get; set; } = new List<SaleVoid>();
 }

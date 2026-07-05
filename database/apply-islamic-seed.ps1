@@ -97,7 +97,7 @@ Write-Host "Module coverage:" -ForegroundColor Cyan
 Write-Host "  Product Management  : searchable by name, SKU, category, color, fabric, size" -ForegroundColor White
 Write-Host "  Purchase Orders     : 4 POs with items (1 open for GRN testing)"              -ForegroundColor White
 Write-Host "  GRN                 : 3 completed GRNs for stock-in validation"               -ForegroundColor White
-Write-Host "  Sales Orders        : 2 completed sales for cash/card flow testing"           -ForegroundColor White
+Write-Host "  Sales               : 2 completed sales for cash/card flow testing"           -ForegroundColor White
 Write-Host "  Stock Reports       : stock across 3 locations per variant"                   -ForegroundColor White
 Write-Host "  Inventory Movements : purchase + sales deltas visible in stock ledger"        -ForegroundColor White
 Write-Host ""

@@ -12,7 +12,7 @@ This document specifies a production-grade audit logging subsystem for the multi
 
 The system is built around three normalized tables:
 - **`audit_events`** — one row per business action (login, sale created, role updated…).
-- **`audit_event_entities`** — one row per database entity touched by that action (a single sale-approval may produce 4–5 entity rows: SalesOrder, StockLedger, Invoice, CustomerBalance, ActivityLog).
+- **`audit_event_entities`** — one row per database entity touched by that action (a single sale approval may produce 4–5 entity rows: Sale, StockLedger, Invoice, CustomerBalance, ActivityLog).
 - **`audit_event_field_changes`** — one row per field that actually changed on each touched entity, with old/new values stored as JSON.
 
 A `correlation_id` (GUID) groups all rows produced by one logical action, even when execution spans services, jobs, or asynchronous handlers.

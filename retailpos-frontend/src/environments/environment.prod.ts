@@ -6,6 +6,7 @@ export const environment = {
   production: true,
   apiUrl: 'https://api.yourproductiondomain.com/api', // Update with your production API URL
   apiTimeout: 30000, // 30 seconds
+  stockCountPhase3Enabled: true,
   enableDebugMode: false,
   version: '1.0.0'
 };

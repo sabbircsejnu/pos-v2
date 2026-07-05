@@ -80,6 +80,9 @@ public class CustomerService : ICustomerService
         var customer = new Customer
         {
             Name = dto.Name.Trim(),
+            CustomerCode = null,
+            IsSystem = false,
+            IsActive = true,
             Phone = dto.Phone?.Trim(),
             Email = dto.Email?.Trim()?.ToLower(),
             LoyaltyPoints = 0
@@ -97,6 +100,9 @@ public class CustomerService : ICustomerService
         var customer = await _customerRepository.GetByIdAsync(id);
         if (customer == null)
             throw new KeyNotFoundException($"Customer with ID {id} not found");
+
+        if (customer.IsSystem)
+            throw new InvalidOperationException("System customer cannot be edited");
 
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new InvalidOperationException("Customer name is required");
@@ -133,6 +139,9 @@ public class CustomerService : ICustomerService
         var customer = await _customerRepository.GetByIdAsync(id);
         if (customer == null)
             throw new KeyNotFoundException($"Customer with ID {id} not found");
+
+        if (customer.IsSystem)
+            throw new InvalidOperationException("System customer cannot be deleted");
 
         var result = await _customerRepository.DeleteAsync(id);
         if (result)

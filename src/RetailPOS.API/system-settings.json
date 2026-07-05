@@ -34,6 +34,13 @@
     "ShowBarcode": false,
     "PaperSize": "80mm"
   },
+  "InvoiceNumber": {
+    "Prefix": "INV",
+    "IncludeDate": true,
+    "NextNumber": 5,
+    "Padding": 5,
+    "Separator": "-"
+  },
   "Inventory": {
     "LowStockThreshold": 10,
     "EnableLowStockAlerts": true,

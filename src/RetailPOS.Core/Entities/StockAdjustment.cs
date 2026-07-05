@@ -13,6 +13,7 @@ public class StockAdjustment
     public string Status { get; set; } = StatusDraft;
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty;
+    public long? SourceStockCountId { get; set; }
 
     public long AdjustedBy { get; set; }
     public DateTime AdjustmentDate { get; set; } = DateTime.UtcNow;

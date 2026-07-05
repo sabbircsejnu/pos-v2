@@ -7,6 +7,7 @@ import {
   CurrencySettings,
   TaxSettings,
   ReceiptSettings,
+  InvoiceNumberSettings,
   InventorySettings,
   SystemSettings,
 } from '../models/settings.model';
@@ -51,6 +52,10 @@ export class SettingsService {
     return this.http.get<any>(`${this.settingsUrl}/inventory`);
   }
 
+  getInvoiceNumberSettings(): Observable<any> {
+    return this.http.get<any>(`${this.settingsUrl}/invoice-number`);
+  }
+
   updateCompanySettings(dto: CompanySettings): Observable<any> {
     return this.http.put<any>(`${this.settingsUrl}/company`, dto);
   }
@@ -69,5 +74,9 @@ export class SettingsService {
 
   updateInventorySettings(dto: InventorySettings): Observable<any> {
     return this.http.put<any>(`${this.settingsUrl}/inventory`, dto);
+  }
+
+  updateInvoiceNumberSettings(dto: InvoiceNumberSettings): Observable<any> {
+    return this.http.put<any>(`${this.settingsUrl}/invoice-number`, dto);
   }
 }

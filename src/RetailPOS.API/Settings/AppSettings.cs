@@ -46,6 +46,15 @@ public class ReceiptSettings
     public string PaperSize { get; set; } = "80mm";
 }
 
+public class InvoiceNumberSettings
+{
+    public string Prefix { get; set; } = "INV";
+    public bool IncludeDate { get; set; } = true;
+    public int NextNumber { get; set; } = 1;
+    public int Padding { get; set; } = 5;
+    public string Separator { get; set; } = "-";
+}
+
 public class InventorySettings
 {
     public int LowStockThreshold { get; set; } = 10;
@@ -60,5 +69,6 @@ public class SystemSettings
     public CurrencySettings Currency { get; set; } = new();
     public TaxSettings Tax { get; set; } = new();
     public ReceiptSettings Receipt { get; set; } = new();
+    public InvoiceNumberSettings InvoiceNumber { get; set; } = new();
     public InventorySettings Inventory { get; set; } = new();
 }

@@ -36,5 +36,7 @@ public class User
     public virtual ICollection<StockAdjustment> StockAdjustmentsApproved { get; set; } = new List<StockAdjustment>();
     public virtual ICollection<StockAdjustment> StockAdjustmentsRejected { get; set; } = new List<StockAdjustment>();
     public virtual ICollection<StockAdjustment> StockAdjustmentsCancelled { get; set; } = new List<StockAdjustment>();
+    public virtual ICollection<ReceiptPrintHistory> ReceiptPrintHistories { get; set; } = new List<ReceiptPrintHistory>();
+    public virtual ICollection<SaleVoid> SaleVoids { get; set; } = new List<SaleVoid>();
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

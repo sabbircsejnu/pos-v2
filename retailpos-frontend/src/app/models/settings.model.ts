@@ -60,6 +60,14 @@ export interface ReceiptSettings {
   paperSize: string;
 }
 
+export interface InvoiceNumberSettings {
+  prefix: string;
+  includeDate: boolean;
+  nextNumber: number;
+  padding: number;
+  separator: string;
+}
+
 export interface InventorySettings {
   lowStockThreshold: number;
   enableLowStockAlerts: boolean;
@@ -72,5 +80,6 @@ export interface SystemSettings {
   currency: CurrencySettings;
   tax: TaxSettings;
   receipt: ReceiptSettings;
+  invoiceNumber: InvoiceNumberSettings;
   inventory: InventorySettings;
 }

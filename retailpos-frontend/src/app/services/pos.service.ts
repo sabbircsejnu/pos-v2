@@ -30,6 +30,13 @@ export interface CartPriceResultItem {
   appliedRuleName?: string;
 }
 
+export interface PosTerminalDto {
+  id: number;
+  name: string;
+  code: string;
+  isDefault: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PosService {
   private posUrl       = `${environment.apiUrl}/pos`;
@@ -75,6 +82,11 @@ export class PosService {
    */
   cartPrices(items: CartPriceRequestItem[]): Observable<any> {
     return this.http.post<any>(`${this.posUrl}/cart-prices`, { items });
+  }
+
+  getTerminals(outletId: number): Observable<any> {
+    const params = new HttpParams().set('outletId', outletId.toString());
+    return this.http.get<any>(`${this.posUrl}/terminals`, { params });
   }
 
   // ── Hold / Park ───────────────────────────────────────────────────────────

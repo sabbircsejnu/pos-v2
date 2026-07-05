@@ -24,6 +24,8 @@ export interface SaleDto {
   saleNumber: string;
   outletId: number;
   outletName: string;
+  terminalId?: number;
+  terminalName?: string;
   customerId?: number;
   customerName?: string;
   saleDate: string;
@@ -74,7 +76,9 @@ export interface CreateSalePaymentDto {
 
 export interface CreateSaleDto {
   outletId: number;
+  terminalId?: number;
   customerId?: number;
+  salesDate?: string;
   items: CreateSaleItemDto[];
   discount: number;
   tax: number;

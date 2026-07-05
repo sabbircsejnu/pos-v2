@@ -12,13 +12,16 @@ namespace RetailPOS.API.Controllers;
 public class InventoryController : ControllerBase
 {
     private readonly IInventoryService _inventoryService;
+    private readonly IUserOutletAccessService _outletAccess;
     private readonly ILogger<InventoryController> _logger;
 
     public InventoryController(
         IInventoryService inventoryService,
+        IUserOutletAccessService outletAccess,
         ILogger<InventoryController> logger)
     {
         _inventoryService = inventoryService;
+        _outletAccess = outletAccess;
         _logger = logger;
     }
 
@@ -195,7 +198,9 @@ public class InventoryController : ControllerBase
     [Authorize(Policy = "inventory.view")]
     public async Task<ActionResult<ApiResponse<List<InventoryDto>>>> Search([FromBody] InventorySearchDto searchDto)
     {
-        await ValidateInventoryFiltersAsync(searchDto.OutletId, searchDto.WarehouseId);
+        var scoped = await ResolveInventoryFiltersAsync(searchDto.OutletId, searchDto.WarehouseId);
+        searchDto.OutletId = scoped.OutletId;
+        searchDto.WarehouseId = scoped.WarehouseId;
         var results = await _inventoryService.SearchAsync(searchDto);
         RedactCost(results);
         return Ok(ApiResponse<List<InventoryDto>>.SuccessResponse(results, 
@@ -224,5 +229,30 @@ public class InventoryController : ControllerBase
     {
         if (outletId.HasValue && warehouseId.HasValue)
             throw new InvalidOperationException("Specify either outletId or warehouseId, not both.");
+    }
+
+    private async Task<(long? OutletId, long? WarehouseId)> ResolveInventoryFiltersAsync(long? outletId, long? warehouseId)
+    {
+        await ValidateInventoryFiltersAsync(outletId, warehouseId);
+
+        if (outletId.HasValue)
+        {
+            var (locationId, locationType) = await _outletAccess.ResolveAndAuthorizeLocationAsync(outletId, "outlet");
+            return (locationType == "outlet" ? locationId : null, null);
+        }
+
+        if (warehouseId.HasValue)
+        {
+            var (locationId, locationType) = await _outletAccess.ResolveAndAuthorizeLocationAsync(warehouseId, "warehouse");
+            return (null, locationType == "warehouse" ? locationId : null);
+        }
+
+        var resolved = await _outletAccess.ResolveAndAuthorizeLocationAsync(null, null);
+        return resolved.LocationType switch
+        {
+            "outlet" => (resolved.LocationId, null),
+            "warehouse" => (null, resolved.LocationId),
+            _ => (null, null)
+        };
     }
 }

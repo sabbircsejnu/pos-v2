@@ -14,11 +14,14 @@ namespace RetailPOS.API.Controllers;
 public class StockAdjustmentsController : ControllerBase
 {
     private readonly IStockAdjustmentService _adjustmentService;
+    private readonly IUserOutletAccessService _outletAccess;
 
     public StockAdjustmentsController(
-        IStockAdjustmentService adjustmentService)
+        IStockAdjustmentService adjustmentService,
+        IUserOutletAccessService outletAccess)
     {
         _adjustmentService = adjustmentService;
+        _outletAccess = outletAccess;
     }
 
     /// <summary>
@@ -88,6 +91,10 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
+            var (locationId, locationType) = await _outletAccess.EnforceWriteLocationAsync(dto.LocationId, dto.LocationType);
+            dto.LocationId = locationId;
+            dto.LocationType = locationType;
+
             var adjustment = await _adjustmentService.CreateAsync(dto, adjustedBy);
             return CreatedAtAction(
                 nameof(GetById),
@@ -124,6 +131,10 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
+            var (locationId, locationType) = await _outletAccess.EnforceWriteLocationAsync(dto.LocationId, dto.LocationType);
+            dto.LocationId = locationId;
+            dto.LocationType = locationType;
+
             var adjustment = await _adjustmentService.CreateBatchAsync(dto, adjustedBy);
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
                 adjustment,
@@ -147,6 +158,10 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
+            var (locationId, locationType) = await _outletAccess.EnforceWriteLocationAsync(dto.LocationId, dto.LocationType);
+            dto.LocationId = locationId;
+            dto.LocationType = locationType;
+
             var existing = await _adjustmentService.GetByIdAsync(id);
 
             var adjustment = await _adjustmentService.UpdateAsync(id, dto, updatedBy);

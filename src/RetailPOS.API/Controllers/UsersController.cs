@@ -298,7 +298,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error changing password for user {UserId}");
+            _logger.LogError(ex, "Error changing password for current user");
             return StatusCode(500, new { error = "An error occurred while changing your password" });
         }
     }

@@ -29,7 +29,7 @@ public sealed class AuditReferenceSnapshotResolver
             ["CategoryId"]         = "Category",
             ["RoleId"]             = "Role",
             ["PurchaseOrderId"]    = "PurchaseOrder",
-            ["SalesOrderId"]       = "SalesOrder",
+            ["SaleId"]             = "Sale",
             ["PaymentId"]          = "Payment",
         };
 
@@ -207,8 +207,7 @@ public sealed class AuditReferenceSnapshotResolver
                 .Where(p => ids.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id.ToString(), p => $"PO #{p.Id}", ct),
 
-            // SalesOrder → Sale table
-            "SalesOrder" => await db.Sales.AsNoTracking()
+            "Sale" => await db.Sales.AsNoTracking()
                 .Where(s => ids.Contains(s.Id))
                 .ToDictionaryAsync(s => s.Id.ToString(), s => $"{s.SaleNumber} (#{s.Id})", ct),
 

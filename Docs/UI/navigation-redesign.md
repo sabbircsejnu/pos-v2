@@ -59,7 +59,7 @@ PROCUREMENT
 
 SALES
 - POS Sales
-- Sales Orders
+- Sales
 - Customers
 
 FINANCE
@@ -119,7 +119,7 @@ flowchart TD
   G3 --> G3C[Suppliers]
 
   G4 --> G4A[POS Sales]
-  G4 --> G4B[Sales Orders]
+  G4 --> G4B[Sales]
   G4 --> G4C[Customers]
 
   G5 --> G5A[Accounting]

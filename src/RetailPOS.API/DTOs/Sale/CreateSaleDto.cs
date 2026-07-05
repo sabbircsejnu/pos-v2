@@ -7,6 +7,8 @@ public class CreateSaleDto
     [Required]
     public long OutletId { get; set; }
 
+    public long? TerminalId { get; set; }
+
     public long? CustomerId { get; set; }
 
     [Required]
@@ -27,6 +29,13 @@ public class CreateSaleDto
 
     [Required]
     public long CashierId { get; set; }
+
+    /// <summary>
+    /// Optional requested sales order date/time.
+    /// When omitted, server uses current UTC time.
+    /// Backdated values require sales.backdate permission.
+    /// </summary>
+    public DateTime? SalesDate { get; set; }
 
     // UPDATED — client-generated UUID (v4) used to prevent duplicate submissions.
     // The server rejects a second request with the same OutletId+IdempotencyKey

@@ -32,7 +32,7 @@ VALUES
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.edit", "stock_transfers.delete", "stock_transfers.approve", "stock_transfers.cancel", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create", "stock_transfers.transfer_from_any_location",
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "low_stock_alerts.view", "low_stock_alerts.create", "low_stock_alerts.edit", "low_stock_alerts.delete",
-        "sales.view", "sales.create", "sales.edit", "sales.delete",
+        "sales.view", "sales.create",
         "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
         "customers.view", "customers.create", "customers.edit", "customers.delete",
         "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete",
@@ -51,7 +51,7 @@ VALUES
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.approve", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create",
         "low_stock_alerts.view",
-        "sales.view", "sales.create", "sales.edit",
+        "sales.view", "sales.create",
         "purchases.view", "purchases.create",
         "customers.view", "customers.create", "customers.edit",
         "suppliers.view", "suppliers.create", "suppliers.edit",
@@ -101,7 +101,7 @@ VALUES
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.edit", "stock_transfers.delete", "stock_transfers.approve", "stock_transfers.cancel", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create", "stock_transfers.transfer_from_any_location",
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "low_stock_alerts.view", "low_stock_alerts.create", "low_stock_alerts.edit", "low_stock_alerts.delete",
-        "sales.view", "sales.create", "sales.edit", "sales.delete",
+        "sales.view", "sales.create",
         "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
         "customers.view", "customers.create", "customers.edit", "customers.delete",
         "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete",
@@ -124,7 +124,7 @@ VALUES
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.edit", "stock_transfers.delete", "stock_transfers.approve", "stock_transfers.cancel", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create", "stock_transfers.transfer_from_any_location",
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "low_stock_alerts.view", "low_stock_alerts.create", "low_stock_alerts.edit", "low_stock_alerts.delete",
-        "sales.view", "sales.create", "sales.edit", "sales.delete",
+        "sales.view", "sales.create",
         "purchases.view", "purchases.create", "purchases.edit", "purchases.delete",
         "customers.view", "customers.create", "customers.edit", "customers.delete",
         "suppliers.view", "suppliers.create", "suppliers.edit", "suppliers.delete",
@@ -154,7 +154,7 @@ VALUES
         "stock_requisitions.view", "stock_requisitions.create", "stock_requisitions.edit", "stock_requisitions.approve", "stock_requisitions.reject", "stock_requisitions.convert_to_transfer",
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.approve", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create",
         "low_stock_alerts.view",
-        "sales.view", "sales.create", "sales.edit",
+        "sales.view", "sales.create",
         "customers.view", "customers.create", "customers.edit",
         "suppliers.view",
         "outlets.view",
@@ -194,6 +194,12 @@ INSERT INTO outlets (name, address, contact_number, created_at, updated_at)
 VALUES
     ('Main Store',       '123 Main Street, New York, NY 10001',      '+1-555-0100', NOW(), NOW()),
     ('Downtown Branch',  '456 Downtown Ave, New York, NY 10002',     '+1-555-0200', NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO pos_terminals (outlet_id, name, code, is_active, is_default, created_at, updated_at)
+VALUES
+    ((SELECT id FROM outlets WHERE name = 'Main Store'), 'Main Counter 1', 'MAIN-01', true, true, NOW(), NOW()),
+    ((SELECT id FROM outlets WHERE name = 'Downtown Branch'), 'Branch Counter 1', 'BR-01', true, true, NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
@@ -483,13 +489,14 @@ ON CONFLICT (variant_id, location_id, location_type) DO NOTHING;
 -- 13. Insert Customers
 -- =====================================================
 
-INSERT INTO customers (name, phone, email, loyalty_points, created_at)
+INSERT INTO customers (name, customer_code, is_system, is_active, phone, email, loyalty_points, created_at)
 VALUES
-    ('Alice Johnson', '+1-555-1001', 'alice.johnson@example.com', 250, NOW()),
-    ('Bob Williams',  '+1-555-1002', 'bob.williams@example.com',  100, NOW()),
-    ('Carol Davis',   '+1-555-1003', 'carol.davis@example.com',   500, NOW()),
-    ('David Brown',   '+1-555-1004', 'david.brown@example.com',    75, NOW()),
-    ('Emma Wilson',   '+1-555-1005', 'emma.wilson@example.com',   320, NOW())
+    ('Walk-in Customer', 'WALKIN', true, true, NULL, NULL, 0, NOW()),
+    ('Alice Johnson', NULL, false, true, '+1-555-1001', 'alice.johnson@example.com', 250, NOW()),
+    ('Bob Williams',  NULL, false, true, '+1-555-1002', 'bob.williams@example.com',  100, NOW()),
+    ('Carol Davis',   NULL, false, true, '+1-555-1003', 'carol.davis@example.com',   500, NOW()),
+    ('David Brown',   NULL, false, true, '+1-555-1004', 'david.brown@example.com',    75, NOW()),
+    ('Emma Wilson',   NULL, false, true, '+1-555-1005', 'emma.wilson@example.com',   320, NOW())
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
@@ -579,10 +586,11 @@ ON CONFLICT DO NOTHING;
 -- 18. Insert Sample Sales
 -- =====================================================
 
-INSERT INTO sales (outlet_id, customer_id, sale_date, total_amount, discount, tax, payment_method, status, cashier_id, created_at)
+INSERT INTO sales (outlet_id, terminal_id, customer_id, sale_date, total_amount, discount, tax, payment_method, status, cashier_id, created_at)
 VALUES
     (
         (SELECT id FROM outlets WHERE name = 'Main Store'),
+        (SELECT id FROM pos_terminals WHERE code = 'MAIN-01'),
         (SELECT id FROM customers WHERE name = 'Alice Johnson'),
         NOW() - INTERVAL '10 days',
         1089.97, 0, 92.65, 'cash', 'completed',
@@ -591,6 +599,7 @@ VALUES
     ),
     (
         (SELECT id FROM outlets WHERE name = 'Main Store'),
+        (SELECT id FROM pos_terminals WHERE code = 'MAIN-01'),
         (SELECT id FROM customers WHERE name = 'Bob Williams'),
         NOW() - INTERVAL '7 days',
         89.97, 5, 0, 'card', 'completed',
@@ -599,6 +608,7 @@ VALUES
     ),
     (
         (SELECT id FROM outlets WHERE name = 'Downtown Branch'),
+        (SELECT id FROM pos_terminals WHERE code = 'BR-01'),
         (SELECT id FROM customers WHERE name = 'Carol Davis'),
         NOW() - INTERVAL '3 days',
         789.98, 10, 67.15, 'card', 'completed',

@@ -102,7 +102,8 @@ public class StockLedgerService : IStockLedgerService
         string referenceType,
         long referenceId,
         string? remarks = null,
-        long? createdBy = null)
+        long? createdBy = null,
+        DateTime? createdAt = null)
     {
         var entry = new StockLedger
         {
@@ -117,7 +118,7 @@ public class StockLedgerService : IStockLedgerService
             ReferenceId = referenceId,
             Remarks = remarks,
             CreatedBy = createdBy,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = createdAt ?? DateTime.UtcNow
         };
 
         _context.StockLedgers.Add(entry);

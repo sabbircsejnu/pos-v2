@@ -6,6 +6,8 @@ public class SaleDto
     public string SaleNumber { get; set; } = string.Empty;  // UPDATED
     public long OutletId { get; set; }
     public string OutletName { get; set; } = string.Empty;
+    public long? TerminalId { get; set; }
+    public string? TerminalName { get; set; }
     public long? CustomerId { get; set; }
     public string? CustomerName { get; set; }
     public long CashierId { get; set; }

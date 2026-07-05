@@ -43,5 +43,6 @@ public interface IStockLedgerService
         string referenceType,
         long referenceId,
         string? remarks = null,
-        long? createdBy = null);
+        long? createdBy = null,
+        DateTime? createdAt = null);
 }

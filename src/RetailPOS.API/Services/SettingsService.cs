@@ -28,6 +28,7 @@ public class SettingsService : ISettingsService
     public async Task<CurrencySettings> GetCurrencySettingsAsync() => (await LoadSettingsAsync()).Currency;
     public async Task<TaxSettings> GetTaxSettingsAsync() => (await LoadSettingsAsync()).Tax;
     public async Task<ReceiptSettings> GetReceiptSettingsAsync() => (await LoadSettingsAsync()).Receipt;
+    public async Task<InvoiceNumberSettings> GetInvoiceNumberSettingsAsync() => (await LoadSettingsAsync()).InvoiceNumber;
     public async Task<InventorySettings> GetInventorySettingsAsync() => (await LoadSettingsAsync()).Inventory;
 
     private async Task<SystemSettings> LoadSettingsAsync()
@@ -146,6 +147,54 @@ public class SettingsService : ISettingsService
             return current;
         }
         finally { _lock.Release(); }
+    }
+
+    public async Task<SystemSettings> UpdateInvoiceNumberSettingsAsync(InvoiceNumberSettings settings)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var current = _cachedSettings ?? await ReadFromFileAsync();
+            current.InvoiceNumber = settings;
+            await WriteToFileAsync(current);
+            _cachedSettings = current;
+            return current;
+        }
+        finally { _lock.Release(); }
+    }
+
+    public async Task<string> AllocateNextInvoiceNumberAsync(DateTime utcNow)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var current = _cachedSettings ?? await ReadFromFileAsync();
+            var invoice = current.InvoiceNumber ?? new InvoiceNumberSettings();
+
+            var currentNumber = Math.Max(1, invoice.NextNumber);
+            var generated = FormatInvoiceNumber(invoice, utcNow, currentNumber);
+
+            invoice.NextNumber = currentNumber + 1;
+            current.InvoiceNumber = invoice;
+
+            await WriteToFileAsync(current);
+            _cachedSettings = current;
+            return generated;
+        }
+        finally { _lock.Release(); }
+    }
+
+    private static string FormatInvoiceNumber(InvoiceNumberSettings settings, DateTime utcNow, int number)
+    {
+        var prefix = string.IsNullOrWhiteSpace(settings.Prefix) ? "INV" : settings.Prefix.Trim().ToUpperInvariant();
+        var separator = string.IsNullOrWhiteSpace(settings.Separator) ? "-" : settings.Separator.Trim();
+        var padding = Math.Clamp(settings.Padding, 3, 10);
+        var padded = number.ToString().PadLeft(padding, '0');
+
+        if (settings.IncludeDate)
+            return $"{prefix}{separator}{utcNow:yyyyMMdd}{separator}{padded}";
+
+        return $"{prefix}{separator}{padded}";
     }
 
     public async Task<SystemSettings> UpdateInventorySettingsAsync(InventorySettings settings)

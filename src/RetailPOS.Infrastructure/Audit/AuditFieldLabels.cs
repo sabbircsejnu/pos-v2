@@ -20,7 +20,7 @@ public static class AuditFieldLabels
             ["RoleId"]             = "Role",
             ["UserId"]             = "User",
             ["PurchaseOrderId"]    = "Purchase Order",
-            ["SalesOrderId"]       = "Sales Order",
+            ["SaleId"]             = "Sale",
             ["PaymentId"]          = "Payment",
             ["ApprovedByUserId"]   = "Approved By",
             ["CreatedByUserId"]    = "Created By",

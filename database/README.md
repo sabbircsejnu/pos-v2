@@ -118,8 +118,7 @@ The system uses a JSONB-based permission system. Here are the available permissi
 ### Sales Management
 - `sales.view` - View sales
 - `sales.create` - Create sales
-- `sales.edit` - Edit sales
-- `sales.delete` - Delete sales
+- `sales.void` - Void completed sales (reason required)
 
 ### Purchase Management
 - `purchases.view` - View purchases

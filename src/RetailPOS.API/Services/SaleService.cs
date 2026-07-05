@@ -18,6 +18,7 @@ public class SaleService : ISaleService
     private readonly IStockLedgerService _stockLedger;
     private readonly IPosCacheService    _posCache;
     private readonly ISaleEventPublisher _eventPublisher;  // UPDATED
+    private readonly ISettingsService _settingsService;
 
     public SaleService(
         ISaleRepository      saleRepository,
@@ -26,7 +27,8 @@ public class SaleService : ISaleService
         ILogger<SaleService> logger,
         IStockLedgerService  stockLedger,
         IPosCacheService     posCache,
-        ISaleEventPublisher  eventPublisher)  // UPDATED
+        ISaleEventPublisher  eventPublisher,  // UPDATED
+        ISettingsService     settingsService)
     {
         _saleRepository     = saleRepository;
         _customerRepository = customerRepository;
@@ -35,6 +37,7 @@ public class SaleService : ISaleService
         _posCache           = posCache;
         _stockLedger        = stockLedger;
         _eventPublisher     = eventPublisher; // UPDATED
+        _settingsService    = settingsService;
     }
 
     /// <summary>Gets a sale by ID</summary>
@@ -92,12 +95,29 @@ public class SaleService : ISaleService
             }
         }
 
-        // Validate customer exists (if provided)
-        if (dto.CustomerId.HasValue)
+        // Resolve customer: explicit selection or default Walk-in customer.
+        long? resolvedCustomerId = dto.CustomerId;
+        Customer? resolvedCustomer = null;
+
+        if (resolvedCustomerId.HasValue)
         {
-            var customer = await _customerRepository.GetByIdAsync(dto.CustomerId.Value);
-            if (customer == null)
-                throw new KeyNotFoundException($"Customer with ID {dto.CustomerId.Value} not found");
+            resolvedCustomer = await _customerRepository.GetByIdAsync(resolvedCustomerId.Value);
+            if (resolvedCustomer == null)
+                throw new KeyNotFoundException($"Customer with ID {resolvedCustomerId.Value} not found");
+
+            if (!resolvedCustomer.IsActive)
+                throw new InvalidOperationException($"Customer with ID {resolvedCustomerId.Value} is inactive");
+        }
+        else
+        {
+            resolvedCustomer = await _customerRepository.GetByCodeAsync(Customer.WalkInCustomerCode);
+            if (resolvedCustomer == null)
+                throw new InvalidOperationException("Walk-in Customer is not configured. Seed a system customer with code WALKIN.");
+
+            if (!resolvedCustomer.IsActive)
+                throw new InvalidOperationException("Walk-in Customer is inactive. Activate the WALKIN customer record.");
+
+            resolvedCustomerId = resolvedCustomer.Id;
         }
 
         // UPDATED â€” validate payment split sums to total (when split payments supplied)
@@ -149,15 +169,23 @@ public class SaleService : ISaleService
                 : dto.PaymentMethod.ToLower();
 
             var now        = DateTime.UtcNow;
-            var saleNumber = GenerateSaleNumber(now);  // UPDATED
+            var saleDate   = dto.SalesDate ?? now;
+            var terminalId = await ResolveTerminalIdAsync(dto.OutletId, dto.TerminalId);
+            if (!terminalId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    $"No active terminal is configured for outlet {dto.OutletId}. Select a terminal before completing the sale.");
+            }
+            var saleNumber = await _settingsService.AllocateNextInvoiceNumberAsync(saleDate);  // UPDATED
 
             var sale = new Sale
             {
                 SaleNumber     = saleNumber,             // UPDATED
                 OutletId       = dto.OutletId,
-                CustomerId     = dto.CustomerId,
+                TerminalId     = terminalId,
+                CustomerId     = resolvedCustomerId,
                 CashierId      = dto.CashierId,
-                SaleDate       = now,
+                SaleDate       = saleDate,
                 CreatedAt      = now,
                 Discount       = dto.Discount,
                 Tax            = dto.Tax,
@@ -216,17 +244,18 @@ public class SaleService : ISaleService
                     balanceAfter: inventory.Quantity,
                     referenceType: StockLedgerReferenceType.Sale,
                     referenceId: sale.Id,
-                    createdBy: dto.CashierId);
+                    createdBy: dto.CashierId,
+                    createdAt: saleDate);
             }
 
             // Award loyalty points (1 point per currency unit, rounded down)
             int earnedPoints = 0;
-            if (dto.CustomerId.HasValue)
+            if (resolvedCustomerId.HasValue && !(resolvedCustomer?.IsSystem ?? false))
             {
                 earnedPoints = (int)Math.Floor(totalAmount);
                 if (earnedPoints > 0)
                 {
-                    var customer = await _context.Customers.FindAsync(dto.CustomerId.Value);
+                    var customer = await _context.Customers.FindAsync(resolvedCustomerId.Value);
                     if (customer != null)
                     {
                         customer.LoyaltyPoints += earnedPoints;
@@ -264,7 +293,7 @@ public class SaleService : ISaleService
                 SaleNumber          = sale.SaleNumber,
                 OutletId            = dto.OutletId,
                 CashierId           = dto.CashierId,
-                CustomerId          = dto.CustomerId,
+                CustomerId          = resolvedCustomerId,
                 TotalAmount         = totalAmount,
                 CompletedAt         = now,
                 LoyaltyPointsAwarded = earnedPoints
@@ -279,12 +308,15 @@ public class SaleService : ISaleService
         }
     }
 
-    /// <summary>Voids a sale (same day only) and restores stock</summary>
-    public async Task<SaleDto> VoidAsync(long id, VoidSaleDto dto)
+    /// <summary>Voids a completed sale and restores stock</summary>
+    public async Task<SaleDto> VoidAsync(long id, VoidSaleDto dto, long? voidedByUserId = null)
     {
         var sale = await _saleRepository.GetByIdAsync(id);
         if (sale == null)
             throw new KeyNotFoundException($"Sale with ID {id} not found");
+
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new InvalidOperationException("Void reason is required");
 
         if (sale.Status == "voided")
             throw new InvalidOperationException("Sale is already voided");
@@ -292,9 +324,10 @@ public class SaleService : ISaleService
         if (sale.Status == "refunded")
             throw new InvalidOperationException("Cannot void a refunded sale");
 
-        // Same-day only check
-        if (sale.SaleDate.Date != DateTime.UtcNow.Date)
-            throw new InvalidOperationException("Sales can only be voided on the same day");
+        if (!string.Equals(sale.Status, "completed", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Only completed sales can be voided");
+
+        var previousStatus = sale.Status;
 
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
@@ -341,12 +374,21 @@ public class SaleService : ISaleService
                 if (earnedPoints > 0)
                 {
                     var customer = await _context.Customers.FindAsync(sale.CustomerId.Value);
-                    if (customer != null)
+                    if (customer != null && !customer.IsSystem)
                     {
                         customer.LoyaltyPoints = Math.Max(0, customer.LoyaltyPoints - earnedPoints);
                     }
                 }
             }
+
+            _context.SaleVoids.Add(new SaleVoid
+            {
+                SaleId = sale.Id,
+                VoidedByUserId = voidedByUserId,
+                PreviousStatus = previousStatus,
+                Reason = dto.Reason.Trim(),
+                VoidedAt = DateTime.UtcNow
+            });
 
             sale.Status = "voided";
             await _context.SaveChangesAsync();
@@ -468,18 +510,70 @@ public class SaleService : ISaleService
     }
 
     /// <summary>Gets receipt data for a sale</summary>
-    public async Task<SaleDto> GetReceiptAsync(long id)
+    public async Task<SaleDto> GetReceiptAsync(long id, long? printedByUserId = null)
     {
-        return await GetByIdAsync(id);
+        var sale = await _saleRepository.GetByIdAsync(id);
+        if (sale == null)
+            throw new KeyNotFoundException($"Sale with ID {id} not found");
+
+        await TrackReceiptHistoryAsync(sale, "print", printedByUserId);
+        return MapToDto(sale);
     }
 
-    // UPDATED â€” generates a human-readable sale number (e.g. "S-20260317-00042")
-    private static string GenerateSaleNumber(DateTime utcNow)
+    /// <summary>Gets printable payload for receipt reprint of a completed sale</summary>
+    public async Task<SaleDto> ReprintReceiptAsync(long id, long? printedByUserId = null)
     {
-        // Uses date + random 5-digit suffix.
-        // For strictly sequential numbers across transaction replays, persist a DB sequence.
-        var suffix = Random.Shared.NextInt64(10000, 99999);
-        return $"S-{utcNow:yyyyMMdd}-{suffix}";
+        var sale = await _saleRepository.GetByIdAsync(id);
+        if (sale == null)
+            throw new KeyNotFoundException($"Sale with ID {id} not found");
+
+        if (!string.Equals(sale.Status, "completed", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(sale.Status, "voided", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(sale.Status, "refunded", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only finalized sales can be reprinted");
+        }
+
+        await TrackReceiptHistoryAsync(sale, "reprint", printedByUserId);
+        return MapToDto(sale);
+    }
+
+    private async Task TrackReceiptHistoryAsync(Sale sale, string actionType, long? printedByUserId)
+    {
+        _context.ReceiptPrintHistories.Add(new ReceiptPrintHistory
+        {
+            SaleId = sale.Id,
+            TerminalId = sale.TerminalId,
+            PrintedByUserId = printedByUserId,
+            ActionType = actionType,
+            PrintedAt = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task<long?> ResolveTerminalIdAsync(long outletId, long? requestedTerminalId)
+    {
+        if (requestedTerminalId.HasValue)
+        {
+            var terminal = await _context.PosTerminals
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == requestedTerminalId.Value && t.OutletId == outletId && t.IsActive);
+
+            if (terminal == null)
+                throw new InvalidOperationException($"Terminal {requestedTerminalId.Value} is not active for outlet {outletId}.");
+
+            return terminal.Id;
+        }
+
+        var defaultTerminal = await _context.PosTerminals
+            .AsNoTracking()
+            .Where(t => t.OutletId == outletId && t.IsActive)
+            .OrderByDescending(t => t.IsDefault)
+            .ThenBy(t => t.Id)
+            .FirstOrDefaultAsync();
+
+        return defaultTerminal?.Id;
     }
 
     private static SaleDto MapToDto(Sale s)
@@ -492,6 +586,8 @@ public class SaleService : ISaleService
             SaleNumber  = s.SaleNumber,                     // UPDATED
             OutletId    = s.OutletId,
             OutletName  = s.Outlet?.Name ?? string.Empty,
+            TerminalId = s.TerminalId,
+            TerminalName = s.Terminal?.Name,
             CustomerId  = s.CustomerId,
             CustomerName = s.Customer?.Name,
             CashierId   = s.CashierId,

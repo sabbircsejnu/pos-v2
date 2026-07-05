@@ -138,6 +138,33 @@ public class SettingsController : ControllerBase
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Receipt settings updated"));
     }
 
+    /// <summary>Gets invoice number settings.</summary>
+    [HttpGet("invoice-number")]
+    [Authorize(Policy = "settings.view")]
+    public async Task<ActionResult<ApiResponse<InvoiceNumberSettings>>> GetInvoiceNumber()
+    {
+        var settings = await _settingsService.GetInvoiceNumberSettingsAsync();
+        return Ok(ApiResponse<InvoiceNumberSettings>.SuccessResponse(settings));
+    }
+
+    /// <summary>Updates invoice number settings.</summary>
+    [HttpPut("invoice-number")]
+    [Authorize(Policy = "settings.edit")]
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInvoiceNumber([FromBody] InvoiceNumberSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.Prefix))
+            return BadRequest(ApiResponse<SystemSettings>.ErrorResponse("Invoice prefix is required"));
+
+        if (settings.NextNumber < 1)
+            return BadRequest(ApiResponse<SystemSettings>.ErrorResponse("NextNumber must be greater than 0"));
+
+        if (settings.Padding < 3 || settings.Padding > 10)
+            return BadRequest(ApiResponse<SystemSettings>.ErrorResponse("Padding must be between 3 and 10"));
+
+        var result = await _settingsService.UpdateInvoiceNumberSettingsAsync(settings);
+        return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Invoice number settings updated"));
+    }
+
     /// <summary>Gets inventory settings.</summary>
     [HttpGet("inventory")]
     public async Task<ActionResult<ApiResponse<InventorySettings>>> GetInventory()

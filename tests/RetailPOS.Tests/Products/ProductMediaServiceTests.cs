@@ -145,7 +145,7 @@ public class ProductMediaServiceTests : IDisposable
 
         Assert.Equal(c.Id, list[0].Id); // primary first
         Assert.True(list[0].IsPrimary);
-        Assert.False(list.Skip(1).Any(i => i.IsPrimary));
+        Assert.DoesNotContain(list.Skip(1), i => i.IsPrimary);
     }
 
     public void Dispose()
