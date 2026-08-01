@@ -8,6 +8,25 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly permissionAliases: Record<string, string[]> = {
+    'accounting.chart_accounts.view': ['accounts.view'],
+    'accounting.chart_accounts.create': ['accounts.create'],
+    'accounting.chart_accounts.edit': ['accounts.edit', 'accounts.delete'],
+    'accounting.journals.view': ['transactions.view'],
+    'accounting.journals.create': ['transactions.create'],
+    'accounting.journals.update': ['transactions.edit'],
+    'accounting.journals.cancel': ['transactions.delete'],
+    'accounting.journals.post': ['transactions.create', 'transactions.edit'],
+    'accounting.journals.reverse': ['transactions.edit', 'transactions.delete'],
+    'accounting.expenses.view': ['expenses.view'],
+    'accounting.expenses.create': ['expenses.create'],
+    'accounting.expenses.edit': ['expenses.edit'],
+    'accounting.expenses.submit': ['expenses.create', 'expenses.edit'],
+    'accounting.expenses.approve': ['expenses.edit'],
+    'accounting.expenses.reject': ['expenses.edit'],
+    'accounting.expenses.cancel': ['expenses.delete']
+  };
+
   private readonly API_URL = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
@@ -75,7 +94,8 @@ export class AuthService {
   hasPermission(permission: string): boolean {
     const user = this.getUserValue();
     const permissions = user?.permissions ?? [];
-    return permissions.includes('*') || permissions.includes(permission);
+    const accepted = [permission, ...(this.permissionAliases[permission] ?? [])];
+    return permissions.includes('*') || accepted.some(item => permissions.includes(item));
   }
 
   hasAnyPermission(permissions: string[]): boolean {
@@ -85,7 +105,7 @@ export class AuthService {
       return true;
     }
 
-    return permissions.some(p => userPermissions.includes(p));
+    return permissions.some(p => this.hasPermission(p));
   }
 
   hasAllPermissions(permissions: string[]): boolean {
@@ -95,7 +115,7 @@ export class AuthService {
       return true;
     }
 
-    return permissions.every(p => userPermissions.includes(p));
+    return permissions.every(p => this.hasPermission(p));
   }
 
   hasRole(role: string): boolean {

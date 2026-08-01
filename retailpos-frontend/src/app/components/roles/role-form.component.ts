@@ -48,6 +48,10 @@ export class RoleFormComponent implements OnInit {
       permissions: ['products.view', 'products.view_cost', 'products.create', 'products.edit', 'products.delete']
     },
     {
+      name: 'Variation Management',
+      permissions: ['variations.view', 'variations.create', 'variations.edit', 'variations.delete']
+    },
+    {
       name: 'Barcode Labels',
       permissions: ['barcode.view', 'barcode.print', 'barcode.bulk_print', 'barcode.template_manage']
     },
@@ -67,13 +71,15 @@ export class RoleFormComponent implements OnInit {
         'stock_adjustments.edit',
         'stock_adjustments.delete',
         'stock_adjustments.approve',
-        'stock_adjustments.reject'
+        'stock_adjustments.reject',
+        'stock_adjustments.cancel'
       ]
     },
     {
       name: 'Stock Transfer',
       permissions: [
         'stock_transfers.view',
+        'stock_transfers.view_all_locations',
         'stock_transfers.create',
         'stock_transfers.edit',
         'stock_transfers.delete',
@@ -157,12 +163,32 @@ export class RoleFormComponent implements OnInit {
       permissions: ['warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete']
     },
     {
-      name: 'Accounts Management',
-      permissions: ['accounts.view', 'accounts.create', 'accounts.edit', 'accounts.delete']
+      name: 'Accounting Chart of Accounts',
+      permissions: ['accounting.chart_accounts.view', 'accounting.chart_accounts.create', 'accounting.chart_accounts.edit']
     },
     {
-      name: 'Transactions Management',
-      permissions: ['transactions.view', 'transactions.create', 'transactions.edit', 'transactions.delete']
+      name: 'Accounting Configuration',
+      permissions: ['accounting.configuration.view', 'accounting.configuration.edit']
+    },
+    {
+      name: 'Accounting Journals',
+      permissions: ['accounting.journals.view', 'accounting.journals.create', 'accounting.journals.update', 'accounting.journals.cancel', 'accounting.journals.post', 'accounting.journals.reverse', 'accounting.manual_journals.create', 'accounting.manual_journals.post']
+    },
+    {
+      name: 'Accounting Expenses',
+      permissions: ['accounting.expenses.view', 'accounting.expenses.create', 'accounting.expenses.edit', 'accounting.expenses.submit', 'accounting.expenses.approve', 'accounting.expenses.reject', 'accounting.expenses.cancel']
+    },
+    {
+      name: 'Accounting Other Income',
+      permissions: ['accounting.other_income.view', 'accounting.other_income.create', 'accounting.other_income.edit', 'accounting.other_income.submit', 'accounting.other_income.approve', 'accounting.other_income.cancel']
+    },
+    {
+      name: 'Accounting Period Governance',
+      permissions: ['accounting.financial_years.view', 'accounting.financial_years.manage', 'accounting.periods.view', 'accounting.periods.close', 'accounting.periods.reopen', 'accounting.opening_balances.post']
+    },
+    {
+      name: 'Accounting Reports',
+      permissions: ['accounting.reports.general_ledger', 'accounting.reports.trial_balance', 'accounting.reports.profit_loss', 'accounting.reports.balance_sheet', 'accounting.reports.cash_book', 'accounting.reports.expense', 'accounting.reports.income', 'accounting.reports.cogs', 'accounting.reports.inventory_valuation', 'accounting.reports.cash_closing']
     }
   ];
 
@@ -354,6 +380,10 @@ export class RoleFormComponent implements OnInit {
   }
 
   getPermissionDisplayName(permission: string): string {
+    if (permission === 'stock_transfers.view_all_locations') {
+      return 'View Transfers Across All Locations';
+    }
+
     if (permission === 'stock_transfers.transfer_from_any_location') {
       return 'Transfer From Any Location';
     }
