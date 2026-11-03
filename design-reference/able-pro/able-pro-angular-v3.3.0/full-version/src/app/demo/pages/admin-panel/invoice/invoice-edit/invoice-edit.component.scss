@@ -1,0 +1,15 @@
+.h-100 {
+  height: calc(100% - 30px);
+}
+
+::ng-deep.input-group {
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+  }
+}
+
+.invoice-total {
+  margin-left: auto;
+  width: 100%;
+  max-width: 400px;
+}

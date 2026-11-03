@@ -15,8 +15,23 @@
 
   <!-- Filters -->
   <div class="card p-3 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div>
+    <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+      <div class="flex-1 min-w-0">
+        <label class="label">Search</label>
+        <div class="relative">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input
+            type="text"
+            class="input pl-8"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event); onSearchTermChange()"
+            (keyup.enter)="search()"
+            placeholder="Search by transfer number"
+          />
+        </div>
+      </div>
+
+      <div class="w-full lg:w-64">
         <label class="label">Status</label>
         <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); onFilterChange()" class="input">
           <option value="">All Statuses</option>
@@ -31,13 +46,49 @@
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <div class="flex items-end">
-        <button (click)="clearFilters()" class="btn btn-outline w-full">
+
+      <div class="flex items-center gap-2 lg:pb-0.5">
+        <button
+          type="button"
+          (click)="openAdvancedFilters()"
+          class="btn btn-outline h-10 text-sm px-3 gap-2 whitespace-nowrap"
+          [class.btn-active]="hasAdvancedFilters()">
+          <i class="fas fa-sliders-h text-xs"></i>
+          <span>Advanced Filters</span>
+          @if (advancedFilterCount() > 0) {
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-900 text-white text-xs font-semibold leading-none">
+              {{ advancedFilterCount() }}
+            </span>
+          }
+        </button>
+        <button (click)="search()" class="btn btn-primary h-10 px-3">
+          <i class="fas fa-search"></i>
+          Search
+        </button>
+        <button (click)="clearFilters()" class="btn btn-outline h-10 px-3 text-gray-600">
           <i class="fas fa-times"></i>
-          Clear Filters
+          Clear
         </button>
       </div>
     </div>
+
+    @if (hasAdvancedFilters()) {
+      <div class="mt-3 border-t border-gray-100 pt-3 flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-gray-500">Active advanced filters:</span>
+        @for (chip of getActiveAdvancedFilterChips(); track chip.key) {
+          <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+            {{ chip.label }}
+            <button
+              type="button"
+              class="text-slate-500 hover:text-slate-800"
+              (click)="clearSingleAdvancedFilter(chip.key)"
+              title="Remove filter">
+              <i class="fas fa-times"></i>
+            </button>
+          </span>
+        }
+      </div>
+    }
   </div>
 
   <!-- Loading -->
@@ -107,25 +158,25 @@
                             class="btn btn-ghost py-1 px-2" title="View">
                       <i class="fas fa-eye"></i>
                     </button>
-                    @if ((transfer.status === 'submitted' || transfer.status === 'pending') && auth.hasPermission('stock_transfers.approve')) {
+                    @if ((transfer.status === 'submitted' || transfer.status === 'pending') && auth.hasPermission('stock_transfers.approve') && canApproveTransfer(transfer)) {
                       <button (click)="approveTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-blue-600" title="Approve">
                         <i class="fas fa-check"></i>
                       </button>
                     }
-                    @if ((transfer.status === 'submitted' || transfer.status === 'approved' || transfer.status === 'in_transit') && auth.hasPermission('stock_transfers.reject_receive') && canReceiveOrRejectTransfer(transfer)) {
+                    @if (transfer.status === 'in_transit' && auth.hasPermission('stock_transfers.reject_receive') && canReceiveOrRejectTransfer(transfer)) {
                       <button (click)="rejectTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-red-600" title="Reject">
                         <i class="fas fa-times"></i>
                       </button>
                     }
-                    @if ((transfer.status === 'draft' || transfer.status === 'submitted' || transfer.status === 'pending' || transfer.status === 'approved') && auth.hasPermission('stock_transfers.cancel')) {
+                    @if ((transfer.status === 'draft' || transfer.status === 'submitted' || transfer.status === 'pending' || transfer.status === 'approved') && auth.hasPermission('stock_transfers.cancel') && canCancelTransfer(transfer)) {
                       <button (click)="cancelTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-gray-500" title="Cancel">
                         <i class="fas fa-ban"></i>
                       </button>
                     }
-                    @if (transfer.status === 'approved' && auth.hasPermission('stock_transfers.dispatch')) {
+                    @if (transfer.status === 'approved' && auth.hasPermission('stock_transfers.dispatch') && canSendTransfer(transfer)) {
                       <button (click)="sendTransfer(transfer.id, $event)"
                               class="btn btn-ghost py-1 px-2 text-orange-600" title="Send (In Transit)">
                         <i class="fas fa-truck-moving"></i>
@@ -195,6 +246,115 @@
     </div>
   }
 </div>
+
+@if (isAdvancedFilterDrawerOpen()) {
+  <app-advanced-filter-drawer
+    title="Advanced Transfer Filters"
+    applyLabel="Apply Filters"
+    clearLabel="Clear Filters"
+    closeLabel="Close Drawer"
+    (closed)="closeAdvancedFilters()"
+    (clear)="clearAdvancedFilters()"
+    (apply)="applyAdvancedFilters()">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="label">From Location Type</label>
+        <select
+          class="input"
+          [ngModel]="draftFromLocationType()"
+          (ngModelChange)="draftFromLocationType.set($event); onDraftFromLocationTypeChange()">
+          <option value="">Any</option>
+          <option value="outlet">Outlet</option>
+          <option value="warehouse">Warehouse</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">From Location</label>
+        <select
+          class="input"
+          [ngModel]="draftFromLocationId()"
+          (ngModelChange)="draftFromLocationId.set($event)"
+          [disabled]="!draftFromLocationType()">
+          <option [ngValue]="undefined">Any</option>
+          @for (location of getLocationOptions(draftFromLocationType(), false); track location.id) {
+            <option [ngValue]="location.id">{{ location.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="label">To Location Type</label>
+        <select
+          class="input"
+          [ngModel]="draftToLocationType()"
+          (ngModelChange)="draftToLocationType.set($event); onDraftToLocationTypeChange()">
+          <option value="">Any</option>
+          <option value="outlet">Outlet</option>
+          <option value="warehouse">Warehouse</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">To Location</label>
+        <select
+          class="input"
+          [ngModel]="draftToLocationId()"
+          (ngModelChange)="draftToLocationId.set($event)"
+          [disabled]="!draftToLocationType()">
+          <option [ngValue]="undefined">Any</option>
+          @for (location of getLocationOptions(draftToLocationType(), true); track location.id) {
+            <option [ngValue]="location.id">{{ location.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="label">Transfer Type</label>
+        <select class="input" [ngModel]="draftTransferTypeFilter()" (ngModelChange)="draftTransferTypeFilter.set($event)">
+          <option value="">All Types</option>
+          <option value="direct">Direct</option>
+          <option value="requisition">Requisition</option>
+          <option value="return">Return</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">Transfer Date From</label>
+        <input
+          type="date" appCompanyDate
+          class="input"
+          [ngModel]="draftDateFrom()"
+          (ngModelChange)="draftDateFrom.set($event)"
+          [max]="draftDateTo() || undefined" />
+      </div>
+
+      <div>
+        <label class="label">Transfer Date To</label>
+        <input
+          type="date" appCompanyDate
+          class="input"
+          [ngModel]="draftDateTo()"
+          (ngModelChange)="draftDateTo.set($event)"
+          [min]="draftDateFrom() || undefined" />
+      </div>
+
+      <div class="md:col-span-2">
+        <app-variant-search-picker
+          label="Product Variant"
+          [selectedVariant]="draftSelectedVariant()"
+          [placeholder]="draftProductVariantId() ? (draftProductVariantLabel() || 'Variant selected') : 'Search by main code, SKU, product name, or variant attributes'"
+          (selected)="onDraftVariantSelected($event)"
+          (cleared)="onDraftVariantCleared()">
+        </app-variant-search-picker>
+        @if (draftProductVariantId() && !draftSelectedVariant()) {
+          <p class="mt-2 text-xs text-slate-600">Selected: {{ draftProductVariantLabel() || ('Variant #' + draftProductVariantId()) }}</p>
+        }
+      </div>
+    </div>
+  </app-advanced-filter-drawer>
+}
 
 <!-- Reason Modal -->
 @if (showReasonModal()) {

@@ -1,0 +1,9 @@
+.edit-customer {
+  ::ng-deep.able-pro-rtl & {
+    direction: rtl;
+    // form input
+    .mdc-text-field--outlined .mdc-notched-outline {
+      flex-direction: row-reverse !important;
+    }
+  }
+}

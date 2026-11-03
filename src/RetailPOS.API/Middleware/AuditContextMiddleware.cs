@@ -51,9 +51,23 @@ public class AuditContextMiddleware
             }
         }
 
-        // Header overrides remain supported for service-to-service or impersonation tooling
-        actingUserId ??= TryParseLong(context.Request.Headers["X-Acting-User-Id"].FirstOrDefault());
-        actingRoleId ??= TryParseLong(context.Request.Headers["X-Acting-Role-Id"].FirstOrDefault());
+        if (context.Items[BusinessContextMiddleware.ItemName] is long selectedBusinessId)
+            businessId = selectedBusinessId;
+
+        var confidentialRoute = context.Request.Path.StartsWithSegments("/api/hr")
+            || context.Request.Path.StartsWithSegments("/api/payroll")
+            || context.Request.Path.StartsWithSegments("/api/audit-events");
+        if (confidentialRoute)
+        {
+            actingUserId ??= userId;
+            actingRoleId ??= roleId;
+        }
+        else
+        {
+            // Retain legacy tooling overrides outside the new confidential boundary.
+            actingUserId ??= TryParseLong(context.Request.Headers["X-Acting-User-Id"].FirstOrDefault());
+            actingRoleId ??= TryParseLong(context.Request.Headers["X-Acting-Role-Id"].FirstOrDefault());
+        }
 
         var ua = context.Request.Headers["User-Agent"].FirstOrDefault();
         var (device, browser, os) = UserAgentParser.Parse(ua);

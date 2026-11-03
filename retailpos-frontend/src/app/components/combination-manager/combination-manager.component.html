@@ -1,97 +1,80 @@
-<div class="bg-white rounded-lg border border-gray-200 mt-6">
-
+<section aria-labelledby="cm-title">
   <!-- Section header -->
-  <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
-    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-      <i class="fas fa-cubes text-indigo-500"></i>
+  <div class="cm-header">
+    <h3 id="cm-title" class="cm-title">
+      <i class="fas fa-cubes" aria-hidden="true"></i>
       Variations &amp; Combinations
-    </h2>
+    </h3>
     @if (combinations().length > 0) {
-      <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-        {{ combinations().length }} variant{{ combinations().length !== 1 ? 's' : '' }}
-      </span>
+      <app-ui-badge variant="neutral">{{ combinations().length }} variant{{ combinations().length !== 1 ? 's' : '' }}</app-ui-badge>
     }
   </div>
 
   <!-- Loading -->
   @if (isLoading()) {
-    <div class="flex justify-center py-10">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-    </div>
+    <app-ui-state kind="loading" [compact]="true" title="Loading variations..." />
   }
 
   @if (!isLoading()) {
-    <div class="p-5 space-y-6">
+    <div class="cm-body">
 
-      <!-- ── Step 1: Variation selector ─────────────────────────────────── -->
-      <div>
-        <div class="flex items-center gap-2 mb-3">
-          <span class="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold">1</span>
-          <h3 class="text-sm font-semibold text-gray-700">Select Variations</h3>
-        </div>
+      <!-- Step 1: Variation selector -->
+      <div class="cm-section">
+        <h4 class="cm-step-title">
+          <span class="cm-step" aria-hidden="true">1</span>
+          Select Variations
+        </h4>
 
         @if (variationService.variations().length > 0) {
-          <!-- Compact variation rows -->
-          <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden mb-3">
+          <div class="cm-rows">
             @for (variation of variationService.variations(); track variation.id) {
-              <div class="flex items-start gap-3 px-3 py-2.5"
-                   [class.bg-indigo-50]="selectedVariationIds().includes(variation.id)"
-                   [class.bg-white]="!selectedVariationIds().includes(variation.id)">
+              <div class="cm-row" [class.cm-row--on]="selectedVariationIds().includes(variation.id)">
 
                 <!-- Toggle -->
-                <label class="flex items-center gap-2 shrink-0 cursor-pointer mt-0.5">
+                <label class="cm-toggle">
                   <input
+                    appUiControl
                     type="checkbox"
                     [checked]="selectedVariationIds().includes(variation.id)"
-                    (change)="toggleVariation(variation.id)"
-                    class="w-4 h-4 text-indigo-600 rounded border-gray-300">
-                  <span class="text-sm font-medium text-gray-800 w-20 truncate">{{ variation.name }}</span>
+                    (change)="toggleVariation(variation.id)" />
+                  <span>{{ variation.name }}</span>
                 </label>
 
                 <!-- Options area -->
-                <div class="flex-1 min-w-0">
+                <div class="cm-options">
                   @if (selectedVariationIds().includes(variation.id)) {
                     @if (variation.options.length > 0) {
-                      <div class="flex flex-wrap gap-1.5">
+                      <div class="cm-chips" role="group" [attr.aria-label]="variation.name + ' options'">
                         @for (option of variation.options; track option.id) {
-                          <label
-                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer border transition-all select-none"
-                            [class.bg-indigo-600]="isOptionSelected(variation.id, option.id)"
-                            [class.text-white]="isOptionSelected(variation.id, option.id)"
-                            [class.border-indigo-600]="isOptionSelected(variation.id, option.id)"
-                            [class.bg-white]="!isOptionSelected(variation.id, option.id)"
-                            [class.text-gray-600]="!isOptionSelected(variation.id, option.id)"
-                            [class.border-gray-300]="!isOptionSelected(variation.id, option.id)">
+                          <label class="cm-chip" [class.cm-chip--on]="isOptionSelected(variation.id, option.id)">
                             <input
                               type="checkbox"
+                              class="sr-only"
                               [checked]="isOptionSelected(variation.id, option.id)"
-                              (change)="toggleOption(variation.id, option.id)"
-                              class="hidden">
+                              (change)="toggleOption(variation.id, option.id)" />
                             {{ option.name }}
                             @if (option.priceAdjustment !== 0) {
-                              <span class="opacity-70">{{ option.priceAdjustment > 0 ? '+' : '' }}{{ option.priceAdjustment }}</span>
+                              <span class="cm-chip__adjust">{{ option.priceAdjustment > 0 ? '+' : '' }}{{ option.priceAdjustment }}</span>
                             }
                           </label>
                         }
                       </div>
                       @if (getSelectedOptionsCount(variation.id) === 0) {
-                        <p class="text-red-500 text-xs mt-1">
-                          <i class="fas fa-exclamation-circle mr-1"></i>Select at least one option.
+                        <p class="cm-error" role="alert">
+                          <i class="fas fa-exclamation-circle" aria-hidden="true"></i> Select at least one option.
                         </p>
                       }
                     } @else {
-                      <span class="text-xs text-gray-400">No options defined.</span>
+                      <span class="cm-muted">No options defined.</span>
                     }
                   } @else {
-                    <span class="text-xs text-gray-400 italic">{{ variation.options.length }} option{{ variation.options.length !== 1 ? 's' : '' }} — click to activate</span>
+                    <span class="cm-muted">{{ variation.options.length }} option{{ variation.options.length !== 1 ? 's' : '' }} — select to activate</span>
                   }
                 </div>
 
-                <!-- Count badge -->
+                <!-- Count -->
                 @if (selectedVariationIds().includes(variation.id)) {
-                  <span class="shrink-0 text-xs font-medium mt-0.5"
-                        [class.text-indigo-600]="getSelectedOptionsCount(variation.id) > 0"
-                        [class.text-red-500]="getSelectedOptionsCount(variation.id) === 0">
+                  <span class="cm-count" [class.cm-count--empty]="getSelectedOptionsCount(variation.id) === 0">
                     {{ getSelectedOptionsCount(variation.id) }}/{{ variation.options.length }}
                   </span>
                 }
@@ -101,334 +84,266 @@
 
           <!-- Invalid combination warning -->
           @if (getInvalidCombinations().length > 0) {
-            <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
-              <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 shrink-0"></i>
-              <span>
-                <strong>{{ getInvalidCombinations().length }} variant(s)</strong> use options no longer selected.
-                They'll be kept but not regenerated. Save to confirm.
-              </span>
-            </div>
+            <app-ui-alert class="cm-hint" variant="warning">
+              <strong>{{ getInvalidCombinations().length }} variant(s)</strong> use options no longer selected.
+              They'll be kept but not regenerated. Save to confirm.
+            </app-ui-alert>
           }
 
           <button
+            appUiButton
             type="button"
+            size="sm"
             (click)="saveVariationAssignment()"
-            [disabled]="selectedVariationIds().length === 0"
-            class="btn btn-primary btn-sm">
-            <i class="fas fa-save mr-1.5"></i>Save Assignment
+            [disabled]="selectedVariationIds().length === 0">
+            <i class="fas fa-save" aria-hidden="true"></i>Save Assignment
           </button>
 
         } @else {
-          <div class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <app-ui-alert variant="warning">
             No variations available.
             <a routerLink="/variations" class="underline font-medium">Create variations first</a>.
-          </div>
+          </app-ui-alert>
         }
       </div>
 
-      <!-- ── Step 2: Generate ───────────────────────────────────────────── -->
+      <!-- Step 2: Generate -->
       @if (selectedVariationIds().length > 0) {
-        <div class="border-t pt-5">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold">2</span>
-            <h3 class="text-sm font-semibold text-gray-700">Generate Combinations</h3>
-          </div>
+        <div class="cm-section">
+          <h4 class="cm-step-title">
+            <span class="cm-step" aria-hidden="true">2</span>
+            Generate Combinations
+          </h4>
 
           @if (!canGenerateCombinations()) {
-            <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-              <i class="fas fa-info-circle mr-1"></i>
+            <app-ui-alert class="cm-hint" variant="info">
               Select at least one option per variation type and save the assignment first.
-            </p>
+            </app-ui-alert>
           }
 
-          <div class="flex flex-wrap items-center gap-2">
-            <!-- Primary action -->
+          <div class="cm-actions">
             <button
+              appUiButton
               type="button"
+              size="sm"
               (click)="generateAllCombinations()"
-              [disabled]="!canGenerateCombinations()"
-              class="btn btn-success btn-sm">
-              <i class="fas fa-layer-group mr-1.5"></i>Generate All
+              [disabled]="!canGenerateCombinations()">
+              <i class="fas fa-layer-group" aria-hidden="true"></i>Generate All
             </button>
 
-            <!-- Secondary action -->
             <button
+              appUiButton
               type="button"
+              size="sm"
+              variant="outline"
               (click)="generateSelectedCombinations()"
-              [disabled]="!canGenerateCombinations()"
-              class="btn btn-outline btn-sm">
-              <i class="fas fa-check-square mr-1.5"></i>Generate Selected Only
+              [disabled]="!canGenerateCombinations()">
+              <i class="fas fa-check-square" aria-hidden="true"></i>Generate Selected Only
             </button>
 
-            <!-- Separator -->
-            <span class="text-gray-300 select-none hidden sm:inline">|</span>
-
-            <!-- Tertiary action -->
             <button
+              appUiButton
               type="button"
-              (click)="openManualModal()"
-              class="btn btn-outline btn-sm text-gray-600">
-              <i class="fas fa-plus mr-1.5"></i>Add Manual
+              size="sm"
+              variant="outline"
+              (click)="openManualModal()">
+              <i class="fas fa-plus" aria-hidden="true"></i>Add Manual
             </button>
           </div>
         </div>
 
-        <!-- ── Step 3: Combinations table ──────────────────────────────── -->
-        <div class="border-t pt-5">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-xs font-bold">3</span>
-            <h3 class="text-sm font-semibold text-gray-700">
-              Variants
-              @if (combinations().length > 0) {
-                <span class="ml-1 text-gray-400 font-normal">({{ combinations().length }})</span>
+        <!-- Step 3: Combinations table -->
+        <div class="cm-section">
+          <h4 class="cm-step-title">
+            <span class="cm-step" aria-hidden="true">3</span>
+            Variants
+            @if (combinations().length > 0) {
+              <span class="cm-step-count">({{ combinations().length }})</span>
+            }
+          </h4>
+
+          <app-ui-data-table
+            mode="client"
+            ariaLabel="Product variants"
+            density="compact"
+            rowKey="id"
+            [columns]="variantColumns"
+            [rows]="combinations()"
+            [searchable]="false"
+            [paginated]="false"
+            [stickyHeader]="false"
+            actionsHeader="Actions"
+            emptyTitle="No variants yet"
+            emptyMessage="Generate combinations above.">
+
+            <!-- Variant attributes as chips -->
+            <ng-template uiTableCell="variant" let-combo>
+              <div class="cm-tags">
+                @for (opt of combo.options; track opt.id) {
+                  <span class="cm-tag"><span class="cm-tag__key">{{ opt.variationName[0] }}:</span>{{ opt.optionName }}</span>
+                }
+              </div>
+            </ng-template>
+
+            <ng-template uiTableCell="sku" let-combo>
+              <span class="cm-mono cm-sku">{{ combo.sku }}</span>
+              @if (combo.barcode) {
+                <div class="cm-mono cm-muted">{{ combo.barcode }}</div>
               }
-            </h3>
-          </div>
+            </ng-template>
 
-          @if (combinations().length > 0) {
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead>
-                  <tr class="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    <th class="px-3 py-2.5 text-left">Variant</th>
-                    <th class="px-3 py-2.5 text-left">SKU / Barcode</th>
-                    <th class="px-3 py-2.5 text-right">Price Adj.</th>
-                    <th class="px-3 py-2.5 text-right">Final Price</th>
-                    <th class="px-3 py-2.5 text-right w-20"></th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 bg-white">
-                  @for (combo of combinations(); track combo.id) {
-                    <tr class="hover:bg-gray-50 transition-colors">
+            <!-- Price adjustment: zero is suppressed -->
+            <ng-template uiTableCell="priceAdjustment" let-combo>
+              @if (combo.priceAdjustment !== 0) {
+                <span class="cm-money" [class.cm-money--up]="combo.priceAdjustment > 0" [class.cm-money--down]="combo.priceAdjustment < 0">
+                  {{ combo.priceAdjustment > 0 ? '+' : '' }}৳{{ combo.priceAdjustment }}
+                </span>
+              } @else {
+                <span class="cm-muted">—</span>
+              }
+            </ng-template>
 
-                      <!-- Variant attributes as chips (no redundant text) -->
-                      <td class="px-3 py-2.5">
-                        <div class="flex flex-wrap gap-1">
-                          @for (opt of combo.options; track opt.id) {
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                              <span class="text-gray-400 mr-1">{{ opt.variationName[0] }}:</span>{{ opt.optionName }}
-                            </span>
-                          }
-                        </div>
-                      </td>
+            <ng-template uiTableCell="finalPrice" let-combo>
+              <span class="cm-money cm-final">৳{{ combo.finalPrice }}</span>
+            </ng-template>
 
-                      <!-- SKU + barcode stacked -->
-                      <td class="px-3 py-2.5">
-                        <span class="font-mono text-xs bg-indigo-50 text-indigo-800 border border-indigo-100 px-1.5 py-0.5 rounded">
-                          {{ combo.sku }}
-                        </span>
-                        @if (combo.barcode) {
-                          <div class="font-mono text-xs text-gray-400 mt-0.5">{{ combo.barcode }}</div>
-                        }
-                      </td>
-
-                      <!-- Price adjustment — suppress zero -->
-                      <td class="px-3 py-2.5 text-right tabular-nums">
-                        @if (combo.priceAdjustment !== 0) {
-                          <span [class.text-emerald-600]="combo.priceAdjustment > 0"
-                                [class.text-red-500]="combo.priceAdjustment < 0"
-                                class="text-xs font-medium">
-                            {{ combo.priceAdjustment > 0 ? '+' : '' }}৳{{ combo.priceAdjustment }}
-                          </span>
-                        } @else {
-                          <span class="text-xs text-gray-300">—</span>
-                        }
-                      </td>
-
-                      <!-- Final price -->
-                      <td class="px-3 py-2.5 text-right tabular-nums text-sm font-semibold text-gray-900">
-                        ৳{{ combo.finalPrice }}
-                      </td>
-
-                      <!-- Actions -->
-                      <td class="px-3 py-2.5 text-right">
-                        <div class="flex items-center justify-end gap-1">
-                          <a
-                            [routerLink]="['/reports/stock-transactions']"
-                            [queryParams]="{ productId: productId, variantId: combo.id }"
-                            class="p-1 text-gray-400 hover:text-gray-700 rounded"
-                            title="Stock Transactions">
-                            <i class="fas fa-chart-bar text-xs"></i>
-                          </a>
-                          <button
-                            type="button"
-                            (click)="openEditModal(combo)"
-                            class="p-1 text-gray-400 hover:text-indigo-600 rounded"
-                            title="Edit">
-                            <i class="fas fa-pencil-alt text-xs"></i>
-                          </button>
-                          <button
-                            type="button"
-                            (click)="deleteCombination(combo)"
-                            class="p-1 text-gray-400 hover:text-red-600 rounded"
-                            title="Delete">
-                            <i class="fas fa-trash-alt text-xs"></i>
-                          </button>
-                        </div>
-                      </td>
-
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <div class="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-lg">
-              <i class="fas fa-layer-group text-2xl mb-2 block opacity-40"></i>
-              <p class="text-sm">No variants yet. Generate combinations above.</p>
-            </div>
-          }
+            <ng-template uiTableRowActions let-combo>
+              <div class="cm-row-actions">
+                <a
+                  appUiButton
+                  variant="ghost"
+                  size="sm"
+                  [iconOnly]="true"
+                  [routerLink]="['/reports/stock-transactions']"
+                  [queryParams]="{ productId: productId, variantId: combo.id }"
+                  [attr.aria-label]="'Stock transactions for ' + combo.combinationName"
+                  title="Stock Transactions">
+                  <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                </a>
+                <button
+                  appUiButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  [iconOnly]="true"
+                  [attr.aria-label]="'Edit ' + combo.combinationName"
+                  title="Edit"
+                  (click)="openEditModal(combo)">
+                  <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                </button>
+                <button
+                  appUiButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="cm-danger"
+                  [iconOnly]="true"
+                  [attr.aria-label]="'Delete ' + combo.combinationName"
+                  title="Delete"
+                  (click)="deleteCombination(combo)">
+                  <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                </button>
+              </div>
+            </ng-template>
+          </app-ui-data-table>
         </div>
       }
 
     </div>
   }
-</div>
+</section>
 
 
-<!-- ── Manual Combination Modal ──────────────────────────────────────── -->
-@if (showManualModal()) {
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center px-5 py-4 border-b">
-        <h2 class="text-base font-semibold text-gray-800">Add Manual Combination</h2>
-        <button type="button" (click)="showManualModal.set(false)"
-                class="text-gray-400 hover:text-gray-600 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
-          <i class="fas fa-times text-sm"></i>
-        </button>
-      </div>
+<!-- Manual Combination dialog -->
+<app-ui-dialog [(open)]="showManualModal" title="Add Manual Combination" size="md" [closeOnBackdrop]="false">
+  <form id="cm-manual-form" class="ui-form-stack" (ngSubmit)="createManualCombination()">
 
-      <div class="p-5">
-        <form (ngSubmit)="createManualCombination()" class="space-y-4">
-
-          <!-- Option selectors -->
-          <div>
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Options</p>
-            <div class="space-y-2">
-              @for (variation of assignedVariations(); track variation.variationId) {
-                <div class="flex items-center gap-3">
-                  <label class="text-sm font-medium text-gray-700 w-24 shrink-0">{{ variation.variationName }}</label>
-                  <select
-                    [(ngModel)]="manualForm().selectedOptions[variation.variationId]"
-                    [name]="'option_' + variation.variationId"
-                    class="select flex-1">
-                    <option [ngValue]="0">— Select —</option>
-                    @for (option of variation.options; track option.id) {
-                      <option [ngValue]="option.id">
-                        {{ option.name }}{{ option.priceAdjustment !== 0 ? ' (' + (option.priceAdjustment > 0 ? '+' : '') + '৳' + option.priceAdjustment + ')' : '' }}
-                      </option>
-                    }
-                  </select>
-                </div>
-              }
-            </div>
-          </div>
-
-          <!-- SKU + Barcode -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="label">SKU <span class="text-gray-400 font-normal">(optional)</span></label>
-              <input type="text" [(ngModel)]="manualForm().sku" name="sku"
-                     placeholder="Auto-generated" class="input font-mono text-sm">
-            </div>
-            <div>
-              <label class="label">Barcode</label>
-              <input type="text" [(ngModel)]="manualForm().barcode" name="barcode" class="input font-mono text-sm">
-            </div>
-          </div>
-
-          <!-- Price adjustments -->
-          <div class="grid gap-3" [class.grid-cols-2]="canViewCost()" [class.grid-cols-1]="!canViewCost()">
-            <div>
-              <label class="label">Price Adjustment (৳)</label>
-              <input type="number" step="0.01" [(ngModel)]="manualForm().priceAdjustment"
-                     name="priceAdjustment" class="input text-right">
-            </div>
-            @if (canViewCost()) {
-              <div>
-                <label class="label">Cost Adjustment (৳)</label>
-                <input type="number" step="0.01" [(ngModel)]="manualForm().costAdjustment"
-                       name="costAdjustment" class="input text-right">
-              </div>
+    <!-- Option selectors -->
+    <fieldset class="cm-fieldset">
+      <legend class="cm-title">Options</legend>
+      @for (variation of assignedVariations(); track variation.variationId) {
+        <app-ui-form-field [label]="variation.variationName">
+          <select
+            appUiControl
+            [(ngModel)]="manualForm().selectedOptions[variation.variationId]"
+            [name]="'option_' + variation.variationId">
+            <option [ngValue]="0">— Select —</option>
+            @for (option of variation.options; track option.id) {
+              <option [ngValue]="option.id">
+                {{ option.name }}{{ option.priceAdjustment !== 0 ? ' (' + (option.priceAdjustment > 0 ? '+' : '') + '৳' + option.priceAdjustment + ')' : '' }}
+              </option>
             }
-          </div>
+          </select>
+        </app-ui-form-field>
+      }
+    </fieldset>
 
-          <div class="flex justify-end gap-2 pt-2 border-t">
-            <button type="button" (click)="showManualModal.set(false)" class="btn btn-outline btn-sm">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-sm">
-              <i class="fas fa-plus mr-1.5"></i>Create
-            </button>
-          </div>
-        </form>
-      </div>
+    <!-- SKU + Barcode -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <app-ui-form-field label="SKU (optional)">
+        <input appUiControl type="text" [(ngModel)]="manualForm().sku" name="sku" placeholder="Auto-generated" class="cm-mono" />
+      </app-ui-form-field>
+      <app-ui-form-field label="Barcode">
+        <input appUiControl type="text" [(ngModel)]="manualForm().barcode" name="barcode" class="cm-mono" />
+      </app-ui-form-field>
     </div>
-  </div>
-}
 
-
-<!-- ── Edit Combination Modal ────────────────────────────────────────── -->
-@if (showEditModal() && editingCombination()) {
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
-      <div class="flex justify-between items-center px-5 py-4 border-b">
-        <div>
-          <h2 class="text-base font-semibold text-gray-800">Edit Variant</h2>
-          <!-- Attribute tags instead of plain text name -->
-          <div class="flex flex-wrap gap-1 mt-1">
-            @for (opt of editingCombination()!.options; track opt.id) {
-              <span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                <span class="text-gray-400 mr-1">{{ opt.variationName[0] }}:</span>{{ opt.optionName }}
-              </span>
-            }
-          </div>
-        </div>
-        <button type="button" (click)="showEditModal.set(false)"
-                class="text-gray-400 hover:text-gray-600 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 shrink-0 self-start">
-          <i class="fas fa-times text-sm"></i>
-        </button>
-      </div>
-
-      <div class="p-5">
-        <form (ngSubmit)="updateCombination()" class="space-y-4">
-
-          <!-- SKU + Barcode -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="label">SKU</label>
-              <input type="text" [(ngModel)]="editingCombination()!.sku" name="editSku"
-                     class="input font-mono text-sm">
-            </div>
-            <div>
-              <label class="label">Barcode</label>
-              <input type="text" [(ngModel)]="editingCombination()!.barcode" name="editBarcode"
-                     class="input font-mono text-sm">
-            </div>
-          </div>
-
-          <!-- Price adjustments -->
-          <div class="grid gap-3" [class.grid-cols-2]="canViewCost()" [class.grid-cols-1]="!canViewCost()">
-            <div>
-              <label class="label">Price Adjustment (৳)</label>
-              <input type="number" step="0.01" [(ngModel)]="editingCombination()!.priceAdjustment"
-                     name="editPrice" class="input text-right">
-            </div>
-            @if (canViewCost()) {
-              <div>
-                <label class="label">Cost Adjustment (৳)</label>
-                <input type="number" step="0.01" [(ngModel)]="editingCombination()!.costAdjustment"
-                       name="editCost" class="input text-right">
-              </div>
-            }
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2 border-t">
-            <button type="button" (click)="showEditModal.set(false)" class="btn btn-outline btn-sm">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-sm">
-              <i class="fas fa-save mr-1.5"></i>Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
+    <!-- Price adjustments -->
+    <div class="grid grid-cols-1 gap-3" [ngClass]="canViewCost() ? 'sm:grid-cols-2' : ''">
+      <app-ui-form-field label="Price Adjustment (৳)">
+        <input appUiControl type="number" step="0.01" [(ngModel)]="manualForm().priceAdjustment" name="priceAdjustment" />
+      </app-ui-form-field>
+      @if (canViewCost()) {
+        <app-ui-form-field label="Cost Adjustment (৳)">
+          <input appUiControl type="number" step="0.01" [(ngModel)]="manualForm().costAdjustment" name="costAdjustment" />
+        </app-ui-form-field>
+      }
     </div>
-  </div>
-}
+  </form>
+
+  <button uiDialogFooter appUiButton type="button" size="sm" variant="outline" (click)="showManualModal.set(false)">Cancel</button>
+  <button uiDialogFooter appUiButton type="submit" size="sm" form="cm-manual-form">
+    <i class="fas fa-plus" aria-hidden="true"></i>Create
+  </button>
+</app-ui-dialog>
+
+
+<!-- Edit Combination dialog -->
+<app-ui-dialog [(open)]="showEditModal" title="Edit Variant" size="md" [closeOnBackdrop]="false">
+  @if (editingCombination(); as combo) {
+    <div class="cm-tags cm-hint">
+      @for (opt of combo.options; track opt.id) {
+        <span class="cm-tag"><span class="cm-tag__key">{{ opt.variationName[0] }}:</span>{{ opt.optionName }}</span>
+      }
+    </div>
+
+    <form id="cm-edit-form" class="ui-form-stack" (ngSubmit)="updateCombination()">
+      <!-- SKU + Barcode -->
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <app-ui-form-field label="SKU">
+          <input appUiControl type="text" [(ngModel)]="editingCombination()!.sku" name="editSku" class="cm-mono" />
+        </app-ui-form-field>
+        <app-ui-form-field label="Barcode">
+          <input appUiControl type="text" [(ngModel)]="editingCombination()!.barcode" name="editBarcode" class="cm-mono" />
+        </app-ui-form-field>
+      </div>
+
+      <!-- Price adjustments -->
+      <div class="grid grid-cols-1 gap-3" [ngClass]="canViewCost() ? 'sm:grid-cols-2' : ''">
+        <app-ui-form-field label="Price Adjustment (৳)">
+          <input appUiControl type="number" step="0.01" [(ngModel)]="editingCombination()!.priceAdjustment" name="editPrice" />
+        </app-ui-form-field>
+        @if (canViewCost()) {
+          <app-ui-form-field label="Cost Adjustment (৳)">
+            <input appUiControl type="number" step="0.01" [(ngModel)]="editingCombination()!.costAdjustment" name="editCost" />
+          </app-ui-form-field>
+        }
+      </div>
+    </form>
+  }
+
+  <button uiDialogFooter appUiButton type="button" size="sm" variant="outline" (click)="showEditModal.set(false)">Cancel</button>
+  <button uiDialogFooter appUiButton type="submit" size="sm" form="cm-edit-form">
+    <i class="fas fa-save" aria-hidden="true"></i>Save Changes
+  </button>
+</app-ui-dialog>

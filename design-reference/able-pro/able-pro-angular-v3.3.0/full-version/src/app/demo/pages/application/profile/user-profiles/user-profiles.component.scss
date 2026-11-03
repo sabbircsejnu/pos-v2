@@ -1,0 +1,92 @@
+.user-profile-details {
+  .google-icon {
+    background: #ecf0f7;
+    color: #c73e2e;
+    border-color: #ecf0f7;
+  }
+
+  .apple-icon {
+    background: #ecf0f7;
+    color: #0057ff;
+    border-color: #ecf0f7;
+  }
+
+  .fb-icon {
+    background: #ecf0f7;
+    color: #4267b2;
+    border-color: #ecf0f7;
+  }
+
+  ::ng-deep.profile-wave-card {
+    position: relative;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    overflow: hidden;
+    background: var(--primary-50);
+
+    ::ng-deep.dark & {
+      background: var(--primary-800) !important;
+      color: var(--accent-100);
+    }
+
+    .back-svg {
+      right: 0;
+      top: 0;
+      position: absolute;
+    }
+
+    .top-svg {
+      left: 0;
+      bottom: 0;
+      position: absolute;
+      margin-bottom: -5px;
+    }
+
+    .profile-complete {
+      margin-top: -1.5rem;
+      margin-bottom: -1.5rem;
+      width: 150px;
+    }
+
+    .svg-color {
+      fill: var(--primary-200);
+    }
+  }
+
+  .user-personal-information {
+    .list-group-item {
+      border-bottom: none !important;
+      border-radius: 12px;
+      cursor: pointer;
+
+      &.active {
+        background: var(--primary-50);
+
+        > a {
+          color: var(--primary-500);
+        }
+      }
+    }
+  }
+
+  .account-info {
+    .user-status {
+      position: absolute;
+      padding: 16px;
+      right: 0;
+      top: 0;
+
+      span {
+        font-size: 0.75em;
+        padding: 0.25em 0.9em;
+        display: inline-block;
+        border-radius: 8px;
+      }
+    }
+
+    .border-side {
+      border-right: 1px solid var(--accent-300);
+      border-left: 1px solid var(--accent-300);
+    }
+  }
+}

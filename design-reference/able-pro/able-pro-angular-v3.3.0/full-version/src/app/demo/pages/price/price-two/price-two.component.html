@@ -1,0 +1,57 @@
+<app-card [showHeader]="false" cardClass="price-card-2 price-top m-b-30" [padding]="0">
+  <!-- <app-card [showHeader]="false" cardClass="price-top m-b-0" [padding]="0"> -->
+  <div class="price-top-content p-t-25 m-b-10">
+    <div class="left-side-content">
+      <div class="f-16 f-w-600">Quality is never an accident. It is always the result of interlligent effort</div>
+      <p class="m-b-0">It makes no difference what the price is, it all makes senses to us.</p>
+    </div>
+    <div class="flex align-item-center">
+      <div class="m-r-10">
+        <label for="year">Billed Yearly</label>
+      </div>
+      <div class="peice">
+        <mat-slide-toggle [(ngModel)]="isChecked" (change)="toggleChecked()" color="primary"></mat-slide-toggle>
+      </div>
+      <div class="m-l-10">
+        <label for="half">Billed Monthly</label>
+      </div>
+    </div>
+  </div>
+  <!-- </app-card> -->
+</app-card>
+<div class="row">
+  <div class="col-md-6 col-lg-7">
+    <app-card [showHeader]="false">
+      <ul class="product-list">
+        @for (item of packages[selectedPackageIndex].items; track item) {
+          <li class="list-group">{{ item }}</li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-md-6 col-lg-5">
+    <app-card [showHeader]="false">
+      @for (package of packages; track package; let i = $index) {
+        <div class="price-check m-b-15">
+          <mat-radio-button color="primary" class="w-100" [value]="i" (change)="selectPackage(i)" [checked]="i === selectedPackageIndex">
+            <div class="row align-item-center">
+              <div class="col-6">
+                <div class="popular">
+                  {{ package.name }}
+                  @if (package.popular === true) {
+                    <span class="mat-small text-white {{ package.color }} b-rad-5">{{ package.show }}</span>
+                  }
+                </div>
+                <span class="text-muted m-b-0">{{ package.value }} Services</span>
+              </div>
+              <div class="col-6 text-end">
+                <span class="m-b-0 f-20 f-w-600">{{ isChecked ? package.priceValue : '$' + prices['price' + (i + 1)] }}</span>
+                <span class="text-muted text-sm">/Lifetime</span>
+              </div>
+            </div>
+          </mat-radio-button>
+        </div>
+      }
+    </app-card>
+  </div>
+</div>

@@ -1,0 +1,76 @@
+<div class="row m-t-25">
+  <div class="col-md-6">
+    <app-card cardTitle="Email Settings">
+      <div class="f-w-600 m-b-10">Setup Email Notification</div>
+      <div class="flex align-item-center justify-content-between m-b-10">
+        <div>
+          <p class="text-muted m-b-0">Email Notification</p>
+        </div>
+        <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+      </div>
+      <div class="flex align-item-center justify-content-between">
+        <div>
+          <p class="text-muted m-b-0">Send Copy To Personal Email</p>
+        </div>
+        <mat-slide-toggle color="primary"></mat-slide-toggle>
+      </div>
+    </app-card>
+    <app-card cardTitle="Updates from System Notification">
+      <div class="f-w-600 m-b-10">Email You With?</div>
+      <mat-selection-list #email>
+        @for (email of notification; track email) {
+          <mat-list-option>
+            {{ email }}
+          </mat-list-option>
+        }
+      </mat-selection-list>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Activity Related Emails">
+      <div class="f-w-600 m-b-10">Setup Email Notification</div>
+      <div class="flex align-item-center justify-content-between m-b-10">
+        <div>
+          <p class="text-muted m-b-0">Have new notifications</p>
+        </div>
+        <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+      </div>
+      <div class="flex align-item-center justify-content-between m-b-10">
+        <div>
+          <p class="text-muted m-b-0">You're sent a direct message</p>
+        </div>
+        <mat-slide-toggle color="primary"></mat-slide-toggle>
+      </div>
+      <div class="flex align-item-center justify-content-between">
+        <div>
+          <p class="text-muted m-b-0">Someone adds you as a connection</p>
+        </div>
+        <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+      </div>
+      <mat-divider class="m-y-15"></mat-divider>
+      <div class="f-14 f-w-600 m-b-10">When to escalate emails?</div>
+      <div class="flex align-item-center justify-content-between m-b-10">
+        <div>
+          <p class="text-muted m-b-0">Upon new order</p>
+        </div>
+        <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+      </div>
+      <div class="flex align-item-center justify-content-between m-b-10">
+        <div>
+          <p class="text-muted m-b-0">New Membership Approval</p>
+        </div>
+        <mat-slide-toggle color="primary"></mat-slide-toggle>
+      </div>
+      <div class="flex align-item-center justify-content-between">
+        <div>
+          <p class="text-muted m-b-0">Member Registration</p>
+        </div>
+        <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-12 text-end">
+    <button mat-stroked-button class="m-r-10">Cancel</button>
+    <button mat-flat-button color="primary">Update Profile</button>
+  </div>
+</div>

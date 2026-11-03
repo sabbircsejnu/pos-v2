@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
 
@@ -18,7 +19,7 @@ public static class CurrentStockExporter
         "Last Purchase Date", "Last Sale Date", "Stock Status"
     ];
 
-    public static string ToCsv(IReadOnlyList<CurrentStockRowDto> rows)
+    public static string ToCsv(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new System.Text.StringBuilder();
 
@@ -41,8 +42,8 @@ public static class CurrentStockExporter
                 r.ReorderLevel.ToString(),
                 r.UnitCost.ToString("F2"),
                 r.StockValue.ToString("F2"),
-                r.LastPurchaseDate.HasValue ? r.LastPurchaseDate.Value.ToString("dd/MM/yyyy") : "",
-                r.LastSaleDate.HasValue ? r.LastSaleDate.Value.ToString("dd/MM/yyyy") : "",
+                r.LastPurchaseDate.HasValue ? UiDateFormatting.Format(r.LastPurchaseDate.Value, dateFormat, false) : "",
+                r.LastSaleDate.HasValue ? UiDateFormatting.Format(r.LastSaleDate.Value, dateFormat, false) : "",
                 EscapeCsv(r.StockStatus)
             }));
         }
@@ -63,7 +64,7 @@ public static class CurrentStockExporter
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<CurrentStockRowDto> rows)
+    public static byte[] ToExcel(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy")
     {
         using var workbook  = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Current Stock");
@@ -72,7 +73,7 @@ public static class CurrentStockExporter
         ws.Cell(1, 1).Value = "Current Stock Report";
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC";
+        ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(3, 1).Value = $"Total Records: {rows.Count}";
 
         // ── Column headers ───────────────────────────────────────────
@@ -104,9 +105,9 @@ public static class CurrentStockExporter
             ws.Cell(row, 10).Value = r.UnitCost;
             ws.Cell(row, 11).Value = r.StockValue;
             ws.Cell(row, 12).Value = r.LastPurchaseDate.HasValue
-                ? r.LastPurchaseDate.Value.ToString("dd/MM/yyyy") : "";
+                ? UiDateFormatting.Format(r.LastPurchaseDate.Value, dateFormat, false) : "";
             ws.Cell(row, 13).Value = r.LastSaleDate.HasValue
-                ? r.LastSaleDate.Value.ToString("dd/MM/yyyy") : "";
+                ? UiDateFormatting.Format(r.LastSaleDate.Value, dateFormat, false) : "";
             ws.Cell(row, 14).Value = r.StockStatus;
 
             // Number formatting for currency columns

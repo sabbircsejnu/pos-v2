@@ -1,0 +1,11 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="Google Re-Captcha">
+      <form [formGroup]="checkboxReCaptchaForm" (ngSubmit)="onSubmit()">
+        <div sc-checkbox-re-captcha [siteKey]="siteKey" formControlName="captcha"></div>
+        <br />
+        <button mat-flat-button color="primary" type="submit">Submit</button>
+      </form>
+    </app-card>
+  </div>
+</div>

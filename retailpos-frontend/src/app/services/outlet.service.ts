@@ -84,6 +84,11 @@ export class OutletService {
     return this.http.get<any>(`${this.apiUrl}/${id}/stats`);
   }
 
+  /** Deletes a terminal that has no history; the API answers 409 TERMINAL_HAS_HISTORY otherwise. */
+  deleteTerminal(outletId: number, terminalId: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${outletId}/terminals/${terminalId}`);
+  }
+
   clearMessages(): void {
     this.successMessage.set(null);
     this.error.set(null);

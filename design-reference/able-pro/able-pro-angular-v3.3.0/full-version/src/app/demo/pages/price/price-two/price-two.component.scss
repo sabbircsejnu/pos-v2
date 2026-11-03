@@ -1,0 +1,100 @@
+.product-list {
+  padding-left: 0;
+
+  .list-group {
+    padding: 8px 0px 8px 25px;
+    position: relative;
+    border-bottom: 1px solid var(--accent-300);
+
+    &:before {
+      content: '\ea5e';
+      font-family: tabler-icons !important;
+      position: absolute;
+      left: 0;
+      top: 8px;
+      opacity: 1;
+      color: var(--success-500);
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+::ng-deep.mat-mdc-card.price-top {
+  background: transparent;
+  border: none !important;
+
+  .price-top-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    @media (max-width: 768px) {
+      display: block;
+    }
+  }
+
+  .left-side-content {
+    @media (max-width: 768px) {
+      margin-bottom: 10px;
+    }
+  }
+}
+
+::ng-deep.price-check {
+  display: flex;
+  position: relative;
+  border: 1px solid var(--accent-300);
+  border-radius: 8px;
+
+  .mat-mdc-radio-button {
+    padding: 16px;
+
+    &.mat-mdc-radio-checked {
+      background: var(--primary-50);
+
+      ::ng-deep.dark & {
+        background: var(--primary-100);
+      }
+    }
+  }
+
+  .mdc-form-field {
+    display: flex;
+
+    .mdc-radio {
+      padding: 0px 10px 20px;
+    }
+
+    label {
+      flex: 1;
+
+      .popular {
+        display: flex;
+        align-items: center;
+
+        @media (max-width: 768px) {
+          display: block;
+        }
+
+        span {
+          padding: 4px 5px 6px;
+          margin-left: 10px;
+
+          @media (max-width: 768px) {
+            margin-left: 0px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+          }
+
+          ::ng-deep.able-pro-rtl & {
+            margin-right: 10px;
+            margin-left: 0ox;
+          }
+        }
+      }
+    }
+  }
+}

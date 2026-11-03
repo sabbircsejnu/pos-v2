@@ -1,0 +1,30 @@
+::ng-deep.upload-list {
+  overflow: hidden;
+}
+
+.file-upload {
+  ::ng-deep.dark & {
+    background: transparent;
+  }
+}
+
+.overlay {
+  position: relative;
+  .delete-button {
+    background-color: #fafafa;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    cursor: pointer;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    font-size: 20px;
+    line-height: 40px;
+
+    ::ng-deep.dark & {
+      background-color: var(--accent-50) !important;
+    }
+  }
+}

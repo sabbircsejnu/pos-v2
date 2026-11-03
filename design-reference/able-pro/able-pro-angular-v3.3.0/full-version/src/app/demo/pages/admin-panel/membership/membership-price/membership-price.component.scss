@@ -1,0 +1,73 @@
+::ng-deep.price-card {
+  padding: 24px;
+  height: 100%;
+  margin-bottom: 24px;
+
+  &.border-success {
+    border: 2px solid var(--success-500) !important;
+  }
+
+  &.border-primary {
+    border: 2px solid var(--primary-500) !important;
+  }
+
+  &.border-warn {
+    border: 2px solid var(--warn-500) !important;
+  }
+
+  .price-head {
+    text-align: center;
+
+    &.v3 {
+      margin: 0 0 25px;
+      padding: 0;
+    }
+  }
+
+  .price-price {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+    color: #222;
+
+    span {
+      margin-top: 8px;
+      font-weight: 400;
+      font-size: 0.875rem;
+      opacity: 0.8;
+      color: var(--accent-500);
+
+      ::ng-deep.dark & {
+        color: var(--accent-50);
+      }
+    }
+  }
+
+  .mat-mdc-card-content.v3 {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .product-list {
+    text-align: center;
+    &.v3 {
+      flex: 1 1 auto;
+
+      .list-group-item {
+        color: var(--accent-500);
+        &:before {
+          display: none;
+        }
+        padding: 4px 0 4px 25px;
+        padding-left: 0;
+        background: transparent;
+        border: none;
+
+        ::ng-deep.dark & {
+          color: var(--accent-50);
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+.course-price {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .price-card {
+    cursor: pointer;
+
+    .price-list {
+      border: 1px solid var(--accent-300);
+      padding: 12px 20px;
+      border-radius: 8px;
+
+      .badge {
+        padding: 0.35em 0.5em;
+        color: var(--accent-900);
+        background: var(--accent-200);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      &.active {
+        border-color: var(--primary-500);
+        background: var(--primary-500);
+        color: var(--accent-50);
+
+        ::ng-deep.dark & {
+          color: var(--accent-900) !important;
+        }
+
+        .badge {
+          color: var(--accent-50);
+          background: rgba(255, 255, 255, 0.1);
+        }
+      }
+    }
+  }
+}
+
+.bull-img {
+  background: var(--accent-100);
+}
+
+.details-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+  padding-left: 20px;
+  list-style: inherit;
+
+  li {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}

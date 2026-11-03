@@ -109,7 +109,12 @@
                       (change)="togglePermission(permission)"
                       class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span class="text-sm text-gray-700">{{ getPermissionDisplayName(permission) }}</span>
+                    <span class="text-sm text-gray-700">
+                      {{ getPermissionDisplayName(permission) }}
+                      @if (getPermissionDescription(permission); as description) {
+                        <span class="block text-xs text-gray-500">{{ description }}</span>
+                      }
+                    </span>
                   </label>
                 }
               </div>

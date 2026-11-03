@@ -1,0 +1,51 @@
+<div class="container mx-auto p-6 space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900">Opening Balance</h1>
+    <p class="text-sm text-slate-600">Review the current opening-balance status and post or adjust balances for the selected scope.</p>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Current status</h2>
+        <p class="text-sm text-slate-600">Opening balances are handled through the accounting engine and scoped to the active business context.</p>
+      </div>
+      <button *ngIf="auth.hasPermission('accounting.opening_balances.post')" type="button" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="postOpeningBalance()" [disabled]="isPosting()">
+        {{ isPosting() ? 'Posting…' : 'Post opening balance' }}
+      </button>
+    </div>
+
+    <div *ngIf="isLoading()" class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">Loading opening-balance status…</div>
+    <div *ngIf="!isLoading() && status()" class="mt-6 space-y-3">
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Status</p>
+        <p class="mt-1 text-lg font-semibold text-slate-900">{{ status()?.status || 'Unknown' }}</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Posting Notes</p>
+        <p class="mt-1 text-sm text-slate-600">{{ status()?.notes || 'No notes provided.' }}</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Posted At</p>
+        <p class="mt-1 text-sm text-slate-600">{{ status()?.postedAt ? (status()!.postedAt | appDate:'medium') : 'Not posted yet' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="text-lg font-semibold text-slate-900">Adjust opening balance</h2>
+    <div class="mt-4 grid gap-4 md:grid-cols-[1fr_2fr]">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Adjustment amount</label>
+        <input type="number" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="adjustmentAmount" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Notes</label>
+        <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="adjustmentNotes" />
+      </div>
+    </div>
+    <button *ngIf="auth.hasPermission('accounting.opening_balances.adjust')" type="button" class="mt-4 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="adjustOpeningBalance()" [disabled]="isPosting()">
+      {{ isPosting() ? 'Adjusting…' : 'Adjust balance' }}
+    </button>
+  </div>
+</div>

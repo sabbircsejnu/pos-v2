@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Reports;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using MediatR;
+using RetailPOS.Application.Inventory.Queries;
+using RetailPOS.Application.Inventory.ReadModels;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,15 +15,15 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "reports.inventory")]
 public class InventoryReportsController : ControllerBase
 {
-    private readonly IInventoryReportService _inventoryReportService;
     private readonly IUserOutletAccessService _outletAccess;
+    private readonly ISender _sender;
 
     public InventoryReportsController(
-        IInventoryReportService inventoryReportService,
-        IUserOutletAccessService outletAccess)
+        IUserOutletAccessService outletAccess,
+        ISender sender)
     {
-        _inventoryReportService = inventoryReportService;
         _outletAccess = outletAccess;
+        _sender = sender;
     }
 
     /// <summary>Returns current stock levels, optionally filtered by location or low-stock status</summary>
@@ -27,40 +31,68 @@ public class InventoryReportsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<StockLevelDto>>>> GetStockLevels(
         [FromQuery] long? locationId,
         [FromQuery] string? locationType,
-        [FromQuery] bool lowStockOnly = false)
+        [FromQuery] bool lowStockOnly = false,
+        CancellationToken cancellationToken = default)
     {
         var (resolvedId, resolvedType) =
             await _outletAccess.ResolveAndAuthorizeLocationAsync(locationId, locationType);
 
-        var result = await _inventoryReportService.GetStockLevelsAsync(resolvedId, resolvedType, lowStockOnly);
-        return Ok(ApiResponse<List<StockLevelDto>>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new GetInventoryStockLevelsQuery(resolvedId, resolvedType, lowStockOnly),
+            cancellationToken);
+        var rows = result.Select(item => new StockLevelDto
+        {
+            VariantId = item.VariantId,
+            ProductName = item.ProductName,
+            Sku = item.Sku,
+            CategoryName = item.CategoryName,
+            LocationId = item.LocationId,
+            LocationType = item.LocationType,
+            LocationName = item.LocationName,
+            Quantity = item.Quantity,
+            ReorderLevel = item.ReorderLevel,
+            IsLowStock = item.IsLowStock,
+            EstimatedValue = item.EstimatedValue
+        }).ToList();
+        return Ok(ApiResponse<List<StockLevelDto>>.SuccessResponse(rows));
     }
 
     /// <summary>Returns total inventory valuation with per-category breakdown</summary>
     [HttpGet("valuation")]
-    public async Task<ActionResult<ApiResponse<InventoryValuationDto>>> GetValuation()
+    public async Task<ActionResult<ApiResponse<InventoryValuationDto>>> GetValuation(
+        CancellationToken cancellationToken)
     {
-        // Inventory valuation is whole-business; restrict to BusinessOwner.
-        var auth = await _outletAccess.GetAuthorizedOutletsAsync();
-        if (!auth.IsBusinessOwner)
-            throw new UnauthorizedAccessException("Inventory valuation is restricted to Business Admin.");
-
-        var result = await _inventoryReportService.GetInventoryValuationAsync();
-        return Ok(ApiResponse<InventoryValuationDto>.SuccessResponse(result));
+        var result = await _sender.Send(new GetInventoryReportValuationQuery(), cancellationToken);
+        return Ok(ApiResponse<InventoryValuationDto>.SuccessResponse(new InventoryValuationDto
+        {
+            TotalValue = result.TotalValue,
+            TotalItems = result.TotalItems,
+            ByCategory = result.ByCategory.Select(category => new CategoryValuationDto
+            {
+                CategoryName = category.CategoryName,
+                Value = category.Value,
+                ItemCount = category.ItemCount
+            }).ToList()
+        }));
     }
 
     /// <summary>Returns slow-moving inventory items</summary>
     [HttpGet("slow-moving")]
     public async Task<ActionResult<ApiResponse<List<SlowMovingItemDto>>>> GetSlowMoving(
-        [FromQuery] int days = 90)
+        [FromQuery] int days = 90,
+        CancellationToken cancellationToken = default)
     {
-        // Slow-moving aggregates across the whole business; restrict to BusinessOwner.
-        var auth = await _outletAccess.GetAuthorizedOutletsAsync();
-        if (!auth.IsBusinessOwner)
-            throw new UnauthorizedAccessException("Slow-moving inventory report is restricted to Business Admin.");
-
-        var result = await _inventoryReportService.GetSlowMovingItemsAsync(days);
-        return Ok(ApiResponse<List<SlowMovingItemDto>>.SuccessResponse(result));
+        var result = await _sender.Send(new GetSlowMovingInventoryItemsQuery(days), cancellationToken);
+        var items = result.Select(item => new SlowMovingItemDto
+        {
+            VariantId = item.VariantId,
+            ProductName = item.ProductName,
+            Sku = item.Sku,
+            CurrentStock = item.CurrentStock,
+            DaysSinceLastSale = item.DaysSinceLastSale,
+            EstimatedValue = item.EstimatedValue
+        }).ToList();
+        return Ok(ApiResponse<List<SlowMovingItemDto>>.SuccessResponse(items));
     }
 
     /// <summary>
@@ -79,7 +111,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50)
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         // Enforce outlet access scoping
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
@@ -99,8 +132,30 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize is < 1 or > 500 ? 50 : pageSize
         };
 
-        var result = await _inventoryReportService.GetCurrentStockReportAsync(filter);
-        return Ok(ApiResponse<CurrentStockReportDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new GetCurrentStockReportQuery(new CurrentStockReportFilter(
+                filter.OutletId,
+                filter.WarehouseId,
+                filter.CategoryId,
+                filter.ProductId,
+                filter.StockStatus,
+                filter.Search,
+                filter.SortBy,
+                filter.SortDir,
+                filter.Page,
+                filter.PageSize)),
+            cancellationToken);
+        return Ok(ApiResponse<CurrentStockReportDto>.SuccessResponse(new CurrentStockReportDto
+        {
+            Items = result.Items.Select(ToCurrentStockDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = new CurrentStockSummaryDto
+            {
+                TotalProducts = result.Summary.TotalProducts,
+                TotalQuantity = result.Summary.TotalQuantity,
+                TotalStockValue = result.Summary.TotalStockValue
+            }
+        }));
     }
 
     /// <summary>
@@ -117,7 +172,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string format = "csv")
+        [FromQuery] string format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -136,17 +192,33 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0   // signals no pagination
         };
 
-        var rows = await _inventoryReportService.GetCurrentStockExportAsync(filter);
+        var result = await _sender.Send(
+            new GetCurrentStockReportQuery(new CurrentStockReportFilter(
+                filter.OutletId,
+                filter.WarehouseId,
+                filter.CategoryId,
+                filter.ProductId,
+                filter.StockStatus,
+                filter.Search,
+                filter.SortBy,
+                filter.SortDir,
+                filter.Page,
+                filter.PageSize)),
+            cancellationToken);
+        var rows = result.Items.Select(ToCurrentStockDto).ToList();
+
+        var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = CurrentStockExporter.ToExcel(rows);
+            var bytes = CurrentStockExporter.ToExcel(rows, dateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"CurrentStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = CurrentStockExporter.ToCsv(rows);
+            var csv = CurrentStockExporter.ToCsv(rows, dateFormat);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"CurrentStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -168,7 +240,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] DateTime? dateTo,
         [FromQuery] string? transactionType,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50)
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         if (productId <= 0)
             return BadRequest(ApiResponse<ProductLedgerReportDto>.ErrorResponse("productId is required."));
@@ -191,8 +264,10 @@ public class InventoryReportsController : ControllerBase
 
         try
         {
-            var result = await _inventoryReportService.GetProductLedgerReportAsync(filter);
-            return Ok(ApiResponse<ProductLedgerReportDto>.SuccessResponse(result));
+            var result = await _sender.Send(
+                new GetProductLedgerReportQuery(ToApplicationFilter(filter)),
+                cancellationToken);
+            return Ok(ApiResponse<ProductLedgerReportDto>.SuccessResponse(ToProductLedgerDto(result)));
         }
         catch (KeyNotFoundException ex)
         {
@@ -212,7 +287,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] DateTime? dateFrom,
         [FromQuery] DateTime? dateTo,
         [FromQuery] string? transactionType,
-        [FromQuery] string format = "csv")
+        [FromQuery] string format = "csv",
+        CancellationToken cancellationToken = default)
     {
         if (productId <= 0)
             return BadRequest("productId is required.");
@@ -235,7 +311,10 @@ public class InventoryReportsController : ControllerBase
 
         try
         {
-            var rows = await _inventoryReportService.GetProductLedgerExportAsync(filter);
+            var result = await _sender.Send(
+                new GetProductLedgerReportQuery(ToApplicationFilter(filter)),
+                cancellationToken);
+            var rows = result.Items.Select(ToProductLedgerRowDto).ToList();
 
             // Build summary from export rows (since export method doesn't return summary)
             var summary = new ProductLedgerSummaryDto
@@ -247,20 +326,18 @@ public class InventoryReportsController : ControllerBase
                 ClosingStock          = rows.Count > 0 ? rows[^1].ClosingQuantity : 0
             };
 
-            // Resolve product name for export header
-            var product = await _inventoryReportService.GetProductLedgerReportAsync(
-                new ProductLedgerFilterDto { ProductId = productId, Page = 1, PageSize = 1 });
-            var productName = product.ProductName;
+            var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
-            if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
+        if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
             {
-                var bytes = ProductLedgerExporter.ToExcel(rows, summary, productName);
+                var bytes = ProductLedgerExporter.ToExcel(rows, summary, result.ProductName, dateFormat);
                 return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             $"ProductLedger_{productId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
             }
             else
             {
-                var csv = ProductLedgerExporter.ToCsv(rows, summary, productName);
+                var csv = ProductLedgerExporter.ToCsv(rows, summary, result.ProductName, dateFormat);
                 return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                             $"ProductLedger_{productId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
             }
@@ -288,7 +365,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string?   sortBy,
         [FromQuery] string?   sortDir,
         [FromQuery] int       page     = 1,
-        [FromQuery] int       pageSize = 50)
+        [FromQuery] int       pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -307,8 +385,10 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize is < 1 or > 500 ? 50 : pageSize
         };
 
-        var result = await _inventoryReportService.GetStockMovementReportAsync(filter);
-        return Ok(ApiResponse<StockMovementReportDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new GetStockMovementReportQuery(ToApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(ApiResponse<StockMovementReportDto>.SuccessResponse(ToStockMovementDto(result)));
     }
 
     /// <summary>
@@ -324,7 +404,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] DateTime? dateTo,
         [FromQuery] string?   sortBy,
         [FromQuery] string?   sortDir,
-        [FromQuery] string    format = "csv")
+        [FromQuery] string    format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -343,7 +424,10 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows = await _inventoryReportService.GetStockMovementExportAsync(filter);
+        var result = await _sender.Send(
+            new GetStockMovementReportQuery(ToApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToStockMovementRowDto).ToList();
         var summary = new StockMovementSummaryDto
         {
             TotalOpeningStock = rows.Sum(r => r.OpeningStock),
@@ -353,15 +437,18 @@ public class InventoryReportsController : ControllerBase
             NetMovement       = rows.Sum(r => r.NetMovement)
         };
 
+        var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
+
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockMovementExporter.ToExcel(rows, summary);
+            var bytes = StockMovementExporter.ToExcel(rows, summary, dateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockMovement_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = StockMovementExporter.ToCsv(rows, summary);
+            var csv = StockMovementExporter.ToCsv(rows, summary, dateFormat);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"StockMovement_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -382,7 +469,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int     page     = 1,
-        [FromQuery] int     pageSize = 50)
+        [FromQuery] int     pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -399,8 +487,10 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize is < 1 or > 500 ? 50 : pageSize
         };
 
-        var result = await _inventoryReportService.GetStockValuationReportAsync(filter);
-        return Ok(ApiResponse<StockValuationReportDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new GetStockValuationReportQuery(ToApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(ApiResponse<StockValuationReportDto>.SuccessResponse(ToStockValuationDto(result)));
     }
 
     /// <summary>
@@ -414,7 +504,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string  format = "csv")
+        [FromQuery] string  format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -431,7 +522,10 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows = await _inventoryReportService.GetStockValuationExportAsync(filter);
+        var result = await _sender.Send(
+            new GetStockValuationReportQuery(ToApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToStockValuationRowDto).ToList();
         var totalValue = rows.Sum(r => r.InventoryValue);
         foreach (var r in rows)
             r.PercentOfTotal = totalValue > 0 ? Math.Round(r.InventoryValue / totalValue * 100, 2) : 0;
@@ -454,15 +548,18 @@ public class InventoryReportsController : ControllerBase
                 .ToList()
         };
 
+        var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
+
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockValuationExporter.ToExcel(rows, summary);
+            var bytes = StockValuationExporter.ToExcel(rows, summary, dateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockValuation_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = StockValuationExporter.ToCsv(rows, summary);
+            var csv = StockValuationExporter.ToCsv(rows, summary, dateFormat);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"StockValuation_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -482,7 +579,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int     page     = 1,
-        [FromQuery] int     pageSize = 50)
+        [FromQuery] int     pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
 
@@ -497,8 +595,15 @@ public class InventoryReportsController : ControllerBase
             PageSize   = pageSize is < 1 or > 500 ? 50 : pageSize
         };
 
-        var result = await _inventoryReportService.GetOutletWiseStockReportAsync(filter);
-        return Ok(ApiResponse<OutletWiseStockReportDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new GetOutletWiseStockReportQuery(ToOutletWiseStockApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(ApiResponse<OutletWiseStockReportDto>.SuccessResponse(new OutletWiseStockReportDto
+        {
+            Items = result.Items.Select(ToOutletWiseStockDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToOutletWiseStockSummaryDto(result.Summary)
+        }));
     }
 
     /// <summary>
@@ -511,7 +616,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string  format = "csv")
+        [FromQuery] string  format = "csv",
+        CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
 
@@ -526,43 +632,72 @@ public class InventoryReportsController : ControllerBase
             PageSize   = 0
         };
 
-        var rows = await _inventoryReportService.GetOutletWiseStockExportAsync(filter);
+        var result = await _sender.Send(
+            new GetOutletWiseStockReportQuery(ToOutletWiseStockApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToOutletWiseStockDto).ToList();
+        var summary = ToOutletWiseStockSummaryDto(result.Summary);
 
-        var byOutlet = rows
-            .GroupBy(r => r.OutletId)
-            .Select(g => new OutletStockSummaryDto
-            {
-                OutletId   = g.Key,
-                OutletName = g.First().OutletName,
-                TotalSkus  = g.Select(r => r.VariantId).Distinct().Count(),
-                TotalQty   = g.Sum(r => r.Quantity),
-                StockValue = g.Sum(r => r.StockValue)
-            })
-            .OrderBy(o => o.OutletName)
-            .ToList();
-
-        var summary = new OutletWiseStockSummaryDto
-        {
-            TotalOutlets    = byOutlet.Count,
-            TotalSkus       = rows.Select(r => r.VariantId).Distinct().Count(),
-            TotalQuantity   = rows.Sum(r => r.Quantity),
-            TotalStockValue = rows.Sum(r => r.StockValue),
-            ByOutlet        = byOutlet
-        };
+        var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = OutletWiseStockExporter.ToExcel(rows, summary);
+            var bytes = OutletWiseStockExporter.ToExcel(rows, summary, dateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"OutletWiseStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = OutletWiseStockExporter.ToCsv(rows, summary);
+            var csv = OutletWiseStockExporter.ToCsv(rows, summary, dateFormat);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"OutletWiseStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
+
+    private static OutletWiseStockFilter ToOutletWiseStockApplicationFilter(OutletWiseStockFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.CategoryId,
+            filter.Search,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static OutletWiseStockRowDto ToOutletWiseStockDto(OutletWiseStockRowReadModel row) =>
+        new()
+        {
+            OutletId = row.OutletId,
+            OutletName = row.OutletName,
+            VariantId = row.VariantId,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            Quantity = row.Quantity,
+            UnitCost = row.UnitCost,
+            StockValue = row.StockValue
+        };
+
+    private static OutletWiseStockSummaryDto ToOutletWiseStockSummaryDto(
+        OutletWiseStockSummaryReadModel summary) =>
+        new()
+        {
+            TotalOutlets = summary.TotalOutlets,
+            TotalSkus = summary.TotalSkus,
+            TotalQuantity = summary.TotalQuantity,
+            TotalStockValue = summary.TotalStockValue,
+            ByOutlet = summary.ByOutlet.Select(outlet => new OutletStockSummaryDto
+            {
+                OutletId = outlet.OutletId,
+                OutletName = outlet.OutletName,
+                TotalSkus = outlet.TotalSkus,
+                TotalQty = outlet.TotalQty,
+                StockValue = outlet.StockValue
+            }).ToList()
+        };
 
     // ──────────────────────────────────────────────────────────────────────
     // Report #6: Low Stock Report
@@ -577,7 +712,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int     page     = 1,
-        [FromQuery] int     pageSize = 50)
+        [FromQuery] int     pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -594,8 +730,15 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize
         };
 
-        var result = await _inventoryReportService.GetLowStockReportAsync(filter);
-        return Ok(result);
+        var result = await _sender.Send(
+            new GetLowStockReportQuery(ToLowStockApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(new LowStockReportDto
+        {
+            Items = result.Items.Select(ToLowStockDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToLowStockSummaryDto(result.Summary)
+        });
     }
 
     [HttpGet("low-stock/export")]
@@ -606,7 +749,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string  format = "csv")
+        [FromQuery] string  format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -623,14 +767,11 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows    = await _inventoryReportService.GetLowStockExportAsync(filter);
-        var summary = new LowStockSummaryDto
-        {
-            TotalSkus       = rows.Select(r => r.VariantId).Distinct().Count(),
-            TotalDeficitQty = rows.Sum(r => r.SuggestedOrderQty),
-            CriticalCount   = rows.Count(r => r.UrgencyLevel == "Critical"),
-            LowCount        = rows.Count(r => r.UrgencyLevel == "Low")
-        };
+        var result = await _sender.Send(
+            new GetLowStockReportQuery(ToLowStockApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToLowStockDto).ToList();
+        var summary = ToLowStockSummaryDto(result.Summary);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
@@ -645,6 +786,44 @@ public class InventoryReportsController : ControllerBase
         }
     }
 
+    private static LowStockReportFilter ToLowStockApplicationFilter(LowStockFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static LowStockRowDto ToLowStockDto(LowStockRowReadModel row) =>
+        new()
+        {
+            VariantId = row.VariantId,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            LocationId = row.LocationId,
+            LocationType = row.LocationType,
+            LocationName = row.LocationName,
+            CurrentStock = row.CurrentStock,
+            ReorderLevel = row.ReorderLevel,
+            SuggestedOrderQty = row.SuggestedOrderQty,
+            UrgencyLevel = row.UrgencyLevel
+        };
+
+    private static LowStockSummaryDto ToLowStockSummaryDto(LowStockSummaryReadModel summary) =>
+        new()
+        {
+            TotalSkus = summary.TotalSkus,
+            TotalDeficitQty = summary.TotalDeficitQty,
+            CriticalCount = summary.CriticalCount,
+            LowCount = summary.LowCount
+        };
+
     // ──────────────────────────────────────────────────────────────────────
     // Report #7: Out Of Stock Report
     // ──────────────────────────────────────────────────────────────────────
@@ -658,7 +837,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int     page     = 1,
-        [FromQuery] int     pageSize = 50)
+        [FromQuery] int     pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -675,8 +855,15 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize
         };
 
-        var result = await _inventoryReportService.GetOutOfStockReportAsync(filter);
-        return Ok(result);
+        var result = await _sender.Send(
+            new GetOutOfStockReportQuery(ToOutOfStockApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(new OutOfStockReportDto
+        {
+            Items = result.Items.Select(ToOutOfStockDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToOutOfStockSummaryDto(result.Summary)
+        });
     }
 
     [HttpGet("out-of-stock/export")]
@@ -687,7 +874,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string  format = "csv")
+        [FromQuery] string  format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -704,13 +892,11 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows    = await _inventoryReportService.GetOutOfStockExportAsync(filter);
-        var summary = new OutOfStockSummaryDto
-        {
-            TotalSkus           = rows.Select(r => r.VariantId).Distinct().Count(),
-            TotalLocations      = rows.Select(r => r.LocationId).Distinct().Count(),
-            EstimatedCostImpact = rows.Sum(r => r.UnitCost * r.ReorderLevel)
-        };
+        var result = await _sender.Send(
+            new GetOutOfStockReportQuery(ToOutOfStockApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToOutOfStockDto).ToList();
+        var summary = ToOutOfStockSummaryDto(result.Summary);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
@@ -725,6 +911,41 @@ public class InventoryReportsController : ControllerBase
         }
     }
 
+    private static OutOfStockReportFilter ToOutOfStockApplicationFilter(OutOfStockFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static OutOfStockRowDto ToOutOfStockDto(OutOfStockRowReadModel row) =>
+        new()
+        {
+            VariantId = row.VariantId,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            LocationId = row.LocationId,
+            LocationType = row.LocationType,
+            LocationName = row.LocationName,
+            ReorderLevel = row.ReorderLevel,
+            UnitCost = row.UnitCost
+        };
+
+    private static OutOfStockSummaryDto ToOutOfStockSummaryDto(OutOfStockSummaryReadModel summary) =>
+        new()
+        {
+            TotalSkus = summary.TotalSkus,
+            TotalLocations = summary.TotalLocations,
+            EstimatedCostImpact = summary.EstimatedCostImpact
+        };
+
     // ──────────────────────────────────────────────────────────────────────
     // Report #8: Negative Stock Report
     // ──────────────────────────────────────────────────────────────────────
@@ -738,7 +959,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
         [FromQuery] int     page     = 1,
-        [FromQuery] int     pageSize = 50)
+        [FromQuery] int     pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -755,8 +977,15 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize
         };
 
-        var result = await _inventoryReportService.GetNegativeStockReportAsync(filter);
-        return Ok(result);
+        var result = await _sender.Send(
+            new GetNegativeStockReportQuery(ToNegativeStockApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(new NegativeStockReportDto
+        {
+            Items = result.Items.Select(ToNegativeStockDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToNegativeStockSummaryDto(result.Summary)
+        });
     }
 
     [HttpGet("negative-stock/export")]
@@ -767,7 +996,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? sortBy,
         [FromQuery] string? sortDir,
-        [FromQuery] string  format = "csv")
+        [FromQuery] string  format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -784,13 +1014,11 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows    = await _inventoryReportService.GetNegativeStockExportAsync(filter);
-        var summary = new NegativeStockSummaryDto
-        {
-            TotalSkus          = rows.Select(r => r.VariantId).Distinct().Count(),
-            TotalNegativeQty   = rows.Sum(r => r.CurrentStock),
-            TotalNegativeValue = rows.Sum(r => r.StockValue)
-        };
+        var result = await _sender.Send(
+            new GetNegativeStockReportQuery(ToNegativeStockApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToNegativeStockDto).ToList();
+        var summary = ToNegativeStockSummaryDto(result.Summary);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
@@ -804,6 +1032,43 @@ public class InventoryReportsController : ControllerBase
             return File(bytes, "text/csv", $"NegativeStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
+
+    private static NegativeStockReportFilter ToNegativeStockApplicationFilter(NegativeStockFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static NegativeStockRowDto ToNegativeStockDto(NegativeStockRowReadModel row) =>
+        new()
+        {
+            VariantId = row.VariantId,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            LocationId = row.LocationId,
+            LocationType = row.LocationType,
+            LocationName = row.LocationName,
+            CurrentStock = row.CurrentStock,
+            UnitCost = row.UnitCost,
+            StockValue = row.StockValue
+        };
+
+    private static NegativeStockSummaryDto ToNegativeStockSummaryDto(
+        NegativeStockSummaryReadModel summary) =>
+        new()
+        {
+            TotalSkus = summary.TotalSkus,
+            TotalNegativeQty = summary.TotalNegativeQty,
+            TotalNegativeValue = summary.TotalNegativeValue
+        };
 
     // ──────────────────────────────────────────────────────────────────────
     // Report #9: Stock Adjustment Report
@@ -820,7 +1085,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string?  sortBy,
         [FromQuery] string?  sortDir,
         [FromQuery] int      page     = 1,
-        [FromQuery] int      pageSize = 50)
+        [FromQuery] int      pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -839,8 +1105,15 @@ public class InventoryReportsController : ControllerBase
             PageSize    = pageSize
         };
 
-        var result = await _inventoryReportService.GetStockAdjustmentReportAsync(filter);
-        return Ok(result);
+        var result = await _sender.Send(
+            new GetStockAdjustmentReportQuery(ToStockAdjustmentApplicationFilter(filter)),
+            cancellationToken);
+        return Ok(new StockAdjustmentReportDto
+        {
+            Items = result.Items.Select(ToStockAdjustmentDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToStockAdjustmentSummaryDto(result.Summary)
+        });
     }
 
     [HttpGet("stock-adjustments/export")]
@@ -853,7 +1126,8 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] DateTime? dateTo,
         [FromQuery] string?  sortBy,
         [FromQuery] string?  sortDir,
-        [FromQuery] string   format = "csv")
+        [FromQuery] string   format = "csv",
+        CancellationToken cancellationToken = default)
     {
         await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
@@ -872,29 +1146,70 @@ public class InventoryReportsController : ControllerBase
             PageSize    = 0
         };
 
-        var rows = await _inventoryReportService.GetStockAdjustmentExportAsync(filter);
-        var additions  = rows.Where(r => r.QuantityChange >= 0).Sum(r => r.QuantityChange);
-        var reductions = rows.Where(r => r.QuantityChange < 0).Sum(r => r.QuantityChange);
-        var summary = new StockAdjustmentSummaryDto
-        {
-            TotalAdjustments  = rows.Count,
-            TotalAdditions    = additions,
-            TotalReductions   = Math.Abs(reductions),
-            NetQuantityChange = additions + reductions
-        };
+        var result = await _sender.Send(
+            new GetStockAdjustmentReportQuery(ToStockAdjustmentApplicationFilter(filter)),
+            cancellationToken);
+        var rows = result.Items.Select(ToStockAdjustmentDto).ToList();
+        var summary = ToStockAdjustmentSummaryDto(result.Summary);
+
+        var dateFormat = (await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockAdjustmentExporter.ToExcel(rows, summary);
+            var bytes = StockAdjustmentExporter.ToExcel(rows, summary, dateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockAdjustments_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var bytes = StockAdjustmentExporter.ToCsv(rows);
+            var bytes = StockAdjustmentExporter.ToCsv(rows, dateFormat);
             return File(bytes, "text/csv", $"StockAdjustments_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
+
+    private static StockAdjustmentReportFilter ToStockAdjustmentApplicationFilter(
+        StockAdjustmentFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.DateFrom,
+            filter.DateTo,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static StockAdjustmentRowDto ToStockAdjustmentDto(StockAdjustmentRowReadModel row) =>
+        new()
+        {
+            Id = row.Id,
+            AdjustmentDate = row.AdjustmentDate,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            LocationId = row.LocationId,
+            LocationType = row.LocationType,
+            LocationName = row.LocationName,
+            AdjustmentType = row.AdjustmentType,
+            QuantityChange = row.QuantityChange,
+            Reason = row.Reason,
+            AdjustedBy = row.AdjustedBy
+        };
+
+    private static StockAdjustmentSummaryDto ToStockAdjustmentSummaryDto(
+        StockAdjustmentSummaryReadModel summary) =>
+        new()
+        {
+            TotalAdjustments = summary.TotalAdjustments,
+            TotalAdditions = summary.TotalAdditions,
+            TotalReductions = summary.TotalReductions,
+            NetQuantityChange = summary.NetQuantityChange
+        };
 
     // ──────────────────────────────────────────────────────────────────────
     // Report #10: Stock Transfer Report
@@ -912,16 +1227,16 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string?  sortBy,
         [FromQuery] string?  sortDir,
         [FromQuery] int      page     = 1,
-        [FromQuery] int      pageSize = 50)
+        [FromQuery] int      pageSize = 50,
+        CancellationToken cancellationToken = default)
     {
-        // For outlet-scoped users, restrict fromOutletId to their assigned outlet
-        var resolvedFromOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(fromOutletId);
-        if (toOutletId.HasValue)
-            await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(toOutletId);
+        var visibility = await ResolveTransferVisibilityContextAsync();
+        if (!string.IsNullOrWhiteSpace(visibility.ConfigurationError))
+            return BadRequest(ApiResponse<StockTransferReportDto>.ErrorResponse(visibility.ConfigurationError));
 
         var filter = new StockTransferFilterDto
         {
-            FromOutletId = resolvedFromOutletId,
+            FromOutletId = fromOutletId,
             ToOutletId   = toOutletId,
             CategoryId   = categoryId,
             Status       = status   ?? string.Empty,
@@ -931,11 +1246,25 @@ public class InventoryReportsController : ControllerBase
             SortBy       = sortBy   ?? "transferDate",
             SortDir      = sortDir  ?? "desc",
             Page         = page,
-            PageSize     = pageSize
+            PageSize     = pageSize,
+            CanViewAllLocations = visibility.CanViewAllLocations,
+            DefaultLocationType = visibility.DefaultLocationType,
+            DefaultLocationId = visibility.DefaultLocationId
         };
 
-        var result = await _inventoryReportService.GetStockTransferReportAsync(filter);
-        return Ok(result);
+        var result = await _sender.Send(
+            new GetStockTransferReportQuery(
+                ToStockTransferApplicationFilter(filter),
+                visibility.CanViewAllLocations,
+                visibility.DefaultLocationType,
+                visibility.DefaultLocationId),
+            cancellationToken);
+        return Ok(new StockTransferReportDto
+        {
+            Items = result.Items.Select(ToStockTransferDto).ToList(),
+            TotalCount = result.TotalCount,
+            Summary = ToStockTransferSummaryDto(result.Summary)
+        });
     }
 
     [HttpGet("stock-transfers-report/export")]
@@ -949,15 +1278,16 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] DateTime? dateTo,
         [FromQuery] string?  sortBy,
         [FromQuery] string?  sortDir,
-        [FromQuery] string   format = "csv")
+        [FromQuery] string   format = "csv",
+        CancellationToken cancellationToken = default)
     {
-        var resolvedFromOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(fromOutletId);
-        if (toOutletId.HasValue)
-            await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(toOutletId);
+        var visibility = await ResolveTransferVisibilityContextAsync();
+        if (!string.IsNullOrWhiteSpace(visibility.ConfigurationError))
+            return BadRequest(ApiResponse<object>.ErrorResponse(visibility.ConfigurationError));
 
         var filter = new StockTransferFilterDto
         {
-            FromOutletId = resolvedFromOutletId,
+            FromOutletId = fromOutletId,
             ToOutletId   = toOutletId,
             CategoryId   = categoryId,
             Status       = status   ?? string.Empty,
@@ -967,30 +1297,33 @@ public class InventoryReportsController : ControllerBase
             SortBy       = sortBy   ?? "transferDate",
             SortDir      = sortDir  ?? "desc",
             Page         = 1,
-            PageSize     = 0
+            PageSize     = 0,
+            CanViewAllLocations = visibility.CanViewAllLocations,
+            DefaultLocationType = visibility.DefaultLocationType,
+            DefaultLocationId = visibility.DefaultLocationId
         };
 
-        var rows = await _inventoryReportService.GetStockTransferReportExportAsync(filter);
-        var distinctIds = rows.Select(r => r.TransferId).Distinct().ToList();
-        var summary = new StockTransferSummaryDto
-        {
-            TotalTransfers = distinctIds.Count,
-            TotalLines     = rows.Count,
-            TotalQuantity  = rows.Sum(r => r.Quantity),
-            TotalValue     = rows.Sum(r => r.TransferValue),
-            PendingCount   = rows.Count(r => r.Status == "pending"),
-            CompletedCount = rows.Count(r => r.Status == "completed")
-        };
+        var result = await _sender.Send(
+            new GetStockTransferReportQuery(
+                ToStockTransferApplicationFilter(filter),
+                visibility.CanViewAllLocations,
+                visibility.DefaultLocationType,
+                visibility.DefaultLocationId),
+            cancellationToken);
+        var rows = result.Items.Select(ToStockTransferDto).ToList();
+        var summary = ToStockTransferSummaryDto(result.Summary);
+        var settings = await _sender.Send(
+            new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockTransferReportExporter.ToExcel(rows, summary);
+            var bytes = StockTransferReportExporter.ToExcel(rows, summary, settings.Company.DateFormat);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockTransfers_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var bytes = StockTransferReportExporter.ToCsv(rows);
+            var bytes = StockTransferReportExporter.ToCsv(rows, settings.Company.DateFormat);
             return File(bytes, "text/csv", $"StockTransfers_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
@@ -1002,5 +1335,237 @@ public class InventoryReportsController : ControllerBase
 
         if (warehouseId.HasValue)
             await _outletAccess.ResolveAndAuthorizeLocationAsync(warehouseId, "warehouse");
+    }
+
+    private static StockTransferReportFilter ToStockTransferApplicationFilter(
+        StockTransferFilterDto filter) =>
+        new(
+            filter.FromOutletId,
+            filter.ToOutletId,
+            filter.CategoryId,
+            filter.Status,
+            filter.Search,
+            filter.DateFrom,
+            filter.DateTo,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static StockTransferRowDto ToStockTransferDto(StockTransferReportRowReadModel row) =>
+        new()
+        {
+            TransferId = row.TransferId,
+            TransferDate = row.TransferDate,
+            FromLocationName = row.FromLocationName,
+            FromLocationType = row.FromLocationType,
+            ToLocationName = row.ToLocationName,
+            ToLocationType = row.ToLocationType,
+            Status = row.Status,
+            ProductCode = row.ProductCode,
+            Barcode = row.Barcode,
+            Sku = row.Sku,
+            ProductName = row.ProductName,
+            CategoryName = row.CategoryName,
+            Quantity = row.Quantity,
+            UnitCost = row.UnitCost,
+            TransferValue = row.TransferValue,
+            CreatedBy = row.CreatedBy
+        };
+
+    private static StockTransferSummaryDto ToStockTransferSummaryDto(
+        StockTransferReportSummaryReadModel summary) =>
+        new()
+        {
+            TotalTransfers = summary.TotalTransfers,
+            TotalLines = summary.TotalLines,
+            TotalQuantity = summary.TotalQuantity,
+            TotalValue = summary.TotalValue,
+            PendingCount = summary.PendingCount,
+            CompletedCount = summary.CompletedCount
+        };
+
+    private static CurrentStockRowDto ToCurrentStockDto(CurrentStockRowReadModel row) => new()
+    {
+        VariantId = row.VariantId,
+        ProductCode = row.ProductCode,
+        Barcode = row.Barcode,
+        ProductName = row.ProductName,
+        Category = row.Category,
+        LocationId = row.LocationId,
+        LocationType = row.LocationType,
+        LocationName = row.LocationName,
+        AvailableQuantity = row.AvailableQuantity,
+        ReservedQuantity = row.ReservedQuantity,
+        ReorderLevel = row.ReorderLevel,
+        UnitCost = row.UnitCost,
+        StockValue = row.StockValue,
+        LastPurchaseDate = row.LastPurchaseDate,
+        LastSaleDate = row.LastSaleDate,
+        StockStatus = row.StockStatus
+    };
+
+    private static ProductLedgerReportFilter ToApplicationFilter(ProductLedgerFilterDto filter) =>
+        new(
+            filter.ProductId,
+            filter.VariantId,
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.DateFrom,
+            filter.DateTo,
+            filter.TransactionType,
+            filter.Page,
+            filter.PageSize);
+
+    private static StockMovementReportFilter ToApplicationFilter(StockMovementFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.DateFrom,
+            filter.DateTo,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static StockValuationReportFilter ToApplicationFilter(StockValuationFilterDto filter) =>
+        new(
+            filter.OutletId,
+            filter.WarehouseId,
+            filter.CategoryId,
+            filter.Search,
+            filter.SortBy,
+            filter.SortDir,
+            filter.Page,
+            filter.PageSize);
+
+    private static StockValuationReportDto ToStockValuationDto(StockValuationReportReadModel report) => new()
+    {
+        Items = report.Items.Select(ToStockValuationRowDto).ToList(),
+        TotalCount = report.TotalCount,
+        Summary = new StockValuationSummaryDto
+        {
+            TotalProducts = report.Summary.TotalProducts,
+            TotalQuantity = report.Summary.TotalQuantity,
+            TotalInventoryValue = report.Summary.TotalInventoryValue,
+            ByCategory = report.Summary.ByCategory
+                .Select(category => new StockValuationCategoryDto
+                {
+                    CategoryName = category.CategoryName,
+                    Quantity = category.Quantity,
+                    InventoryValue = category.InventoryValue,
+                    PercentOfTotal = category.PercentOfTotal
+                })
+                .ToList()
+        }
+    };
+
+    private static StockValuationRowDto ToStockValuationRowDto(StockValuationRowReadModel row) => new()
+    {
+        VariantId = row.VariantId,
+        ProductCode = row.ProductCode,
+        Barcode = row.Barcode,
+        Sku = row.Sku,
+        ProductName = row.ProductName,
+        CategoryName = row.CategoryName,
+        LocationId = row.LocationId,
+        LocationType = row.LocationType,
+        LocationName = row.LocationName,
+        Quantity = row.Quantity,
+        UnitCost = row.UnitCost,
+        InventoryValue = row.InventoryValue,
+        PercentOfTotal = row.PercentOfTotal
+    };
+
+    private static StockMovementReportDto ToStockMovementDto(StockMovementReportReadModel report) => new()
+    {
+        Items = report.Items.Select(ToStockMovementRowDto).ToList(),
+        TotalCount = report.TotalCount,
+        Summary = new StockMovementSummaryDto
+        {
+            TotalOpeningStock = report.Summary.TotalOpeningStock,
+            TotalStockIn = report.Summary.TotalStockIn,
+            TotalStockOut = report.Summary.TotalStockOut,
+            TotalClosingStock = report.Summary.TotalClosingStock,
+            NetMovement = report.Summary.NetMovement
+        }
+    };
+
+    private static StockMovementRowDto ToStockMovementRowDto(StockMovementRowReadModel row) => new()
+    {
+        VariantId = row.VariantId,
+        ProductCode = row.ProductCode,
+        Sku = row.Sku,
+        ProductName = row.ProductName,
+        VariantName = row.VariantName,
+        VariantAttributes = row.VariantAttributes,
+        CategoryName = row.CategoryName,
+        LocationId = row.LocationId,
+        LocationType = row.LocationType,
+        LocationName = row.LocationName,
+        OpeningStock = row.OpeningStock,
+        StockIn = row.StockIn,
+        StockOut = row.StockOut,
+        ClosingStock = row.ClosingStock,
+        NetMovement = row.NetMovement
+    };
+
+    private static ProductLedgerReportDto ToProductLedgerDto(ProductLedgerReportReadModel report) => new()
+    {
+        ProductId = report.ProductId,
+        ProductName = report.ProductName,
+        ProductSku = report.ProductSku,
+        VariantId = report.VariantId,
+        VariantName = report.VariantName,
+        Items = report.Items.Select(ToProductLedgerRowDto).ToList(),
+        TotalCount = report.TotalCount,
+        Summary = new ProductLedgerSummaryDto
+        {
+            OpeningStock = report.Summary.OpeningStock,
+            TotalStockIn = report.Summary.TotalStockIn,
+            TotalStockOut = report.Summary.TotalStockOut,
+            ClosingStock = report.Summary.ClosingStock,
+            TotalTransactionValue = report.Summary.TotalTransactionValue
+        }
+    };
+
+    private static ProductLedgerRowDto ToProductLedgerRowDto(ProductLedgerRowReadModel row) => new()
+    {
+        LedgerId = row.LedgerId,
+        TransactionDate = row.TransactionDate,
+        TransactionType = row.TransactionType,
+        TransactionTypeLabel = row.TransactionTypeLabel,
+        ReferenceNumber = row.ReferenceNumber,
+        VariantId = row.VariantId,
+        ProductName = row.ProductName,
+        Sku = row.Sku,
+        LocationId = row.LocationId,
+        LocationName = row.LocationName,
+        OpeningQuantity = row.OpeningQuantity,
+        StockIn = row.StockIn,
+        StockOut = row.StockOut,
+        ClosingQuantity = row.ClosingQuantity,
+        UnitCost = row.UnitCost,
+        TransactionValue = row.TransactionValue,
+        PerformedBy = row.PerformedBy,
+        Remarks = row.Remarks
+    };
+
+    private async Task<(bool CanViewAllLocations, string? DefaultLocationType, long? DefaultLocationId, string? ConfigurationError)> ResolveTransferVisibilityContextAsync()
+    {
+        if (User.HasPermission("stock_transfers.view_all_locations"))
+            return (true, null, null, null);
+
+        var auth = await _outletAccess.GetAuthorizedOutletsAsync();
+        if (!auth.DefaultLocationId.HasValue || string.IsNullOrWhiteSpace(auth.DefaultLocationType))
+            return (false, null, null, "Your default inventory location is not configured.");
+
+        var normalizedType = auth.DefaultLocationType.Trim().ToLowerInvariant();
+        if (normalizedType != "outlet" && normalizedType != "warehouse")
+            return (false, null, null, "Your default inventory location is not configured.");
+
+        return (false, normalizedType, auth.DefaultLocationId.Value, null);
     }
 }

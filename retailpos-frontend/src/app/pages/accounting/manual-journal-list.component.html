@@ -1,0 +1,58 @@
+<div class="container mx-auto px-4 py-4">
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Manual Journal</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Create and manage manual journal workflows</p>
+    </div>
+    <button (click)="create()" class="btn btn-primary"><i class="fas fa-plus"></i> New Manual Journal</button>
+  </div>
+
+  <div class="card p-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div>
+        <label class="label">Status</label>
+        <select class="input" [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event)">
+          <option value="">All Statuses</option>
+          @for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }
+        </select>
+      </div>
+      <div class="flex items-end gap-2 md:col-span-2">
+        <button (click)="applyFilters()" class="btn btn-primary flex-1">Search</button>
+        <button (click)="clearFilters()" class="btn btn-outline">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  @if (accountingService.isLoading()) {
+    <div class="card p-8 text-center"><i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i><p class="text-sm text-gray-600">Loading manual journals...</p></div>
+  } @else if (accountingService.journals().length > 0) {
+    <div class="table-container">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Journal</th><th>Status</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody>
+            @for (item of accountingService.journals(); track item.id) {
+              <tr (click)="open(item)" class="cursor-pointer">
+                <td>{{ item.postingDate | appDate:'mediumDate' }}</td>
+                <td>{{ item.journalNumber || ('Draft #' + item.id) }}</td>
+                <td>{{ item.status }}</td>
+                <td>{{ item.description || '-' }}</td>
+                <td>
+                  <div class="flex gap-2">
+                    <button [disabled]="!canSubmit(item)" (click)="submit(item, $event)" class="btn btn-ghost py-1 px-2">Submit</button>
+                    <button [disabled]="!canApprove(item)" (click)="approve(item, $event)" class="btn btn-ghost py-1 px-2">Approve</button>
+                    <button [disabled]="!canReject(item)" (click)="reject(item, $event)" class="btn btn-ghost py-1 px-2">Reject</button>
+                    <button [disabled]="!canPost(item)" (click)="post(item, $event)" class="btn btn-ghost py-1 px-2">Post</button>
+                    <button [disabled]="!canCancel(item)" (click)="cancel(item, $event)" class="btn btn-ghost py-1 px-2">Cancel</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  } @else {
+    <div class="bg-white rounded-lg shadow-md p-12 text-center"><h3 class="text-xl font-semibold text-gray-900 mb-2">No Manual Journals</h3></div>
+  }
+</div>

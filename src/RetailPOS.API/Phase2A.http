@@ -1,0 +1,121 @@
+@baseUrl = https://localhost:5006/api/hr/v1
+@token = REPLACE_WITH_AUTHENTICATED_TOKEN
+@shiftId = 1
+@calendarId = 1
+@holidayId = 1
+@policyId = 1
+
+### Shifts
+GET {{baseUrl}}/shifts?search=DAY
+Authorization: Bearer {{token}}
+
+### Create one generic cross-midnight shift
+POST {{baseUrl}}/shifts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"code":"EXT","name":"Extended","startTimeLocal":"10:00:00","endTimeLocal":"02:00:00","crossesMidnight":true,"minimumWorkMinutes":900,"maximumAllowedWorkMinutes":960,"allowedEarlyPunchMinutes":30,"allowedLatePunchMinutes":30,"minimumRestBeforeNextShiftMinutes":660,"graceInMinutes":5,"graceOutMinutes":5,"overtimeEligible":true,"breaks":[{"sequence":1,"durationMinutes":60,"isPaid":false}]}
+
+### Replace a shift (stale expectedVersion returns 409)
+PUT {{baseUrl}}/shifts/{{shiftId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"code":"EXT","name":"Extended","startTimeLocal":"10:00:00","endTimeLocal":"02:00:00","crossesMidnight":true,"minimumWorkMinutes":900,"maximumAllowedWorkMinutes":960,"allowedEarlyPunchMinutes":30,"allowedLatePunchMinutes":30,"minimumRestBeforeNextShiftMinutes":660,"graceInMinutes":5,"graceOutMinutes":5,"overtimeEligible":true,"breaks":[{"sequence":1,"durationMinutes":60,"isPaid":false}]}}
+
+### Deactivate shift
+POST {{baseUrl}}/shifts/{{shiftId}}/deactivate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":2}
+
+### Holiday calendars
+GET {{baseUrl}}/holiday-calendars
+Authorization: Bearer {{token}}
+
+### Create future company calendar (adjust example dates to future UTC dates)
+POST {{baseUrl}}/holiday-calendars
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name":"Public holidays","scope":{"scopeType":"Company","locationType":null,"operationalLocationProjectionId":null},"effectiveFrom":"2027-01-01","effectiveTo":"2027-12-31"}
+
+### Edit future calendar; scope cannot change
+PUT {{baseUrl}}/holiday-calendars/{{calendarId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"name":"Public holidays 2027","scope":{"scopeType":"Company","locationType":null,"operationalLocationProjectionId":null},"effectiveFrom":"2027-01-01","effectiveTo":"2027-12-31"}}
+
+### Schedule calendar closure (cannot exclude existing active holidays)
+POST {{baseUrl}}/holiday-calendars/{{calendarId}}/deactivate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":2,"effectiveTo":"2027-12-31"}
+
+### Calendar holidays
+GET {{baseUrl}}/holiday-calendars/{{calendarId}}/holidays
+Authorization: Bearer {{token}}
+
+### Create holiday in an open calendar
+POST {{baseUrl}}/holiday-calendars/{{calendarId}}/holidays
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"holidayDate":"2027-01-01","code":"NEWYEAR","name":"New Year","holidayType":"Public","isPaid":true,"notes":null}
+
+### Edit future holiday
+PUT {{baseUrl}}/holiday-calendars/{{calendarId}}/holidays/{{holidayId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"holidayDate":"2027-01-01","code":"NEWYEAR","name":"New Year","holidayType":"Public","isPaid":true,"notes":"Confirmed"}}
+
+### Deactivate future holiday
+POST {{baseUrl}}/holiday-calendars/{{calendarId}}/holidays/{{holidayId}}/deactivate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":2}
+
+### Retained weekly-off versions
+GET {{baseUrl}}/weekly-off-policies
+Authorization: Bearer {{token}}
+
+### Create company recurring weekly off; Sunday=0 through Saturday=6
+POST {{baseUrl}}/weekly-off-policies
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"scope":{"scopeType":"Company","locationType":null,"operationalLocationProjectionId":null},"effectiveFrom":"2027-01-01","effectiveTo":null,"days":[5]}
+
+### Append successor and close predecessor on the preceding day
+POST {{baseUrl}}/weekly-off-policies/{{policyId}}/versions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"scope":{"scopeType":"Company","locationType":null,"operationalLocationProjectionId":null},"effectiveFrom":"2027-02-01","effectiveTo":null,"days":[6]}}
+
+### PUT also appends a new version; it never overwrites prior days
+PUT {{baseUrl}}/weekly-off-policies/{{policyId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"scope":{"scopeType":"Company","locationType":null,"operationalLocationProjectionId":null},"effectiveFrom":"2027-02-01","effectiveTo":null,"days":[6]}}
+
+### Schedule policy closure; historical lookups remain effective through this inclusive end
+POST {{baseUrl}}/weekly-off-policies/{{policyId}}/deactivate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"effectiveTo":"2027-12-31"}
+
+### Date resolution requires both holiday and weekly-off read permissions and authorized projection
+GET {{baseUrl}}/day-classification?workDate=2027-01-01&locationId=1
+Authorization: Bearer {{token}}
+
+### Missing calendar returns 404 without disclosing another Business
+GET {{baseUrl}}/holiday-calendars/999999/holidays
+Authorization: Bearer {{token}}

@@ -85,13 +85,13 @@
           <!-- Created At -->
           <div>
             <label class="block text-sm font-medium text-gray-500 mb-1">Created At</label>
-            <p class="text-lg text-gray-800">{{ outlet()!.createdAt | date:'medium' }}</p>
+            <p class="text-lg text-gray-800">{{ outlet()!.createdAt | appDate:'medium' }}</p>
           </div>
 
           <!-- Updated At -->
           <div>
             <label class="block text-sm font-medium text-gray-500 mb-1">Last Updated</label>
-            <p class="text-lg text-gray-800">{{ outlet()!.updatedAt | date:'medium' }}</p>
+            <p class="text-lg text-gray-800">{{ outlet()!.updatedAt | appDate:'medium' }}</p>
           </div>
         </div>
       </div>

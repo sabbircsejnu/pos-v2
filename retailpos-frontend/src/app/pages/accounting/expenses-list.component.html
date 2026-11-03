@@ -57,20 +57,29 @@
         <label class="label">Category</label>
         <select class="input" [ngModel]="filterCategory()" (ngModelChange)="filterCategory.set($event)">
           <option value="">All Categories</option>
-          @for (cat of categories; track cat) {
+          @for (cat of getCategoryNames(); track cat) {
             <option [value]="cat">{{ cat }}</option>
           }
         </select>
       </div>
       <div>
+        <label class="label">Status</label>
+        <select class="input" [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event)">
+          <option value="">All Statuses</option>
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+      <div>
         <label class="label">Start Date</label>
-        <input type="date" class="input" [ngModel]="filterStartDate()" (ngModelChange)="filterStartDate.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="filterStartDate()" (ngModelChange)="filterStartDate.set($event)" />
       </div>
       <div>
         <label class="label">End Date</label>
-        <input type="date" class="input" [ngModel]="filterEndDate()" (ngModelChange)="filterEndDate.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="filterEndDate()" (ngModelChange)="filterEndDate.set($event)" />
       </div>
-      <div class="flex items-end gap-2">
+      <div class="flex items-end gap-2 md:col-span-4">
         <button (click)="applyFilters()" class="btn btn-primary flex-1">
           <i class="fas fa-search"></i> Search
         </button>
@@ -97,6 +106,8 @@
             <tr>
               <th class="px-4 py-2.5">Date</th>
               <th class="px-4 py-2.5">Category</th>
+              <th class="px-4 py-2.5">Approval</th>
+              <th class="px-4 py-2.5">Source / payout</th>
               <th class="px-4 py-2.5 text-right">Amount</th>
               <th class="px-4 py-2.5">Description</th>
               <th class="px-4 py-2.5">Outlet</th>
@@ -112,15 +123,52 @@
                     {{ exp.category }}
                   </span>
                 </td>
+                <td class="px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-medium" [class]="getStatusClass(exp.status)">
+                    {{ exp.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-2.5 whitespace-nowrap">
+                  <div class="text-sm text-gray-800">{{ sourceLabel(exp.paymentSource) }}</div>
+                  @switch (payout(exp)) {
+                    @case ('awaiting_approval') { <span class="text-xs text-gray-500">Payout after approval</span> }
+                    @case ('awaiting_payout') { <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Awaiting drawer payout</span> }
+                    @case ('paid') { <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Paid from drawer @if (exp.disbursedCashSessionId) { (session {{ exp.disbursedCashSessionId }}) }</span> }
+                  }
+                </td>
                 <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ formatCurrency(exp.amount) }}</td>
                 <td class="px-4 py-2.5 text-gray-600">{{ exp.description || '-' }}</td>
                 <td class="px-4 py-2.5 text-gray-600">{{ exp.outletName || '-' }}</td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-center gap-2">
-                    <button (click)="editExpense(exp.id, $event)" class="btn btn-ghost py-1 px-2" title="Edit">
+                        <button [disabled]="!canEdit(exp)"
+                          (click)="editExpense(exp.id, $event)" class="btn btn-ghost py-1 px-2" title="Edit">
                       <i class="fas fa-edit"></i>
                     </button>
-                    <button (click)="deleteExpense(exp.id, exp.category, $event)"
+                        <button [disabled]="!canSubmit(exp)"
+                          (click)="submitExpense(exp, $event)" class="btn btn-ghost py-1 px-2 text-blue-600 hover:text-blue-700" title="Submit">
+                      <i class="fas fa-paper-plane"></i>
+                    </button>
+                        <button [disabled]="!canApprove(exp)"
+                          (click)="approveExpense(exp, $event)" class="btn btn-ghost py-1 px-2 text-green-600 hover:text-green-700" title="Approve">
+                      <i class="fas fa-check"></i>
+                    </button>
+                        @if (canPayFromDrawer(exp)) {
+                          <button (click)="openPayFromDrawer(exp, $event)" class="btn btn-ghost py-1 px-2 text-emerald-700 hover:text-emerald-800"
+                            title="Pay from POS drawer" [attr.aria-label]="'Pay expense ' + (exp.expenseNumber || exp.id) + ' from the POS drawer'">
+                            <i class="fas fa-cash-register" aria-hidden="true"></i>
+                          </button>
+                        }
+                        <button [disabled]="!canReject(exp)"
+                          (click)="rejectExpense(exp, $event)" class="btn btn-ghost py-1 px-2 text-amber-600 hover:text-amber-700" title="Reject">
+                      <i class="fas fa-ban"></i>
+                    </button>
+                        <button [disabled]="!canCancel(exp)"
+                          (click)="cancelExpense(exp, $event)" class="btn btn-ghost py-1 px-2 text-slate-600 hover:text-slate-700" title="Cancel">
+                      <i class="fas fa-xmark"></i>
+                    </button>
+                        <button [disabled]="!canDelete(exp)"
+                          (click)="deleteExpense(exp.id, exp.category, $event)"
                             class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                             title="Delete">
                       <i class="fas fa-trash"></i>
@@ -168,5 +216,30 @@
         Add Expense
       </button>
     </div>
+  }
+
+  @if (payingExpense(); as expense) {
+    <app-ui-dialog [open]="true" title="Pay expense from POS drawer" [dismissible]="!isPaying()" (closed)="closePayFromDrawer()">
+      <p class="text-sm text-gray-700 mb-3">
+        {{ formatCurrency(expense.amount) }} for {{ expense.category }} ({{ expense.outletName || 'outlet' }}) leaves the drawer of the selected
+        terminal's open cash session. This is recorded once; approval alone never moves cash.
+      </p>
+      @if (payTerminals().length > 0) {
+        <label class="label" for="pay-terminal">Paying terminal</label>
+        <select id="pay-terminal" class="input" [ngModel]="payTerminalId()" (ngModelChange)="payTerminalId.set($event)">
+          <option [ngValue]="null">Select a terminal with an open session</option>
+          @for (terminal of payTerminals(); track terminal.id) {
+            <option [ngValue]="terminal.id">{{ terminal.name }} ({{ terminal.code }})</option>
+          }
+        </select>
+      }
+      @if (payError()) { <p class="mt-2 text-sm text-red-600" role="alert">{{ payError() }}</p> }
+      <div uiDialogFooter class="flex justify-end gap-2">
+        <button type="button" class="btn btn-outline" (click)="closePayFromDrawer()" [disabled]="isPaying()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="confirmPayFromDrawer()" [disabled]="!payTerminalId() || isPaying()">
+          @if (isPaying()) { <i class="fas fa-spinner fa-spin mr-1" aria-hidden="true"></i> } Record payout
+        </button>
+      </div>
+    </app-ui-dialog>
   }
 </div>

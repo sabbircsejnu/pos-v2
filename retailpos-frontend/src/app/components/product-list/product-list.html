@@ -1,322 +1,202 @@
 <div class="container mx-auto px-4 py-3">
-  <!-- Compact header + filter toolbar: single row -->
-  <div class="card px-3 py-2 mb-3">
-    <div class="flex flex-col lg:flex-row lg:items-center gap-2">
+  <app-ui-page-header title="Products" description="Manage your product catalog" [breadcrumbs]="breadcrumbs">
+    <button uiPagePrimaryActions appUiButton type="button" (click)="createProduct()">
+      <i class="fas fa-plus" aria-hidden="true"></i>
+      <span>Add Product</span>
+    </button>
+  </app-ui-page-header>
 
-      <!-- Page title -->
-      <div class="shrink-0">
-        <h1 class="text-base font-semibold text-gray-900 leading-tight">Products</h1>
-        <p class="text-xs text-gray-500">Product catalog</p>
-      </div>
+  <app-ui-data-table
+    mode="server"
+    ariaLabel="Products"
+    density="compact"
+    [columns]="columns"
+    [rows]="rows()"
+    rowKey="id"
+    [totalRecords]="total()"
+    [loading]="loading()"
+    [error]="loadError()"
+    [responseSequence]="responseSequence()"
+    errorTitle="Could not load products"
+    loadingLabel="Loading products..."
+    [emptyTitle]="filtersNarrowList() ? 'No matching products' : 'No products found'"
+    [emptyMessage]="filtersNarrowList() ? 'No products match the current filters. Adjust or clear them to see more.' : 'Start by creating your first product.'"
+    searchLabel="Search products"
+    searchPlaceholder="Search name, product code, SKU, barcode…"
+    [searchDebounceMs]="500"
+    [defaultSort]="defaultSort"
+    [allowUnsorted]="false"
+    [initialSearch]="initialSearch"
+    [initialPage]="initialPage"
+    [initialPageSize]="initialPageSize"
+    [rowClickable]="true"
+    (queryChange)="onQueryChange($event)"
+    (retry)="reload()"
+    (rowClick)="viewProduct($event.id)">
 
-      <div class="hidden lg:block w-px self-stretch bg-gray-200 mx-1"></div>
+    <div uiTableToolbar class="pl-filters">
+      <select
+        appUiControl
+        aria-label="Filter by category"
+        class="pl-filter"
+        [(ngModel)]="selectedCategoryId"
+        (ngModelChange)="onBasicFilterChange()">
+        <option [ngValue]="undefined">All Categories</option>
+        @for (category of categories(); track category.id) {
+          <option [ngValue]="category.id">{{ category.name }}</option>
+        }
+      </select>
 
-      <!-- Filters: take remaining space -->
-      <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 min-w-0">
+      <select
+        appUiControl
+        aria-label="Filter by status"
+        class="pl-filter"
+        [(ngModel)]="selectedStatus"
+        (ngModelChange)="onBasicFilterChange()">
+        <option [ngValue]="undefined">All Status</option>
+        <option value="active">Active</option>
+        <option value="draft">Draft</option>
+        <option value="inactive">Inactive</option>
+      </select>
 
-        <!-- Search -->
-        <div class="relative flex-1 min-w-0 sm:max-w-xs">
-          <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-          <input
-            type="text"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event); onSearchChange()"
-            placeholder="Search name, product code, SKU, barcode…"
-            class="input pl-8 h-8 text-sm" />
-        </div>
+      <button appUiButton type="button" variant="outline" (click)="openAdvancedFilters()">
+        <i class="fas fa-sliders-h" aria-hidden="true"></i>
+        <span>Advanced Filters</span>
+        @if (advancedFilterCount() > 0) {
+          <app-ui-badge variant="neutral">{{ advancedFilterCount() }}<span class="sr-only"> applied</span></app-ui-badge>
+        }
+      </button>
 
-        <!-- Category -->
-        <select
-          [(ngModel)]="selectedCategoryId"
-          (ngModelChange)="onBasicFilterChange()"
-          class="select h-8 text-sm sm:w-36 shrink-0">
-          <option [ngValue]="undefined">All Categories</option>
-          @for (category of categories(); track category.id) {
-            <option [ngValue]="category.id">{{ category.name }}</option>
-          }
-        </select>
-
-        <!-- Status -->
-        <select
-          [(ngModel)]="selectedStatus"
-          (ngModelChange)="onBasicFilterChange()"
-          class="select h-8 text-sm sm:w-28 shrink-0">
-          <option [ngValue]="undefined">All Status</option>
-          <option value="active">Active</option>
-          <option value="draft">Draft</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-
-      <div class="hidden lg:block w-px self-stretch bg-gray-200 mx-1"></div>
-
-      <!-- Actions -->
-      <div class="flex items-center gap-2 shrink-0">
-        <!-- Advanced Filters -->
-        <button
-          type="button"
-          (click)="openAdvancedFilters()"
-          class="btn btn-outline h-8 text-sm px-3 gap-1.5 whitespace-nowrap"
-          [class.btn-active]="advancedFilterCount() > 0">
-          <i class="fas fa-sliders-h text-xs"></i>
-          <span>Advanced Filters</span>
-          @if (advancedFilterCount() > 0) {
-            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-900 text-white text-xs font-semibold leading-none">{{ advancedFilterCount() }}</span>
-          }
-        </button>
-
-        <!-- Clear Filters -->
-        <button
-          type="button"
-          (click)="clearFilters()"
-          class="btn btn-outline h-8 text-sm px-3 gap-1.5 whitespace-nowrap text-gray-600">
-          <i class="fas fa-times text-xs"></i>
-          <span>Clear</span>
-        </button>
-
-        <!-- Add Product -->
-        <button
-          type="button"
-          (click)="createProduct()"
-          class="btn btn-primary h-8 text-sm px-3 gap-1.5 whitespace-nowrap">
-          <i class="fas fa-plus text-xs"></i>
-          <span>Add Product</span>
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  @if (productService.isLoading()) {
-    <div class="card p-8 text-center">
-      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
-      <p class="text-sm text-gray-600">Loading products...</p>
-    </div>
-  }
-
-  <!-- Error State -->
-  @else if (productService.error()) {
-    <div class="alert alert-error mb-4">
-      <i class="fas fa-exclamation-circle text-xl"></i>
-      <div>
-        <h3 class="font-semibold">Error</h3>
-        <p>{{ productService.error() }}</p>
-      </div>
-    </div>
-  }
-
-  <!-- Products Table -->
-  @else if (productService.products().length > 0) {
-    <div class="table-container">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="px-4 py-2.5 cursor-pointer hover:bg-gray-100" (click)="sort('name')">
-                <div class="flex items-center gap-1.5">
-                  Name
-                  <i [class]="getSortIcon('name')"></i>
-                </div>
-              </th>
-              <th class="px-4 py-2.5">SKU / Barcode</th>
-              <th class="px-4 py-2.5">Product Code</th>
-              <th class="px-4 py-2.5 cursor-pointer hover:bg-gray-100" (click)="sort('category')">
-                <div class="flex items-center gap-1.5">
-                  Category
-                  <i [class]="getSortIcon('category')"></i>
-                </div>
-              </th>
-              <th class="px-4 py-2.5 text-right cursor-pointer hover:bg-gray-100" (click)="sort('price')">
-                <div class="flex items-center justify-end gap-1.5">
-                  Price
-                  <i [class]="getSortIcon('price')"></i>
-                </div>
-              </th>
-              <th class="px-4 py-2.5 text-center">Variants</th>
-              <th class="px-4 py-2.5 text-center">Stock</th>
-              <th class="px-4 py-2.5 text-center">Status</th>
-              <th class="px-4 py-2.5 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (product of productService.products(); track product.id) {
-              <tr class="cursor-pointer" (click)="viewProduct(product.id)">
-                <td class="px-4 py-2.5">
-                  <div class="flex items-center gap-2.5">
-                    @if (product.primaryImageThumb) {
-                      <img [src]="resolveImage(product.primaryImageThumb)"
-                           [alt]="product.name" loading="lazy" decoding="async"
-                           (click)="$event.stopPropagation(); openLightbox(product)"
-                           class="w-10 h-10 rounded object-cover border border-gray-200 cursor-zoom-in" />
-                    } @else {
-                      <div class="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
-                        <i class="fas fa-box text-gray-400 text-base"></i>
-                      </div>
-                    }
-                    <div>
-                      <div class="font-medium text-gray-900 text-sm">{{ product.name }}</div>
-                      @if (product.description) {
-                        <div class="text-xs text-gray-600 truncate max-w-xs">{{ product.description }}</div>
-                      }
-                    </div>
-                  </div>
-                </td>
-                <td class="px-4 py-2.5">
-                  <div class="text-sm">
-                    @if (product.sku) {
-                      <div class="text-gray-900 font-mono text-xs">{{ product.sku }}</div>
-                    }
-                    @if (product.barcode) {
-                      <div class="text-gray-600 font-mono text-xs">{{ product.barcode }}</div>
-                    }
-                  </div>
-                </td>
-                <td class="px-4 py-2.5">
-                  @if (product.productCode) {
-                    <span class="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{{ product.productCode }}</span>
-                  } @else {
-                    <span class="text-gray-400 text-xs">—</span>
-                  }
-                </td>
-                <td class="px-4 py-2.5">
-                  <span class="badge badge-primary">
-                    {{ product.categoryName }}
-                  </span>
-                </td>
-                <td class="px-4 py-2.5 text-right">
-                  <div class="font-semibold text-gray-900 text-sm">{{ product.basePrice | appCurrency }}</div>
-                  @if (canViewCost() && product.costPrice > 0) {
-                    <div class="text-xs text-gray-600">Cost: {{ product.costPrice | appCurrency }}</div>
-                  }
-                </td>
-                <td class="px-4 py-2.5 text-center">
-                  @if (product.hasVariants) {
-                    <span class="badge badge-primary">
-                      {{ product.variantCount }} variants
-                    </span>
-                  } @else {
-                    <span class="text-gray-400 text-xs">Single</span>
-                  }
-                </td>
-                <td class="px-4 py-2.5 text-center">
-                  @if (product.totalStock > 0) {
-                    <span class="badge badge-success">
-                      {{ product.totalStock }}
-                    </span>
-                  } @else {
-                    <span class="badge badge-danger">
-                      Out of Stock
-                    </span>
-                  }
-                </td>
-                <td class="px-4 py-2.5 text-center">
-                  @if (product.status === 'active') {
-                    <span class="badge badge-success">
-                      <i class="fas fa-check"></i> Active
-                    </span>
-                  } @else if (product.status === 'draft') {
-                    <span class="badge badge-warning">
-                      <i class="fas fa-pencil-alt"></i> Draft
-                    </span>
-                  } @else {
-                    <span class="badge badge-primary">
-                      <i class="fas fa-times"></i> Inactive
-                    </span>
-                  }
-                </td>
-                <td class="px-4 py-2.5 text-center" (click)="$event.stopPropagation()">
-                  <div class="flex items-center justify-center gap-1.5">
-                    <a
-                      [routerLink]="['/products', product.id]"
-                      queryParamsHandling="preserve"
-                      class="text-gray-500 hover:text-gray-900"
-                      title="View Details">
-                      <i class="fas fa-eye"></i>
-                    </a>
-                    <a
-                      [routerLink]="['/reports/stock-transactions']"
-                      [queryParams]="{ productId: product.id }"
-                      class="text-blue-600 hover:text-blue-900"
-                      title="Stock Transactions">
-                      <i class="fas fa-list-alt"></i>
-                    </a>
-                    <button
-                      (click)="editProduct(product.id)"
-                      class="text-gray-600 hover:text-gray-900"
-                      title="Edit">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                    <button
-                      (click)="confirmDelete(product, $event)"
-                      class="text-red-600 hover:text-red-900"
-                      title="Delete">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <span class="text-sm text-gray-700">
-              Showing {{ ((pageNumber() - 1) * pageSize()) + 1 }} to 
-              {{ Math.min(pageNumber() * pageSize(), productService.totalCount()) }} of 
-              {{ productService.totalCount() }} products
-            </span>
-            <select
-              [(ngModel)]="pageSize"
-              (ngModelChange)="changePageSize($event)"
-              class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              <option [ngValue]="10">10 per page</option>
-              <option [ngValue]="25">25 per page</option>
-              <option [ngValue]="50">50 per page</option>
-              <option [ngValue]="100">100 per page</option>
-            </select>
-          </div>
-          <div class="flex gap-2">
-            <button
-              [disabled]="pageNumber() === 1"
-              (click)="changePage(pageNumber() - 1)"
-              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
-              <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
-              {{ pageNumber() }}
-            </span>
-            <button
-              [disabled]="pageNumber() * pageSize() >= productService.totalCount()"
-              (click)="changePage(pageNumber() + 1)"
-              class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Empty State -->
-  @else {
-    <div class="bg-white rounded-lg shadow-md p-12 text-center">
-      <i class="fas fa-box-open text-6xl text-gray-300 mb-4"></i>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">No Products Found</h3>
-      <p class="text-gray-600 mb-6">Start by creating your first product</p>
-      <button
-        (click)="createProduct()"
-        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition shadow-lg">
-        <i class="fas fa-plus mr-2"></i>
-        Create Product
+      <button appUiButton type="button" variant="ghost" (click)="clearFilters()">
+        <i class="fas fa-times" aria-hidden="true"></i>
+        <span>Clear</span>
       </button>
     </div>
-  }
+
+    <ng-template uiTableCell="name" let-product>
+      <div class="pl-name">
+        @if (product.primaryImageThumb) {
+          <button type="button" class="pl-thumb pl-thumb--button" [attr.aria-label]="'View image of ' + product.name" (click)="openLightbox(product)">
+            <img [src]="resolveImage(product.primaryImageThumb)" alt="" loading="lazy" decoding="async" />
+          </button>
+        } @else {
+          <span class="pl-thumb pl-thumb--empty" aria-hidden="true"><i class="fas fa-box"></i></span>
+        }
+        <div class="pl-name__text">
+          <a class="pl-name__link" [routerLink]="['/products', product.id]" queryParamsHandling="preserve">{{ product.name }}</a>
+          @if (product.description) {
+            <div class="pl-description">{{ product.description }}</div>
+          }
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template uiTableCell="sku" let-product>
+      @if (product.sku || product.barcode) {
+        @if (product.sku) {
+          <div class="pl-mono">{{ product.sku }}</div>
+        }
+        @if (product.barcode) {
+          <div class="pl-mono pl-muted">{{ product.barcode }}</div>
+        }
+      } @else {
+        <span class="pl-muted">—</span>
+      }
+    </ng-template>
+
+    <ng-template uiTableCell="productCode" let-product>
+      @if (product.productCode) {
+        <span class="pl-code">{{ product.productCode }}</span>
+      } @else {
+        <span class="pl-muted">—</span>
+      }
+    </ng-template>
+
+    <ng-template uiTableCell="category" let-product>
+      <app-ui-badge variant="neutral">{{ product.categoryName }}</app-ui-badge>
+    </ng-template>
+
+    <ng-template uiTableCell="price" let-product>
+      <div class="pl-price">{{ product.basePrice | appCurrency }}</div>
+      @if (canViewCost() && product.costPrice > 0) {
+        <div class="pl-muted pl-small pl-nowrap">Cost: {{ product.costPrice | appCurrency }}</div>
+      }
+      <div class="pl-muted pl-small pl-nowrap">Tax: {{ describeTax(product) }}</div>
+    </ng-template>
+
+    <ng-template uiTableCell="variants" let-product>
+      @if (product.hasVariants) {
+        <app-ui-badge variant="neutral">{{ product.variantCount }} variants</app-ui-badge>
+      } @else {
+        <span class="pl-muted">Single</span>
+      }
+    </ng-template>
+
+    <ng-template uiTableCell="stock" let-product>
+      <app-product-stock-badge [product]="product" />
+    </ng-template>
+
+    <ng-template uiTableRowActions let-product>
+      <div class="pl-actions">
+        <a
+          appUiButton
+          variant="ghost"
+          size="sm"
+          [iconOnly]="true"
+          [routerLink]="['/products', product.id]"
+          queryParamsHandling="preserve"
+          [attr.aria-label]="'View details of ' + product.name"
+          title="View Details">
+          <i class="fas fa-eye" aria-hidden="true"></i>
+        </a>
+        <a
+          appUiButton
+          variant="ghost"
+          size="sm"
+          [iconOnly]="true"
+          [routerLink]="['/reports/stock-transactions']"
+          [queryParams]="{ productId: product.id }"
+          [attr.aria-label]="'Stock transactions of ' + product.name"
+          title="Stock Transactions">
+          <i class="fas fa-list-alt" aria-hidden="true"></i>
+        </a>
+        <button
+          appUiButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          [iconOnly]="true"
+          [attr.aria-label]="'Edit ' + product.name"
+          title="Edit"
+          (click)="editProduct(product.id)">
+          <i class="fas fa-edit" aria-hidden="true"></i>
+        </button>
+        <button
+          appUiButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="pl-danger"
+          [iconOnly]="true"
+          [attr.aria-label]="'Delete ' + product.name"
+          title="Delete"
+          (click)="requestDelete(product)">
+          <i class="fas fa-trash" aria-hidden="true"></i>
+        </button>
+      </div>
+    </ng-template>
+  </app-ui-data-table>
 </div>
+
+<app-ui-confirm-dialog
+  [(open)]="deleteOpen"
+  title="Delete product?"
+  confirmLabel="Delete"
+  [destructive]="true"
+  [busy]="deleting()"
+  (confirmed)="confirmDelete()">
+  Are you sure you want to delete product "{{ deleteTarget()?.name }}"?
+</app-ui-confirm-dialog>
 
 @if (isAdvancedFilterDrawerOpen()) {
   <app-advanced-filter-drawer
@@ -324,42 +204,26 @@
     closeLabel="Close Drawer"
     clearLabel="Clear Filters"
     applyLabel="Apply Filters"
+    [activeCount]="advancedFilterCount()"
     (closed)="closeAdvancedFilters()"
     (clear)="clearAdvancedFilters()"
     (apply)="applyAdvancedFilters()">
-    <div class="space-y-4">
-      <div>
-        <label class="label">Variants</label>
-        <select
-          [(ngModel)]="draftHasVariants"
-          class="select">
+    <div class="ui-form-stack">
+      <app-ui-form-field label="Variants">
+        <select appUiControl [(ngModel)]="draftHasVariants">
           <option [ngValue]="undefined">All</option>
           <option [ngValue]="true">With Variants</option>
           <option [ngValue]="false">No Variants</option>
         </select>
-      </div>
+      </app-ui-form-field>
 
-      <div>
-        <label class="label">Min Price</label>
-        <input
-          type="number"
-          [(ngModel)]="draftMinPrice"
-          placeholder="0.00"
-          min="0"
-          step="0.01"
-          class="input" />
-      </div>
+      <app-ui-form-field label="Min Price">
+        <input appUiControl type="number" [(ngModel)]="draftMinPrice" placeholder="0.00" min="0" step="0.01" />
+      </app-ui-form-field>
 
-      <div>
-        <label class="label">Max Price</label>
-        <input
-          type="number"
-          [(ngModel)]="draftMaxPrice"
-          placeholder="999999.99"
-          min="0"
-          step="0.01"
-          class="input" />
-      </div>
+      <app-ui-form-field label="Max Price">
+        <input appUiControl type="number" [(ngModel)]="draftMaxPrice" placeholder="999999.99" min="0" step="0.01" />
+      </app-ui-form-field>
     </div>
   </app-advanced-filter-drawer>
 }

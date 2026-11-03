@@ -1,0 +1,54 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-16 f-w-600">Invites goal</div>
+    <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+    <mat-menu #menu="matMenu">
+      <a mat-menu-item>Today</a>
+      <a mat-menu-item>Weekly</a>
+      <a mat-menu-item>Monthly</a>
+    </mat-menu>
+  </div>
+  <div id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [colors]="chartOptions.colors"
+      [stroke]="chartOptions.stroke"
+      [grid]="chartOptions.grid"
+      [plotOptions]="chartOptions.plotOptions"
+    ></apx-chart>
+  </div>
+  <div class="text-center">
+    <span class="user-status bg-success-50 text-success-500 f-14">+10%</span>
+    <p class="text-muted m-b-5">You succeed earn $240 today, its higher than yesterday</p>
+    <div class="row">
+      <div class="col-4">
+        <div class="summary-details">
+          <p class="m-b-5 text-muted">Target</p>
+          <div class="f-16 f-w-500">
+            $20k
+            <i class="ti ti-arrow-narrow-down text-warn-500"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="summary-details">
+          <p class="m-b-5 text-muted">Revenue</p>
+          <div class="f-16 f-w-500">
+            $16k
+            <i class="ti ti-arrow-narrow-up text-success-500"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="summary-details">
+          <p class="m-b-5 text-muted">Today</p>
+          <div class="f-16 f-w-500">
+            $1.5k
+            <i class="ti ti-arrow-narrow-down text-warn-500"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-card>

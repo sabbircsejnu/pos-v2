@@ -62,11 +62,11 @@
       </div>
       <div>
         <label class="label">Date From</label>
-        <input type="date" class="input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
       </div>
       <div>
         <label class="label">Date To</label>
-        <input type="date" class="input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
       </div>
       <div>
         <label class="label">Search</label>
@@ -179,7 +179,7 @@
             @for (row of rows(); track row.id) {
               <tr class="hover:bg-gray-50 transition-colors" [ngClass]="typeRowClass(row.adjustmentType)">
                 <td class="text-sm text-gray-600 whitespace-nowrap">
-                  {{ row.adjustmentDate | date:'dd MMM yyyy HH:mm' }}
+                  {{ row.adjustmentDate | appDate:'dd MMM yyyy HH:mm' }}
                 </td>
                 <td>
                   <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"

@@ -1,0 +1,312 @@
+<div class="row p-t-25">
+  <div class="col-md-6">
+    <app-card cardTitle="Bar Chart">
+      <apx-chart
+        [series]="barChart.series"
+        [chart]="barChart.chart"
+        [dataLabels]="barChart.dataLabels"
+        [plotOptions]="barChart.plotOptions"
+        [stroke]="barChart.stroke"
+        [responsive]="barChart.responsive"
+        [xaxis]="barChart.xaxis"
+        [yaxis]="barChart.yaxis"
+        [colors]="preset"
+        [fill]="barChart.fill"
+        [tooltip]="barChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Bar Chart Stacked">
+      <apx-chart
+        [series]="barStackedChart.series"
+        [chart]="barStackedChart.chart"
+        [dataLabels]="barStackedChart.dataLabels"
+        [plotOptions]="barStackedChart.plotOptions"
+        [stroke]="barStackedChart.stroke"
+        [responsive]="barStackedChart.responsive"
+        [xaxis]="barStackedChart.xaxis"
+        [colors]="barChartColor"
+        [fill]="barStackedChart.fill"
+        [tooltip]="barStackedChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Bar chart horizontal">
+      <apx-chart
+        [series]="barHorizontalChart.series"
+        [chart]="barHorizontalChart.chart"
+        [dataLabels]="barHorizontalChart.dataLabels"
+        [plotOptions]="barHorizontalChart.plotOptions"
+        [stroke]="barHorizontalChart.stroke"
+        [xaxis]="barHorizontalChart.xaxis"
+        [tooltip]="barHorizontalChart.tooltip"
+        [colors]="bHorizontalColor"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Bar chart horizontal stacked">
+      <apx-chart
+        [series]="barHStackChart.series"
+        [chart]="barHStackChart.chart"
+        [dataLabels]="barHStackChart.dataLabels"
+        [plotOptions]="barHStackChart.plotOptions"
+        [stroke]="barHStackChart.stroke"
+        [xaxis]="barHStackChart.xaxis"
+        [title]="barHStackChart.title"
+        [colors]="barHStackChart.colors"
+        [fill]="barHStackChart.fill"
+        [tooltip]="barHStackChart.tooltip"
+        [legend]="barHStackChart.legend"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Pie Charts">
+      <apx-chart
+        [series]="pieChart.series"
+        [chart]="pieChart.chart"
+        [dataLabels]="pieChart.dataLabels"
+        [plotOptions]="pieChart.plotOptions"
+        [colors]="pie_color"
+        [legend]="pieChart.legend"
+        [labels]="pieChart.labels"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Pie Charts donut">
+      <apx-chart
+        [series]="donutChart.series"
+        [chart]="donutChart.chart"
+        [dataLabels]="donutChart.dataLabels"
+        [plotOptions]="donutChart.plotOptions"
+        [colors]="pie_color"
+        [legend]="donutChart.legend"
+        [responsive]="donutChart.responsive"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="RadialBar Charts">
+      <apx-chart
+        [series]="radialChart.series"
+        [chart]="radialChart.chart"
+        [plotOptions]="radialChart.plotOptions"
+        [colors]="radialColor"
+        [labels]="radialChart.labels"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="RadialBar Charts Custom Angle">
+      <apx-chart
+        [series]="customsAngleChart.series"
+        [chart]="customsAngleChart.chart"
+        [plotOptions]="customsAngleChart.plotOptions"
+        [colors]="customs_color"
+        [legend]="customsAngleChart.legend"
+        [responsive]="customsAngleChart.responsive"
+        [labels]="customsAngleChart.labels"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Basic line chart">
+      <apx-chart
+        [series]="lineChart.series"
+        [chart]="lineChart.chart"
+        [dataLabels]="lineChart.dataLabels"
+        [colors]="radialColor"
+        [stroke]="lineChart.stroke"
+        [title]="lineChart.title"
+        [grid]="lineChart.grid"
+        [xaxis]="lineChart.xaxis"
+        [tooltip]="lineChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Realtime Chart">
+      <apx-chart
+        [series]="realTimeChart.series"
+        [chart]="realTimeChart.chart"
+        [dataLabels]="realTimeChart.dataLabels"
+        [colors]="realTimeChart.colors"
+        [stroke]="realTimeChart.stroke"
+        [title]="realTimeChart.title"
+        [xaxis]="realTimeChart.xaxis"
+        [grid]="realTimeChart.grid"
+        [tooltip]="realTimeChart.tooltip"
+        [markers]="realTimeChart.markers"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Area chart">
+      <apx-chart
+        [series]="areaChart.series"
+        [chart]="areaChart.chart"
+        [dataLabels]="areaChart.dataLabels"
+        [colors]="areaChart.colors"
+        [stroke]="areaChart.stroke"
+        [xaxis]="areaChart.xaxis"
+        [tooltip]="areaChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Area chart DateTime X-Axis">
+      <div class="toolbar btn-group">
+        <button id="one_month" mat-stroked-button>1M</button>
+        <button id="six_months" mat-stroked-button>6M</button>
+        <button id="one_year" mat-flat-button color="primary">1Y</button>
+        <button id="ytd" mat-stroked-button>YTD</button>
+        <button id="all" mat-stroked-button>ALL</button>
+      </div>
+      <apx-chart
+        [series]="dateTimeChart.series"
+        [chart]="dateTimeChart.chart"
+        [dataLabels]="dateTimeChart.dataLabels"
+        [colors]="dateTimeChart.colors"
+        [stroke]="dateTimeChart.stroke"
+        [xaxis]="dateTimeChart.xaxis"
+        [tooltip]="dateTimeChart.tooltip"
+        [annotations]="dateTimeChart.annotations"
+        [markers]="dateTimeChart.markers"
+        [labels]="dateTimeChart.labels"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Mixed chart">
+      <apx-chart
+        [series]="mixedChart.series"
+        [chart]="mixedChart.chart"
+        [colors]="mixedChart.colors"
+        [stroke]="mixedChart.stroke"
+        [xaxis]="mixedChart.xaxis"
+        [yaxis]="mixedChart.yaxis"
+        [labels]="mixedChart.labels"
+        [title]="mixedChart.title"
+        [tooltip]="mixedChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Line Column Area Chart">
+      <apx-chart
+        [series]="lineAreaChart.series"
+        [chart]="lineAreaChart.chart"
+        [plotOptions]="lineAreaChart.plotOptions"
+        [colors]="lineAreaChart.colors"
+        [stroke]="lineAreaChart.stroke"
+        [xaxis]="lineAreaChart.xaxis"
+        [yaxis]="lineAreaChart.yaxis"
+        [labels]="lineAreaChart.labels"
+        [tooltip]="lineAreaChart.tooltip"
+        [fill]="lineAreaChart.fill"
+        [markers]="lineAreaChart.markers"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Candlestick Chart">
+      <apx-chart
+        [series]="candlestickChart.series"
+        [chart]="candlestickChart.chart"
+        [colors]="candlestickChart.colors"
+        [xaxis]="candlestickChart.xaxis"
+        [yaxis]="candlestickChart.yaxis"
+        [title]="candlestickChart.title"
+        [tooltip]="candlestickChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Bubble Chart">
+      <apx-chart
+        [series]="bubbleChart.series"
+        [chart]="bubbleChart.chart"
+        [dataLabels]="bubbleChart.dataLabels"
+        [colors]="bubbleChart.colors"
+        [xaxis]="bubbleChart.xaxis"
+        [yaxis]="bubbleChart.yaxis"
+        [title]="bubbleChart.title"
+        [fill]="bubbleChart.fill"
+        [tooltip]="bubbleChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Bubble Chart 3D">
+      <apx-chart
+        [series]="bubble3DChart.series"
+        [chart]="bubble3DChart.chart"
+        [dataLabels]="bubble3DChart.dataLabels"
+        [colors]="bubble3DChart.colors"
+        [xaxis]="bubble3DChart.xaxis"
+        [yaxis]="bubble3DChart.yaxis"
+        [title]="bubble3DChart.title"
+        [fill]="bubble3DChart.fill"
+        [tooltip]="bubble3DChart.tooltip"
+        [theme]="bubble3DChart.theme"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Scatter Chart">
+      <apx-chart
+        [series]="scatterChart.series"
+        [chart]="scatterChart.chart"
+        [colors]="scatterChart.colors"
+        [xaxis]="scatterChart.xaxis"
+        [yaxis]="scatterChart.yaxis"
+        [tooltip]="scatterChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Scatter Chart Datetime">
+      <apx-chart
+        [series]="scatterDateTimeChart.series"
+        [chart]="scatterDateTimeChart.chart"
+        [colors]="scatterDateTimeChart.colors"
+        [xaxis]="scatterDateTimeChart.xaxis"
+        [yaxis]="scatterDateTimeChart.yaxis"
+        [grid]="scatterDateTimeChart.grid"
+        [dataLabels]="scatterDateTimeChart.dataLabels"
+        [tooltip]="scatterDateTimeChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Heatmap Charts">
+      <apx-chart
+        [series]="heatmapChart.series"
+        [chart]="heatmapChart.chart"
+        [colors]="heatmapChart.colors"
+        [dataLabels]="heatmapChart.dataLabels"
+        [title]="heatmapChart.title"
+        [tooltip]="heatmapChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Heatmap Charts Rounded">
+      <apx-chart
+        [series]="heatmapRoundedChart.series"
+        [chart]="heatmapRoundedChart.chart"
+        [colors]="heatmapRoundedChart.colors"
+        [dataLabels]="heatmapRoundedChart.dataLabels"
+        [title]="heatmapRoundedChart.title"
+        [stroke]="heatmapRoundedChart.stroke"
+        [xaxis]="heatmapRoundedChart.xaxis"
+        [tooltip]="heatmapRoundedChart.tooltip"
+        [plotOptions]="heatmapRoundedChart.plotOptions"
+      ></apx-chart>
+    </app-card>
+  </div>
+</div>

@@ -1,0 +1,200 @@
+<app-card cardTitle="Site">
+  <div>
+    <app-site-details>
+      <cdk-step label="Theme">
+        <div class="f-16 f-w-600">Logo & Branding</div>
+        <p class="text-muted m-b-25">
+          Incorporate a custom logo and favicon, and fine-tune your school thumbnail to enhance its appearance and branding
+        </p>
+        <div class="row g-3">
+          <div class="col-sm-12 col-xl-4">
+            <p class="m-b-10">Logo & Branding</p>
+            <file-upload [control]="control" class="p-25 file-upload">
+              <ng-template let-isFileDragDropAvailable="isFileDragDropAvailable" #placeholder>
+                @if (control.size === 0) {
+                  <div class="upload-text">
+                    <ng-container>Drag File Here To Upload</ng-container>
+                  </div>
+                }
+              </ng-template>
+              <ng-template let-i="index" let-file="file" let-control="control" #item>
+                <div class="overlay">
+                  <span class="delete-button" (click)="control.removeFile(file)">
+                    <i class="ti ti-trash text-warning-500"></i>
+                  </span>
+                  @if (control.valid) {
+                    <img [src]="uploadedFile | async" />
+                  }
+                </div>
+              </ng-template>
+            </file-upload>
+          </div>
+          <div class="col-sm-12 col-md-6 col-xl-4">
+            <p class="mb-2">Thumbnail</p>
+            <form #demoForm="ngForm">
+              <file-upload [(ngModel)]="uploadedFiles" name="files" class="file-upload"></file-upload>
+            </form>
+          </div>
+          <div class="col-sm-12 col-md-6 col-xl-4">
+            <p class="mb-2">Favicon</p>
+            <form #newForm="ngForm">
+              <file-upload [(ngModel)]="newUploadFile" name="files" class="file-upload"></file-upload>
+            </form>
+          </div>
+        </div>
+        <mat-divider class="m-y-25"></mat-divider>
+        <div class="flex align-item-center m-b-25">
+          <div class="flex-shrink-0">
+            <img src="assets/images/admin/img-star.png" alt="img" class="img-fluid" />
+          </div>
+          <div class="flex-grow-1 m-l-15">
+            <div class="f-w-600 m-b-5">Able pro Branding</div>
+            <p class="m-b-0 text-muted">
+              Personalize your school and eliminate Able Pro branding from your school website, emails, and products. To access this
+              feature, upgrade to the Professional plan.
+            </p>
+          </div>
+        </div>
+        <div class="f-16 f-w-600">Font Family</div>
+        <p class="text-muted m-b-10">Change the font used across your school.</p>
+        <app-card [showHeader]="false" cardClass="border">
+          <mat-form-field appearance="outline">
+            <mat-label>Gender</mat-label>
+            <mat-select value="open-sans">
+              <mat-option value="open-sans">Open Sans</mat-option>
+              <mat-option value="inter">Inter</mat-option>
+              <mat-option value="popince">Popince</mat-option>
+              <mat-option value="roboto">Roboto</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <p class="m-b-0 text-muted">
+            Make your school your own and remove Teachable branding from your school website, emails, and all products. Upgrade to the
+            Professional plan to use this feature.
+          </p>
+        </app-card>
+        <div class="f-16 f-w-600">Color Palette</div>
+        <p class="text-muted m-b-25">
+          Select a predefined color scheme to establish consistency across your site and products. Alternatively, customize your own color
+          palette to reflect your unique branding and preferences.
+        </p>
+        <app-card [showHeader]="false" cardClass="border">
+          <div class="row g-4 mb-4">
+            @for (preset of presetColors; track preset) {
+              <div class="col-md-6 col-xl-3">
+                <div class="color-block">
+                  <div class="m-b-5 f-w-600">{{ preset.name }}</div>
+                  <p class="text-muted text-sm m-b-10">Theme Color</p>
+                  <app-card [showHeader]="false" [padding]="15" cardClass="m-b-0">
+                    <div class="flex align-item-center justify-content-center">
+                      @for (type of preset.color_type; track type) {
+                        <i class="fas fa-circle f-26 m-r-5 {{ type.color }}"></i>
+                      }
+                    </div>
+                  </app-card>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="row g-4">
+            @for (list of layoutsColor; track list) {
+              <div class="col-md-6 col-xl-3">
+                <h6 class="m-b-5">{{ list.name }}</h6>
+                <p class="text-muted text-sm m-b-10">{{ list.subTitle }}</p>
+                <app-card [showHeader]="false" [padding]="15" cardClass="m-b-0">
+                  <div class="flex align-item-center justify-content-start">
+                    <i class="fas fa-circle f-26 m-r-5 {{ list.color }}"></i>
+                    <p class="m-b-0">{{ list.code }}</p>
+                  </div>
+                </app-card>
+              </div>
+            }
+          </div>
+        </app-card>
+      </cdk-step>
+      <cdk-step label="Domain">
+        <div class="row justify-content-center">
+          <div class="col-md-10 col-lg-8 col-xxl-6">
+            <app-card [showHeader]="false" cardClass="border text-center overflow-x-auto">
+              <div class="f-16 f-w-600">Confirm your domain</div>
+              <p class="text-muted">If you edit this domain, your school URL will update the next time you log out.</p>
+              <img src="assets/images/admin/img-domain.png" alt="images" class="img-fluid mb-4" />
+              <div class="mb-3 text-start">
+                <div class="flex align-item-center">
+                  <div class="flex-grow-1 m-r-15">
+                    <div class="input-group">
+                      <mat-form-field appearance="outline" class="w-100" floatLabel="always">
+                        <mat-label>URL</mat-label>
+                        <input matInput type="text" placeholder="ttps://admin123-20.ablepro.com" />
+                      </mat-form-field>
+                    </div>
+                  </div>
+                  <div class="flex-shrink-0">
+                    <button mat-flat-button color="primary">Confirm</button>
+                  </div>
+                </div>
+              </div>
+            </app-card>
+          </div>
+        </div>
+      </cdk-step>
+      <cdk-step label="Bio">
+        <div class="text-end m-b-15">
+          <button mat-flat-button color="primary" (click)="bioDetails()">Add Bio</button>
+        </div>
+        <div class="m-b-5 table-responsive border">
+          <table mat-table [dataSource]="bioData" class="mat-elevation-z8 monthly-table">
+            <ng-container matColumnDef="Name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell class="text-nowrap" *matCellDef="let element">
+                <div class="flex align-item-center">
+                  <div class="flex-shrink-0">
+                    <img src="{{ element.image }}" alt="user image" class="img-radius border-50 wid-40" />
+                  </div>
+                  <div class="flex-grow-1 m-l-15">
+                    <div class="f-16 f-w-600">{{ element.name }}</div>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="Date">
+              <th mat-header-cell *matHeaderCellDef>Date/Time</th>
+              <td mat-cell *matCellDef="let element" class="text-nowrap">
+                {{ element.date }}
+                <span class="text-muted text-sm block">{{ element.time }}</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="Action">
+              <th mat-header-cell *matHeaderCellDef>Action</th>
+              <td mat-cell *matCellDef="let element" class="text-nowrap">
+                <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+                  <i class="ti ti-eye f-20"></i>
+                </a>
+                <a href="javascript:" class="avatar avatar-xs hover text-accent-500 m-x-10">
+                  <i class="ti ti-edit f-20"></i>
+                </a>
+                <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+                  <i class="ti ti-trash f-20"></i>
+                </a>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="BioData"></tr>
+            <tr mat-row *matRowDef="let row; columns: BioData"></tr>
+          </table>
+        </div>
+      </cdk-step>
+      <cdk-step label="Page">
+        <app-card cardClass="user-data-table" padding="0" [showHeader]="false">
+          <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
+            <mat-tab label="School Pages">
+              <app-user-details-page />
+            </mat-tab>
+            <mat-tab label="Product Pages">
+              <app-user-details-page />
+            </mat-tab>
+          </mat-tab-group>
+        </app-card>
+      </cdk-step>
+    </app-site-details>
+  </div>
+</app-card>

@@ -1,0 +1,48 @@
+::ng-deep.upload-list {
+  overflow: hidden;
+}
+
+.file-upload {
+  ::ng-deep.dark & {
+    background: transparent;
+  }
+}
+
+.overlay {
+  position: relative;
+  .delete-button {
+    background-color: #fafafa;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    cursor: pointer;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    font-size: 20px;
+    line-height: 40px;
+
+    ::ng-deep.dark & {
+      background-color: var(--accent-50) !important;
+    }
+  }
+}
+
+::ng-deep.input-group {
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+  }
+}
+
+.header-tabs {
+  padding: 20px 20px 0px 20px;
+  border-bottom: 1px solid var(--accent-300);
+}
+
+::ng-deep.user-data-table {
+  .mat-mdc-tab-header {
+    border-bottom: 1px solid var(--accent-300);
+    padding: 8px 20px 0px 20px;
+  }
+}

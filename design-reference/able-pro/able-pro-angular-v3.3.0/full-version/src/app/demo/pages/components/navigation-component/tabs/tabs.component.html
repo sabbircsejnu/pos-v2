@@ -1,0 +1,149 @@
+<div class="card-flex customizing-tabs">
+  <app-card cardTitle="Tab group with aligned labels">
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="center" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="end" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+  </app-card>
+
+  <app-card cardTitle="No animation">
+    <mat-tab-group animationDuration="0ms" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+  </app-card>
+
+  <app-card cardTitle="Very slow animation">
+    <mat-tab-group animationDuration="2000ms" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+  </app-card>
+
+  <app-card cardTitle="Custom Label Template">
+    <mat-tab-group class="tabs-component">
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="example-tab-icon" class="m-r-5">thumb_up</mat-icon>
+          First
+        </ng-template>
+        Content 1
+      </mat-tab>
+
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="example-tab-icon" class="m-r-5">thumb_up</mat-icon>
+          Second
+        </ng-template>
+        Content 2
+      </mat-tab>
+
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="example-tab-icon" class="m-r-5">thumb_up</mat-icon>
+          Third
+        </ng-template>
+
+        Content 3
+      </mat-tab>
+    </mat-tab-group>
+  </app-card>
+  <app-card cardTitle="Tab Group With Dynamic Height Based on Tab Contents">
+    <mat-tab-group dynamicHeight class="tabs-component">
+      <mat-tab label="Short tab">
+        <div class="small-tab-box mat-elevation-z4">Small content</div>
+      </mat-tab>
+      <mat-tab label="Long tab">
+        <div class="large-tab-box wid-300 hei-300 mat-elevation-z4">Large content</div>
+      </mat-tab>
+    </mat-tab-group>
+  </app-card>
+  <app-card cardTitle="Tab group with paginated tabs">
+    <mat-tab-group class="tabs-component">
+      @for (tab of lotsOfTabs; track tab) {
+        <mat-tab [label]="tab">Content</mat-tab>
+      }
+    </mat-tab-group>
+  </app-card>
+
+  <app-card cardTitle="Customizing the theme options on the tab group" class="customizing-tabs">
+    <div>
+      <mat-button-toggle-group class="m-r-10 m-b-10" #colorToggle="matButtonToggleGroup" value="primary" aria-label="Change color">
+        <mat-button-toggle value="primary">Primary</mat-button-toggle>
+        <mat-button-toggle value="accent">Accent</mat-button-toggle>
+        <mat-button-toggle value="warn">Warn</mat-button-toggle>
+      </mat-button-toggle-group>
+      <span class="select-customize">Color</span>
+    </div>
+
+    <div>
+      <mat-button-toggle-group
+        class="m-r-10 m-b-10"
+        #backgroundColorToggle="matButtonToggleGroup"
+        value="primary"
+        aria-label="Change color"
+      >
+        <mat-button-toggle value="primary">Primary</mat-button-toggle>
+        <mat-button-toggle value="accent">Accent</mat-button-toggle>
+        <mat-button-toggle value="warn">Warn</mat-button-toggle>
+      </mat-button-toggle-group>
+      <span class="select-customize">Background Color</span>
+    </div>
+
+    <mat-tab-group [color]="colorToggle.value" [backgroundColor]="backgroundColorToggle.value" class="m-t-15" class="tabs-component">
+      <mat-tab label="First">Content 1</mat-tab>
+      <mat-tab label="Second">Content 2</mat-tab>
+      <mat-tab label="Third">Content 3</mat-tab>
+    </mat-tab-group>
+  </app-card>
+
+  <app-card cardTitle="Basic use of the tab nav bar">
+    <nav mat-tab-nav-bar [backgroundColor]="background" [tabPanel]="tabPanel">
+      @for (link of links; track link) {
+        <a mat-tab-link (click)="activeLink = link" [active]="activeLink === link">{{ link }}</a>
+      }
+      <a mat-tab-link disabled>Disabled Link</a>
+    </nav>
+    <mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>
+
+    <button mat-raised-button class="m-t-10 m-r-10" (click)="toggleBackground()">Toggle background</button>
+    <button mat-raised-button class="m-t-10 m-r-10" (click)="addLink()">Add link</button>
+  </app-card>
+
+  <app-card cardTitle="Tab group with dynamically changing tabs">
+    <mat-form-field appearance="fill">
+      <mat-label>Selected tab index</mat-label>
+      <input matInput type="number" [formControl]="selected" />
+    </mat-form-field>
+
+    <div>
+      <button mat-raised-button class="example-add-tab-button m-r-10" (click)="addTab(selectAfterAdding.checked)">Add new tab</button>
+      <mat-checkbox #selectAfterAdding>Select tab after adding</mat-checkbox>
+    </div>
+
+    <mat-tab-group [selectedIndex]="selected.value" (selectedIndexChange)="selected.setValue($event)">
+      @for (tab of tabs; track tab; let index = $index) {
+        <mat-tab [label]="tab">
+          Contents for {{ tab }} tab
+
+          <button mat-raised-button class="example-delete-tab-button" [disabled]="tabs.length === 1" (click)="removeTab(index)">
+            Delete Tab
+          </button>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  </app-card>
+</div>

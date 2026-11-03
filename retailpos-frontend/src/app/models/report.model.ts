@@ -117,6 +117,12 @@ export interface AuthorizedLocationDto {
   type: 'outlet' | 'warehouse';
 }
 
+export type LocationAccessPolicy =
+  | 'InventoryStockView'
+  | 'StockCountOperation'
+  | 'StockTransferSource'
+  | 'StockTransferDestination';
+
 export interface AuthorizedOutletsDto {
   outlets: AuthorizedLocationDto[];
   warehouses: AuthorizedLocationDto[];
@@ -128,6 +134,7 @@ export interface AuthorizedOutletsDto {
   accessScope?: 'assigned_only' | 'specific_locations' | 'all_locations';
   defaultLocationId?: number | null;
   defaultLocationType?: 'outlet' | 'warehouse' | null;
+  policy?: LocationAccessPolicy;
 }
 
 export interface StockTransactionReportDto {

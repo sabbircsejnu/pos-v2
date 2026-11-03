@@ -1,0 +1,75 @@
+<div class="row">
+  <div class="col-sm-12">
+    <app-card cardTitle="Basic chips">
+      <mat-chip-listbox aria-label="Fish selection">
+        <mat-chip-option>One fish</mat-chip-option>
+        <mat-chip-option>Two fish</mat-chip-option>
+        <mat-chip-option color="accent" selected>Accent fish</mat-chip-option>
+        <mat-chip-option color="warn">Warn fish</mat-chip-option>
+      </mat-chip-listbox>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Chips avatar">
+      <mat-chip-listbox aria-label="Dog selection">
+        <mat-chip>
+          <img matChipAvatar src="https://material.angular.io/assets/img/examples/shiba1.jpg" alt="Photo of a Shiba Inu" />
+          Dog one
+        </mat-chip>
+        <mat-chip color="primary">
+          <img matChipAvatar src="https://material.angular.io/assets/img/examples/shiba1.jpg" alt="Photo of a Shiba Inu" />
+          Dog two
+        </mat-chip>
+        <mat-chip color="accent">
+          <img matChipAvatar src="https://material.angular.io/assets/img/examples/shiba1.jpg" alt="Photo of a Shiba Inu" />
+          Dog three
+        </mat-chip>
+      </mat-chip-listbox>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Chips Drag and Drop">
+      <mat-chip-set class="example-chip" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="drop($event)">
+        @for (vegetable of vegetables; track vegetable) {
+          <mat-chip cdkDrag>
+            {{ vegetable.name }}
+          </mat-chip>
+        }
+      </mat-chip-set>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Chips Autocomplete">
+      <form>
+        <mat-form-field class="example-chip-list w-100" appearance="fill">
+          <mat-label>Favorite Fruits</mat-label>
+          <mat-chip-grid #chipGrid aria-label="Fruit selection">
+            @for (fruit of fruits; track fruit) {
+              <mat-chip-row (removed)="remove(fruit)">
+                {{ fruit }}
+                <button matChipRemove [attr.aria-label]="'remove ' + fruit">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+          </mat-chip-grid>
+          <input
+            placeholder="New Fruit..."
+            #fruitInput
+            [formControl]="fruitCtrl"
+            [matChipInputFor]="chipGrid"
+            [matAutocomplete]="auto"
+            (matChipInputTokenEnd)="add($event)"
+          />
+          <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selected($event)">
+            @for (fruit of filteredFruits | async; track fruit) {
+              <mat-option [value]="fruit">
+                {{ fruit }}
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+</div>

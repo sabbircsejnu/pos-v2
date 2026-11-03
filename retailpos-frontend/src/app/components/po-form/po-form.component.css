@@ -79,3 +79,10 @@
 .btn-primary:hover:not(:disabled) {
 	background: rgb(30 41 59);
 }
+
+/* Order date / expected delivery side by side inside the Document Details card. */
+.po-form__date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rp-form-gap);
+}

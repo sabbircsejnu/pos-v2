@@ -53,22 +53,24 @@
         <!-- Loyalty Points (read-only in edit mode) -->
         @if (isEditMode()) {
           <div>
-            <label class="label">Loyalty Points</label>
+            <label class="label">Legacy points (read-only)</label>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                 <i class="fas fa-star text-yellow-500"></i>
                 <span class="font-semibold text-gray-900">{{ loyaltyPoints() }}</span>
-                <span class="text-gray-500 text-sm">points</span>
+                <span class="text-gray-500 text-sm">points (historical balance)</span>
               </div>
-              <button type="button" (click)="togglePointsInput()"
-                      class="btn btn-outline py-2">
-                <i class="fas fa-plus-circle"></i>
-                Add Points
-              </button>
+              @if (canMutateLegacyPoints()) {
+                <button type="button" (click)="togglePointsInput()"
+                        class="btn btn-outline py-2">
+                  <i class="fas fa-plus-circle"></i>
+                  Add Points
+                </button>
+              }
             </div>
 
             <!-- Add Points Inline -->
-            @if (showPointsInput()) {
+            @if (canMutateLegacyPoints() && showPointsInput()) {
               <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-3">
                 <input type="number" [(ngModel)]="pointsToAdd" min="1"
                        placeholder="Points to add"

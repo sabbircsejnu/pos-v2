@@ -1,3 +1,5 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,7 +20,7 @@ type SetupTab = 'info' | 'owner' | 'outlets' | 'warehouses' | 'settings';
 @Component({
   selector: 'app-business-setup',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './business-setup.component.html'
 })
 export class BusinessSetupComponent implements OnInit {
@@ -310,7 +312,7 @@ export class BusinessSetupComponent implements OnInit {
     this.settingsLoading.set(true);
     this.businessService.getFeatureSettings(this.businessId()).subscribe({
       next: (res) => {
-        this.features.set(res.data ?? []);
+        this.features.set(this.withHrPayrollCapabilities(res.data ?? []));
         this.settingsLoading.set(false);
       },
       error: (err) => {
@@ -337,6 +339,13 @@ export class BusinessSetupComponent implements OnInit {
   }
 
   toggleFeature(feature: BusinessFeatureSettingDto): void {
+    if (this.settingsSubmitting()) return;
+    if (!this.canToggleFeature(feature)) {
+      this.alertService.error(this.featureToggleMessage(feature));
+      return;
+    }
+
+    const previous = this.features();
     const updated = this.features().map(f =>
       f.featureKey === feature.featureKey ? { ...f, isEnabled: !f.isEnabled } : f
     );
@@ -344,12 +353,48 @@ export class BusinessSetupComponent implements OnInit {
     this.businessService.upsertFeatureSettings(this.businessId(), {
       features: updated.map(f => ({ featureKey: f.featureKey, isEnabled: f.isEnabled, limitValue: f.limitValue }))
     }).subscribe({
-      next: () => this.alertService.success('Feature settings saved'),
+      next: (res) => {
+        this.features.set(this.withHrPayrollCapabilities(res.data ?? []));
+        this.alertService.success('Feature settings saved');
+      },
       error: (err) => {
-        this.features.set(this.features()); // revert optimistic
+        this.features.set(previous);
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
       }
     });
+  }
+
+  canToggleFeature(feature: BusinessFeatureSettingDto): boolean {
+    const key = feature.featureKey.trim().toLowerCase();
+    const hrEnabled = this.features().some(item =>
+      item.featureKey.toLowerCase() === 'hr.enabled' && item.isEnabled);
+    const payrollEnabled = this.features().some(item =>
+      item.featureKey.toLowerCase() === 'payroll.enabled' && item.isEnabled);
+
+    if (key === 'payroll.enabled' && !feature.isEnabled && !hrEnabled) return false;
+    if (key === 'hr.enabled' && feature.isEnabled && payrollEnabled) return false;
+    return true;
+  }
+
+  featureToggleMessage(feature: BusinessFeatureSettingDto): string {
+    const key = feature.featureKey.trim().toLowerCase();
+    if (key === 'payroll.enabled' && !feature.isEnabled) {
+      return 'Enable HR before enabling Payroll.';
+    }
+    if (key === 'hr.enabled' && feature.isEnabled) {
+      return 'Disable Payroll before disabling HR.';
+    }
+    return 'This feature cannot be changed right now.';
+  }
+
+  private withHrPayrollCapabilities(features: BusinessFeatureSettingDto[]): BusinessFeatureSettingDto[] {
+    const result = [...features];
+    for (const featureKey of ['hr.enabled', 'payroll.enabled']) {
+      if (!result.some(feature => feature.featureKey.toLowerCase() === featureKey)) {
+        result.push({ featureKey, isEnabled: false });
+      }
+    }
+    return result;
   }
 
   setSubscriptionField(field: keyof UpdateBusinessSubscriptionDto, value: string | number | undefined): void {

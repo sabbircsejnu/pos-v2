@@ -1,0 +1,79 @@
+::ng-deep.file-add-modal {
+  .file-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--accent-300);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .file-body {
+    padding: 15px;
+    border-bottom: 1px solid var(--accent-300);
+
+    .url-website {
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+    }
+
+    .input-group {
+      display: flex;
+      position: relative;
+      flex-wrap: wrap;
+      align-items: stretch;
+      width: 100%;
+
+      .input-group-text {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem 0.75rem;
+        text-align: center;
+        white-space: nowrap;
+        background-color: var(--accent-100);
+        border: 1px solid var(--accent-300);
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+      }
+
+      .input-details {
+        position: relative;
+        flex: 1 1 auto;
+        display: block;
+        border-radius: 0;
+        width: auto;
+        padding: 0.8rem 0.75rem;
+        border: 1px solid var(--accent-300);
+        margin-left: -1px;
+        margin-right: -1px;
+        transition:
+          border-color 0.15s ease-in-out,
+          box-shadow 0.15s ease-in-out;
+      }
+
+      .input-select {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+        position: relative;
+        display: block;
+        padding: 0.8rem 0.75rem;
+        border: 1px solid var(--accent-300);
+        transition:
+          border-color 0.15s ease-in-out,
+          box-shadow 0.15s ease-in-out;
+      }
+    }
+
+    .user-select {
+      border-radius: 8px;
+      position: relative;
+      display: block;
+      padding: 0.8rem 0.75rem;
+      border: 1px solid var(--accent-300);
+    }
+  }
+
+  .file-footer {
+    padding: 20px;
+  }
+}

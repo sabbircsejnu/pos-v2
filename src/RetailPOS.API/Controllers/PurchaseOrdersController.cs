@@ -5,9 +5,14 @@ using RetailPOS.API.Documents.Pdf;
 using RetailPOS.API.DTOs.PurchaseOrder;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Application.PurchaseOrders.Queries;
+using RetailPOS.Application.PurchaseOrders.ReadModels;
+using RetailPOS.Application.PurchaseOrders.Abstractions;
+using RetailPOS.Application.PurchaseOrders.Commands;
+using RetailPOS.Application.AuditEvents.Commands;
 using RetailPOS.Core.Audit;
 using RetailPOS.Core.Entities.Audit;
-using RetailPOS.Infrastructure.Audit;
+using MediatR;
 using System.Security.Claims;
 
 namespace RetailPOS.API.Controllers;
@@ -17,19 +22,17 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "purchases.view")]
 public class PurchaseOrdersController : ControllerBase
 {
-    private readonly IPurchaseOrderService _purchaseOrderService;
     private readonly IPurchaseOrderPdfService _purchaseOrderPdfService;
+    private readonly ISender _sender;
     private readonly IAuditContext _auditCtx;
-    private readonly IAuditService _auditSvc;
 
-    public PurchaseOrdersController(IPurchaseOrderService purchaseOrderService,
-        IPurchaseOrderPdfService purchaseOrderPdfService,
-        IAuditContext auditCtx, IAuditService auditSvc)
+    public PurchaseOrdersController(IPurchaseOrderPdfService purchaseOrderPdfService,
+        IAuditContext auditCtx,
+        ISender sender)
     {
-        _purchaseOrderService = purchaseOrderService;
         _purchaseOrderPdfService = purchaseOrderPdfService;
         _auditCtx = auditCtx;
-        _auditSvc = auditSvc;
+        _sender = sender;
     }
 
     /// <summary>
@@ -37,11 +40,17 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetAll(
+        CancellationToken cancellationToken,
         [FromQuery] string? status = null,
         [FromQuery] long? supplierId = null,
-        [FromQuery] long? warehouseId = null)
+        [FromQuery] long? warehouseId = null,
+        [FromQuery] string? locationType = null,
+        [FromQuery] long? locationId = null)
     {
-        var pos = await _purchaseOrderService.GetAllAsync(status, supplierId, warehouseId);
+        var purchaseOrders = await _sender.Send(
+            new GetPurchaseOrdersQuery(status, supplierId, warehouseId, locationType, locationId),
+            cancellationToken);
+        var pos = purchaseOrders.Select(MapPurchaseOrder).ToList();
         return Ok(ApiResponse<List<PurchaseOrderDto>>.SuccessResponse(pos));
     }
 
@@ -49,9 +58,31 @@ public class PurchaseOrdersController : ControllerBase
     /// Search purchase orders with pagination
     /// </summary>
     [HttpPost("search")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderListDto>>> Search([FromBody] PurchaseOrderSearchDto searchDto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderListDto>>> Search(
+        [FromBody] PurchaseOrderSearchDto searchDto,
+        CancellationToken cancellationToken)
     {
-        var result = await _purchaseOrderService.SearchAsync(searchDto);
+        var searchResult = await _sender.Send(
+            new SearchPurchaseOrdersQuery(
+                searchDto.Status,
+                searchDto.SupplierId,
+                searchDto.WarehouseId,
+                searchDto.StartDate,
+                searchDto.EndDate,
+                searchDto.PageNumber,
+                searchDto.PageSize,
+                searchDto.SortBy,
+                searchDto.SortOrder,
+                searchDto.LocationType,
+                searchDto.LocationId),
+            cancellationToken);
+        var result = new PurchaseOrderListDto
+        {
+            PurchaseOrders = searchResult.PurchaseOrders.Select(MapPurchaseOrder).ToList(),
+            TotalCount = searchResult.TotalCount,
+            PageNumber = searchResult.PageNumber,
+            PageSize = searchResult.PageSize
+        };
         return Ok(ApiResponse<PurchaseOrderListDto>.SuccessResponse(result));
     }
 
@@ -59,10 +90,12 @@ public class PurchaseOrdersController : ControllerBase
     /// Get purchase order by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> GetById(long id)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> GetById(
+        long id,
+        CancellationToken cancellationToken)
     {
-        var po = await _purchaseOrderService.GetByIdAsync(id);
-        return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po));
+        var purchaseOrder = await _sender.Send(new GetPurchaseOrderByIdQuery(id), cancellationToken);
+        return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(MapPurchaseOrder(purchaseOrder)));
     }
 
     /// <summary>
@@ -79,9 +112,13 @@ public class PurchaseOrdersController : ControllerBase
     /// Get purchase orders awaiting approval
     /// </summary>
     [HttpGet("pending-approvals")]
-    public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetPendingApprovals()
+    public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetPendingApprovals(
+        CancellationToken cancellationToken)
     {
-        var pos = await _purchaseOrderService.GetPendingApprovalsAsync();
+        var purchaseOrders = await _sender.Send(
+            new GetPendingPurchaseOrderApprovalsQuery(),
+            cancellationToken);
+        var pos = purchaseOrders.Select(MapPurchaseOrder).ToList();
         return Ok(ApiResponse<List<PurchaseOrderDto>>.SuccessResponse(pos));
     }
 
@@ -90,11 +127,14 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpGet("total-amount")]
     public async Task<ActionResult<ApiResponse<decimal>>> GetTotalAmount(
+        CancellationToken cancellationToken,
         [FromQuery] string? status = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var total = await _purchaseOrderService.GetTotalAmountAsync(status, startDate, endDate);
+        var total = await _sender.Send(
+            new GetPurchaseOrderTotalAmountQuery(status, startDate, endDate),
+            cancellationToken);
         return Ok(ApiResponse<decimal>.SuccessResponse(total));
     }
 
@@ -103,24 +143,54 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "purchases.create")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Create([FromBody] CreatePurchaseOrderDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Create(
+        [FromBody] CreatePurchaseOrderDto dto,
+        CancellationToken cancellationToken)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         long? userId = long.TryParse(userIdClaim, out var parsedPoUserId) ? parsedPoUserId : null;
 
-        var po = await _purchaseOrderService.CreateAsync(dto, userId);
+        var purchaseOrder = await _sender.Send(
+            new CreatePurchaseOrderCommand(
+                dto.SupplierId,
+                ResolveDestination(dto.LocationType, dto.LocationId, dto.WarehouseId),
+                dto.OrderDate,
+                dto.ExpectedDelivery,
+                dto.Status,
+                dto.Notes,
+                dto.Items?.Select(item => new CreatePurchaseOrderItemCommand(
+                    item.VariantId,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.Discount,
+                    item.Tax,
+                    item.Unit)).ToArray(),
+                userId),
+            cancellationToken);
+        var po = MapPurchaseOrder(purchaseOrder);
         return CreatedAtAction(
             nameof(GetById),
             new { id = po.Id },
             ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order created successfully"));
     }
 
+    private static PurchaseOrderDto MapPurchaseOrder(PurchaseOrderReadModel purchaseOrder) =>
+        PurchaseDocumentDtoMapper.MapPurchaseOrder(purchaseOrder);
+
+    private static PurchaseOrderDestination ResolveDestination(
+        string? locationType,
+        long? locationId,
+        long? legacyWarehouseId) =>
+        PurchaseOrderDestination.Resolve(locationType, locationId, legacyWarehouseId);
+
     /// <summary>
     /// Create purchase order and immediately receive stock (auto-GRN).
     /// </summary>
     [HttpPost("purchase-receive")]
     [Authorize(Policy = "purchases.receive")]
-    public async Task<ActionResult<ApiResponse<PurchaseAndReceiveResultDto>>> PurchaseAndReceive([FromBody] CreatePurchaseAndReceiveDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseAndReceiveResultDto>>> PurchaseAndReceive(
+        [FromBody] CreatePurchaseAndReceiveDto dto,
+        CancellationToken cancellationToken)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         long? userId = long.TryParse(userIdClaim, out var parsedPoUserId) ? parsedPoUserId : null;
@@ -136,19 +206,41 @@ public class PurchaseOrdersController : ControllerBase
 
         try
         {
-            var result = await _purchaseOrderService.PurchaseAndReceiveAsync(dto, userId);
-            await _auditSvc.FlushScopeAsync();
+            var result = await _sender.Send(
+                new PurchaseAndReceiveCommand(
+                    dto.SupplierId,
+                    ResolveDestination(dto.LocationType, dto.LocationId, dto.WarehouseId),
+                    dto.OrderDate,
+                    dto.ExpectedDelivery,
+                    dto.Notes,
+                    dto.Items?.Select(item => new PurchaseAndReceiveItemCommand(
+                        item.VariantId,
+                        item.Quantity,
+                        item.UnitPrice,
+                        item.Discount,
+                        item.Tax,
+                        item.Unit)).ToArray(),
+                    dto.IdempotencyKey,
+                    userId.Value),
+                cancellationToken);
+            await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
             var message = result.IsDuplicateRequest
                 ? "Duplicate request detected; existing purchase receive result returned"
                 : "Purchase order created, auto-GRN generated, and stock updated successfully";
+            var response = new PurchaseAndReceiveResultDto
+            {
+                PurchaseOrder = MapPurchaseOrder(result.PurchaseOrder),
+                GrnId = result.GrnId,
+                IsDuplicateRequest = result.IsDuplicateRequest
+            };
 
-            return Ok(ApiResponse<PurchaseAndReceiveResultDto>.SuccessResponse(result, message));
+            return Ok(ApiResponse<PurchaseAndReceiveResultDto>.SuccessResponse(response, message));
         }
         catch (Exception ex)
         {
             _auditCtx.FailScope(ex.Message);
-            await _auditSvc.FlushScopeAsync();
+            await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
             throw;
         }
     }
@@ -158,9 +250,28 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Policy = "purchases.edit")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Update(long id, [FromBody] UpdatePurchaseOrderDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Update(
+        long id,
+        [FromBody] UpdatePurchaseOrderDto dto,
+        CancellationToken cancellationToken)
     {
-        var po = await _purchaseOrderService.UpdateAsync(id, dto);
+        var purchaseOrder = await _sender.Send(
+            new UpdatePurchaseOrderCommand(
+                id,
+                dto.SupplierId,
+                ResolveDestination(dto.LocationType, dto.LocationId, dto.WarehouseId),
+                dto.OrderDate,
+                dto.ExpectedDelivery,
+                dto.Notes,
+                dto.Items?.Select(item => new UpdatePurchaseOrderItemCommand(
+                    item.VariantId,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.Discount,
+                    item.Tax,
+                    item.Unit)).ToArray()),
+            cancellationToken);
+        var po = MapPurchaseOrder(purchaseOrder);
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order updated successfully"));
     }
 
@@ -169,9 +280,11 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "purchases.edit")]
-    public async Task<ActionResult<ApiResponse>> Delete(long id)
+    public async Task<ActionResult<ApiResponse>> Delete(
+        long id,
+        CancellationToken cancellationToken)
     {
-        await _purchaseOrderService.DeleteAsync(id);
+        await _sender.Send(new DeletePurchaseOrderCommand(id), cancellationToken);
         return Ok(ApiResponse.SuccessResponse("Purchase order deleted successfully"));
     }
 
@@ -180,14 +293,19 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/submit")]
     [Authorize(Policy = "purchases.approve")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Submit(long id)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Submit(
+        long id,
+        CancellationToken cancellationToken)
     {
         _auditCtx.BeginScope(
             "Submit Purchase Order", AuditActionType.Submit,
             AuditModule.Purchase, "PurchaseOrder", id.ToString());
 
-        var po = await _purchaseOrderService.SubmitForApprovalAsync(id);
-        await _auditSvc.FlushScopeAsync();
+        var purchaseOrder = await _sender.Send(
+            new SubmitPurchaseOrderForApprovalCommand(id),
+            cancellationToken);
+        var po = MapPurchaseOrder(purchaseOrder);
+        await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order submitted for approval"));
     }
@@ -197,14 +315,19 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/approve")]
     [Authorize(Policy = "purchases.approve")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Approve(long id)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Approve(
+        long id,
+        CancellationToken cancellationToken)
     {
         _auditCtx.BeginScope(
             "Approve Purchase Order", AuditActionType.Approve,
             AuditModule.Purchase, "PurchaseOrder", id.ToString());
 
-        var po = await _purchaseOrderService.ApproveAsync(id);
-        await _auditSvc.FlushScopeAsync();
+        var approved = await _sender.Send(
+            new ApprovePurchaseOrderCommand(id),
+            cancellationToken);
+        var po = MapPurchaseOrder(approved);
+        await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order approved"));
     }
@@ -214,14 +337,20 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/reject")]
     [Authorize(Policy = "purchases.approve")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Reject(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Reject(
+        long id,
+        [FromBody] UpdatePurchaseOrderStatusDto dto,
+        CancellationToken cancellationToken)
     {
         _auditCtx.BeginScope(
             "Reject Purchase Order", AuditActionType.Reject,
             AuditModule.Purchase, "PurchaseOrder", id.ToString());
 
-        var po = await _purchaseOrderService.RejectAsync(id, dto.Reason ?? "No reason provided");
-        await _auditSvc.FlushScopeAsync();
+        var rejected = await _sender.Send(
+            new RejectPurchaseOrderCommand(id, dto.Reason ?? "No reason provided"),
+            cancellationToken);
+        var po = MapPurchaseOrder(rejected);
+        await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order rejected"));
     }
@@ -231,14 +360,20 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/cancel")]
     [Authorize(Policy = "purchases.approve")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Cancel(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Cancel(
+        long id,
+        [FromBody] UpdatePurchaseOrderStatusDto dto,
+        CancellationToken cancellationToken)
     {
         _auditCtx.BeginScope(
             "Cancel Purchase Order", AuditActionType.Cancel,
             AuditModule.Purchase, "PurchaseOrder", id.ToString());
 
-        var po = await _purchaseOrderService.CancelAsync(id, dto.Reason ?? "No reason provided");
-        await _auditSvc.FlushScopeAsync();
+        var cancelled = await _sender.Send(
+            new CancelPurchaseOrderCommand(id, dto.Reason ?? "No reason provided"),
+            cancellationToken);
+        var po = MapPurchaseOrder(cancelled);
+        await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order cancelled"));
     }
@@ -248,14 +383,20 @@ public class PurchaseOrdersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/send-back")]
     [Authorize(Policy = "purchases.approve")]
-    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> SendBack(long id, [FromBody] UpdatePurchaseOrderStatusDto dto)
+    public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> SendBack(
+        long id,
+        [FromBody] UpdatePurchaseOrderStatusDto dto,
+        CancellationToken cancellationToken)
     {
         _auditCtx.BeginScope(
             "Send Back Purchase Order", AuditActionType.Update,
             AuditModule.Purchase, "PurchaseOrder", id.ToString());
 
-        var po = await _purchaseOrderService.SendBackAsync(id, dto.Reason ?? "No reason provided");
-        await _auditSvc.FlushScopeAsync();
+        var sentBack = await _sender.Send(
+            new SendBackPurchaseOrderCommand(id, dto.Reason ?? "No reason provided"),
+            cancellationToken);
+        var po = MapPurchaseOrder(sentBack);
+        await _sender.Send(new FlushAuditScopeCommand(), CancellationToken.None);
 
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order sent back for correction"));
     }

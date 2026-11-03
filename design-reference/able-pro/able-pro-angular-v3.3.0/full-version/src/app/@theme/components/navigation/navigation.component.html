@@ -1,0 +1,47 @@
+<section class="component-block">
+  <div class="container">
+    <div class="component-page">
+      <mat-drawer-container>
+        <mat-drawer #menuSide [mode]="modeValue" opened class="component-menubar">
+          <div class="component-list-card">
+            <div class="card-header">
+              <div class="form-search">
+                <i class="ti ti-search"></i>
+                <input
+                  type="search"
+                  class="form-control"
+                  placeholder="Search Components"
+                  id="compo-menu-search"
+                  [(ngModel)]="searchMenus"
+                />
+              </div>
+            </div>
+            <div class="coded-navbar">
+              <app-scrollbar [customStyle]="{ height: 'calc(100vh - 223px)', position: 'relative' }" id="nav-ps-able-pro">
+                <div class="navbar-content">
+                  <ul class="nav coded-inner-navbar m-t-15 p-0">
+                    @for (item of menus() | searchFilter: searchMenus; track item.id) {
+                      @if (item.type === 'group') {
+                        <app-component-group [item]="item"></app-component-group>
+                      }
+                    }
+                  </ul>
+                </div>
+              </app-scrollbar>
+            </div>
+          </div>
+        </mat-drawer>
+        <mat-drawer-content class="component-content">
+          <div class="m-t-5">
+            <button (click)="toggleMenu()" mat-flat-button color="primary" class="component-explore m-y-15 align-item-center">
+              <i class="ti ti-menu-2"></i>
+              Explore Component
+            </button>
+            <app-breadcrumb [Component]="true" [dashboard]="false"></app-breadcrumb>
+            <router-outlet></router-outlet>
+          </div>
+        </mat-drawer-content>
+      </mat-drawer-container>
+    </div>
+  </div>
+</section>

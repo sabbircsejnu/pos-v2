@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -11,11 +14,12 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-bills-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './bills-list.component.html',
   styleUrls: ['./bills-list.component.css']
 })
 export class BillsListComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   Math = Math;
 
   activeStatusFilter = signal('all');
@@ -148,6 +152,6 @@ export class BillsListComponent implements OnInit {
   }
 
   formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return this.companyDates.format(dateStr, false);
   }
 }

@@ -1,0 +1,25 @@
+.g-2 {
+  --gutter-y: 0.5rem !important;
+  --gutter-x: 0.5rem !important;
+}
+
+.g-3 {
+  --gutter-y: 1rem !important;
+  --gutter-x: 1rem !important;
+}
+
+.list-group-flush {
+  li {
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--accent-300);
+    }
+  }
+}
+
+.user-account-card {
+  background-image: url('../../../../../../../assets/images/layout/img-profile-card.jpg');
+
+  ::ng-deep.dark & {
+    background-image: url('../../../../../../../assets/images/layout/img-back-admin.png');
+  }
+}

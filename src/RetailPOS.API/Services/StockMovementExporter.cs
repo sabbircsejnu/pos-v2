@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
 
@@ -16,12 +17,12 @@ public static class StockMovementExporter
         "Opening Stock", "Stock In", "Stock Out", "Closing Stock", "Net Movement"
     ];
 
-    public static string ToCsv(IReadOnlyList<StockMovementRowDto> rows, StockMovementSummaryDto summary)
+    public static string ToCsv(IReadOnlyList<StockMovementRowDto> rows, StockMovementSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("Stock Movement Report");
-        sb.AppendLine($"Generated:,{DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC");
+        sb.AppendLine($"Generated:,{UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine();
 
         sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
@@ -58,7 +59,7 @@ public static class StockMovementExporter
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<StockMovementRowDto> rows, StockMovementSummaryDto summary)
+    public static byte[] ToExcel(IReadOnlyList<StockMovementRowDto> rows, StockMovementSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Stock Movement");
@@ -67,7 +68,7 @@ public static class StockMovementExporter
         ws.Cell(1, 1).Value = "Stock Movement Report";
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC";
+        ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(2, 1).Style.Font.Italic = true;
 
         // ── Header row ─────────────────────────────────────────────────

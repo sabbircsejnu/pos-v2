@@ -1,0 +1,37 @@
+<div class="header-button">
+  @if (showToggleMenu) {
+    <button mat-button class="header-item sidebar-collapse" (click)="toggleMenu()">
+      <a class="pc-head-link">
+        <i class="ti ti-menu-2"></i>
+      </a>
+    </button>
+  }
+
+  @if (!mobileMedia) {
+    <div class="header-item m-l-5">
+      <div class="input-search">
+        <mat-form-field appearance="outline" class="w-100">
+          <input matInput placeholder="Search...." #input />
+          <mat-icon matSuffix class="search-icons">
+            <svg class="pc-icon">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-search"></use>
+            </svg>
+          </mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+  } @else {
+    <button mat-button [matMenuTriggerFor]="menu" class="header-item m-l-5" aria-label="search">
+      <a class="pc-head-link">
+        <svg class="pc-icon">
+          <use xlink:href="assets/fonts/custom-icon.svg#custom-search-normal-1"></use>
+        </svg>
+      </a>
+    </button>
+    <mat-menu #menu="matMenu" class="dropdown-item-search">
+      <mat-form-field class="w-100">
+        <input matInput (click)="$event.stopPropagation()" placeholder="Search here. . ." />
+      </mat-form-field>
+    </mat-menu>
+  }
+</div>

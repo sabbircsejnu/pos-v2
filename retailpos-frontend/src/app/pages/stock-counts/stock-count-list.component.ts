@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -16,11 +19,12 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-stock-count-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './stock-count-list.component.html',
   styleUrls: ['./stock-count-list.component.css']
 })
 export class StockCountListComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   Math = Math;
   readonly phase3Enabled = environment.stockCountPhase3Enabled;
   readonly statuses = STOCK_COUNT_STATUSES;
@@ -43,6 +47,7 @@ export class StockCountListComponent implements OnInit, OnDestroy {
   outlets = signal<AuthorizedLocationDto[]>([]);
   warehouses = signal<AuthorizedLocationDto[]>([]);
   canSelectAnyLocation = signal(false);
+  private accessLoaded = false;
 
   private sub?: Subscription;
 
@@ -58,6 +63,8 @@ export class StockCountListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.service.stockCounts.set([]);
+    this.service.totalCount.set(0);
     const p = this.route.snapshot.queryParams;
     this.pageNumber.set(this.listState.num(p, 'page', 1));
     this.pageSize.set(this.listState.num(p, 'pageSize', 20));
@@ -68,16 +75,19 @@ export class StockCountListComponent implements OnInit, OnDestroy {
     this.locationType.set(this.listState.str(p, 'locationType'));
     this.locationId.set(this.listState.optionalId(p, 'locationId') ?? null);
 
-    this.sub = this.locationAccess.load().subscribe({
+    this.sub = this.locationAccess.load('StockCountOperation').subscribe({
       next: (res) => {
         const data = res.data;
         this.outlets.set(data?.outlets || []);
         this.warehouses.set(data?.warehouses || []);
-        this.canSelectAnyLocation.set(!!data?.isGlobalAccess || this.auth.hasPermission('StockCount.ViewAll'));
+        this.canSelectAnyLocation.set(this.outlets().length + this.warehouses().length > 1);
+        this.accessLoaded = true;
 
-        if (!this.canSelectAnyLocation()) {
-          this.locationType.set(data?.defaultLocationType || this.locationType() || 'outlet');
-          this.locationId.set(data?.defaultLocationId ?? this.locationId());
+        if (!this.isAuthorizedLocationFilter()) {
+          this.alert.error('You are not authorized to view stock counts for this location.');
+          this.locationType.set('');
+          this.locationId.set(null);
+          this.pageNumber.set(1);
         }
 
         this.load();
@@ -104,6 +114,11 @@ export class StockCountListComponent implements OnInit, OnDestroy {
   }
 
   load(): void {
+    if (!this.accessLoaded) return;
+    if (!this.isAuthorizedLocationFilter()) {
+      this.alert.error('You are not authorized to view stock counts for this location.');
+      return;
+    }
     this.syncUrl();
     this.service.search({
       pageNumber: this.pageNumber(),
@@ -125,10 +140,8 @@ export class StockCountListComponent implements OnInit, OnDestroy {
     this.dateFrom.set('');
     this.dateTo.set('');
 
-    if (this.canSelectAnyLocation()) {
-      this.locationType.set('');
-      this.locationId.set(null);
-    }
+    this.locationType.set('');
+    this.locationId.set(null);
 
     this.pageNumber.set(1);
     this.load();
@@ -152,6 +165,13 @@ export class StockCountListComponent implements OnInit, OnDestroy {
 
   getLocations(): AuthorizedLocationDto[] {
     return this.locationType() === 'warehouse' ? this.warehouses() : this.outlets();
+  }
+
+  private isAuthorizedLocationFilter(): boolean {
+    const type = this.locationType();
+    return (!type || type === 'outlet' || type === 'warehouse')
+      && (!type || this.getLocations().length > 0)
+      && (this.locationId() === null || (!!type && this.getLocations().some(loc => loc.id === this.locationId())));
   }
 
   createNew(): void {
@@ -316,12 +336,12 @@ export class StockCountListComponent implements OnInit, OnDestroy {
 
   formatDate(date: string): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return this.companyDates.format(date, false);
   }
 
   formatDateTime(date?: string | null): string {
     if (!date) return '-';
-    return new Date(date).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return this.companyDates.format(date, true);
   }
 
   statusClass(status: string): string {

@@ -1,0 +1,77 @@
+<div class="row p-t-25">
+  <div class="col-12">
+    <app-card cardTitle="Customers" padding="0">
+      <ng-template #headerOptionsTemplate>
+        <button mat-button class="bg-warning-50 text-warning-500" (click)="customerAdd()">New Customer</button>
+      </ng-template>
+      <div class="p-b-15">
+        <div class="table-containe table-reponsive">
+          <div class="table-search p-t-15 p-x-15">
+            <mat-form-field appearance="outline" class="w-100">
+              <input matInput (keyup)="applyFilter($event)" placeholder="Search...." #input />
+            </mat-form-field>
+          </div>
+          <div class="table-responsive">
+            <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+              <!-- Name Column -->
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef class="p-l-25">NAME</th>
+                <td mat-cell *matCellDef="let element" class="p-l-25 text-nowrap">
+                  {{ element.name }}
+                </td>
+              </ng-container>
+
+              <!-- Contact Column -->
+              <ng-container matColumnDef="email">
+                <th mat-header-cell *matHeaderCellDef>EMAIL</th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">{{ element.email }}</td>
+              </ng-container>
+
+              <!-- order Column -->
+              <ng-container matColumnDef="account">
+                <th mat-header-cell *matHeaderCellDef>ACCOUNT</th>
+                <td mat-cell *matCellDef="let element">{{ element.account }}</td>
+              </ng-container>
+
+              <!-- spent Column -->
+              <ng-container matColumnDef="login">
+                <th mat-header-cell *matHeaderCellDef>LAST LOGIN</th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">{{ element.login }}</td>
+              </ng-container>
+
+              <!-- action Column -->
+              <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef class="text-center">ACTIONS</th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <div class="text-center text-nowrap">
+                    <ul class="list-inline p-l-0">
+                      <li class="list-inline-item m-r-10" matTooltip="edit">
+                        <a href="javascript:" class="avatar avatar-xs bg-success-50 text-success-500">
+                          <i class="ti ti-edit f-20"></i>
+                        </a>
+                      </li>
+                      <li class="list-inline-item m-r-10" matTooltip="delete">
+                        <a href="javascript:" class="avatar avatar-xs bg-warn-50 text-warn-500">
+                          <i class="ti ti-trash f-20"></i>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+              <!-- Row shown when there is no matching data. -->
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell" colspan="4">No data matching the filter "{{ input.value }}"</td>
+              </tr>
+            </table>
+            <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" aria-label="Select page of users"></mat-paginator>
+          </div>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

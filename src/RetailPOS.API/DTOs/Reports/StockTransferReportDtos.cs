@@ -50,4 +50,7 @@ public class StockTransferFilterDto
     public string   SortDir       { get; set; } = "desc";
     public int      Page          { get; set; } = 1;
     public int      PageSize      { get; set; } = 50;
+    public bool     CanViewAllLocations { get; set; }
+    public string?  DefaultLocationType { get; set; }
+    public long?    DefaultLocationId   { get; set; }
 }

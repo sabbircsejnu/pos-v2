@@ -1,0 +1,24 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="File Upload">
+      <form [formGroup]="demoForm">
+        <file-upload formControlName="files"></file-upload>
+      </form>
+      <div class="text-center m-t-20">
+        <button mat-flat-button color="primary">Upload Now</button>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Images Upload">
+      <div class="flex grid m-b-20">
+        <button mat-flat-button color="primary" uploadButton [uploadComplete]="onComplete" [uploadOptions]="options" [uploader]="uploader">
+          Upload a file...
+        </button>
+      </div>
+      @if (uploadedFileUrl?.length > 0) {
+        <a mat-flat-button color="primary" href="{{ uploadedFileUrl }}" target="_blank">Upload Images Link</a>
+      }
+    </app-card>
+  </div>
+</div>

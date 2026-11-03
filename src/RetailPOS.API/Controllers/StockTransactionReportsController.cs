@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.Reports;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using MediatR;
+using RetailPOS.Application.Inventory.Queries;
+using RetailPOS.Application.Inventory.ReadModels;
 
 namespace RetailPOS.API.Controllers;
 
@@ -17,15 +20,15 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "reports.inventory")]
 public class StockTransactionReportsController : ControllerBase
 {
-    private readonly IInventoryReportService _inventoryReportService;
     private readonly IUserOutletAccessService _outletAccess;
+    private readonly ISender _sender;
 
     public StockTransactionReportsController(
-        IInventoryReportService inventoryReportService,
-        IUserOutletAccessService outletAccess)
+        IUserOutletAccessService outletAccess,
+        ISender sender)
     {
-        _inventoryReportService = inventoryReportService;
         _outletAccess = outletAccess;
+        _sender = sender;
     }
 
     [HttpGet]
@@ -35,7 +38,8 @@ public class StockTransactionReportsController : ControllerBase
         [FromQuery] long? outletId,
         [FromQuery] string? locationType,
         [FromQuery] DateTime? dateFrom,
-        [FromQuery] DateTime? dateTo)
+        [FromQuery] DateTime? dateTo,
+        CancellationToken cancellationToken)
     {
         if (productId <= 0)
             return BadRequest(ApiResponse<StockTransactionReportDto>.ErrorResponse("productId is required"));
@@ -47,10 +51,60 @@ public class StockTransactionReportsController : ControllerBase
             var (resolvedLocationId, resolvedLocationType) =
                 await _outletAccess.ResolveAndAuthorizeLocationAsync(outletId, locationType);
 
-            var report = await _inventoryReportService.GetStockTransactionReportAsync(
-                productId, variantId, resolvedLocationId, resolvedLocationType, dateFrom, dateTo);
+            var report = await _sender.Send(
+                new GetStockTransactionReportQuery(new StockTransactionReportFilter(
+                    productId,
+                    variantId,
+                    resolvedLocationId,
+                    resolvedLocationType,
+                    dateFrom,
+                    dateTo)),
+                cancellationToken);
 
-            return Ok(ApiResponse<StockTransactionReportDto>.SuccessResponse(report));
+            return Ok(ApiResponse<StockTransactionReportDto>.SuccessResponse(new StockTransactionReportDto
+            {
+                ProductId = report.ProductId,
+                ProductName = report.ProductName,
+                ProductCode = report.ProductCode,
+                Level = report.Level,
+                VariantId = report.VariantId,
+                VariantCode = report.VariantCode,
+                VariantName = report.VariantName,
+                VariantAttributes = report.VariantAttributes,
+                Sku = report.Sku,
+                OutletId = report.LocationId,
+                LocationType = report.LocationType,
+                DateFrom = report.DateFrom,
+                DateTo = report.DateTo,
+                Summary = new StockTransactionReportSummaryDto
+                {
+                    OpeningStock = report.Summary.OpeningStock,
+                    StockIn = report.Summary.StockIn,
+                    StockOut = report.Summary.StockOut,
+                    ClosingStock = report.Summary.ClosingStock,
+                    CurrentStock = report.Summary.CurrentStock
+                },
+                Rows = report.Rows.Select(row => new StockTransactionReportRowDto
+                {
+                    Id = row.Id,
+                    TransactionDate = row.TransactionDate,
+                    LocationId = row.LocationId,
+                    LocationType = row.LocationType,
+                    LocationName = row.LocationName,
+                    TransactionType = row.TransactionType,
+                    ReferenceType = row.ReferenceType,
+                    ReferenceId = row.ReferenceId,
+                    ReferenceNo = row.ReferenceNumber,
+                    VariantId = row.VariantId,
+                    VariantCode = row.VariantCode,
+                    VariantAttributes = row.VariantAttributes,
+                    QuantityIn = row.QuantityIn,
+                    QuantityOut = row.QuantityOut,
+                    RunningBalance = row.RunningBalance,
+                    Remarks = row.Remarks,
+                    CreatedByName = row.CreatedByName
+                }).ToList()
+            }));
         }
         catch (KeyNotFoundException ex)
         {

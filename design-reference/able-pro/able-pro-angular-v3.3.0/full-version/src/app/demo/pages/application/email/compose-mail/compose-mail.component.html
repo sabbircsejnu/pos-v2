@@ -1,0 +1,90 @@
+<div class="new-mail-content">
+  <div class="p-20 flex align-item-center justify-content-between">
+    <div class="f-16 f-w-600">New Message</div>
+    <ul class="list-inline m-b-0">
+      <li class="list-inline-item">
+        <a href="javascript:" class="avatar avatar-s text-muted">
+          <i class="ti ti-arrows-diagonal-2 f-18"></i>
+        </a>
+      </li>
+      <li class="list-inline-item">
+        <a href="javascript:" class="avatar avatar-s text-warn-500" mat-dialog-close>
+          <i class="ti ti-circle-x f-18"></i>
+        </a>
+      </li>
+    </ul>
+  </div>
+  <div class="mail-dialog-body">
+    <div class="text-end">
+      <a href="javascript:" class="text-primary-500 m-b-5" (click)="onClick()">Cc & Bcc</a>
+    </div>
+    <div>
+      <label>To</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input matInput placeholder="Recipients" />
+      </mat-form-field>
+    </div>
+    <div>
+      <label>Subject</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input matInput placeholder="Subject" />
+      </mat-form-field>
+    </div>
+    <div class="cc-content" [ngClass]="{ show: newMailEnter }">
+      <label>Cc</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input matInput placeholder="Enter Cc Email" />
+      </mat-form-field>
+      <label>Bcc</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input matInput placeholder="Enter Bcc Email" />
+      </mat-form-field>
+    </div>
+    <quill-editor class="w-100">
+      <div quill-editor-toolbar>
+        <span class="ql-formats">
+          <select class="ql-header" [title]="'header'">
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+            <option value="5"></option>
+            <option value="6"></option>
+            <option selected="selected"></option>
+          </select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-bold" [title]="'Bold'"></button>
+          <button class="ql-italic" [title]="'Italic'"></button>
+          <button class="ql-underline" [title]="'Italic'"></button>
+          <button class="ql-italic" [title]="'strike'"></button>
+          <button class="ql-link" [title]="'link'"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-list" value="ordered"></button>
+          <button class="ql-list" value="bullet"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-clean"></button>
+        </span>
+      </div>
+    </quill-editor>
+  </div>
+  <div class="mail-footer">
+    <ul class="list-inline m-b-0">
+      <li class="list-inline-item">
+        <a href="javascript:" class="avatar avatar-s text-muted" title="file-upload">
+          <i class="ti ti-file-upload f-18"></i>
+        </a>
+      </li>
+      <li class="list-inline-item">
+        <a href="javascript:" class="avatar avatar-s text-muted">
+          <i class="ti ti-paperclip f-18"></i>
+        </a>
+      </li>
+    </ul>
+    <div class="flex-grow-1 text-end" mat-dialog-close>
+      <button mat-flat-button color="primary">Reply</button>
+    </div>
+  </div>
+</div>

@@ -8,7 +8,12 @@ import { AuthService } from '../../services/auth.service';
 import { InventoryService } from '../../services/inventory.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { Inventory, InventorySearchRequest } from '../../models/inventory.model';
+import {
+  Inventory,
+  InventorySearchRequest,
+  VariantAttributeFilterOptions,
+  VariantAttributeFilterSelection
+} from '../../models/inventory.model';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { ListStateService } from '../../services/list-state.service';
 import { Outlet } from '../../models/outlet.model';
@@ -18,11 +23,20 @@ import { AdvancedFilterDrawerComponent } from '../advanced-filter-drawer/advance
 import { ProductService } from '../../services/product.service';
 import { VariantSearchPickerComponent, VariantSearchItem } from '../variant-search-picker/variant-search-picker.component';
 import { AuthorizedOutletsDto } from '../../models/report.model';
+import { ProductVariantCellComponent } from '../shared/product-variant-cell.component';
 
 @Component({
   selector: 'app-inventory-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AppCurrencyPipe, AdvancedFilterDrawerComponent, VariantSearchPickerComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    AppCurrencyPipe,
+    AdvancedFilterDrawerComponent,
+    VariantSearchPickerComponent,
+    ProductVariantCellComponent
+  ],
   template: `
     <div class="container mx-auto px-4 py-3">
       <div class="card px-3 py-2 mb-3">
@@ -114,9 +128,8 @@ import { AuthorizedOutletsDto } from '../../models/report.model';
           <table class="table">
             <thead>
               <tr>
-                <th>Product</th>
+                <th>Product / Variant</th>
                 <th>Product Code</th>
-                <th>Variant</th>
                 <th>Location</th>
                 <th>Quantity</th>
                 <th>Status</th>
@@ -133,7 +146,14 @@ import { AuthorizedOutletsDto } from '../../models/report.model';
             <tbody>
               @for (item of inventories(); track item.id) {
                 <tr>
-                  <td class="font-medium">{{ item.productName }}</td>
+                  <td class="px-4 py-2.5">
+                    <app-product-variant-cell
+                      [productName]="item.productName"
+                      [variantName]="item.variantName"
+                      [variantAttributes]="item.variantAttributes"
+                      [primaryImageThumb]="item.primaryImageThumb"
+                    />
+                  </td>
                   <td>
                     @if (item.productCode) {
                       <span class="font-mono text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{{ item.productCode }}</span>
@@ -141,7 +161,6 @@ import { AuthorizedOutletsDto } from '../../models/report.model';
                       <span class="text-gray-400 text-xs">-</span>
                     }
                   </td>
-                  <td>{{ item.variantName }}</td>
                   <td>
                     <div class="text-sm">
                       <div class="font-medium">{{ item.outletName || item.warehouseName }}</div>
@@ -311,6 +330,61 @@ import { AuthorizedOutletsDto } from '../../models/report.model';
               <span>Expiring Soon</span>
             </label>
           </div>
+
+          @if (variantAttributeFilterOptions().length > 0) {
+            <div class="space-y-3">
+              <label class="label mb-0">Variant Attributes</label>
+
+              @for (attribute of variantAttributeFilterOptions(); track attribute.attributeName) {
+                <div class="rounded border border-gray-200 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="text-sm font-medium text-gray-800">{{ attribute.attributeName }}</div>
+                    <div class="flex items-center gap-2">
+                      @if (selectedVariantAttributeCount(attribute.attributeName) > 0) {
+                        <span class="inline-flex items-center justify-center rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">
+                          {{ selectedVariantAttributeCount(attribute.attributeName) }}
+                        </span>
+                      }
+                      @if (selectedVariantAttributeCount(attribute.attributeName) > 0) {
+                        <button
+                          type="button"
+                          class="text-xs text-gray-500 hover:text-gray-700"
+                          (click)="clearVariantAttributeSelections(attribute.attributeName)"
+                        >
+                          Clear
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    class="input h-8 text-xs"
+                    [ngModel]="draftAttributeSearch()[attribute.attributeName] || ''"
+                    (ngModelChange)="onDraftAttributeSearchChange(attribute.attributeName, $event)"
+                    placeholder="Search values..."
+                  />
+
+                  <div class="mt-2 max-h-32 space-y-1 overflow-y-auto pr-1">
+                    @for (value of filteredAttributeValues(attribute.attributeName, attribute.values); track value) {
+                      <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          [checked]="isVariantAttributeValueSelected(attribute.attributeName, value)"
+                          (change)="toggleVariantAttributeValue(attribute.attributeName, value, $any($event.target).checked)"
+                        />
+                        <span>{{ value }}</span>
+                      </label>
+                    }
+
+                    @if (filteredAttributeValues(attribute.attributeName, attribute.values).length === 0) {
+                      <div class="text-xs text-gray-400">No values match your search.</div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
         </div>
       </app-advanced-filter-drawer>
     }
@@ -321,6 +395,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
 
   inventories = signal<Inventory[]>([]);
+  variantAttributeFilterOptions = signal<VariantAttributeFilterOptions[]>([]);
   outlets = signal<Outlet[]>([]);
   warehouses = signal<Warehouse[]>([]);
   authorizedAccess = signal<AuthorizedOutletsDto | null>(null);
@@ -337,7 +412,8 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     locationId: '',
     lowStockOnly: false,
     outOfStockOnly: false,
-    expiringSoon: false
+    expiringSoon: false,
+    variantAttributeFilters: {} as Record<string, string[]>
   };
 
   draftAdvancedFilters = {
@@ -346,8 +422,11 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     locationId: '',
     lowStockOnly: false,
     outOfStockOnly: false,
-    expiringSoon: false
+    expiringSoon: false,
+    variantAttributeFilters: {} as Record<string, string[]>
   };
+
+  draftAttributeSearch = signal<Record<string, string>>({});
 
   selectedVariant = signal<VariantSearchItem | null>(null);
   draftSelectedVariant = signal<VariantSearchItem | null>(null);
@@ -442,6 +521,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
 
   openAdvancedFilters(): void {
     this.syncAdvancedDraftsFromApplied();
+    this.loadVariantAttributeFilterOptions();
     this.isAdvancedFilterDrawerOpen.set(true);
   }
 
@@ -457,6 +537,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     this.filters.lowStockOnly = this.draftAdvancedFilters.lowStockOnly;
     this.filters.outOfStockOnly = this.draftAdvancedFilters.outOfStockOnly;
     this.filters.expiringSoon = this.draftAdvancedFilters.expiringSoon;
+    this.filters.variantAttributeFilters = this.cloneAttributeSelections(this.draftAdvancedFilters.variantAttributeFilters);
     this.selectedVariant.set(this.draftSelectedVariant());
 
     this.currentPage.set(1);
@@ -471,8 +552,10 @@ export class InventoryListComponent implements OnInit, OnDestroy {
       locationId: '',
       lowStockOnly: false,
       outOfStockOnly: false,
-      expiringSoon: false
+      expiringSoon: false,
+      variantAttributeFilters: {}
     };
+    this.draftAttributeSearch.set({});
     this.draftSelectedVariant.set(null);
     this.applyAdvancedFilters();
   }
@@ -485,11 +568,16 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     if (this.filters.lowStockOnly) count += 1;
     if (this.filters.outOfStockOnly) count += 1;
     if (this.filters.expiringSoon) count += 1;
+    const activeAttributeFilters = Object.values(this.filters.variantAttributeFilters)
+      .filter(values => values && values.length > 0)
+      .length;
+    count += activeAttributeFilters;
     return count;
   }
 
   onDraftLocationTypeChange(): void {
     this.draftAdvancedFilters.locationId = '';
+    this.loadVariantAttributeFilterOptions();
   }
 
   onDraftVariantSelected(variant: VariantSearchItem): void {
@@ -535,8 +623,10 @@ export class InventoryListComponent implements OnInit, OnDestroy {
       locationId: this.filters.locationId,
       lowStockOnly: this.filters.lowStockOnly,
       outOfStockOnly: this.filters.outOfStockOnly,
-      expiringSoon: this.filters.expiringSoon
+      expiringSoon: this.filters.expiringSoon,
+      variantAttributeFilters: this.cloneAttributeSelections(this.filters.variantAttributeFilters)
     };
+    this.pruneDraftSelectionsToAvailableAttributes();
     this.draftSelectedVariant.set(this.selectedVariant());
   }
 
@@ -548,6 +638,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
       productSearch: this.filters.productSearch || undefined,
       variantId: this.filters.variantId,
       variantSearch: this.selectedVariant()?.name || undefined,
+      variantAttributeFilters: this.toVariantAttributeFilterSelections(this.filters.variantAttributeFilters),
       outletId: this.filters.locationType === 'outlet' && this.filters.locationId ? +this.filters.locationId : undefined,
       warehouseId: this.filters.locationType === 'warehouse' && this.filters.locationId ? +this.filters.locationId : undefined,
       lowStockOnly: this.filters.lowStockOnly || undefined,
@@ -578,7 +669,8 @@ export class InventoryListComponent implements OnInit, OnDestroy {
       locationId: '',
       lowStockOnly: false,
       outOfStockOnly: false,
-      expiringSoon: false
+      expiringSoon: false,
+      variantAttributeFilters: {}
     };
     this.selectedVariant.set(null);
     this.syncAdvancedDraftsFromApplied();
@@ -587,6 +679,9 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     if (auth) {
       this.applyDefaultLocationFilter(auth, true);
     }
+
+    this.variantAttributeFilterOptions.set([]);
+    this.draftAttributeSearch.set({});
 
     this.currentPage.set(1);
     this.listState.clear(this.route);
@@ -636,6 +731,19 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     const selectedIsValid = hasSelectedLocation && this.isAuthorizedLocation(auth, selectedType, selectedId);
 
     if (!force && selectedIsValid && !this.isLocationFilterLocked()) {
+      this.syncAdvancedDraftsFromApplied();
+      return;
+    }
+
+    const canBrowseMultipleLocations =
+      (auth.isGlobalAccess === true || auth.accessScope === 'specific_locations') &&
+      ((auth.outlets?.length ?? 0) + (auth.warehouses?.length ?? 0) > 1);
+
+    // Keep inventory unfiltered by default when user can browse multiple locations.
+    // Otherwise warehouse receipts can look like "missing stock" when default outlet is preselected.
+    if (!force && canBrowseMultipleLocations) {
+      this.filters.locationType = '';
+      this.filters.locationId = '';
       this.syncAdvancedDraftsFromApplied();
       return;
     }
@@ -690,5 +798,117 @@ export class InventoryListComponent implements OnInit, OnDestroy {
     }
 
     return false;
+  }
+
+  private loadVariantAttributeFilterOptions(): void {
+    const outletId = this.draftAdvancedFilters.locationType === 'outlet' && this.draftAdvancedFilters.locationId
+      ? +this.draftAdvancedFilters.locationId
+      : undefined;
+    const warehouseId = this.draftAdvancedFilters.locationType === 'warehouse' && this.draftAdvancedFilters.locationId
+      ? +this.draftAdvancedFilters.locationId
+      : undefined;
+
+    this.inventoryService.getVariantAttributeFilterOptions(outletId, warehouseId).subscribe({
+      next: (response) => {
+        this.variantAttributeFilterOptions.set(response.data || []);
+        this.pruneDraftSelectionsToAvailableAttributes();
+      },
+      error: (err) => {
+        this.variantAttributeFilterOptions.set([]);
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  filteredAttributeValues(attributeName: string, values: string[]): string[] {
+    const query = (this.draftAttributeSearch()[attributeName] || '').trim().toLowerCase();
+    if (!query) return values;
+    return values.filter(v => v.toLowerCase().includes(query));
+  }
+
+  onDraftAttributeSearchChange(attributeName: string, value: string): void {
+    const next = { ...this.draftAttributeSearch() };
+    next[attributeName] = value;
+    this.draftAttributeSearch.set(next);
+  }
+
+  isVariantAttributeValueSelected(attributeName: string, value: string): boolean {
+    const selectedValues = this.draftAdvancedFilters.variantAttributeFilters[attributeName] || [];
+    return selectedValues.includes(value);
+  }
+
+  toggleVariantAttributeValue(attributeName: string, value: string, checked: boolean): void {
+    const next = this.cloneAttributeSelections(this.draftAdvancedFilters.variantAttributeFilters);
+    const selectedValues = new Set(next[attributeName] || []);
+
+    if (checked) {
+      selectedValues.add(value);
+    } else {
+      selectedValues.delete(value);
+    }
+
+    if (selectedValues.size === 0) {
+      delete next[attributeName];
+    } else {
+      next[attributeName] = Array.from(selectedValues);
+    }
+
+    this.draftAdvancedFilters.variantAttributeFilters = next;
+  }
+
+  clearVariantAttributeSelections(attributeName: string): void {
+    const next = this.cloneAttributeSelections(this.draftAdvancedFilters.variantAttributeFilters);
+    delete next[attributeName];
+    this.draftAdvancedFilters.variantAttributeFilters = next;
+  }
+
+  selectedVariantAttributeCount(attributeName: string): number {
+    return this.draftAdvancedFilters.variantAttributeFilters[attributeName]?.length || 0;
+  }
+
+  private pruneDraftSelectionsToAvailableAttributes(): void {
+    const available = this.variantAttributeFilterOptions();
+    if (!available.length) {
+      this.draftAdvancedFilters.variantAttributeFilters = {};
+      return;
+    }
+
+    const optionMap = new Map<string, Set<string>>(
+      available.map(a => [a.attributeName, new Set(a.values)])
+    );
+
+    const next: Record<string, string[]> = {};
+    for (const [attributeName, values] of Object.entries(this.draftAdvancedFilters.variantAttributeFilters)) {
+      const allowedValues = optionMap.get(attributeName);
+      if (!allowedValues) continue;
+
+      const filtered = values.filter(v => allowedValues.has(v));
+      if (filtered.length > 0) {
+        next[attributeName] = filtered;
+      }
+    }
+
+    this.draftAdvancedFilters.variantAttributeFilters = next;
+  }
+
+  private cloneAttributeSelections(source: Record<string, string[]>): Record<string, string[]> {
+    const clone: Record<string, string[]> = {};
+    for (const [attributeName, values] of Object.entries(source || {})) {
+      clone[attributeName] = [...values];
+    }
+    return clone;
+  }
+
+  private toVariantAttributeFilterSelections(
+    selections: Record<string, string[]>
+  ): VariantAttributeFilterSelection[] | undefined {
+    const filters = Object.entries(selections)
+      .map(([attributeName, values]) => ({
+        attributeName,
+        values: values.filter(v => !!v)
+      }))
+      .filter(f => f.attributeName && f.values.length > 0);
+
+    return filters.length > 0 ? filters : undefined;
   }
 }

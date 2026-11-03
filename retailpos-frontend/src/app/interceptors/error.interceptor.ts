@@ -1,8 +1,12 @@
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse, HttpContextToken } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-import { AuthService } from '../services/auth.service';
+import { AlertService } from '../services/alert.service';
+
+export const FORBIDDEN_MESSAGE = 'You do not have permission to perform this action.';
+
+/** Set on background probes whose failure must not raise a global notification. */
+export const SUPPRESS_ERROR_NOTICE = new HttpContextToken<boolean>(() => false);
 
 /**
  * Standardized API response format from backend
@@ -46,8 +50,7 @@ function flattenValidationErrors(errors: unknown): string[] {
  * and extracts error messages from standardized API responses
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
-  const router = inject(Router);
-  const authService = inject(AuthService);
+  const alertService = inject(AlertService);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
@@ -83,13 +86,16 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         case 0:
           errorMessage = 'Unable to connect to server. Please check your connection.';
           break;
+        // 401 is handled by sessionInterceptor (silent refresh, sign-out only when unrecoverable).
         case 401:
-          errorMessage = 'Unauthorized. Please login again.';
-          authService.logout();
-          router.navigate(['/login']);
+          errorMessage = 'Your session could not be verified. Please sign in again.';
           break;
+        // 403 is an authorization outcome: never sign out, clear tokens or reset Business/Outlet context.
         case 403:
-          errorMessage = errorMessage || 'You do not have permission to perform this action.';
+          errorMessage = FORBIDDEN_MESSAGE;
+          if (!req.context.get(SUPPRESS_ERROR_NOTICE) && alertService.config()?.message !== FORBIDDEN_MESSAGE) {
+            alertService.error(FORBIDDEN_MESSAGE);
+          }
           break;
         case 404:
           errorMessage = errorMessage || 'The requested resource was not found.';
@@ -99,14 +105,18 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           break;
       }
 
-      console.error('HTTP Error:', {
-        status: error.status,
-        statusText: error.statusText,
-        message: errorMessage,
-        validationErrors,
-        originalError: error.error,
-        url: error.url
-      });
+      const sensitiveRequest = /\/(?:auth|invitation)/i.test(req.url);
+      const logDetails = sensitiveRequest
+        ? { status: error.status, statusText: error.statusText }
+        : {
+            status: error.status,
+            statusText: error.statusText,
+            message: errorMessage,
+            validationErrors,
+            originalError: error.error,
+            url: error.url
+          };
+      console.error('HTTP Error:', logDetails);
 
       // Return enhanced error with extracted message and validation list.
       return throwError(() => ({
@@ -123,4 +133,3 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     })
   );
 };
-

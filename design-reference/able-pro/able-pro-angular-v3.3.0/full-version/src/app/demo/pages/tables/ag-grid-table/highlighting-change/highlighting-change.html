@@ -1,0 +1,13 @@
+<app-card cardTitle="Highlighting Change" [padding]="0">
+  @if (showGrid) {
+  <ag-grid-angular
+    style="width: 100%; height: calc(100vh - 311px)"
+    [theme]="theme"
+    [columnDefs]="columnDefs"
+    [defaultColDef]="defaultColDef"
+    [rowData]="rowData"
+    (gridReady)="onGridReady($event)"
+    [enableRtl]="direction"
+  />
+  }
+</app-card>

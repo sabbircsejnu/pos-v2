@@ -14,6 +14,7 @@ public class ProductVariantSearchDto
     public string? Sku { get; set; }
     public string? Barcode { get; set; }
     public string? Attributes { get; set; }
+    public string? VariantDisplay { get; set; }
     public decimal FinalPrice { get; set; }
     public decimal? CostPrice { get; set; }
     public int? StockQuantity { get; set; }

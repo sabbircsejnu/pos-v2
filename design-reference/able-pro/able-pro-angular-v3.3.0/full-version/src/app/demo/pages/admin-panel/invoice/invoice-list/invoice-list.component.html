@@ -1,0 +1,121 @@
+<div class="row">
+  <div class="col-xxl-8">
+    <div class="row g-3 mb-3">
+      @for (cards of widgetCards; track cards) {
+        <div class="col-md-6 col-lg-4">
+          <app-card [showHeader]="false" [padding]="20" cardClass="m-b-0">
+            <div class="m-b-10 flex align-item-center justify-content-between gap-1">
+              <div class="f-w-600">{{ cards.title }}</div>
+              <p class="m-b-0 text-muted flex align-item-center gap-1">
+                <i class="f-14 ti ti-{{ cards.isLoss === true ? 'caret-down-filled' : 'caret-up-filled' }} {{ cards.color }}"></i>
+                {{ cards.percentage }}%
+              </p>
+            </div>
+            <div class="row g-2 align-item-center">
+              <div class="col-6">
+                <div class="f-w-600 f-16 m-b-5 m-t-15">{{ cards.value }}</div>
+                <div class="flex align-item-center gap-1">
+                  <div class="m-b-0 f-16 f-w-600">{{ cards.invoice }}</div>
+                  <p class="m-b-0 text-muted flex align-item-center gap-2">invoices</p>
+                </div>
+              </div>
+              <div class="col-6">
+                <app-invoice-list-chart [seriesData]="cards.data" [colors]="cards.colors" />
+              </div>
+            </div>
+          </app-card>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="col-xxl-4">
+    <app-card [showHeader]="false" [padding]="14" cardClass="bg-primary-500">
+      <div class="flex align-item-center justify-content-between">
+        <div class="flex align-item-center">
+          <div class="avatar avatar-s bg-primary-400">
+            <i class="ti ti-file-text f-20 text-white"></i>
+          </div>
+          <div class="m-l-10">
+            <div class="flex align-item-center">
+              <p class="m-b-0 text-white">Total Recievables</p>
+              <i class="ti ti-info-circle text-white m-l-10"></i>
+            </div>
+            <div class="flex align-item-center">
+              <p class="m-b-0 text-white text-sm">Current</p>
+              <p class="m-b-0 text-white m-l-10">109.1k</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex">
+          <p class="m-b-0 text-white text-sm">Overdue</p>
+          <p class="m-b-0 text-white m-l-10">62k</p>
+        </div>
+      </div>
+      <div class="m-t-15 text-white f-16 f-w-600 m-b-5">$43,078</div>
+      <div class="flex align-item-center">
+        <div class="flex-grow-1 m-r-15">
+          <mat-progress-bar color="warn" mode="Determinate" [value]="90"></mat-progress-bar>
+        </div>
+        <div class="flex-shrink-0 text-end wid-30">
+          <p class="text-white m-b-0">90%</p>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-12">
+    <app-card [showHeader]="false" [padding]="0">
+      <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" class="invoice-data">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <div class="flex align-item-center justify-content-between">
+              All
+              <div class="wid-20 hei-20 border-50 flex align-item-center justify-content-center bg-primary-50 text-primary-500 m-l-10">
+                4
+              </div>
+            </div>
+          </ng-template>
+          <div class="p-y-20">
+            <app-invoice-list-table />
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <div class="flex align-item-center justify-content-between">
+              Paid
+              <div class="wid-20 hei-20 border-50 flex align-item-center justify-content-center bg-success-50 text-success-500 m-l-10">
+                2
+              </div>
+            </div>
+          </ng-template>
+          <div class="p-y-20">
+            <app-invoice-list-table />
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <div class="flex align-item-center justify-content-between">
+              Unpaid
+              <div class="wid-20 hei-20 border-50 flex align-item-center justify-content-center bg-warning-50 text-warning-500 m-l-10">
+                2
+              </div>
+            </div>
+          </ng-template>
+          <div class="p-y-20">
+            <app-invoice-list-table />
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <div class="flex align-item-center justify-content-between">
+              Cancelled
+              <div class="wid-20 hei-20 border-50 flex align-item-center justify-content-center bg-warn-50 text-warn-500 m-l-10">1</div>
+            </div>
+          </ng-template>
+          <div class="p-y-20">
+            <app-invoice-list-table />
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </app-card>
+  </div>
+</div>

@@ -34,7 +34,7 @@
           <select [(ngModel)]="selectedPoId" (ngModelChange)="onPoSelected($event)" class="input">
             <option [ngValue]="null">-- Select a Purchase Order --</option>
             <option *ngFor="let po of pendingPOs()" [ngValue]="po.id">
-              {{ getPoReference(po) }} — {{ po.supplierName }} ({{ po.warehouseName }})
+              {{ getPoReference(po) }} — {{ po.supplierName }} ({{ locationTypeLabel(po.locationType) }}: {{ locationName(po) }})
             </option>
           </select>
         </div>
@@ -50,8 +50,8 @@
             <p class="font-semibold text-gray-900">{{ selectedPO()!.supplierName }}</p>
           </div>
           <div>
-            <p class="text-gray-500">Warehouse</p>
-            <p class="font-semibold text-gray-900">{{ selectedPO()!.warehouseName }}</p>
+            <p class="text-gray-500">Receive Into</p>
+            <p class="font-semibold text-gray-900">{{ locationTypeLabel(selectedPO()!.locationType) }}: {{ locationName(selectedPO()!) }}</p>
           </div>
           <div>
             <p class="text-gray-500">Order Date</p>
@@ -72,7 +72,7 @@
         </h2>
         <div class="max-w-xs">
           <label class="label">Date &amp; Time Received <span class="text-red-500">*</span></label>
-          <input type="datetime-local" [(ngModel)]="receivedDateTime" step="60" class="input" />
+          <input type="datetime-local" appCompanyDate [(ngModel)]="receivedDateTime" step="60" class="input" />
         </div>
       </div>
 

@@ -1,0 +1,20 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center">
+    <div class="flex-shrink-0">
+      <div class="my-n4" style="width: 130px">
+        <apx-chart
+          [series]="chartOptions.series"
+          [chart]="chartOptions.chart"
+          [colors]="chartOptions.colors"
+          [plotOptions]="chartOptions.plotOptions"
+          [fill]="chartOptions.fill"
+          [stroke]="chartOptions.stroke"
+        ></apx-chart>
+      </div>
+    </div>
+    <div class="flex-grow-1 earning-text">
+      <p class="m-b-5 f-w-500">Total Earning</p>
+      <div class="f-16 f-w-600">$45,890</div>
+    </div>
+  </div>
+</app-card>

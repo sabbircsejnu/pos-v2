@@ -1,0 +1,27 @@
+::ng-deep.my-card {
+  background-image: url('../../../../../assets/images/widget/img-card-bg.svg') !important;
+  background-size: cover !important;
+}
+
+.d-none {
+  display: none;
+}
+
+.bg-dark {
+  background-color: #131920;
+}
+
+.moneyGo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+
+  @media (max-width: 576px) {
+    display: block;
+
+    > div {
+      margin-bottom: 10px;
+    }
+  }
+}

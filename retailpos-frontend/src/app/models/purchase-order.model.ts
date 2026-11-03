@@ -1,3 +1,24 @@
+export type PurchaseLocationType = 'outlet' | 'warehouse';
+
+export function getPurchaseLocationTypeLabel(locationType?: string | null): string {
+  return locationType?.toLowerCase() === 'outlet' ? 'Outlet' : 'Warehouse';
+}
+
+/** Display name of a PO/GRN destination; falls back to the legacy warehouse name for older payloads. */
+export function getPurchaseLocationName(source: {
+  locationType?: string | null;
+  locationName?: string | null;
+  outletName?: string | null;
+  warehouseName?: string | null;
+} | null | undefined): string {
+  if (!source) {
+    return '';
+  }
+  return source.locationName
+    || (source.locationType?.toLowerCase() === 'outlet' ? source.outletName : source.warehouseName)
+    || '';
+}
+
 export interface PurchaseOrderItem {
   id: number;
   variantId: number;
@@ -19,8 +40,15 @@ export interface PurchaseOrder {
   poNumber: string;
   supplierId: number;
   supplierName: string;
-  warehouseId: number;
+  /** Destination warehouse; null when the PO is received into an outlet. */
+  warehouseId?: number | null;
   warehouseName: string;
+  /** Destination outlet; null when the PO is received into a warehouse. */
+  outletId?: number | null;
+  outletName?: string | null;
+  locationType: PurchaseLocationType;
+  locationId: number;
+  locationName: string;
   orderDate: Date;
   expectedDelivery?: Date;
   totalAmount: number;
@@ -49,7 +77,8 @@ export interface CreatePurchaseOrderItem {
 
 export interface CreatePurchaseOrderRequest {
   supplierId: number;
-  warehouseId: number;
+  locationType: PurchaseLocationType;
+  locationId: number;
   orderDate: Date;
   expectedDelivery?: Date;
   status?: string; // defaults to 'draft'
@@ -70,7 +99,8 @@ export interface PurchaseAndReceiveResult {
 
 export interface UpdatePurchaseOrderRequest {
   supplierId: number;
-  warehouseId: number;
+  locationType: PurchaseLocationType;
+  locationId: number;
   orderDate: Date;
   expectedDelivery?: Date;
   notes?: string;
@@ -82,6 +112,8 @@ export interface PurchaseOrderSearchRequest {
   status?: string;
   supplierId?: number;
   warehouseId?: number;
+  locationType?: PurchaseLocationType;
+  locationId?: number;
   startDate?: Date;
   endDate?: Date;
   pageNumber: number;

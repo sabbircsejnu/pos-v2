@@ -1,13 +1,131 @@
 :host {
-	display: block;
+  display: block;
 }
 
-.input,
-.select,
-.textarea {
-	width: 100%;
+.pf-form,
+.pf-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rp-space-4);
 }
 
-.uppercase {
-	text-transform: uppercase;
+/* Cards in the columns are separated by the gap, not by their own margins. */
+.pf-actions {
+  position: sticky;
+  top: var(--rp-space-2);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rp-space-2);
+  padding: var(--rp-space-3) var(--rp-space-4);
+  border: 1px solid var(--rp-color-border);
+  border-radius: var(--rp-radius-card);
+  background: var(--rp-color-surface-card);
+}
+
+@media (max-width: 639px) {
+  /* One compact row so the sticky bar does not cover a large part of a phone screen. */
+  .pf-actions {
+    flex-wrap: nowrap;
+    gap: var(--rp-space-1);
+    padding: var(--rp-space-2);
+  }
+
+  .pf-actions > * {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: var(--rp-space-2);
+  }
+
+  .pf-actions i {
+    display: none;
+  }
+}
+
+.pf-uppercase {
+  text-transform: uppercase;
+}
+
+.pf-inline {
+  display: flex;
+  gap: var(--rp-space-2);
+}
+
+.pf-inline > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pf-affix {
+  position: relative;
+}
+
+.pf-affix__symbol {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--rp-color-text-secondary);
+  pointer-events: none;
+}
+
+.pf-affix--prefix .pf-affix__symbol {
+  left: var(--rp-space-3);
+}
+
+.pf-affix--prefix input {
+  padding-left: 2rem;
+}
+
+.pf-affix--suffix .pf-affix__symbol {
+  right: var(--rp-space-3);
+}
+
+.pf-affix--suffix input {
+  padding-right: 2rem;
+}
+
+.pf-note {
+  margin: var(--rp-space-2) 0 0;
+  color: var(--rp-color-status-warning-fg);
+  font-size: var(--rp-text-helper-size);
+  line-height: var(--rp-text-helper-line);
+}
+
+.pf-progress {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--rp-radius-pill);
+  background: var(--rp-color-surface-hover);
+}
+
+.pf-progress__bar {
+  height: 100%;
+  border-radius: var(--rp-radius-pill);
+  background: var(--rp-color-action);
+}
+
+.pf-progress__label {
+  margin: var(--rp-space-2) 0 var(--rp-space-3);
+  font-weight: var(--rp-font-weight-medium);
+}
+
+.pf-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-checklist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rp-space-2);
+  padding: var(--rp-space-1) var(--rp-space-2);
+  border: 1px solid var(--rp-color-border);
+  border-radius: var(--rp-radius-md);
 }

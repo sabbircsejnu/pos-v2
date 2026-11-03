@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RetailPOS.Application.Abstractions;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
@@ -10,15 +11,27 @@ namespace RetailPOS.Infrastructure.Repositories;
 public class ProductRepository : IProductRepository
 {
     private readonly RetailPOSDbContext _context;
+    private readonly IBusinessScope? _businessScope;
 
-    public ProductRepository(RetailPOSDbContext context)
+    public ProductRepository(RetailPOSDbContext context, IBusinessScope? businessScope = null)
     {
         _context = context;
+        _businessScope = businessScope;
+    }
+
+    /// <summary>Products of the caller's Business. Without a scope (tests, background work) nothing is filtered.</summary>
+    private IQueryable<Product> ScopedProducts()
+    {
+        if (_businessScope is null)
+            return _context.Products;
+
+        var businessId = _businessScope.RequireBusinessId();
+        return _context.Products.Where(p => p.BusinessId == businessId);
     }
 
     public async Task<Product?> GetByIdAsync(long id, bool includeVariants = true)
     {
-        var query = _context.Products
+        var query = ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.Images.Where(i => i.IsPrimary))
             .AsQueryable();
@@ -33,7 +46,7 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product?> GetBySkuAsync(string sku)
     {
-        return await _context.Products
+        return await ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
@@ -42,7 +55,7 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product?> GetByBarcodeAsync(string barcode)
     {
-        return await _context.Products
+        return await ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
@@ -51,7 +64,7 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
-        return await _context.Products
+        return await ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
@@ -71,7 +84,7 @@ public class ProductRepository : IProductRepository
         string sortBy,
         string sortOrder)
     {
-        var query = _context.Products
+        var query = ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
@@ -148,7 +161,7 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetByCategoryAsync(long categoryId)
     {
-        return await _context.Products
+        return await ScopedProducts()
             .Include(p => p.Category)
             .Include(p => p.ProductVariants)
             .Include(p => p.Images.Where(i => i.IsPrimary))
@@ -159,6 +172,8 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product> CreateAsync(Product product)
     {
+        if (_businessScope is not null)
+            product.BusinessId = _businessScope.RequireBusinessId();
         product.CreatedAt = DateTime.UtcNow;
         product.UpdatedAt = DateTime.UtcNow;
 
@@ -170,6 +185,9 @@ public class ProductRepository : IProductRepository
 
     public async Task UpdateAsync(Product product)
     {
+        if (_businessScope is not null && product.BusinessId != _businessScope.RequireBusinessId())
+            throw new KeyNotFoundException($"Product with ID {product.Id} not found");
+
         product.UpdatedAt = DateTime.UtcNow;
 
         _context.Products.Update(product);
@@ -178,7 +196,7 @@ public class ProductRepository : IProductRepository
 
     public async Task DeleteAsync(long id)
     {
-        var product = await _context.Products.FindAsync(id);
+        var product = await ScopedProducts().FirstOrDefaultAsync(p => p.Id == id);
         if (product != null)
         {
             _context.Products.Remove(product);
@@ -188,7 +206,7 @@ public class ProductRepository : IProductRepository
 
     public async Task<bool> ExistsAsync(string name, long? excludeId = null)
     {
-        var query = _context.Products
+        var query = ScopedProducts()
             .Where(p => p.Name.ToLower() == name.ToLower());
 
         if (excludeId.HasValue)
@@ -204,7 +222,7 @@ public class ProductRepository : IProductRepository
         if (string.IsNullOrWhiteSpace(sku))
             return false;
 
-        var query = _context.Products.Where(p => p.Sku == sku);
+        var query = ScopedProducts().Where(p => p.Sku == sku);
 
         if (excludeProductId.HasValue)
         {
@@ -219,7 +237,7 @@ public class ProductRepository : IProductRepository
         if (string.IsNullOrWhiteSpace(barcode))
             return false;
 
-        var query = _context.Products.Where(p => p.Barcode == barcode);
+        var query = ScopedProducts().Where(p => p.Barcode == barcode);
 
         if (excludeProductId.HasValue)
         {
@@ -234,7 +252,7 @@ public class ProductRepository : IProductRepository
         if (string.IsNullOrWhiteSpace(productCode))
             return false;
 
-        var query = _context.Products.Where(p => p.ProductCode == productCode);
+        var query = ScopedProducts().Where(p => p.ProductCode == productCode);
 
         if (excludeProductId.HasValue)
         {

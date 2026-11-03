@@ -1,0 +1,9 @@
+.list-group-flush {
+  li {
+    padding: 16px 0px;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--accent-300);
+    }
+  }
+}

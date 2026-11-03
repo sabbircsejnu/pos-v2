@@ -1,0 +1,54 @@
+<div class="row justify-content-center price-page align-item-center">
+  <div class="col-12">
+    <app-card [showHeader]="false" cardClass="price-top" [padding]="0">
+      <div class="flex align-item-center justify-content-between p-t-25 m-b-10">
+        <div>
+          <div class="f-16 f-w-600">Quality is never an accident. It is always the result of intelligent effort</div>
+          <p class="m-b-0">It makes no difference what the price is, it all makes senses to us.</p>
+        </div>
+        <div class="flex align-item-center">
+          <div class="m-r-10">
+            <label for="year">Billed Yearly</label>
+          </div>
+          <div class="peice">
+            <mat-slide-toggle [(ngModel)]="isChecked" (change)="toggleChecked(isChecked)" color="primary"></mat-slide-toggle>
+          </div>
+          <div class="m-l-10">
+            <label for="half">Billed Monthly</label>
+          </div>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  @for (plan of pricingPlans; track plan) {
+    <div class="col-md-6 col-lg-4">
+      <app-card [showHeader]="false" cardClass="{{ plan.status }}">
+        <div class="price-card">
+          <div class="p-20 text-center" [ngClass]="plan.class">
+            @if (!plan.button_type) {
+              <span class="useable m-b-15">Popular</span>
+            }
+            <div class="f-20 f-w-600" [ngClass]="plan.margin">{{ plan.name }}</div>
+            <p class="text-muted m-b-0">{{ plan.services }} Services</p>
+            <div class="m-x-25 m-y-25 price-price">
+              <div class="f-40 f-w-700">{{ '$' + (togglePrice ? plan.discountedPrice : plan.originalPrice) }}</div>
+              <span class="text-muted">Lifetime</span>
+            </div>
+            <div class="grid">
+              @if (plan.button_type) {
+                <button mat-stroked-button>By Now</button>
+              } @else {
+                <button mat-flat-button color="primary">By Now</button>
+              }
+            </div>
+          </div>
+          <ul class="product-list">
+            @for (feature of plan.features; track feature) {
+              <li class="list-group" [class.enable]="feature.enabled">{{ feature.label }}</li>
+            }
+          </ul>
+        </div>
+      </app-card>
+    </div>
+  }
+</div>

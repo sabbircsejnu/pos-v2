@@ -1,0 +1,13 @@
+<app-card cardTitle="Column Filter" [padding]="0">
+  @if (showGrid) {
+  <ag-grid-angular
+    style="width: 100%; height: calc(100vh - 311px)"
+    [columnDefs]="columnDefs"
+    [defaultColDef]="defaultColDef"
+    [theme]="theme"
+    [rowData]="rowData"
+    (gridReady)="onGridReady()"
+    [enableRtl]="direction"
+  />
+  }
+</app-card>

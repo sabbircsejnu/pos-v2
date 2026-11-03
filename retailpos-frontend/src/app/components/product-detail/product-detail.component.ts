@@ -1,3 +1,4 @@
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -5,15 +6,18 @@ import { AuthService } from '../../services/auth.service';
 import { ProductService } from '../../services/product.service';
 import { ProductImageService } from '../../services/product-image.service';
 import { AlertService } from '../../services/alert.service';
-import { Product } from '../../models/product.model';
+import { Product, describeProductTax } from '../../models/product.model';
 import { ProductImage } from '../../models/product-image.model';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { ImageLightboxComponent } from '../product-form/image-lightbox.component';
+import { ProductStockBadgeComponent } from '../shared/product-stock-badge.component';
+import { ListStateService } from '../../services/list-state.service';
+import { UiBadgeComponent, UiCardComponent } from '../shared/ui';
 
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, AppCurrencyPipe, ImageLightboxComponent],
+  imports: [AppDatePipe, CommonModule, RouterModule, AppCurrencyPipe, ImageLightboxComponent, ProductStockBadgeComponent, UiBadgeComponent, UiCardComponent],
   templateUrl: './product-detail.component.html',
   styleUrl: './product-detail.component.css',
 })
@@ -22,12 +26,17 @@ export class ProductDetailComponent implements OnInit {
   private router = inject(Router);
   private location = inject(Location);
   private productService = inject(ProductService);
+  private listState = inject(ListStateService);
   auth = inject(AuthService);
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   private imageSvc = inject(ProductImageService);
   private alertService = inject(AlertService);
 
   product = signal<Product | null>(null);
+  taxDisplay = computed(() => {
+    const p = this.product();
+    return p ? describeProductTax(p.taxRate, p.taxClassification) : '';
+  });
   images = signal<ProductImage[]>([]);
   isLoading = signal(false);
   imagesLoading = signal(false);
@@ -52,9 +61,17 @@ export class ProductDetailComponent implements OnInit {
   loadProduct(id: number): void {
     this.isLoading.set(true);
     this.error.set(null);
-    this.productService.getById(id).subscribe({
+    const params = this.route.snapshot.queryParams;
+    this.productService.getById(
+      id, this.listState.optionalId(params, 'outletId'), this.listState.optionalId(params, 'warehouseId')
+    ).subscribe({
       next: (response) => {
         const p: Product = response.data;
+        if (!p) {
+          this.error.set('Failed to load product details.');
+          this.isLoading.set(false);
+          return;
+        }
         this.product.set(p);
         this.isLoading.set(false);
         if (p.primaryImageMedium) {

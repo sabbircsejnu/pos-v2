@@ -1,0 +1,23 @@
+@if (!item().hidden) {
+  @if (item().url && !item().external) {
+    <li [ngClass]="item().classes!" [routerLinkActive]="['active']">
+      <a class="nav-link" [target]="item().target ? '_blank' : '_self'" [routerLink]="[item().url]" (click)="toggleMenu($event)">
+        @if (item().icon) {
+          <span class="coded-mtext">{{ item().title }}</span>
+        } @else {
+          {{ item().title }}
+        }
+      </a>
+    </li>
+  } @else if (item().url && item().external) {
+    <li [ngClass]="item().classes!">
+      <a [target]="item().target ? '_blank' : '_self'" [href]="item().url">
+        @if (item().icon) {
+          <span class="coded-mtext">{{ item().title }}</span>
+        } @else {
+          {{ item().title }}
+        }
+      </a>
+    </li>
+  }
+}

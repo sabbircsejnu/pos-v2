@@ -2,6 +2,11 @@ using System.Net;
 using System.Text.Json;
 using RetailPOS.API.Exceptions;
 using RetailPOS.API.Models;
+using RetailPOS.Application.Authorization;
+using RetailPOS.Application.HR.Employees;
+using RetailPOS.Application.Customers;
+using RetailPOS.Application.Sales.Checkout;
+using RetailPOS.Application.Variations;
 using RetailPOS.Core.Entities.Audit;
 using RetailPOS.Infrastructure.Audit;
 
@@ -83,11 +88,81 @@ public class GlobalExceptionHandlerMiddleware
                 errorResponse.Data = inUse.References;
                 break;
 
+            case VariationInUseException inUse:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = inUse.Message;
+                errorResponse.Errors = new List<string> { inUse.Message };
+                errorResponse.Data = inUse.Products;
+                break;
+
+            case HrEmployeeConcurrencyException:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = exception.Message;
+                errorResponse.Errors = new List<string> { exception.Message };
+                break;
+
             case KeyNotFoundException:
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 errorResponse.Success = false;
                 errorResponse.Message = exception.Message;
                 errorResponse.Errors = new List<string> { exception.Message };
+                break;
+
+            case BusinessContextRequiredException:
+                response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Success = false;
+                errorResponse.Message = exception.Message;
+                errorResponse.Errors = new List<string> { exception.Message };
+                errorResponse.ErrorCode = BusinessContextRequiredException.ErrorCode;
+                break;
+
+            case CustomerPhoneConflictException phoneConflict:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = phoneConflict.Message;
+                errorResponse.Errors = new List<string> { phoneConflict.Message };
+                errorResponse.ErrorCode = "CUSTOMER_PHONE_EXISTS";
+                errorResponse.Data = new
+                {
+                    id = phoneConflict.Existing.Id,
+                    name = phoneConflict.Existing.Name,
+                    phone = phoneConflict.Existing.Phone
+                };
+                break;
+
+            case SaleCheckoutConflictException checkoutConflict:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = checkoutConflict.Message;
+                errorResponse.Errors = new List<string> { checkoutConflict.Message };
+                errorResponse.ErrorCode = checkoutConflict.Code;
+                errorResponse.Data = checkoutConflict.Details;
+                break;
+
+            case SaleCheckoutValidationException checkoutValidation:
+                response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Success = false;
+                errorResponse.Message = checkoutValidation.Message;
+                errorResponse.Errors = new List<string> { checkoutValidation.Message };
+                errorResponse.ErrorCode = checkoutValidation.Code;
+                break;
+
+            case SaleCheckoutForbiddenException checkoutForbidden:
+                response.StatusCode = (int)HttpStatusCode.Forbidden;
+                errorResponse.Success = false;
+                errorResponse.Message = checkoutForbidden.Message;
+                errorResponse.Errors = new List<string> { checkoutForbidden.Message };
+                errorResponse.ErrorCode = checkoutForbidden.Code;
+                break;
+
+            case RetailPOS.Application.Pos.CashSessionException cashSession:
+                response.StatusCode = cashSession.HttpStatus;
+                errorResponse.Success = false;
+                errorResponse.Message = cashSession.Message;
+                errorResponse.Errors = new List<string> { cashSession.Message };
+                errorResponse.ErrorCode = cashSession.Code;
                 break;
 
             case InvalidOperationException:
@@ -97,11 +172,15 @@ public class GlobalExceptionHandlerMiddleware
                 errorResponse.Errors = new List<string> { exception.Message };
                 break;
 
+            // An authenticated caller refused by a permission, scope or entitlement check is a 403.
+            // 401 is reserved for missing/invalid credentials (JWT challenge and the auth endpoints),
+            // because clients treat 401 as "the session is gone".
             case UnauthorizedAccessException:
-                response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                response.StatusCode = (int)HttpStatusCode.Forbidden;
                 errorResponse.Success = false;
-                errorResponse.Message = "Unauthorized access";
+                errorResponse.Message = "You do not have permission to perform this action.";
                 errorResponse.Errors = new List<string> { exception.Message };
+                errorResponse.ErrorCode = "forbidden";
                 break;
 
             case ArgumentException:

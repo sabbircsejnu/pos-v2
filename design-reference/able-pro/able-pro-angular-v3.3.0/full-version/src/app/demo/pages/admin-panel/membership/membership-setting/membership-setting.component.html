@@ -1,0 +1,112 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Setting" headerClass="p-y-15">
+      <ng-template #headerOptionsTemplate>
+        <a class="avatar avatar-s text-accent-500 hover" href="javascript:">
+          <svg class="pc-icon">
+            <use xlink:href="assets/fonts/custom-icon.svg#copy"></use>
+          </svg>
+        </a>
+      </ng-template>
+      <mat-card class="border">
+        <mat-card-header class="card-header">
+          <div class="flex align-item-center w-100">
+            <div class="flex-shrink-0">
+              <div class="flex align-item-center justify-content-center f-20 wid-65 hei-65 border-50 bg-accent-300">
+                <i class="ti ti-photo f-18"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1 m-x-15">
+              <div class="f-w-600">Airi Satou</div>
+              <p class="m-b-0">Maiduguri, Borno State</p>
+            </div>
+            <div class="flex-shrink-0">
+              <button mat-button class="bg-accent-300">
+                <div class="flex align-item-center">
+                  <i class="ti ti-edit f-16 m-r-10"></i>
+                  Edit
+                </div>
+              </button>
+            </div>
+          </div>
+        </mat-card-header>
+        <mat-card-content class="p-20">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <app-card [showHeader]="false" cardClass="shadow-none border m-b-0 h-100">
+                <div class="flex align-item-center">
+                  <div class="flex-grow-1 m-r-15">
+                    <div class="f-w-600">Email Address</div>
+                  </div>
+                  <div class="flex-shrink-0">
+                    <button mat-button class="bg-accent-300">
+                      <div class="flex align-item-center">
+                        <i class="ti ti-edit f-16 m-r-10"></i>
+                        Edit
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                <div class="m-b-15 m-t-15">
+                  <mat-form-field appearance="outline" class="w-100">
+                    <mat-label>Your email address is</mat-label>
+                    <input matInput type="email" placeholder="Enter Email" value="emailis@private.com" />
+                  </mat-form-field>
+                </div>
+              </app-card>
+            </div>
+            <div class="col-md-6">
+              <app-card [showHeader]="false" cardClass="shadow-none border mb-0 h-100">
+                <div class="f-w-600 m-b-10">Password</div>
+                <div class="row">
+                  <div class="col-sm-6">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <mat-label>New Password</mat-label>
+                      <input matInput type="password" placeholder="Enter New Password" value="Email" />
+                    </mat-form-field>
+                  </div>
+                  <div class="col-sm-6">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <mat-label>Current Password</mat-label>
+                      <input matInput type="password" placeholder="Enter Current Password" value="Email" />
+                    </mat-form-field>
+                  </div>
+                </div>
+                <p>
+                  Can’t Remember your current password?
+                  <a href="javascript:" class="text-primary-500 text-decoration-underline">Reset your password</a>
+                </p>
+                <button mat-flat-button color="primary">Save Password</button>
+              </app-card>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <div class="row g-3">
+        @for (type of memberPlan; track type) {
+          <div class="col-md-6 col-xl-4">
+            <app-card [showHeader]="false" [padding]="20">
+              <div class="f-w-500 m-b-10">{{ type.title }}</div>
+              <div class="f-w-400 f-20 m-b-10 text-muted">{{ type.value }}</div>
+              <a href="javascript:" class="text-primary-500 flex align-item-center gap-2">
+                {{ type.more }}
+                <i class="ti ti-chevron-right f-20"></i>
+              </a>
+            </app-card>
+          </div>
+        }
+        <div class="col-12">
+          <app-card [showHeader]="false" cardClass="m-b-0" [padding]="20">
+            <div class="f-w-600 m-b-15">Delete Account</div>
+            <p class="m-b-15">
+              Would you like to delete your account?
+              <br />
+              Deleting your account will remove all the content associated with it.
+            </p>
+            <button mat-flat-button color="warn">Delete Account</button>
+          </app-card>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

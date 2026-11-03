@@ -1,0 +1,51 @@
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <button (click)="back()" class="text-gray-500 hover:text-gray-700 mb-2"><i class="fas fa-arrow-left"></i></button>
+        <h1 class="text-2xl font-bold text-gray-900">Manual Journal Details</h1>
+      </div>
+      @if (journal() && auth.hasPermission('accounting.manual_journals.update') && (journal()!.status === 'Draft' || journal()!.status === 'Rejected')) {
+        <button (click)="edit()" class="btn btn-primary">Edit</button>
+      }
+    </div>
+
+    @if (journal()) {
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div><span class="text-gray-500">Journal</span><div class="font-medium">{{ journal()!.journalNumber || ('Draft #' + journal()!.id) }}</div></div>
+        <div><span class="text-gray-500">Status</span><div class="font-medium">{{ journal()!.status }}</div></div>
+        <div><span class="text-gray-500">Posting Date</span><div class="font-medium">{{ journal()!.postingDate | appDate:'mediumDate' }}</div></div>
+        <div><span class="text-gray-500">Description</span><div class="font-medium">{{ journal()!.description || '-' }}</div></div>
+        <div><span class="text-gray-500">Reference Number</span><div class="font-medium">{{ journal()!.referenceNumber || '-' }}</div></div>
+        <div><span class="text-gray-500">Reference Type/ID</span><div class="font-medium">{{ (journal()!.referenceType || '-') + ' / ' + (journal()!.referenceId || '-') }}</div></div>
+      </div>
+
+      <h2 class="text-lg font-semibold mb-2">Lines</h2>
+      <div class="overflow-x-auto mb-6">
+        <table class="table"><thead><tr><th>Account</th><th>Description</th><th>Debit</th><th>Credit</th><th>Outlet</th><th>Warehouse</th><th>Cost Center</th></tr></thead>
+          <tbody>
+            @for (line of journal()!.lines; track line.id) {
+              <tr>
+                <td>{{ line.accountId }}</td><td>{{ line.description || '-' }}</td><td>{{ line.debitAmount }}</td><td>{{ line.creditAmount }}</td><td>{{ line.outletId || '-' }}</td><td>{{ line.warehouseId || '-' }}</td><td>{{ line.costCenterId || '-' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="text-lg font-semibold mb-2">Attachments</h2>
+      @if (journal()!.attachments.length > 0) {
+        <div class="space-y-2">
+          @for (att of journal()!.attachments; track att.id) {
+            <div class="flex items-center justify-between border rounded p-2">
+              <span>{{ att.fileName }}</span>
+              <button (click)="download(att)" class="btn btn-outline">Download</button>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-sm text-gray-600">No attachments.</p>
+      }
+    }
+  </div>
+</div>

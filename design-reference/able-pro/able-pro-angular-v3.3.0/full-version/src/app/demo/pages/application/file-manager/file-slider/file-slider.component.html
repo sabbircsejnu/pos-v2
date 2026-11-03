@@ -1,0 +1,54 @@
+<mat-drawer #file position="end" mode="over" class="file-drawer">
+  <div class="overlay" (click)="fileClose()"></div>
+  <div class="file-content">
+    <div class="file-drawer-header">
+      <div class="f-16 f-w-600">File Preview</div>
+      <a class="avatar avatar-s text-warn-500" (click)="fileClose()">
+        <i class="ti ti-circle-x f-18"></i>
+      </a>
+    </div>
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 115px)', position: 'relative' }">
+      <div class="file-drawer-body">
+        <div class="m-y-15 text-center">
+          <img src="assets/images/application/img-file-doc.svg" alt="img" class="img-fluid wid-100" />
+          <div class="m-b-5 f-16 f-w-600 m-t-20">Document-final.docx</div>
+          <p class="m-b-0 text-muted">16 Nov 2022</p>
+        </div>
+        <mat-divider class="m-t-20 m-b-20"></mat-divider>
+        <div class="f-16 f-w-600">File share with</div>
+        <ul class="list-group list-group-flush">
+          @for (task of user_file; track task) {
+            <li class="list-group-item">
+              <div class="flex align-item-center">
+                <img class="border-50 img-fluid wid-40" src="{{ task.img }}" alt="User image" />
+                <div class="flex-grow-1 m-l-10">
+                  <div class="f-w-600">{{ task.name }}</div>
+                  <div class="m-b-0 mat-small">
+                    <a class="text-muted" href="mailto:{{ task.email }}">{{ task.email }}</a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+        <div class="row m-t-15">
+          <div class="col-12">
+            <div class="grid">
+              <button mat-flat-button color="primary" class="m-b-15">Share</button>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="grid">
+              <button mat-flat-button color="accent">Edit</button>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="grid">
+              <button mat-flat-button color="warn" (click)="fileClose()">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </app-scrollbar>
+  </div>
+</mat-drawer>

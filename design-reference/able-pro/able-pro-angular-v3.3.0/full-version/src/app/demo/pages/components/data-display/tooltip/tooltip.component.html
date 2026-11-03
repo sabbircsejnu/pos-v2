@@ -1,0 +1,150 @@
+<div class="row">
+  <div class="col-lg-6">
+    <app-card cardTitle="Positioned Tooltips" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <button mat-stroked-button class="m-r-10 m-b-10" matTooltip="Add" matTooltipPosition="above">Top</button>
+        <button mat-stroked-button class="m-r-10 m-b-10" matTooltip="Add" matTooltipPosition="below">Bottom</button>
+        <button mat-stroked-button class="m-r-10 m-b-10" matTooltip="Add" matTooltipPosition="right">Right</button>
+        <button mat-stroked-button class="m-r-10 m-b-10" matTooltip="Add" matTooltipPosition="left">Left</button>
+        <button mat-stroked-button class="m-r-10 m-b-10" matTooltip="Add" matTooltipPosition="after">After</button>
+        <button mat-stroked-button class="m-b-10" matTooltip="Add" matTooltipPosition="before">Before</button>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-lg-6">
+    <app-card cardTitle="Tooltip That Can be Manually Shown/Hidden" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <button
+          mat-button
+          (click)="tooltip.show()"
+          aria-label="Show tooltip on the button at the end of this section"
+          class="example-action-button"
+        >
+          show
+        </button>
+        <button
+          mat-button
+          (click)="tooltip.hide()"
+          aria-label="Hide tooltip on the button at the end of this section"
+          class="example-action-button"
+        >
+          hide
+        </button>
+        <button
+          mat-button
+          (click)="tooltip.toggle()"
+          aria-label="Show/Hide tooltip on the button at the end of this section"
+          class="example-action-button"
+        >
+          toggle show/hide
+        </button>
+
+        <button
+          mat-stroked-button
+          #tooltip="matTooltip"
+          matTooltip="Info about the action"
+          matTooltipPosition="right"
+          aria-tooltip="Button that displays and hides a tooltip triggered by other buttons"
+        >
+          Action
+        </button>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-lg-6">
+    <app-card cardTitle="Tooltip With a Changing Message" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <mat-form-field class="m-r-10" appearance="fill">
+          <mat-label>Tooltip message</mat-label>
+          <input matInput [formControl]="message" />
+        </mat-form-field>
+        <button mat-stroked-button [matTooltip]="message.value || ''" aria-label="Button that displays a tooltip with a custom message">
+          Action
+        </button>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-lg-6">
+    <app-card cardTitle="Tooltip With a Show And Hide Delay" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <button
+          mat-stroked-button
+          matTooltip="By default, I delay"
+          aria-label="Button that displays a tooltip that has custom delays through a default config"
+        >
+          Button with delay-default tooltip
+        </button>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-md-6">
+    <app-card cardTitle="UpperCase Tooltip" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <button
+          mat-stroked-button
+          matTooltip="Info about the action"
+          matTooltipClass="example-tooltip-uppercase"
+          aria-label="Button that shows a red tooltip"
+        >
+          Uppercase-tooltip Action
+        </button>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-md-6">
+    <app-card cardTitle="Tooltip That Can be Disabled" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <button
+          mat-stroked-button
+          matTooltip="Info about the action"
+          [matTooltipDisabled]="disabled.value"
+          aria-label="Button that displays a tooltip that can be programmatically disabled"
+        >
+          Action
+        </button>
+        <mat-checkbox [formControl]="disabled" class="example-disabled-checkbox m-l-10">Tooltip disabled</mat-checkbox>
+      </ng-template>
+    </app-card>
+  </div>
+
+  <div class="col-md-12">
+    <app-card cardTitle="Tooltip With a Show And Hide Delay" [showContent]="false" actionClass="p-25 tooltip">
+      <ng-template #actionTemplate>
+        <mat-form-field class="m-r-10 align-item-center" appearance="fill">
+          <mat-label>Show delay</mat-label>
+          <input
+            matInput
+            type="number"
+            [formControl]="showDelay"
+            aria-label="Adds a delay between hovering over the button and displaying the tooltip"
+          />
+          <mat-hint>milliseconds</mat-hint>
+        </mat-form-field>
+        <mat-form-field class="m-r-10" appearance="fill">
+          <mat-label>Hide delay</mat-label>
+          <input
+            matInput
+            type="number"
+            [formControl]="hideDelay"
+            aria-label="Adds a delay between hovering away from the button and hiding the tooltip"
+          />
+          <mat-hint>milliseconds</mat-hint>
+        </mat-form-field>
+        <button
+          mat-stroked-button
+          matTooltip="Info about the action"
+          [matTooltipShowDelay]="showDelay.value"
+          [matTooltipHideDelay]="hideDelay.value"
+          aria-label="Button that displays a tooltip with a customized delay in showing and hiding"
+        >
+          Action
+        </button>
+      </ng-template>
+    </app-card>
+  </div>
+</div>

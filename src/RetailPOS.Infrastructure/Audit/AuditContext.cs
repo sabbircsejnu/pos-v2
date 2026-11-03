@@ -42,6 +42,7 @@ public sealed class AuditContext : IAuditContext
 
     // ── Scope properties ─────────────────────────────────────────────────────
     public bool HasActiveScope => _scopeActive;
+    public bool RequiresAtomicPersistence { get; private set; }
     public string? ScopeActionSummary => _scopeActionSummary;
     public string? ScopeActionType => _scopeActionType;
     public string? ScopeModule => _scopeModule;
@@ -53,9 +54,10 @@ public sealed class AuditContext : IAuditContext
     public void Initialize(AuditContextSnapshot snapshot) => _snapshot = snapshot;
 
     public void BeginScope(string actionSummary, string actionType, string module,
-        string? primaryEntityType, string? primaryEntityId)
+        string? primaryEntityType, string? primaryEntityId, bool requiresAtomicPersistence = false)
     {
         _scopeActive = true;
+        RequiresAtomicPersistence = requiresAtomicPersistence;
         _scopeActionSummary = actionSummary;
         _scopeActionType = actionType;
         _scopeModule = module;
@@ -75,6 +77,7 @@ public sealed class AuditContext : IAuditContext
     public void EndScope()
     {
         _scopeActive = false;
+        RequiresAtomicPersistence = false;
         _scopeEntities.Clear();
         _scopeActionSummary = null;
         _scopeActionType = null;
@@ -116,4 +119,16 @@ public sealed class AuditContext : IAuditContext
             Os: null,
             RealUserName: "System",
             ActingRoleName: null);
+
+    public static AuditContextSnapshot ForBusinessSystemJob(
+        string jobName, long businessId, Guid? correlationId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobName);
+        if (jobName.Any(character => !char.IsAsciiLetterOrDigit(character)
+            && character is not '-' and not '_' and not '.'))
+            throw new ArgumentException("Business audit job names must be stable identifiers.", nameof(jobName));
+        if (businessId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(businessId));
+        return ForSystemJob(jobName, correlationId) with { BusinessId = businessId };
+    }
 }

@@ -1,0 +1,139 @@
+<div class="row m-t-25">
+  <div class="col-lg-6">
+    <app-card cardTitle="Personal Information">
+      <div class="row">
+        <div class="col-sm-12 text-center m-b-15">
+          <div class="user-upload wid-75">
+            <img src="assets/images/user/avatar-4.jpg" alt="img" class="img-fluid" />
+            <label for="uplfile" class="img-avatar-upload">
+              <i class="ti ti-camera f-24 m-b-5"></i>
+              <span>Upload</span>
+            </label>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">First Name</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="Anshan" placeholder="First Name" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">Last Name</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="Handgun" placeholder="Last Name" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">Country</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="New York" placeholder="Country" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">Zip Code</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="number" matInput value="956754" placeholder="Zip Code" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-12">
+          <label for="name" class="f-w-500">Bio</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <textarea matInput rows="3" placeholder="Enter Bio" [(ngModel)]="textareaValue"></textarea>
+          </mat-form-field>
+        </div>
+        <div class="col-sm-12">
+          <label for="phone" class="f-w-500">Experience</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <mat-select [(ngModel)]="selectedExperience">
+              <mat-option value="1">Startup</mat-option>
+              <mat-option value="2">2 Year</mat-option>
+              <mat-option value="3">3 Year</mat-option>
+              <mat-option value="4">4 Year</mat-option>
+              <mat-option value="5">5 Year</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Social Network">
+      <div class="flex align-item-center m-b-10">
+        <div class="flex-grow-1 m-r-15">
+          <div class="flex align-item-center">
+            <div class="flex-shrink-0">
+              <div class="avatar avatar-xs twitter-icon">
+                <i class="fab fa-twitter f-16"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1 m-l-15">Twitter</div>
+          </div>
+        </div>
+        <div class="flex-shrink-0">
+          <button mat-button color="primary">Connect</button>
+        </div>
+      </div>
+      <div class="flex align-item-center m-b-10">
+        <div class="flex-grow-1 m-r-15">
+          <div class="flex align-item-center">
+            <div class="flex-shrink-0">
+              <div class="avatar avatar-xs fb-icon">
+                <i class="fab fa-facebook-f f-16"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1 m-l-15">Facebook</div>
+          </div>
+        </div>
+        <div class="flex-shrink-0">
+          <button mat-button color="warn">Remove</button>
+        </div>
+      </div>
+      <div class="flex align-item-center m-b-10">
+        <div class="flex-grow-1 m-r-15">
+          <div class="flex align-item-center">
+            <div class="flex-shrink-0">
+              <div class="avatar avatar-xs linkedin-icon">
+                <i class="fab fa-linkedin-in f-16"></i>
+              </div>
+            </div>
+            <div class="flex-grow-1 m-l-15">Linkedin</div>
+          </div>
+        </div>
+        <div class="flex-shrink-0">
+          <button mat-button color="primary">Connect</button>
+        </div>
+      </div>
+    </app-card>
+    <app-card cardTitle="Contact Information">
+      <div class="row">
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">Contact Phone</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="(+99) 9999 999 999" placeholder="Enter Your Contact Number" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6">
+          <label for="name" class="f-w-500">
+            Email
+            <span class="text-warn-500">*</span>
+          </label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="demo@sample.com" placeholder="Enter Your Email" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-12">
+          <label for="name" class="f-w-500">Portfolio Url</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput value="https://demo.com" placeholder="Enter Your Url" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-12">
+          <label for="name" class="f-w-500">Address</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <textarea matInput rows="3" placeholder="Enter Your Address" value="3379  Monroe Avenue, Fort Myers, Florida(33912)"></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

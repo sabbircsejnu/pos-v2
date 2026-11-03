@@ -1,3 +1,5 @@
+using RetailPOS.Application.Identity.Abstractions;
+
 namespace RetailPOS.API.Services;
 
 /// <summary>
@@ -5,9 +7,8 @@ namespace RetailPOS.API.Services;
 /// running under the user's real role or under a temporary acting role granted
 /// by a BusinessOwner. Backed entirely by JWT claims — no DB state.
 /// </summary>
-public interface IRoleSwitchContext
+public interface IRoleSwitchContext : IRoleGovernanceContext, IUserGovernanceContext
 {
-    long? RealUserId { get; }
     long? RealRoleId { get; }
     string? RealRoleName { get; }
 
@@ -18,7 +19,6 @@ public interface IRoleSwitchContext
 
     bool IsRoleSwitched { get; }
     bool IsBusinessOwner { get; }
-    bool IsSuperAdmin { get; }
 
     /// <summary>Effective role name for permission checks (acting if switched, otherwise real).</summary>
     string? EffectiveRoleName { get; }

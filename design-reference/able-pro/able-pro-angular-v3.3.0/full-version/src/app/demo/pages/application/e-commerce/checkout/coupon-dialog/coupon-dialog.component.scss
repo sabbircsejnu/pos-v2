@@ -1,0 +1,123 @@
+@import 'src/app/@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.coupon-dialog {
+  .dialog-header {
+    padding: 25px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--accent-300);
+  }
+
+  .dialog-body {
+    padding: 20px;
+
+    .coupon-card {
+      margin: 10px 0px;
+      overflow: hidden;
+      position: relative;
+      border: none;
+
+      .mat-mdc-card-content {
+        > div {
+          position: relative;
+          z-index: 5;
+        }
+
+        &::after {
+          content: '';
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(213.66deg, transparent 25.46%, rgba(0, 0, 0, 0.2) 68.77%, rgba(0, 0, 0, 0.3) 81.72%);
+          z-index: 1;
+        }
+      }
+    }
+
+    .mat-mdc-outlined-button.code {
+      border-color: transparent;
+
+      .mat-mdc-button-persistent-ripple {
+        border-color: $white !important;
+        border-radius: 20px !important;
+      }
+
+      .mdc-button__label {
+        color: $white;
+      }
+    }
+
+    .more-coupon {
+      overflow: hidden;
+
+      .coupon-label {
+        margin: 16px 0 8px;
+        padding: 24px 50px;
+        position: relative;
+        border-radius: 8px;
+        border: 1px dashed;
+
+        &.coupon-label-primary {
+          border-color: var(--primary-500);
+          background: var(--primary-50);
+
+          ::ng-deep.dark & {
+            background: rgba(var(--primary-500), 0.05);
+          }
+
+          &::before,
+          &::after {
+            border-color: var(--primary-500);
+          }
+        }
+
+        &.coupon-label-warning {
+          border-color: var(--warning-500);
+          background: var(--warning-50);
+
+          &::before,
+          &::after {
+            border-color: var(--warning-500);
+          }
+
+          .warning.mdc-button {
+            background: var(--warning-500);
+            color: $white;
+          }
+        }
+
+        &::before {
+          border-right: 1px dashed;
+          left: 0;
+          transform: translate(-50%, -50%) rotate(45deg);
+          content: '';
+          position: absolute;
+          width: 50px;
+          height: 50px;
+          top: 50%;
+          background: $white;
+          border-radius: 50%;
+          border-top: 1px dashed;
+        }
+
+        &::after {
+          right: 0;
+          border-left: 1px dashed;
+          transform: translate(50%, -50%) rotate(-45deg);
+          content: '';
+          position: absolute;
+          width: 50px;
+          height: 50px;
+          top: 50%;
+          background: $white;
+          border-radius: 50%;
+          border-top: 1px dashed;
+        }
+      }
+    }
+  }
+}

@@ -34,7 +34,11 @@ public class UpdateProductDto
     public decimal? CostPrice { get; set; }
     
     [Range(0, 100, ErrorMessage = "Tax rate must be between 0 and 100")]
-    public decimal TaxRate { get; set; }
+    public decimal? TaxRate { get; set; }
+
+    /// <summary>standard | zero_rated | exempt. Leave empty to rely on the rate, or on the Business default when no rate is set.</summary>
+    [MaxLength(20)]
+    public string? TaxClassification { get; set; }
 
     /// <summary>
     /// Product status. Accepted values: "active", "inactive", "draft".

@@ -1,0 +1,7 @@
+@baseUrl = http://localhost:5000
+@token = {{access_token}}
+
+### Get Payroll capability (requires payroll.dashboard.view and Payroll.Enabled)
+GET {{baseUrl}}/api/payroll/v1/capabilities
+Authorization: Bearer {{token}}
+Accept: application/json

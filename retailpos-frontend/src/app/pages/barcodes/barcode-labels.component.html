@@ -237,8 +237,8 @@
       <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <h2 class="text-sm font-semibold text-slate-900">Print History</h2>
         <div class="flex flex-wrap gap-2">
-          <input type="date" class="input h-9" [ngModel]="historyStartDate()" (ngModelChange)="historyStartDate.set($event)" />
-          <input type="date" class="input h-9" [ngModel]="historyEndDate()" (ngModelChange)="historyEndDate.set($event)" />
+          <input type="date" appCompanyDate class="input h-9" [ngModel]="historyStartDate()" (ngModelChange)="historyStartDate.set($event)" />
+          <input type="date" appCompanyDate class="input h-9" [ngModel]="historyEndDate()" (ngModelChange)="historyEndDate.set($event)" />
           <select class="select h-9 min-w-52" [ngModel]="historyTemplateId()" (ngModelChange)="historyTemplateId.set($event)">
             <option [ngValue]="undefined">All Templates</option>
             @for (template of templates(); track template.id) {

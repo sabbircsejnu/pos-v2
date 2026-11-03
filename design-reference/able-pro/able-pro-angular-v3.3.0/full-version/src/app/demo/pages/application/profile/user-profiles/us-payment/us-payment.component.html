@@ -1,0 +1,129 @@
+<app-card cardTitle="Payment" padding="0">
+  <div class="p-25">
+    <div class="row">
+      <div class="col-12">
+        <mat-tab-group dynamicHeight mat-stretch-tabs="false" mat-align-tabs="start">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <img src="assets/images/icons/master-card.png" alt="img" class="m-r-10" />
+              Card
+            </ng-template>
+            <div class="row m-t-25">
+              <div class="col-lg-6">
+                <div class="price-check m-b-15">
+                  <mat-radio-button checked color="primary" class="select-card">
+                    <div class="row align-item-center">
+                      <div class="col-6">
+                        <div class="m-b-0 f-w-500 block">Selena Litten</div>
+                        <span class="text-muted m-b-0">**** **** **** 3456</span>
+                      </div>
+                      <div class="col-6 text-end">
+                        <div class="flex-inline align-item-center">
+                          <span class="m-r-10">
+                            <img src="assets/images/icons/master-card.png" alt="img" />
+                          </span>
+                          <a href="javascript:" class="avatar avatar-xs text-warn-500">
+                            <i class="ti ti-trash f-18"></i>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </mat-radio-button>
+                </div>
+              </div>
+              <div class="col-lg-6">
+                <div class="price-check m-b-15">
+                  <mat-radio-button color="primary" class="select-card">
+                    <div class="row align-item-center">
+                      <div class="col-6">
+                        <div class="m-b-0 f-w-500 block">Selena Litten</div>
+                        <span class="text-muted m-b-0">**** **** **** 7654</span>
+                      </div>
+                      <div class="col-6 text-end">
+                        <div class="flex-inline align-item-center justify-content-end">
+                          <span class="m-r-10">
+                            <img src="assets/images/icons/visa-card.png" alt="img" />
+                          </span>
+                          <a href="javascript:" class="avatar avatar-xs text-warn-500">
+                            <i class="ti ti-trash f-18"></i>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </mat-radio-button>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+          <mat-tab label="Second">
+            <ng-template mat-tab-label>
+              <img src="assets/images/icons/paypal.png" alt="img" class="m-r-10" />
+              Paypal
+            </ng-template>
+            <div class="row m-t-25">
+              <div class="col-12">
+                <label for="name" class="f-w-500">Email Address</label>
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  <input type="text" value="stebin.ben@paypal.co" matInput placeholder="Email Address" />
+                </mat-form-field>
+              </div>
+            </div>
+            <div class="text-end">
+              <button mat-stroked-button class="m-r-10">Cancel</button>
+              <button mat-flat-button color="primary">Save</button>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+    </div>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="p-25">
+    <div class="row">
+      <div class="col-12">
+        <div class="m-b-10 f-w-600">Add New Card</div>
+        <mat-divider class="m-b-20"></mat-divider>
+      </div>
+      <div class="col-md-6">
+        <label for="name" class="f-w-500">Name on Card</label>
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <input type="text" matInput placeholder="Name on Card" />
+        </mat-form-field>
+      </div>
+      <div class="col-md-6">
+        <label for="name" class="f-w-500">Card Number</label>
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <input type="number" matInput placeholder="Card Number" />
+        </mat-form-field>
+      </div>
+      <div class="col-md-4">
+        <label for="name" class="f-w-500">Expiry Date</label>
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <input matInput [matDatepicker]="dp" [formControl]="date" />
+          <mat-datepicker-toggle matIconSuffix [for]="dp"></mat-datepicker-toggle>
+          <mat-datepicker
+            #dp
+            startView="multi-year"
+            (monthSelected)="setMonthAndYear($event, dp)"
+            panelClass="example-month-picker"
+          ></mat-datepicker>
+        </mat-form-field>
+      </div>
+      <div class="col-md-4">
+        <label for="name" class="f-w-500">CVV Number</label>
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <input type="number" matInput placeholder="CVV Number" />
+        </mat-form-field>
+      </div>
+      <div class="col-md-4">
+        <label for="name" class="f-w-500">Security Code</label>
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <input matInput [type]="hide ? 'password' : 'text'" />
+          <button mat-icon-button matSuffix (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
+            <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+</app-card>

@@ -1,3 +1,4 @@
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -11,7 +12,7 @@ import { HasPermissionDirective } from '../../directives/has-permission.directiv
 @Component({
   selector: 'app-role-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, HasPermissionDirective],
+  imports: [AppDatePipe, CommonModule, FormsModule, HasPermissionDirective],
   templateUrl: './role-list.component.html',
   styleUrls: ['./role-list.component.css']
 })

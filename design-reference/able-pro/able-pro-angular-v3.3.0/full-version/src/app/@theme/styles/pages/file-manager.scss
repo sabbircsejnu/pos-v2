@@ -1,0 +1,20 @@
+// ================================//
+//     file manager css start       //
+// ================================//
+
+// file-manager
+.mat-mdc-card.pro-card {
+  background-image: url('../../../../assets/images/layout/img-profile-card.jpg');
+  .warning {
+    background: var(--warning-500);
+    color: $white;
+    border-radius: 20px;
+  }
+  .dark & {
+    background-image: url('../../../../assets/images/authentication/img-auth-bg-dark.jpg') !important;
+  }
+}
+
+// ================================//
+//      file manager css End     //
+// ================================//

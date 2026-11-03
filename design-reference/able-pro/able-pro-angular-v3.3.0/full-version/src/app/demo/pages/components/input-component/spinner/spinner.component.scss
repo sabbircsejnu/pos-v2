@@ -1,0 +1,16 @@
+.mat-mdc-progress-spinner {
+  &.spinner-small {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  &.spinner-medium {
+    width: 75px !important;
+    height: 75px !important;
+  }
+}
+
+.card-flex {
+  display: flex;
+  flex-direction: column;
+}

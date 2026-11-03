@@ -73,6 +73,18 @@ public sealed class AuditChangeTrackerInterceptor : SaveChangesInterceptor
 
         foreach (var entry in entries)
         {
+            if (_ctx.RequiresAtomicPersistence)
+            {
+                var businessProperty = entry.Metadata.FindProperty("BusinessId");
+                var businessId = businessProperty is null ? null : entry.Property("BusinessId").CurrentValue;
+                var originalBusinessId = businessProperty is null ? null : entry.Property("BusinessId").OriginalValue;
+                if (businessProperty is not null && (businessId is not long currentBusiness
+                    || currentBusiness != _ctx.BusinessId
+                    || (entry.State != EntityState.Added && originalBusinessId is long originalBusiness
+                        && originalBusiness != _ctx.BusinessId)))
+                    throw new UnauthorizedAccessException("Required audit cannot write another Business's entity.");
+            }
+
             var et = entry.Entity.GetType().Name;
             var op = entry.State switch
             {
@@ -243,11 +255,14 @@ public sealed class AuditChangeTrackerInterceptor : SaveChangesInterceptor
                 header.Entities.Add(entityRow);
             }
 
+            ConfidentialAuditSanitizer.Sanitize(header);
             db.AuditEvents.Add(header);
             db.SaveChanges();
         }
         catch (Exception ex)
         {
+            if (_ctx.RequiresAtomicPersistence)
+                throw;
             _logger.LogError(ex,
                 "Audit save failed — business action was committed but audit record was not persisted. " +
                 "Entity={EntityType} Action={ActionType}",
@@ -399,11 +414,14 @@ public sealed class AuditChangeTrackerInterceptor : SaveChangesInterceptor
                 header.Entities.Add(entityRow);
             }
 
+            ConfidentialAuditSanitizer.Sanitize(header);
             db.AuditEvents.Add(header);
             await db.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {
+            if (_ctx.RequiresAtomicPersistence)
+                throw;
             _logger.LogError(ex,
                 "Audit save failed — business action was committed but audit record was not persisted. " +
                 "Entity={EntityType} Action={ActionType}",

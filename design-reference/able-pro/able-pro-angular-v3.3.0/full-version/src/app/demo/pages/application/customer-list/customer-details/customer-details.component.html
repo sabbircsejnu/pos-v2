@@ -1,0 +1,88 @@
+<div class="customer-details-header">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-w-600 f-16">Customer Details</div>
+    <a class="avatar avatar-s modal-close" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </div>
+</div>
+<app-scrollbar [customStyle]="{ height: 'calc(100vh - 155px)', position: 'relative' }">
+  <div class="customer-details-card p-20">
+    <div class="row">
+      <div class="col-lg-5">
+        <app-card [showHeader]="false" padding="25">
+          <div class="personal-info">
+            <div class="customer-status">
+              <div class="bg-primary-500 text-white f-10">Single</div>
+            </div>
+            <div class="text-center m-t-16">
+              <img src="assets/images/user/avatar-5.jpg" class="img-fluid wid-60 border-50" alt="avatar" />
+              <div class="f-16 f-w-600">Aaron Poole</div>
+              <p class="text-muted">Manufacturing Director</p>
+              <mat-divider class="m-t-15 divider m-b-15"></mat-divider>
+              <div class="row">
+                <div class="col-4">
+                  <div class="f-16 f-w-500">45</div>
+                  <div class="text-muted">Age</div>
+                </div>
+                <div class="col-4 border-side">
+                  <div class="f-16 f-w-500">86%</div>
+                  <div class="text-muted">Progress</div>
+                </div>
+                <div class="col-4">
+                  <div class="f-16 f-w-500">7634</div>
+                  <div class="text-muted">Visits</div>
+                </div>
+              </div>
+              <mat-divider class="m-y-15 divider"></mat-divider>
+              @for (task of userDetails; track task) {
+                <div class="flex-inline align-item-center justify-content-between w-100 m-b-15">
+                  <i class="{{ task.icon }}"></i>
+                  <div>{{ task.text }}</div>
+                </div>
+              }
+              <div class="flex-inline align-item-center justify-content-between w-100 m-b-15">
+                <i class="ti ti-link"></i>
+                <a href="javascript:" class="text-primary-500">
+                  <div>https://anshan.dh.url</div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </app-card>
+      </div>
+      <div class="col-lg-7">
+        <app-card cardTitle="Personal Details" [padding]="20">
+          <div class="personal-details">
+            <ul class="list-group-flush">
+              @for (task of userName; track task) {
+                <li class="list-group-item {{ task.space }}  p-x-0">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <p class="m-b-5 text-muted">{{ task.name }}</p>
+                      <div class="f-w-500">{{ task.text }}</div>
+                    </div>
+                    <div class="col-md-6">
+                      <p class="m-b-5 text-muted">{{ task.secondName }}</p>
+                      <div class="f-w-500">{{ task.otherName }}</div>
+                    </div>
+                  </div>
+                </li>
+              }
+              <li class="list-group-item p-b-0 p-x-0">
+                <p class="m-b-5 text-muted">Address</p>
+                <div class="f-w-500">507 Sulnek Grove, Tudzovgeh, United States - 37173</div>
+              </li>
+            </ul>
+          </div>
+        </app-card>
+        <app-card cardTitle="About Me" [padding]="20">
+          <p class="m-b-0">
+            Hello, I’m Aaron Poole Manufacturing Director based in international company, Void jiidki me na fep juih ced gihhiwi launke cu
+            mig tujum peodpo.
+          </p>
+        </app-card>
+      </div>
+    </div>
+  </div>
+</app-scrollbar>

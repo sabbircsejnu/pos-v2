@@ -1,0 +1,145 @@
+@use '@angular/material' as mat;
+@include mat.core();
+
+// from third party packages
+@import 'node_modules/ngx-owl-carousel-o/lib/styles/prebuilt-themes/owl.carousel.min.css';
+@import 'node_modules/ngx-owl-carousel-o/lib/styles/prebuilt-themes/owl.theme.default.min.css';
+@import 'node_modules/animate.css/animate.min.css';
+
+// quill editor
+@import 'quill/dist/quill.bubble.css';
+@import 'quill/dist/quill.snow.css';
+
+// calender
+@import 'node_modules/flatpickr/dist/flatpickr.css';
+@import 'node_modules/angular-calendar/css/angular-calendar.css';
+
+// font
+@import 'scss/fonts/fontawesome.css';
+@import 'scss/fonts/material.css';
+@import 'scss/fonts/tabler-icons.min.css';
+
+// theme setup
+@import './app/@theme/styles/theme-palette-colors.scss';
+@import './app/@theme/styles/theme-dark-palette-colors.scss';
+@import './app/@theme/styles/theme.scss';
+@include mat.all-component-typographies(theme-typography("'Inter var', sans-serif")); // theme typography
+
+// default theme
+@include mat.all-component-themes(get-light-theme($blue-theme));
+
+// generate non material classes based on theme
+.blue-theme {
+  @include generate-theme-classes($blue-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($blue-dark-theme));
+    @include generate-theme-classes($blue-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.indigo-theme {
+  @include mat.all-component-colors(get-light-theme($indigo-theme));
+  @include generate-theme-classes($indigo-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($indigo-dark-theme));
+    @include generate-theme-classes($indigo-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.purple-theme {
+  @include mat.all-component-colors(get-light-theme($purple-theme));
+  @include generate-theme-classes($purple-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($purple-dark-theme));
+    @include generate-theme-classes($purple-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.pink-theme {
+  @include mat.all-component-colors(get-light-theme($pink-theme));
+  @include generate-theme-classes($pink-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($pink-dark-theme));
+    @include generate-theme-classes($pink-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.red-theme {
+  @include mat.all-component-colors(get-light-theme($red-theme));
+  @include generate-theme-classes($red-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($red-dark-theme));
+    @include generate-theme-classes($red-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.orange-theme {
+  @include mat.all-component-colors(get-light-theme($orange-theme));
+  @include generate-theme-classes($orange-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($orange-dark-theme));
+    @include generate-theme-classes($orange-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.yellow-theme {
+  @include mat.all-component-colors(get-light-theme($yellow-theme));
+  @include generate-theme-classes($yellow-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($yellow-dark-theme));
+    @include generate-theme-classes($yellow-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.green-theme {
+  @include mat.all-component-colors(get-light-theme($green-theme));
+  @include generate-theme-classes($green-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($green-dark-theme));
+    @include generate-theme-classes($green-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.teal-theme {
+  @include mat.all-component-colors(get-light-theme($teal-theme));
+  @include generate-theme-classes($teal-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($teal-dark-theme));
+    @include generate-theme-classes($teal-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+.cyan-theme {
+  @include mat.all-component-colors(get-light-theme($cyan-theme));
+  @include generate-theme-classes($cyan-theme, false); // generate non material classes based on theme
+
+  &.dark {
+    @include mat.all-component-colors(get-dark-theme($cyan-dark-theme));
+    @include generate-theme-classes($cyan-dark-theme, true); // generate non material classes based on theme
+  }
+}
+
+// common
+@import './scss/generic';
+@import './scss/common';
+@import './scss/variables';
+
+// theme layouts
+@import './app/@theme/styles/layouts/menu';
+@import './app/@theme/styles/layouts/compact-menu.scss';
+@import './app/@theme/styles/layouts/horizontal-menu.scss';
+@import './app/@theme/styles/pages/file-manager.scss';
+@import './app/@theme/styles/pages/dashboard.scss';
+@import './app/@theme/styles/theme-mode/rtl';
+
+// grid
+@import './app/@theme/styles/grid';

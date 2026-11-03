@@ -1,113 +1,203 @@
-<div class="container mx-auto px-4 py-6 max-w-2xl">
-  <!-- Header -->
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-800">
-      {{ isEditMode() ? 'Edit Outlet' : 'Create New Outlet' }}
-    </h1>
-    <p class="text-gray-600 mt-2">{{ isEditMode() ? 'Update outlet information' : 'Add a new outlet to your system' }}</p>
-  </div>
+<div class="of-page mx-auto max-w-4xl px-4 py-4">
+  <app-ui-page-header
+    [title]="isEditMode() ? 'Edit Outlet' : 'Create New Outlet'"
+    [description]="isEditMode() ? 'Update outlet information, invoice prefix and POS terminals.' : 'Add a new outlet, its invoice prefix and its POS terminals.'"
+    [breadcrumbs]="[{ label: 'Dashboard', link: '/dashboard' }, { label: 'Outlets', link: '/outlets' }, { label: isEditMode() ? 'Edit' : 'Create' }]" />
 
-  <!-- Error Message -->
   @if (error()) {
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-      {{ error() }}
-    </div>
+    <app-ui-alert variant="danger" title="Could not save the outlet">{{ error() }}</app-ui-alert>
   }
 
-  <!-- Form -->
-  <form [formGroup]="outletForm" (ngSubmit)="onSubmit()" class="bg-white rounded-lg shadow-md p-6">
-    <!-- Outlet Name -->
-    <div class="mb-6">
-      <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
-        Outlet Name <span class="text-red-500">*</span>
-      </label>
-      <input
-        type="text"
-        id="name"
-        formControlName="name"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        [class.border-red-500]="outletForm.get('name')?.invalid && outletForm.get('name')?.touched"
-        placeholder="Enter outlet name"
-      />
-      @if (outletForm.get('name')?.invalid && outletForm.get('name')?.touched) {
-        <p class="text-red-500 text-sm mt-1">{{ getFieldError('name') }}</p>
-      }
-    </div>
+  <form [formGroup]="outletForm" (ngSubmit)="onSubmit()" class="of-form" [attr.aria-busy]="isLoading() ? 'true' : null" novalidate>
+    <app-ui-card title="Outlet details" subtitle="Name, location and the person responsible for this outlet." [loading]="isLoading() && isEditMode() && !isSaving()">
+      <div class="of-grid">
+        <app-ui-form-field class="of-span-2" label="Outlet Name" [required]="true"
+          [messages]="{ required: 'Outlet name is required', minlength: 'Outlet name is too short', maxlength: 'Outlet name is too long' }">
+          <input appUiControl type="text" formControlName="name" placeholder="Enter outlet name" />
+        </app-ui-form-field>
 
-    <!-- Address -->
-    <div class="mb-6">
-      <label for="address" class="block text-sm font-medium text-gray-700 mb-2">
-        Address <span class="text-red-500">*</span>
-      </label>
-      <textarea
-        id="address"
-        formControlName="address"
-        rows="3"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        [class.border-red-500]="outletForm.get('address')?.invalid && outletForm.get('address')?.touched"
-        placeholder="Enter full address"
-      ></textarea>
-      @if (outletForm.get('address')?.invalid && outletForm.get('address')?.touched) {
-        <p class="text-red-500 text-sm mt-1">{{ getFieldError('address') }}</p>
-      }
-    </div>
+        <app-ui-form-field class="of-span-2" label="Address" [required]="true"
+          [messages]="{ required: 'Address is required', minlength: 'Address is too short', maxlength: 'Address is too long' }">
+          <textarea appUiControl formControlName="address" rows="3" placeholder="Enter full address"></textarea>
+        </app-ui-form-field>
 
-    <!-- Contact Number -->
-    <div class="mb-6">
-      <label for="contactNumber" class="block text-sm font-medium text-gray-700 mb-2">
-        Contact Number
-      </label>
-      <input
-        type="text"
-        id="contactNumber"
-        formControlName="contactNumber"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        [class.border-red-500]="outletForm.get('contactNumber')?.invalid && outletForm.get('contactNumber')?.touched"
-        placeholder="Enter contact number"
-      />
-      @if (outletForm.get('contactNumber')?.invalid && outletForm.get('contactNumber')?.touched) {
-        <p class="text-red-500 text-sm mt-1">{{ getFieldError('contactNumber') }}</p>
-      }
-    </div>
+        <app-ui-form-field label="Contact Number" [messages]="{ pattern: 'Contact number format is invalid' }">
+          <input appUiControl type="text" formControlName="contactNumber" placeholder="Enter contact number" />
+        </app-ui-form-field>
 
-    <!-- Manager -->
-    <div class="mb-6">
-      <label for="managerId" class="block text-sm font-medium text-gray-700 mb-2">
-        Manager
-      </label>
-      <select
-        id="managerId"
-        formControlName="managerId"
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option [ngValue]="null">Select a manager (optional)</option>
-        @for (manager of managers(); track manager.id) {
-          <option [ngValue]="manager.id">{{ manager.name }} - {{ manager.roleName }}</option>
+        <app-ui-form-field label="Manager">
+          <select appUiControl formControlName="managerId">
+            <option [ngValue]="null">Select a manager (optional)</option>
+            @for (manager of managers(); track manager.id) {
+              <option [ngValue]="manager.id">{{ manager.name }} - {{ manager.roleName }}</option>
+            }
+          </select>
+        </app-ui-form-field>
+      </div>
+    </app-ui-card>
+
+    <app-ui-card title="Invoicing and time zone" subtitle="Each outlet numbers its invoices with its own prefix.">
+      @if (invoicePrefixLocked()) {
+        <app-ui-badge uiCardActions variant="neutral">Prefix locked</app-ui-badge>
+      }
+      <div class="of-grid">
+        <app-ui-form-field
+          label="Invoice Prefix"
+          [error]="fieldErrors().invoicePrefix ?? ''"
+          [messages]="{ pattern: 'Use 1–10 letters or digits, starting with a letter.' }"
+          [hint]="invoicePrefixLocked()
+            ? 'Locked: invoices were already issued with this prefix, so it can no longer be changed.'
+            : 'Invoice numbers are {PREFIX}{yyMMdd}{sequence}, for example ' + invoiceExample + '. Letters and digits only, up to 10 characters, unique in your business.'">
+          <input appUiControl type="text" formControlName="invoicePrefix" class="of-uppercase" maxlength="10" autocomplete="off"
+            placeholder="e.g. DHK01" (input)="onInvoicePrefixInput($event)" />
+        </app-ui-form-field>
+
+        <app-ui-form-field
+          label="Time Zone"
+          [error]="fieldErrors().timeZoneId ?? ''"
+          hint="Optional override. Leave blank to use the business default time zone.">
+          <input appUiControl type="text" formControlName="timeZoneId" list="outlet-time-zones" autocomplete="off"
+            placeholder="Use business default" />
+          <datalist id="outlet-time-zones">
+            @for (zone of timeZoneSuggestions; track zone) {
+              <option [value]="zone"></option>
+            }
+          </datalist>
+        </app-ui-form-field>
+      </div>
+      @if (!invoicePrefixLocked() && !outletForm.get('invoicePrefix')?.value) {
+        <p class="of-note">Without an invoice prefix this outlet cannot complete sales.</p>
+      }
+    </app-ui-card>
+
+    <app-ui-card title="POS terminals" subtitle="Checkout happens on a terminal. Rename, deactivate or add terminals here.">
+      <app-ui-badge uiCardActions [variant]="activeTerminalCount > 0 ? 'success' : 'warning'">
+        {{ activeTerminalCount }} active
+      </app-ui-badge>
+
+      <div class="of-stack">
+        <app-ui-alert variant="info">
+          Checkout is blocked at an outlet until it has at least one active terminal.
+          @if (!isEditMode()) {
+            Counter 1 is suggested below; nothing is created until you save the outlet.
+          }
+        </app-ui-alert>
+
+        @if (!canManageTerminals) {
+          <app-ui-alert variant="info" title="Read-only">
+            Managing terminals needs the “Manage POS terminals” permission (outlets.terminals.manage).
+            @if (isEditMode()) { Existing terminals are shown for reference. } @else { This outlet will be created without terminals. }
+          </app-ui-alert>
         }
-      </select>
-    </div>
 
-    <!-- Form Actions -->
-    <div class="flex gap-4 pt-4 border-t border-gray-200">
-      <button
-        type="button"
-        (click)="cancel()"
-        [disabled]="isLoading()"
-        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        [disabled]="isLoading() || outletForm.invalid"
-        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        @if (isLoading()) {
-          <i class="fas fa-spinner fa-spin mr-2"></i>Saving...
+        @if (fieldErrors().terminals) {
+          <app-ui-alert variant="danger" title="Terminal problem">{{ fieldErrors().terminals }}</app-ui-alert>
+        }
+
+        @if (terminalRows().length > 0 && activeTerminalCount === 0) {
+          <app-ui-alert variant="warning" title="No active terminal">
+            Sales stay blocked at this outlet until a terminal is active. You can still save the outlet.
+          </app-ui-alert>
+        }
+
+        @if (terminalRows().length === 0) {
+          <app-ui-state [compact]="true" kind="empty" title="No terminals"
+            message="This outlet has no terminals, so sales are blocked until an active terminal exists. You can still save the outlet." />
         } @else {
-          <i class="fas fa-save mr-2"></i>{{ isEditMode() ? 'Update Outlet' : 'Create Outlet' }}
+          <ul class="of-terminals" aria-label="POS terminals">
+            @for (row of terminalRows(); track row; let i = $index) {
+              <li class="of-terminal" [formGroup]="row.group">
+                <app-ui-form-field
+                  class="of-terminal__name"
+                  [label]="'Terminal ' + (i + 1) + ' name'"
+                  [required]="true"
+                  [error]="terminalNameError(row)"
+                  [messages]="{ required: 'Enter a terminal name.', maxlength: 'Use at most ' + terminalNameMaxLength + ' characters.' }">
+                  <input appUiControl type="text" formControlName="name" [attr.maxlength]="terminalNameMaxLength" autocomplete="off" />
+                </app-ui-form-field>
+
+                <div class="of-terminal__side">
+                  <label class="ui-check">
+                    <input appUiControl type="checkbox" formControlName="isActive" />
+                    <span>Active</span>
+                  </label>
+
+                  @if (row.id === null && canManageTerminals) {
+                    <button appUiButton type="button" variant="ghost" size="sm" [iconOnly]="true"
+                      [attr.aria-label]="'Remove unsaved terminal ' + (i + 1)" title="Remove" (click)="removeUnsavedTerminal(row)">
+                      <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                  }
+                  @if (canDeleteTerminal(row)) {
+                    <button appUiButton type="button" variant="ghost" size="sm" [iconOnly]="true"
+                      [attr.aria-label]="'Delete terminal ' + (row.group.controls.name.value || i + 1)" title="Delete terminal" (click)="requestDeleteTerminal(row)">
+                      <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                  }
+                </div>
+
+                <div class="of-terminal__meta">
+                  <span class="of-code">
+                    Code:
+                    @if (row.code) { <code>{{ row.code }}</code> } @else { <em>assigned when saved</em> }
+                  </span>
+                  @if (row.id === null && isEditMode()) {
+                    <app-ui-badge variant="info">Unsaved</app-ui-badge>
+                  }
+                  @if (row.hasOpenSession) {
+                    <app-ui-badge variant="warning">Open session</app-ui-badge>
+                  }
+                  @if (row.hasHistory) {
+                    <app-ui-badge variant="neutral">Has history</app-ui-badge>
+                  }
+                  @if (row.id !== null && !row.group.controls.isActive.value) {
+                    <app-ui-badge variant="neutral">Inactive</app-ui-badge>
+                  }
+                </div>
+
+                @if (row.hasOpenSession) {
+                  <p class="of-note">This terminal has an open cash session. Close the session before deactivating it.</p>
+                } @else if (row.hasHistory) {
+                  <p class="of-note">This terminal has history, so it cannot be deleted. Deactivate it instead.</p>
+                }
+              </li>
+            }
+          </ul>
         }
+
+        @if (canManageTerminals) {
+          <div>
+            <button appUiButton type="button" variant="outline" (click)="addTerminal()">
+              <i class="fas fa-plus" aria-hidden="true"></i>
+              <span>Add terminal</span>
+            </button>
+          </div>
+        }
+      </div>
+    </app-ui-card>
+
+    <div class="of-actions">
+      <button appUiButton type="button" variant="outline" [disabled]="isSaving()" (click)="cancel()">Cancel</button>
+      <button appUiButton type="submit" [loading]="isSaving()">
+        @if (!isSaving()) {
+          <i class="fas fa-save" aria-hidden="true"></i>
+        }
+        <span>{{ isSaving() ? 'Saving...' : isEditMode() ? 'Update Outlet' : 'Create Outlet' }}</span>
       </button>
     </div>
   </form>
+
+  <app-ui-confirm-dialog
+    [(open)]="deleteDialogOpen"
+    title="Delete terminal?"
+    confirmLabel="Delete terminal"
+    [destructive]="true"
+    [busy]="isDeletingTerminal()"
+    (confirmed)="confirmDeleteTerminal()"
+    (cancelled)="cancelDeleteTerminal()">
+    <p>
+      “{{ terminalToDelete()?.group?.controls?.name?.value }}” ({{ terminalToDelete()?.code }}) has no sales or cash-session history.
+      Deleting it takes effect immediately, not when you save the outlet, and cannot be undone.
+    </p>
+  </app-ui-confirm-dialog>
 </div>

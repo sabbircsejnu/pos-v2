@@ -1,0 +1,24 @@
+.invoice-options {
+  display: flex;
+  margin-left: auto !important;
+  margin-bottom: 0;
+  justify-content: end;
+  flex-wrap: wrap;
+
+  .list-inline-item {
+    margin-right: 8px;
+    vertical-align: bottom;
+  }
+}
+
+.invoice-date {
+  @media (min-width: 576px) {
+    text-align: end;
+  }
+}
+
+.invoice-total {
+  margin-left: auto !important;
+  max-width: 400px;
+  width: 100%;
+}

@@ -8,6 +8,7 @@ import {
   LowStock,
   InventoryValuation,
   InventorySearchRequest,
+  VariantAttributeFilterOptions,
   UpdateStockThreshold
 } from '../models/inventory.model';
 
@@ -104,6 +105,20 @@ export class InventoryService {
     return this.http.post<{ success: boolean; data: Inventory[]; message?: string }>(
       `${this.apiUrl}/search`,
       request
+    );
+  }
+
+  getVariantAttributeFilterOptions(
+    outletId?: number,
+    warehouseId?: number
+  ): Observable<{ success: boolean; data: VariantAttributeFilterOptions[]; message?: string }> {
+    let params = new HttpParams();
+    if (outletId) params = params.set('outletId', outletId.toString());
+    if (warehouseId) params = params.set('warehouseId', warehouseId.toString());
+
+    return this.http.get<{ success: boolean; data: VariantAttributeFilterOptions[]; message?: string }>(
+      `${this.apiUrl}/variant-attribute-filters`,
+      { params }
     );
   }
 

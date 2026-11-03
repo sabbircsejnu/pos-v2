@@ -1,0 +1,17 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="Text-editor" [cardClass]="editor">
+      <form [formGroup]="form">
+        <div class="editor">
+          <ngx-editor-menu [editor]="editor" [toolbar]="toolbar"></ngx-editor-menu>
+          <ngx-editor [editor]="editor" formControlName="editorContent"></ngx-editor>
+        </div>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Quill Editor" [cardClass]="editor">
+      <quill-editor></quill-editor>
+    </app-card>
+  </div>
+</div>

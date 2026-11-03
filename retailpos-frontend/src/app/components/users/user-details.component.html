@@ -98,7 +98,7 @@
               <label class="block text-sm font-medium text-gray-500 mb-1">Created At</label>
               <p class="text-lg font-semibold text-gray-800">
                 <i class="fas fa-calendar-plus mr-2 text-purple-600"></i>
-                {{ user()!.createdAt | date:'medium' }}
+                {{ user()!.createdAt | appDate:'medium' }}
               </p>
             </div>
 
@@ -107,7 +107,7 @@
               <label class="block text-sm font-medium text-gray-500 mb-1">Last Updated</label>
               <p class="text-lg font-semibold text-gray-800">
                 <i class="fas fa-calendar-check mr-2 text-orange-600"></i>
-                {{ user()!.updatedAt | date:'medium' }}
+                {{ user()!.updatedAt | appDate:'medium' }}
               </p>
             </div>
           </div>

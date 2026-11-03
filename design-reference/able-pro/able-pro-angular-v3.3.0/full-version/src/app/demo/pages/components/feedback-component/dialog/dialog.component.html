@@ -1,0 +1,27 @@
+<div class="row">
+  <div class="col-sm-6">
+    <app-card cardTitle="Dialog Without Animation">
+      <button mat-stroked-button class="m-r-15" (click)="openDialog('0ms', '0ms')">Open Dialog Without</button>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Dialog With Animation">
+      <button mat-stroked-button class="m-r-15" (click)="openDialog('3000ms', '1500ms')">Open Dialog Slowly</button>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Dialog Content Scroll">
+      <button mat-stroked-button class="m-r-15" (click)="DialogScroll()">Open Dialog With Scroll Content</button>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Dialog Content Inject Data">
+      <button mat-stroked-button class="m-r-15" (click)="InjectDataDialog()">Open Dialog With Inject Data</button>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Dialog Content Element">
+      <button mat-stroked-button class="m-r-15 long-content" (click)="DialogElement()">Launch Dialog With Element Content</button>
+    </app-card>
+  </div>
+</div>

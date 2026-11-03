@@ -17,11 +17,13 @@ This guide is for day-to-day development in the current codebase state.
 ```text
 pos-v2/
 ├── src/
-│   ├── RetailPOS.Core/
+│   ├── RetailPOS.Domain/
+│   ├── RetailPOS.Application/
 │   ├── RetailPOS.Infrastructure/
 │   └── RetailPOS.API/
 ├── retailpos-frontend/
-├── tests/RetailPOS.Tests/
+├── tests/RetailPOS.UnitTests/
+└── tests/RetailPOS.IntegrationTests/
 ├── Docs/
 └── database/
 ```
@@ -76,7 +78,7 @@ npm run build
 ### Run tests
 
 ```powershell
-dotnet test .\tests\RetailPOS.Tests\RetailPOS.Tests.csproj
+dotnet test .\RetailPOS.slnx -c Release
 ```
 
 ## Useful API Endpoints (Implemented)

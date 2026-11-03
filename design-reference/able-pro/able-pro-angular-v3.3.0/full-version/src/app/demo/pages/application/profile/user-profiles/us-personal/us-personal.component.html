@@ -1,0 +1,113 @@
+<app-card [showHeader]="false">
+  <div class="row">
+    <div class="col-12">
+      <div class="m-b-10 f-w-600">Personal Information</div>
+      <mat-divider class="m-b-20"></mat-divider>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">First Name</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="text" value="Stebin" matInput placeholder="First Name" />
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Last Name</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="text" value="Ben" matInput placeholder="Last Name" />
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Email Address</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="text" value="stebin.ben@gmail.com" matInput placeholder="Email" />
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Date of Birth (+18)</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input matInput [matDatepicker]="picker" placeholder="DD/MM/YYYY" />
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Phone Number</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="number" matInput placeholder="9999999999" />
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Designation</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="text" value="Full Stack Developer" matInput placeholder="Designation" />
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="m-b-10 f-w-600">Address</div>
+      <mat-divider class="m-b-20"></mat-divider>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Address 01</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <textarea matInput value="3801 Chalk Butte Rd, Cut Bank, MT 59427, United States" rows="3" placeholder="Enter Location"></textarea>
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">Address 02</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <textarea matInput value="301 Chalk Butte Rd, Cut Bank, NY 96572, New York" rows="3" placeholder="Enter Location"></textarea>
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="phone" class="f-w-500">Country</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <mat-select>
+          <mat-option value="United State">United State</mat-option>
+          <mat-option value="United State 1">United State 1</mat-option>
+          <mat-option value="United State 2">United State 2</mat-option>
+          <mat-option value="United State 2">United State 3</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="col-sm-6">
+      <label for="name" class="f-w-500">State</label>
+      <mat-form-field appearance="outline" class="w-100 m-t-5">
+        <input type="text" value="California" matInput placeholder="State" />
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="m-b-10 f-w-600">Skills</div>
+      <mat-divider class="m-b-20"></mat-divider>
+    </div>
+    <mat-form-field appearance="outline" class="w-100 m-t-5">
+      <mat-select [formControl]="skilling" multiple>
+        @for (skill of skillList; track skill) {
+          <mat-option [value]="skill">{{ skill }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="m-b-10 f-w-600">Note</div>
+      <mat-divider class="m-b-20"></mat-divider>
+    </div>
+    <div class="row">
+      <div class="col-12">
+        <mat-form-field appearance="outline" class="w-100 m-t-5">
+          <textarea matInput [(ngModel)]="textareaValue" rows="5" placeholder="Enter Location"></textarea>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+  <mat-divider class="m-t-15 m-b-15"></mat-divider>
+
+  <div class="text-end">
+    <button mat-stroked-button class="m-r-10">Cancel</button>
+    <button mat-flat-button color="primary">Save</button>
+  </div>
+</app-card>

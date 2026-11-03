@@ -1,0 +1,115 @@
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+.text-opacity-75 {
+  opacity: 0.75;
+}
+
+::ng-deep.tab-card {
+  .mdc-list-item.mdc-list-item--with-one-line {
+    height: auto !important;
+
+    &.active {
+      border-bottom: 2px solid var(--primary-500);
+      border-radius: 0px !important;
+      padding: 10px 20px;
+      padding-left: 20px !important;
+    }
+  }
+  .mat-mdc-list-item,
+  .mat-mdc-list-option {
+    width: auto !important;
+  }
+
+  .mdc-list {
+    padding-bottom: 0px !important;
+  }
+
+  .mdc-list-item__content {
+    overflow: visible !important;
+  }
+
+  .card-header {
+    padding-bottom: 0px !important;
+  }
+}
+
+::ng-deep.storage-card {
+  background: var(--accent-800);
+
+  .avatar {
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--accent-50);
+  }
+
+  &::before {
+    content: '';
+    background-image: url('../../../../../assets/images/widget/img-dropbox-bg.svg');
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    opacity: 0.5;
+    background-position: bottom right;
+    background-size: 100%;
+    background-repeat: no-repeat;
+    border-radius: 12px;
+  }
+}
+
+::ng-deep.balance-card {
+  background-color: var(--primary-500) !important;
+
+  .avatar {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: $white;
+  }
+}
+
+.currency-dollar {
+  background: var(--accent-200);
+
+  ::ng-deep.dark & {
+    background: var(--accent-300);
+  }
+}
+
+.overview-product-legends {
+  border: 1px solid var(--accent-300);
+  padding: 16px;
+  margin-top: 16px;
+  border-radius: 8px;
+
+  p {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: currentColor;
+      margin-left: -10px;
+    }
+
+    span {
+      color: var(--accent-600);
+    }
+  }
+}
+
+.my-n4 {
+  margin-top: -1.5rem !important;
+  margin-bottom: -1.5rem !important;
+}
+
+::ng-deep.apexcharts-legend.apexcharts-align-left .apexcharts-legend-series {
+  display: flex !important;
+}

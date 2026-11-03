@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CustomerService } from '../../services/customer.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { AuthService } from '../../services/auth.service';
 import { CustomerDto, CreateCustomerDto, UpdateCustomerDto } from '../../models/customer.model';
 
 @Component({
@@ -39,10 +40,17 @@ export class CustomerFormComponent implements OnInit {
     private location: Location,
     private route: ActivatedRoute,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private authService: AuthService
   ) {}
 
+  /** Legacy points actions need the enabled backend flag and customers.edit; hidden while the flag is unknown or the lookup failed. */
+  canMutateLegacyPoints(): boolean {
+    return this.customerService.legacyPointsMutationEnabled() && this.authService.hasPermission('customers.edit');
+  }
+
   ngOnInit(): void {
+    this.customerService.getLoyaltyCapabilities().subscribe();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode.set(true);
@@ -137,6 +145,7 @@ export class CustomerFormComponent implements OnInit {
   }
 
   onAddPoints(): void {
+    if (!this.canMutateLegacyPoints()) return;
     const pts = this.pointsToAdd();
     if (!pts || pts <= 0) {
       this.alertService.error('Enter a valid number of points to add');

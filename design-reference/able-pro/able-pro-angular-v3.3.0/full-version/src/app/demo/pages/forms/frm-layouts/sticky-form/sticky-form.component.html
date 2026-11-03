@@ -1,0 +1,106 @@
+<div class="row p-t-25">
+  <div class="col-md-12">
+    <app-card cardTitle="Sticky Action Bar" headerClass="bg-accent-100 sticky-header">
+      <ng-template #headerOptionsTemplate>
+        <div class="sticky-button">
+          <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+          <button mat-flat-button color="accent">Cancel</button>
+        </div>
+      </ng-template>
+      <div class="row">
+        <div class="col-md-4"></div>
+        <div class="col-md-6">
+          <div class="f-16 f-w-600 m-b-10">A. Personal Info</div>
+        </div>
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Name :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="text" placeholder="Enter Full Name" />
+            <mat-hint>Please enter your full name</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Email :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="email" placeholder="Enter Email" />
+            <mat-hint>Please enter your Email</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Password :</label>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="password" placeholder="Enter Email" />
+            <mat-hint>Please enter your Password</mat-hint>
+          </mat-form-field>
+        </div>
+      </div>
+      <mat-divider class="m-t-20 m-b-20"></mat-divider>
+      <div class="row">
+        <div class="col-md-4"></div>
+        <div class="col-md-6">
+          <div class="f-16 f-w-600 m-b-10">B. Educational Info:</div>
+        </div>
+
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Degree Name :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="text" placeholder="Enter Degree Name" />
+            <mat-hint>Please enter your Degree name</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Passing Year :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="number" placeholder="Enter Passing Year" />
+            <mat-hint>Please enter Passing Year</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">College Name :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="text" placeholder="Enter College Name" />
+            <mat-hint>Please enter your College name</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="col-md-4 details">
+          <label class="f-w-500 text-muted md">Work Experience :</label>
+        </div>
+        <div class="col-md-6 m-b-20">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput type="text" placeholder="Enter Work Experience" />
+            <mat-hint>Please enter your Work Experience</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="col-md-4 details horizontal-language">
+          <div class="text-muted f-w-500">Language :</div>
+        </div>
+        <div class="col-md-6">
+          <mat-checkbox color="primary" checked>English</mat-checkbox>
+          <mat-checkbox color="primary">French</mat-checkbox>
+          <mat-checkbox color="primary">Dutch</mat-checkbox>
+        </div>
+        <div class="col-md-4 details horizontal-language">
+          <div class="text-mutedf-w-500">Hobby :</div>
+        </div>
+        <div class="col-md-6">
+          <mat-checkbox color="primary" checked>Reading</mat-checkbox>
+          <mat-checkbox color="primary">Dancing</mat-checkbox>
+          <mat-checkbox color="primary">Swimming</mat-checkbox>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

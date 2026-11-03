@@ -1,0 +1,25 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-start justify-content-between m-b-15">
+    <div class="f-16 f-w-600">Activity</div>
+    <select class="form-select-sm" [(ngModel)]="selectType" (change)="onOptionSelected()">
+      <option value="today">Today</option>
+      <option value="week">Weekly</option>
+      <option value="month">Monthly</option>
+    </select>
+  </div>
+  <div id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [colors]="chartOptions.colors"
+      [stroke]="chartOptions.stroke"
+      [grid]="chartOptions.grid"
+      [dataLabels]="chartOptions.dataLabels"
+      [markers]="chartOptions.markers"
+      [xaxis]="chartOptions.xaxis"
+      [fill]="chartOptions.fill"
+      [legend]="chartOptions.legend"
+      [tooltip]="chartOptions.tooltip"
+    ></apx-chart>
+  </div>
+</app-card>

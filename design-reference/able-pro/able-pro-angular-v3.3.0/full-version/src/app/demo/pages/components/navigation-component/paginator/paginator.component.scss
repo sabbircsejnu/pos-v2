@@ -1,0 +1,14 @@
+::ng-deep.demo-toggles {
+  display: flex;
+  flex-direction: column;
+
+  .mdc-form-field {
+    margin-bottom: 10px;
+  }
+}
+
+.demo-options {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}

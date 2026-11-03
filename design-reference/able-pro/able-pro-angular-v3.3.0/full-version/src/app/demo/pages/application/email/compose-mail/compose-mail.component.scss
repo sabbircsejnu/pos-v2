@@ -1,0 +1,39 @@
+::ng-deep.new-mail-content {
+  .mail-header,
+  .mail-footer {
+    display: flex;
+    padding: 20px;
+    align-items: center;
+    justify-content: space-between;
+
+    ul {
+      margin-right: auto;
+
+      li {
+        vertical-align: bottom;
+      }
+    }
+  }
+
+  .mail-dialog-body {
+    padding: 20px;
+    border-bottom: 1px solid var(--accent-300);
+    border-top: 1px solid var(--accent-300);
+
+    .cc-content {
+      display: none;
+      transform: transform 0.2s ease-in-out;
+
+      &.show {
+        display: block;
+      }
+    }
+  }
+
+  &.full-screen {
+    ~ .cdk-overlay-pane {
+      max-width: 100vw !important;
+      width: 100vw !important;
+    }
+  }
+}

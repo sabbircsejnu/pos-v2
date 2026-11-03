@@ -1,0 +1,84 @@
+::ng-deep.pc-header {
+  min-height: 0px;
+  box-shadow: none;
+  position: fixed;
+  z-index: 1025;
+  backdrop-filter: blur(7px);
+
+  .header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 25px;
+    flex-grow: 1;
+  }
+
+  .header-button {
+    display: inline-flex;
+  }
+
+  .header-item {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    position: relative;
+
+    &.mdc-button {
+      min-width: 54px;
+      padding: 0px;
+    }
+    @media (max-width: 576px) {
+      min-height: 46px;
+
+      &.mdc-button {
+        min-width: 46px;
+      }
+    }
+  }
+
+  .pc-head-link {
+    margin: 0 4px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+
+    > svg,
+    > i {
+      position: relative;
+      color: var(--accent-600);
+    }
+    > i {
+      font-size: 24px;
+    }
+    > svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    &:focus,
+    &:hover {
+      text-decoration: none;
+      color: var(--accent-600);
+
+      > svg,
+      > i {
+        color: var(--accent-600);
+        transform: scale(1.08);
+      }
+    }
+  }
+}
+
+@media (max-width: 567px) {
+  ::ng-deep.pc-header {
+    .header-wrapper {
+      padding: 0px;
+    }
+
+    .pc-head-link {
+      width: 28px !important;
+    }
+  }
+}

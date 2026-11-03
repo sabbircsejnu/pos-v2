@@ -1,162 +1,169 @@
-<nav class="topbar-shell fixed left-0 right-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur" (click)="closeDropdowns()">
-  <div class="px-4 lg:px-5">
-    <div class="flex h-14 items-center justify-between gap-3">
-      <div class="flex items-center gap-2.5">
-        <button
-          (click)="toggleSidebar(); $event.stopPropagation()"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
-          title="Toggle Sidebar">
-          <i class="fas fa-bars text-base"></i>
-        </button>
+<header class="rp-topbar" (click)="closeDropdowns()" (keydown.escape)="closeDropdowns()">
+  <div class="rp-topbar__inner">
+    <div class="rp-topbar__group">
+      <button
+        type="button"
+        (click)="toggleSidebar(); $event.stopPropagation()"
+        class="rp-icon-btn"
+        aria-controls="app-sidebar"
+        aria-label="Toggle navigation menu"
+        title="Toggle navigation menu">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
 
-        <div class="flex items-center gap-2">
-          <div class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-            <i class="fas fa-store text-sm"></i>
-          </div>
-          <div class="hidden md:block">
-            <div class="text-sm font-semibold text-slate-900">Retail POS</div>
-            <div class="text-[11px] text-slate-500">SaaS ERP Platform</div>
-          </div>
-        </div>
+      <div class="rp-topbar__brand">
+        <span class="rp-topbar__brand-mark" aria-hidden="true">
+          <i class="fas fa-store"></i>
+        </span>
+        <span class="rp-topbar__brand-name">Retail POS</span>
       </div>
 
-      <div class="hidden max-w-xl flex-1 lg:block">
-        <form (submit)="runGlobalSearch($event)">
-          <div class="relative">
-            <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input
-              type="text"
-              [(ngModel)]="globalSearch"
-              name="globalSearch"
-              placeholder="Search products, suppliers, orders, reports..."
-              class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 focus:border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
-          </div>
-        </form>
-      </div>
+      <form class="rp-search hidden lg:block" role="search" (submit)="runGlobalSearch($event)">
+        <i class="fas fa-search rp-search__icon" aria-hidden="true"></i>
+        <input
+          type="text"
+          [(ngModel)]="globalSearch"
+          name="globalSearch"
+          aria-label="Search products, suppliers, orders and reports"
+          placeholder="Search products, suppliers, orders, reports..."
+          class="rp-search__input" />
+      </form>
+    </div>
 
-      <div class="flex items-center gap-1.5">
+    <div class="rp-topbar__group">
+      <button
+        type="button"
+        (click)="runGlobalSearch($event)"
+        class="rp-icon-btn rp-icon-btn--mobile-only"
+        aria-label="Search"
+        title="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+      </button>
+
+      <button type="button" class="rp-icon-btn rp-icon-btn--badge" aria-label="Notifications" title="Notifications">
+        <i class="fas fa-bell" aria-hidden="true"></i>
+        <span class="rp-icon-btn__badge" aria-hidden="true">3</span>
+      </button>
+
+      <div class="rp-dropdown">
         <button
-          (click)="runGlobalSearch($event)"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 lg:hidden"
-          title="Search">
-          <i class="fas fa-search text-base"></i>
+          type="button"
+          (click)="toggleRoleSwitchMenu($event)"
+          class="rp-chip-btn"
+          aria-haspopup="true"
+          [attr.aria-expanded]="showRoleSwitchMenu"
+          aria-controls="outlet-switcher-panel"
+          aria-label="Outlet switcher"
+          title="Outlet Switcher">
+          <i class="fas fa-shop" aria-hidden="true"></i>
+          <span class="rp-chip-btn__label hidden md:inline lg:hidden xl:inline">
+            @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
+              {{ currentUser()?.actingOutletName }}
+            } @else {
+              Outlet Switcher
+            }
+          </span>
+          <i class="fas fa-chevron-down rp-chip-btn__chevron hidden md:inline lg:hidden xl:inline" aria-hidden="true"></i>
         </button>
 
-        <button class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100" title="Notifications">
-          <i class="fas fa-bell text-base"></i>
-          <span class="absolute -right-0.5 -top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-semibold text-white">3</span>
-        </button>
-
-        <div class="relative">
-          <button
-            (click)="toggleRoleSwitchMenu($event)"
-            class="hidden items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-100 md:inline-flex"
-            title="Outlet Switcher">
-            <i class="fas fa-shop text-[15px]"></i>
-            <span class="max-w-36 truncate">
-              @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
-                {{ currentUser()?.actingOutletName }}
-              } @else {
-                Outlet Switcher
-              }
-            </span>
-            <i class="fas fa-chevron-down text-xs"></i>
-          </button>
-
-          @if (showRoleSwitchMenu) {
-            <div class="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-slate-200 bg-white p-3 shadow-lg" (click)="$event.stopPropagation()">
-              <div class="mb-3 border-b border-slate-100 pb-2">
-                <div class="text-xs uppercase tracking-wide text-slate-500">Outlet Switcher</div>
-                <div class="text-sm font-semibold text-slate-900">
-                  @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
-                    {{ currentUser()?.actingRoleName }} @ {{ currentUser()?.actingOutletName }}
-                  } @else {
-                    Owner Mode (All Outlets)
-                  }
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <label class="block text-xs font-medium text-slate-600">Acting Role</label>
-                <select
-                  [(ngModel)]="selectedActingRole"
-                  class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20">
-                  <option value="">Select role</option>
-                  @for (r of switchableRoles; track r) {
-                    <option [value]="r">{{ r }}</option>
-                  }
-                </select>
-
-                <label class="block text-xs font-medium text-slate-600">Outlet</label>
-                <select
-                  [(ngModel)]="selectedActingOutletId"
-                  class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20">
-                  <option [ngValue]="null">All outlets</option>
-                  @for (o of outlets(); track o.id) {
-                    <option [ngValue]="o.id">{{ o.name }}</option>
-                  }
-                </select>
-
-                @if (switchError()) {
-                  <div class="text-xs text-rose-600">{{ switchError() }}</div>
+        @if (showRoleSwitchMenu) {
+          <div id="outlet-switcher-panel" class="rp-popover rp-popover--wide" role="group" aria-label="Outlet switcher" (click)="$event.stopPropagation()">
+            <div class="rp-popover__header">
+              <div class="rp-popover__eyebrow">Outlet Switcher</div>
+              <div class="rp-popover__title">
+                @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
+                  {{ currentUser()?.actingRoleName }} &#64; {{ currentUser()?.actingOutletName }}
+                } @else {
+                  Owner Mode (All Outlets)
                 }
+              </div>
+            </div>
 
+            <div class="rp-popover__body">
+              <label for="acting-role-select" class="rp-field-label">Acting Role</label>
+              <select
+                id="acting-role-select"
+                [(ngModel)]="selectedActingRole"
+                class="rp-field">
+                <option value="">Select role</option>
+                @for (r of switchableRoles; track r) {
+                  <option [value]="r">{{ r }}</option>
+                }
+              </select>
+
+              <label for="acting-outlet-select" class="rp-field-label">Outlet</label>
+              <select
+                id="acting-outlet-select"
+                [(ngModel)]="selectedActingOutletId"
+                class="rp-field">
+                <option [ngValue]="null">All outlets</option>
+                @for (o of outlets(); track o.id) {
+                  <option [ngValue]="o.id">{{ o.name }}</option>
+                }
+              </select>
+
+              @if (switchError()) {
+                <div class="rp-field-error" role="alert">{{ switchError() }}</div>
+              }
+
+              <button
+                type="button"
+                (click)="confirmSwitchRole($event)"
+                [disabled]="switchingRole() || !selectedActingRole"
+                class="rp-btn rp-btn--primary">
+                Switch Context
+              </button>
+
+              @if (currentUser()?.isRoleSwitched) {
                 <button
                   type="button"
-                  (click)="confirmSwitchRole($event)"
-                  [disabled]="switchingRole() || !selectedActingRole"
-                  class="w-full rounded-md bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
-                  Switch Context
+                  (click)="returnOwnerMode($event)"
+                  [disabled]="switchingRole()"
+                  class="rp-btn rp-btn--success">
+                  Return Owner Mode
                 </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
 
-                @if (currentUser()?.isRoleSwitched) {
-                  <button
-                    type="button"
-                    (click)="returnOwnerMode($event)"
-                    [disabled]="switchingRole()"
-                    class="w-full rounded-md border border-emerald-200 bg-emerald-50 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
-                    Return Owner Mode
-                  </button>
-                }
-              </div>
-            </div>
-          }
-        </div>
+      <div class="rp-dropdown">
+        <button
+          type="button"
+          (click)="toggleUserMenu(); $event.stopPropagation()"
+          class="rp-chip-btn rp-chip-btn--user"
+          aria-haspopup="true"
+          [attr.aria-expanded]="showUserMenu"
+          aria-controls="user-menu-panel"
+          aria-label="User menu">
+          <span class="rp-avatar" aria-hidden="true">
+            <i class="fas fa-user"></i>
+          </span>
+          <span class="rp-user hidden md:flex">
+            <span class="rp-user__name">{{ currentUser()?.name }}</span>
+            <span class="rp-user__role">{{ currentUser()?.roleName }}</span>
+          </span>
+          <i class="fas fa-chevron-down rp-chip-btn__chevron hidden md:inline" aria-hidden="true"></i>
+        </button>
 
-        <div class="relative">
-          <button
-            (click)="toggleUserMenu(); $event.stopPropagation()"
-            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-slate-700 hover:bg-slate-100">
-            <div class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white">
-              <i class="fas fa-user text-xs"></i>
+        @if (showUserMenu) {
+          <div id="user-menu-panel" class="rp-popover" role="group" aria-label="User menu">
+            <div class="rp-popover__header">
+              <div class="rp-popover__title">{{ currentUser()?.name }}</div>
+              <div class="rp-popover__meta">{{ currentUser()?.email }}</div>
             </div>
-            <div class="hidden text-left md:block">
-              <div class="max-w-32 truncate text-sm font-medium text-slate-900">{{ currentUser()?.name }}</div>
-              <div class="max-w-32 truncate text-[11px] text-slate-500">{{ currentUser()?.roleName }}</div>
-            </div>
-            <i class="fas fa-chevron-down text-xs text-slate-500"></i>
-          </button>
-
-          @if (showUserMenu) {
-            <div class="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-              <div class="border-b border-slate-100 bg-slate-50 px-3 py-2">
-                <div class="text-sm font-semibold text-slate-900">{{ currentUser()?.name }}</div>
-                <div class="text-xs text-slate-500">{{ currentUser()?.email }}</div>
-              </div>
-              <a routerLink="/settings" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
-                <i class="fas fa-cog text-slate-500"></i>
-                <span>Settings</span>
-              </a>
-              <button
-                (click)="logout()"
-                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
-              </button>
-            </div>
-          }
-        </div>
+            <a routerLink="/settings" class="rp-menu-item">
+              <i class="fas fa-cog" aria-hidden="true"></i>
+              <span>Settings</span>
+            </a>
+            <button type="button" (click)="logout()" class="rp-menu-item rp-menu-item--danger">
+              <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+              <span>Logout</span>
+            </button>
+          </div>
+        }
       </div>
     </div>
   </div>
-</nav>
+</header>

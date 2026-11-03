@@ -1,0 +1,45 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-w-600 f-16">Languages support</div>
+    <a [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+    <mat-menu #paymentInfo="matMenu">
+      <a href="javascript:" mat-menu-item>Name</a>
+      <a href="javascript:" mat-menu-item>Date</a>
+      <a href="javascript:" mat-menu-item>Rating</a>
+      <a href="javascript:" mat-menu-item>Unread</a>
+    </mat-menu>
+  </div>
+  <div class="flex align-item-center">
+    <div class="flex-shrink-0">
+      <div class="avatar avatar-xs bg-accent-200">
+        <i class="ti ti-arrow-big-right f-18"></i>
+      </div>
+    </div>
+    <div class="flex-grow-1 m-l-15">
+      <div class="f-w-500">
+        Update version
+        <span class="user-status bg-success-50 text-success-500">V1.1.0</span>
+      </div>
+    </div>
+  </div>
+  <div class="m-t-10 m-b-15" id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [colors]="chartOptions.colors"
+      [xaxis]="chartOptions.xaxis"
+      [stroke]="chartOptions.stroke"
+      [tooltip]="chartOptions.tooltip"
+      [plotOptions]="chartOptions.plotOptions"
+    ></apx-chart>
+  </div>
+  <div class="row">
+    @for (task of languages; track task) {
+      <div class="col-6 m-t-10">
+        <div class="grid">
+          <button mat-stroked-button class="b-rad-20">{{ task.name }}</button>
+        </div>
+      </div>
+    }
+  </div>
+</app-card>

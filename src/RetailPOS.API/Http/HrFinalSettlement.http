@@ -1,0 +1,74 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@exitId = 1
+@settlementId = 1
+@exitVersion = 1
+@revisionNo = 1
+
+### Calculate a new immutable Payroll final-settlement revision
+POST {{baseUrl}}/api/hr/v1/exits/{{exitId}}/final-settlement/calculate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "expectedExitVersion": {{exitVersion}},
+  "idempotencyKey": "replace-with-a-unique-request-key"
+}
+
+### Read the latest final settlement for an exit case
+GET {{baseUrl}}/api/hr/v1/exits/{{exitId}}/final-settlement
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Read a final settlement by its resource ID
+GET {{baseUrl}}/api/hr/v1/final-settlements/{{settlementId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Submit a calculated revision for approval
+POST {{baseUrl}}/api/hr/v1/final-settlements/{{settlementId}}/submit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "revisionNo": {{revisionNo}},
+  "idempotencyKey": "replace-with-a-unique-submission-key"
+}
+
+### Approve a pending final-settlement revision
+POST {{baseUrl}}/api/hr/v1/final-settlements/{{settlementId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "revisionNo": {{revisionNo}},
+  "decisionKey": "replace-with-a-unique-approval-key",
+  "reason": "Reviewed and approved"
+}
+
+### Reject a pending final-settlement revision
+POST {{baseUrl}}/api/hr/v1/final-settlements/{{settlementId}}/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "revisionNo": {{revisionNo}},
+  "decisionKey": "replace-with-a-unique-rejection-key",
+  "reason": "Supporting clearance evidence requires review"
+}
+
+### Cancel a pending final-settlement approval
+POST {{baseUrl}}/api/hr/v1/final-settlements/{{settlementId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "revisionNo": {{revisionNo}},
+  "decisionKey": "replace-with-a-unique-cancellation-key",
+  "reason": "Approval request withdrawn"
+}
+
+### Verify the not-found response for an unknown final settlement
+GET {{baseUrl}}/api/hr/v1/final-settlements/9223372036854775807
+Authorization: Bearer {{token}}
+Accept: application/problem+json

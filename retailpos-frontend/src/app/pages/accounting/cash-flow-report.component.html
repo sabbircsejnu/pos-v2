@@ -1,0 +1,59 @@
+<div class="flex flex-col h-full gap-4 p-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div><h1 class="text-2xl font-bold text-gray-900">Cash Flow Statement</h1><p class="text-sm text-gray-500">Direct Method projection of posted Cash Book liquidity activity</p></div>
+    <div class="flex gap-2"><button class="btn btn-outline text-sm" (click)="export()" [disabled]="isExporting() || isLoading()"><i class="fas fa-download"></i> Export</button><button class="btn btn-primary text-sm" (click)="load()" [disabled]="isLoading()"><i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i> Refresh</button></div>
+  </div>
+
+  <div class="card p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+    <label class="label">From<input type="date" appCompanyDate class="input mt-1" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)"></label>
+    <label class="label">To<input type="date" appCompanyDate class="input mt-1" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)"></label>
+    <label class="label">Comparison From<input type="date" appCompanyDate class="input mt-1" [ngModel]="comparisonFromDate()" (ngModelChange)="comparisonFromDate.set($event)"></label>
+    <label class="label">Comparison To<input type="date" appCompanyDate class="input mt-1" [ngModel]="comparisonToDate()" (ngModelChange)="comparisonToDate.set($event)"></label>
+    <label class="label">Outlet ID<input type="number" class="input mt-1" [ngModel]="outletId()" (ngModelChange)="outletId.set($event || null); warehouseId.set(null)"></label>
+    <label class="label">Warehouse ID<input type="number" class="input mt-1" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event || null); outletId.set(null)"></label>
+    <div class="md:col-span-2 xl:col-span-6 flex justify-end"><button class="btn btn-primary text-sm" (click)="load()" [disabled]="isLoading()">Apply</button></div>
+  </div>
+
+  @if (isLoading()) { <div class="py-16 text-center text-gray-500"><i class="fas fa-spinner fa-spin text-2xl"></i></div> }
+  @else if (error()) { <div class="card p-5 text-red-700">{{ error() }}</div> }
+  @else if (report(); as current) {
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Opening Liquidity</p><p class="text-lg font-bold">{{ formatCurrency(current.openingLiquidity) }}</p></div>
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Operating</p><p class="text-lg font-bold">{{ formatCurrency(current.operatingNetMovement) }}</p></div>
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Investing</p><p class="text-lg font-bold">{{ formatCurrency(current.investingNetMovement) }}</p></div>
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Financing</p><p class="text-lg font-bold">{{ formatCurrency(current.financingNetMovement) }}</p></div>
+      <div class="card p-4" [class.border-amber-400]="hasUnclassified()"><p class="text-xs uppercase text-gray-500">Unclassified</p><p class="text-lg font-bold" [class.text-amber-700]="hasUnclassified()">{{ formatCurrency(current.unclassifiedNetMovement) }}</p></div>
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Net Cash Movement</p><p class="text-lg font-bold">{{ formatCurrency(current.totalExternalNetMovement) }}</p></div>
+      <div class="card p-4"><p class="text-xs uppercase text-gray-500">Closing Liquidity</p><p class="text-lg font-bold">{{ formatCurrency(current.closingLiquidity) }}</p></div>
+      <div class="card p-4" [class.border-red-400]="current.reconciliationDifference !== 0"><p class="text-xs uppercase text-gray-500">Reconciliation Difference</p><p class="text-lg font-bold" [class.text-red-700]="current.reconciliationDifference !== 0">{{ formatCurrency(current.reconciliationDifference) }}</p></div>
+    </div>
+
+    @if (comparison(); as prior) {
+      <section class="card overflow-hidden">
+        <div class="p-4 border-b"><h2 class="font-semibold text-gray-900">Comparison</h2><p class="text-xs text-gray-500">Actual-only comparison using the same backend classification rules</p></div>
+        <div class="overflow-auto"><table class="table min-w-full"><thead><tr><th>Metric</th><th class="text-right">Current</th><th class="text-right">Comparison</th><th class="text-right">Change</th></tr></thead><tbody>
+          <tr><td>Operating</td><td class="text-right">{{ formatCurrency(current.operatingNetMovement) }}</td><td class="text-right">{{ formatCurrency(prior.operatingNetMovement) }}</td><td class="text-right">{{ formatCurrency(current.operatingNetMovement - prior.operatingNetMovement) }}</td></tr>
+          <tr><td>Investing</td><td class="text-right">{{ formatCurrency(current.investingNetMovement) }}</td><td class="text-right">{{ formatCurrency(prior.investingNetMovement) }}</td><td class="text-right">{{ formatCurrency(current.investingNetMovement - prior.investingNetMovement) }}</td></tr>
+          <tr><td>Financing</td><td class="text-right">{{ formatCurrency(current.financingNetMovement) }}</td><td class="text-right">{{ formatCurrency(prior.financingNetMovement) }}</td><td class="text-right">{{ formatCurrency(current.financingNetMovement - prior.financingNetMovement) }}</td></tr>
+          <tr><td>Unclassified</td><td class="text-right">{{ formatCurrency(current.unclassifiedNetMovement) }}</td><td class="text-right">{{ formatCurrency(prior.unclassifiedNetMovement) }}</td><td class="text-right">{{ formatCurrency(current.unclassifiedNetMovement - prior.unclassifiedNetMovement) }}</td></tr>
+          <tr><td class="font-semibold">Net Cash Movement</td><td class="text-right font-semibold">{{ formatCurrency(current.totalExternalNetMovement) }}</td><td class="text-right font-semibold">{{ formatCurrency(prior.totalExternalNetMovement) }}</td><td class="text-right font-semibold">{{ formatCurrency(current.totalExternalNetMovement - prior.totalExternalNetMovement) }}</td></tr>
+        </tbody></table></div>
+      </section>
+    }
+
+    @for (section of sections(); track section.activityType) {
+      <section class="card overflow-hidden" [class.border-amber-400]="section.activityType === 'Unclassified' && section.netMovement !== 0">
+        <div class="p-4 border-b flex flex-wrap justify-between gap-3"><div><h2 class="font-semibold text-gray-900">{{ section.activityType }} Activities</h2><p class="text-xs text-gray-500">{{ section.rows.length }} journal-derived movement{{ section.rows.length === 1 ? '' : 's' }}</p></div><div class="text-right"><p class="text-xs uppercase text-gray-500">Net Movement</p><p class="font-bold">{{ formatCurrency(section.netMovement) }}</p>@if (sectionComparison(section.activityType); as comparisonSection) { <p class="text-xs text-gray-500">Comparison {{ formatCurrency(comparisonSection.netMovement) }}</p> }</div></div>
+        <div class="overflow-auto"><table class="table min-w-full"><thead><tr><th>Date</th><th>Journal / Source</th><th>Account</th><th>Narration</th><th>Counterpart</th><th class="text-right">Inflow</th><th class="text-right">Outflow</th><th class="text-right">Net</th></tr></thead><tbody>
+          @for (row of section.rows; track row.journalEntryLineId) { <tr><td>{{ row.postingDate | appDate:'mediumDate' }}</td><td><div>{{ row.journalNumber || '-' }}</div><div class="text-xs text-gray-500">{{ row.referenceType }} #{{ row.referenceId }}</div></td><td><div>{{ row.accountName }}</div><div class="text-xs text-gray-500">{{ row.accountSlot }} · {{ row.accountCode }}</div></td><td>{{ row.narration || '-' }}</td><td>{{ row.counterpartAccounts || '-' }}</td><td class="text-right text-green-700">{{ formatCurrency(row.inflow) }}</td><td class="text-right text-red-700">{{ formatCurrency(row.outflow) }}</td><td class="text-right font-medium">{{ formatCurrency(row.netMovement) }}</td></tr> }
+          @if (!section.rows.length) { <tr><td colspan="8" class="py-8 text-center text-gray-500">No {{ section.activityType.toLowerCase() }} cash flow activity in this period.</td></tr> }
+        </tbody></table></div>
+      </section>
+    }
+
+    <section class="card p-4">
+      <h2 class="font-semibold text-gray-900 mb-3">Reconciliation</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm"><div><p class="text-gray-500">Opening + external movement</p><strong>{{ formatCurrency(current.openingLiquidity + current.totalExternalNetMovement) }}</strong></div><div><p class="text-gray-500">Closing liquidity</p><strong>{{ formatCurrency(current.closingLiquidity) }}</strong></div><div [class.text-red-700]="current.reconciliationDifference !== 0"><p class="text-gray-500">GL-derived movement difference</p><strong>{{ formatCurrency(current.reconciliationDifference) }}</strong></div><div><p class="text-gray-500">Internal transfer memo</p><strong>{{ formatCurrency(current.internalTransferNetMovement) }}</strong></div><div><p class="text-gray-500">Cutover/non-cash excluded</p><strong>{{ formatCurrency(current.cutoverAndNonCashNetMovement) }}</strong></div><div><p class="text-gray-500">GL-derived movement</p><strong>{{ formatCurrency(current.glDerivedMovement) }}</strong></div></div>
+    </section>
+  }
+</div>

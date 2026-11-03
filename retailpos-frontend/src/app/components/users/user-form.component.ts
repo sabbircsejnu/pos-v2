@@ -20,6 +20,15 @@ import { Warehouse } from '../../models/warehouse.model';
   styleUrls: ['./user-form.component.css']
 })
 export class UserFormComponent implements OnInit {
+  readonly backdatedPermissionKey = 'sales.backdate';
+  readonly wizardSteps = [
+    { title: 'Basic Information', subtitle: 'Identity, role, and active state' },
+    { title: 'Permissions', subtitle: 'Role and user-level permission overrides' },
+    { title: 'Inventory Location Access', subtitle: 'Access scope for locations' },
+    { title: 'Default Inventory Location', subtitle: 'Starting location for operations' },
+    { title: 'Outlet/Warehouse Assignments', subtitle: 'Assigned outlets and warehouses' }
+  ];
+
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private location = inject(Location);
@@ -36,9 +45,11 @@ export class UserFormComponent implements OnInit {
   isLoading = signal(false);
   error = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  currentStep = signal(0);
   roles = signal<Role[]>([]);
   outlets = signal<Outlet[]>([]);
   warehouses = signal<Warehouse[]>([]);
+  availablePermissionKeys = signal<string[]>([]);
   showPassword = signal(false);
   showConfirmPassword = signal(false);
   selectedInventoryScope = signal<InventoryLocationAccessScope>('assigned_only');
@@ -51,6 +62,7 @@ export class UserFormComponent implements OnInit {
   ngOnInit(): void {
     this.initializeForm();
     this.loadRoles();
+    this.loadPermissionCatalog();
     this.loadOutlets();
     this.loadWarehouses();
     
@@ -85,6 +97,7 @@ export class UserFormComponent implements OnInit {
       roleId: [null, Validators.required],
       outletId: [null],
       outletIds: [[]],
+      userPermissions: [[]],
       warehouseIds: [[]], // Multi-select for warehouses
       defaultLocationType: ['outlet'],
       defaultLocationId: [null],
@@ -104,12 +117,6 @@ export class UserFormComponent implements OnInit {
 
     if (this.isAllScope()) {
       outletControl?.setValue(null);
-
-      outletIdsControl?.setValue([]);
-
-      if (!this.isWarehouseRequiredForSelectedRole()) {
-        warehouseControl?.setValue([]);
-      }
     }
 
     outletControl?.updateValueAndValidity();
@@ -126,6 +133,18 @@ export class UserFormComponent implements OnInit {
       error: (err) => {
         console.error('Error loading roles:', err);
         this.error.set('Failed to load roles');
+      }
+    });
+  }
+
+  loadPermissionCatalog(): void {
+    this.roleService.getAllPermissions().subscribe({
+      next: (permissions) => {
+        const merged = [...new Set([...(permissions || []), this.backdatedPermissionKey])];
+        this.availablePermissionKeys.set(merged);
+      },
+      error: () => {
+        this.availablePermissionKeys.set([this.backdatedPermissionKey]);
       }
     });
   }
@@ -170,7 +189,8 @@ export class UserFormComponent implements OnInit {
         this.userForm.get('password')?.updateValueAndValidity();
         this.userForm.get('confirmPassword')?.updateValueAndValidity();
         
-        const warehouseIds = user.warehouseAssignments?.map(w => w.warehouseId) || [];
+        const warehouseIds = user.warehouseAssignments?.map(w => Number(w.warehouseId)) || [];
+        const outletIds = user.outletAssignments?.map(o => Number(o.outletId)) || [];
         this.editingBusinessId.set(user.businessId ?? null);
         
         this.userForm.patchValue({
@@ -178,7 +198,8 @@ export class UserFormComponent implements OnInit {
           email: user.email,
           roleId: user.roleId,
           outletId: user.outletId,
-          outletIds: user.outletAssignments?.map(o => o.outletId) || [],
+          outletIds: outletIds,
+          userPermissions: user.userPermissions || user.permissions || [],
           warehouseIds: warehouseIds,
           defaultLocationType: user.defaultLocationType || (user.outletId ? 'outlet' : (warehouseIds.length > 0 ? 'warehouse' : 'outlet')),
           defaultLocationId: user.defaultLocationId || user.outletId || warehouseIds[0] || null,
@@ -259,47 +280,23 @@ export class UserFormComponent implements OnInit {
     }
   }
 
-  private isWarehouseRequiredForSelectedRole(): boolean {
-    const roleName = this.getSelectedRoleName();
-    return roleName.toLowerCase() === 'warehousemanager';
-  }
-
   private normalizeAssignmentCollections(
-    accessScope: InventoryLocationAccessScope,
-    outletIds: number[],
-    warehouseIds: number[]
-  ): { normalizedOutletIds?: number[]; normalizedWarehouseIds?: number[] } {
-    const normalizedOutletIds = [...new Set(outletIds.filter(id => id > 0))];
-    const normalizedWarehouseIds = [...new Set(warehouseIds.filter(id => id > 0))];
+    outletIds: unknown[],
+    warehouseIds: unknown[]
+  ): { normalizedOutletIds: number[]; normalizedWarehouseIds: number[] } {
+    const normalize = (ids: unknown[]) =>
+      [...new Set((ids || []).map(id => Number(id)).filter(id => Number.isInteger(id) && id > 0))];
 
-    if (accessScope === 'all_locations') {
-      return {
-        normalizedOutletIds: undefined,
-        normalizedWarehouseIds: this.isWarehouseRequiredForSelectedRole()
-          ? (normalizedWarehouseIds.length > 0 ? normalizedWarehouseIds : undefined)
-          : undefined
-      };
-    }
-
+    // Always send explicit arrays so the API replaces assignments (including removing all of them).
     return {
-      normalizedOutletIds: normalizedOutletIds.length > 0 ? normalizedOutletIds : undefined,
-      normalizedWarehouseIds: normalizedWarehouseIds.length > 0 ? normalizedWarehouseIds : undefined
+      normalizedOutletIds: normalize(outletIds),
+      normalizedWarehouseIds: normalize(warehouseIds)
     };
-  }
-
-  private getSelectedRoleName(): string {
-    const selectedRoleId = Number(this.userForm.get('roleId')?.value);
-    if (!selectedRoleId) {
-      return '';
-    }
-
-    return this.roles().find(r => r.id === selectedRoleId)?.name ?? '';
   }
 
   createUser(): void {
     const formValue = this.userForm.value;
     const assignmentPayload = this.normalizeAssignmentCollections(
-      formValue.inventoryLocationAccessScope,
       formValue.outletIds || [],
       formValue.warehouseIds || []
     );
@@ -315,6 +312,7 @@ export class UserFormComponent implements OnInit {
       defaultLocationType: formValue.defaultLocationType,
       defaultLocationId: formValue.defaultLocationId || undefined,
       inventoryLocationAccessScope: formValue.inventoryLocationAccessScope,
+      userPermissions: formValue.userPermissions || [],
       isActive: formValue.isActive
     };
 
@@ -336,7 +334,6 @@ export class UserFormComponent implements OnInit {
   updateUser(): void {
     const formValue = this.userForm.value;
     const assignmentPayload = this.normalizeAssignmentCollections(
-      formValue.inventoryLocationAccessScope,
       formValue.outletIds || [],
       formValue.warehouseIds || []
     );
@@ -352,6 +349,7 @@ export class UserFormComponent implements OnInit {
       defaultLocationType: formValue.defaultLocationType,
       defaultLocationId: formValue.defaultLocationId || undefined,
       inventoryLocationAccessScope: formValue.inventoryLocationAccessScope,
+      userPermissions: formValue.userPermissions || [],
       isActive: formValue.isActive
     };
 
@@ -418,6 +416,89 @@ export class UserFormComponent implements OnInit {
   isOutletSelected(outletId: number): boolean {
     const outletIds = this.userForm.get('outletIds')?.value || [];
     return outletIds.includes(outletId);
+  }
+
+  goToStep(step: number): void {
+    if (step < 0 || step >= this.wizardSteps.length) {
+      return;
+    }
+
+    if (step > this.currentStep() && !this.validateStep(this.currentStep())) {
+      return;
+    }
+
+    this.currentStep.set(step);
+  }
+
+  nextStep(): void {
+    this.goToStep(this.currentStep() + 1);
+  }
+
+  previousStep(): void {
+    this.currentStep.set(Math.max(0, this.currentStep() - 1));
+  }
+
+  isCurrentStep(step: number): boolean {
+    return this.currentStep() === step;
+  }
+
+  canSaveFromCurrentStep(): boolean {
+    return this.currentStep() === this.wizardSteps.length - 1;
+  }
+
+  toggleUserPermission(permissionKey: string): void {
+    const selected: string[] = [...(this.userForm.get('userPermissions')?.value || [])];
+    const index = selected.indexOf(permissionKey);
+
+    if (index >= 0) {
+      selected.splice(index, 1);
+    } else {
+      selected.push(permissionKey);
+    }
+
+    this.userForm.get('userPermissions')?.setValue([...new Set(selected)]);
+    this.userForm.get('userPermissions')?.markAsTouched();
+  }
+
+  hasUserPermission(permissionKey: string): boolean {
+    const selected: string[] = this.userForm.get('userPermissions')?.value || [];
+    return selected.includes(permissionKey);
+  }
+
+  private validateStep(step: number): boolean {
+    if (step === 0) {
+      const required = ['name', 'email', 'roleId'];
+      if (!this.isEditMode()) {
+        required.push('password', 'confirmPassword');
+      }
+
+      return this.markFieldsAndCheck(required);
+    }
+
+    if (step === 2) {
+      return this.markFieldsAndCheck(['inventoryLocationAccessScope']);
+    }
+
+    if (step === 3) {
+      return this.markFieldsAndCheck(['defaultLocationType', 'defaultLocationId']);
+    }
+
+    return true;
+  }
+
+  private markFieldsAndCheck(fields: string[]): boolean {
+    let isValid = true;
+
+    for (const fieldName of fields) {
+      const control = this.userForm.get(fieldName);
+      control?.markAsTouched();
+      control?.updateValueAndValidity();
+      if (control?.invalid) {
+        isValid = false;
+      }
+    }
+
+    return isValid;
   }
 
   onDefaultLocationTypeChange(): void {

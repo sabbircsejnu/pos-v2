@@ -1,0 +1,138 @@
+.ticket-card {
+  &.open-ticket {
+    border-left: 3px solid var(--warn-500) !important;
+  }
+
+  &.close-ticket {
+    border-left: 3px solid var(--success-500) !important;
+  }
+}
+
+.help-main {
+  &.sm-view {
+    .help-md-hidden,
+    .help-sm-hidden {
+      display: none;
+    }
+  }
+
+  &.md-view {
+    .help-md-hidden {
+      display: none;
+    }
+  }
+}
+
+.user-image {
+  width: 60px;
+
+  @media (max-width: 576px) {
+    width: 45px;
+  }
+}
+
+.user-status {
+  margin-left: 10px;
+
+  @media (max-width: 576px) {
+    margin-left: 0px;
+  }
+}
+
+::ng-deep.active-width {
+  width: 585px !important;
+}
+
+.comment-content {
+  background: var(--accent-100);
+}
+
+.ticket-card {
+  .col-sm-auto {
+    @media (max-width: 576px) {
+      margin-bottom: 16px;
+    }
+  }
+  .user {
+    display: inline-block;
+
+    @media (max-width: 576px) {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-ticket {
+      margin: 0px;
+
+      @media (max-width: 576px) {
+        margin-left: 16px;
+      }
+
+      .list-unstyled {
+        padding-left: 0px;
+        margin-bottom: 0px;
+        margin-top: 8px;
+        @media (min-width: 576px) {
+          text-align: center;
+        }
+      }
+    }
+  }
+}
+
+.popup-trigger {
+  .comment-list {
+    display: flex;
+    align-items: center;
+    padding-left: 0px;
+
+    @media (max-width: 576px) {
+      display: block;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      margin-top: 4px;
+      margin-right: 8px;
+
+      @media (max-width: 576px) {
+        &:not(:nth-last-child(-n + 2)) {
+          display: block;
+        }
+      }
+    }
+  }
+}
+
+::ng-deep.ticket-drawer {
+  z-index: 1025;
+  width: 585px;
+  position: fixed;
+
+  .ticket-header {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--accent-300);
+  }
+
+  @media (max-width: 576px) {
+    width: 350px;
+  }
+}
+
+::ng-deep.ticketCategories {
+  ul {
+    li {
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--accent-300);
+      }
+    }
+  }
+}
+
+::ng-deep.ql-editor {
+  height: 250px;
+}

@@ -1,0 +1,304 @@
+<div class="row">
+  <div class="col-md-5 col-xxl-4">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600">My Card</div>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover">
+          <i class="ti ti-dots-vertical f-18 text-accent-500"></i>
+        </a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <app-card [showHeader]="false" cardClass="overflow-hidden my-card">
+        <div class="flex">
+          <div class="flex-grow-1 m-r-15">
+            <p class="text-white mat-small m-b-0">CARD NAME</p>
+            <div class="text-white f-16 f-w-600">Jonh Smith</div>
+          </div>
+          <div class="flex-shrink-0">
+            <img src="assets/images/widget/img-card-master.svg" alt="img" class="img-fluid" />
+          </div>
+        </div>
+        <div class="f-20 f-w-600 text-white m-y-15">**** **** **** **** 8361</div>
+        <div class="row">
+          <div class="col-auto">
+            <p class="text-accent-400 mat-small m-b-0">EXP</p>
+            <div class="f-w-600 text-white m-b-0">7/30</div>
+          </div>
+          <div class="col-auto">
+            <p class="text-accent-400 mat-small m-b-0">CVV</p>
+            <div class="text-white f-w-600">455</div>
+          </div>
+        </div>
+      </app-card>
+      <div class="text-center m-t-15">
+        <div class="m-b-5 f-w-600 f-24">$1.480.000</div>
+        <p class="text-muted m-b-0">Total Balance</p>
+      </div>
+    </app-card>
+    <app-card [showHeader]="false" [padding]="0">
+      <div class="flex align-item-center justify-content-between p-15">
+        <div class="f-16 f-w-600">Transactions</div>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover">
+          <i class="ti ti-dots-vertical f-18 text-accent-500"></i>
+        </a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <ul class="list-group list-group-flush">
+        @for (list of transactionsList; track list; let last = $last) {
+          <li class="list-group-item p-x-15" [ngClass]="{ 'border-bottom': !last }">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <div class="avatar avatar-s border {{ list.background }}">{{ list.icon }}</div>
+              </div>
+              <div class="flex-grow-1 m-l-15">
+                <div class="row g-1">
+                  <div class="col-6">
+                    <div class="f-w-600">{{ list.title }}</div>
+                    <p class="text-muted m-b-0 mat-small">
+                      {{ list.description }}
+                    </p>
+                  </div>
+                  <div class="col-6 text-end">
+                    <div class="f-w-600 m-b-5">{{ list.amount }}</div>
+                    <p class="{{ list.status_color }} m-b-0">
+                      <i class="{{ list.progress }}"></i>
+                      {{ list.percentage }}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-md-7 col-xxl-8">
+    <div class="row">
+      <div class="col-md-6 col-xxl-4">
+        <app-transactions-chart [seriesData]="[20, 10, 18, 12, 25, 10, 20]" [colors]="['#2ca87f']" />
+      </div>
+      <div class="col-md-6 col-xxl-4">
+        <app-transactions-chart [seriesData]="[20, 15, 24, 18, 20, 10, 25]" [colors]="['#2ca87f']" />
+      </div>
+      <div class="col-md-12 col-xxl-4">
+        <app-transactions-chart [seriesData]="[20, 10, 18, 12, 25, 10, 20]" [colors]="['#dc2626']" />
+      </div>
+    </div>
+    <app-cash-flow-chart />
+    <app-card [showHeader]="false">
+      <div class="moneyGo">
+        <div class="f-16 f-w-600">Where your money go ?</div>
+        <button mat-flat-button color="primary">
+          <div class="flex align-item-center">
+            <i class="ti ti-plus m-r-15"></i>
+            <span>Add New</span>
+          </div>
+        </button>
+      </div>
+      <div class="row g-3">
+        @for (item of moneyGoList; track item) {
+          <div class="col-md-6 col-xxl-3">
+            <app-card [showHeader]="false" [padding]="14" cardClass="border m-b-0 shadow-none">
+              <div class="flex align-item-center justify-content-between m-b-15">
+                <img src="{{ item.image }}" alt="img" class="img-fluid" />
+                <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover">
+                  <i class="ti ti-dots-vertical f-18 text-accent-500"></i>
+                </a>
+                <mat-menu #menu="matMenu">
+                  <a mat-menu-item>Today</a>
+                  <a mat-menu-item>Weekly</a>
+                  <a mat-menu-item>Monthly</a>
+                </mat-menu>
+              </div>
+              <div class="m-b-15 f-w-600">{{ item.title }}</div>
+              <div class="bg-dark p-15 p-t-25 border-8">
+                <mat-progress-bar mode="determinate" class="bg-accent-100" color="accent" [value]="item.progress"></mat-progress-bar>
+                <div class="flex align-item-center justify-content-between m-t-10">
+                  <p class="m-b-0 text-white text-accent-400 mat-small">{{ item.progress }}%</p>
+                  <p class="m-b-0 text-white text-accent-400 mat-small">{{ item.total }}</p>
+                </div>
+              </div>
+            </app-card>
+          </div>
+        }
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-12 col-xxl-4">
+    <app-card [showHeader]="false">
+      <div class="m-b-15 f-16 f-w-600">Accounts</div>
+      <div class="row g-3">
+        @for (card of accountCardList; track card) {
+          <div class="col-12">
+            @if (card.addNewCard === true) {
+              <app-card [showHeader]="false" cardClass="shadow-none border m-b-0" [padding]="16">
+                <span class="flex align-item-center justify-content-center gap-2 flex-column">
+                  <span class="wid-40 hei-40 flex align-item-center justify-content-center bg-dark text-white border-50">
+                    <i class="ti ti-plus f-18"></i>
+                  </span>
+                  <span class="text-muted">Add to Account</span>
+                </span>
+              </app-card>
+            } @else {
+              <app-card [showHeader]="false" cardClass="shadow-none border m-b-0" [padding]="16">
+                <div class="flex align-item-center">
+                  <div class="flex-shrink-0">
+                    <img src="{{ card.image }}" alt="img" class="img-fluid" />
+                  </div>
+                  <div class="flex-grow-1 m-l-15">
+                    <div class="flex align-item-center justify-content-center gap-2 text-success-500">
+                      <i class="ti ti-circle f-10"></i>
+                      <p class="m-b-0">Active</p>
+                    </div>
+                  </div>
+                  <div class="flex-shrink-0">
+                    <div class="f-w-600">12,920.000</div>
+                    <p class="mb-0">US Dollar</p>
+                  </div>
+                </div>
+              </app-card>
+            }
+          </div>
+        }
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6 col-xxl-4">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between mb-3">
+        <div class="f-16 f-w-600 m-b-0">Quick Transfer</div>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover">
+          <i class="ti ti-dots-vertical f-18 text-accent-500"></i>
+        </a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <div class="flex align-item-center justify-content-between gap-2 m-y-15">
+        @for (list of userList; track list) {
+          @if (list.newUserAdd === true) {
+            <a href="javascript:" class="avatar border border-50 bg-accent-300 text-accent-500">
+              <i class="ti ti-plus f-20"></i>
+            </a>
+          } @else {
+            <a href="javascript:" class="avatar">
+              <img class="border-50 img-fluid" src="{{ list.image }}" alt="User image" />
+            </a>
+          }
+        }
+      </div>
+      <div class="m-y-10 f-16 f-w-600">Recent Transfer</div>
+      <ul class="list-group list-group-flush">
+        @for (list of recentTransfer; track list; let last = $last) {
+          <li class="list-group-item p-x-0" [ngClass]="{ 'p-b-5': last }">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <div class="avatar avatar-s border-8 bg-accent-300">
+                  <img [src]="list.image" alt="img" class="wid-25 border-50" />
+                </div>
+              </div>
+              <div class="flex-grow-1 m-l-15">
+                <div class="row g-1">
+                  <div class="col-6">
+                    <div>{{ list.name }}</div>
+                    <p class="text-muted m-b-0">{{ list.date }}</p>
+                  </div>
+                  <div class="col-6 text-end">
+                    <div class="f-w-600 m-b-5 {{ list.color }}">{{ list.amount }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-md-6 col-xxl-4">
+    <app-category-chart />
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Transaction History" padding="0">
+      <ng-template #headerOptionsTemplate>
+        <a href="javascript:" class="text-primary-500">View All</a>
+      </ng-template>
+      <div class="table-responsive p-b-5">
+        <table mat-table [dataSource]="historySource" class="mat-elevation-z8 monthly-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>USER NAME</th>
+            <td mat-cell class="text-nowrap" *matCellDef="let element" class="text-nowrap p-l-25">
+              <div class="flex align-item-center">
+                <div class="flex-shrink-0">
+                  <img src="{{ element.image }}" alt="user image" class="img-radius wid-40 border-50" />
+                </div>
+                <div class="flex-grow-1 m-l-15">
+                  <div class="f-w-600">{{ element.name }}</div>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="category">
+            <th mat-header-cell *matHeaderCellDef>CATEGORY</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.category }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>DATE/TIME</th>
+            <td mat-cell class="text-nowrap f-w-600" *matCellDef="let element" class="text-nowrap">
+              {{ element.date }}
+              <span class="text-muted mat-small block">{{ element.time }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="amount">
+            <th mat-header-cell *matHeaderCellDef>AMOUNT</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.amount }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>STATUS</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              @if (element.status === 'completed') {
+                <span class="user-status bg-success-500 text-white mat-small">Completed</span>
+              } @else if (element.status === 'pending') {
+                <span class="user-status bg-warning-500 text-white mat-small">Pending</span>
+              } @else if (element.status === 'canceled') {
+                <span class="user-status bg-warn-500 text-white mat-small">Canceled</span>
+              } @else if (element.status === 'progress') {
+                <span class="user-status bg-primary-500 text-white mat-small">In Progress</span>
+              }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="action">
+            <th mat-header-cell *matHeaderCellDef>Action</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+                <i class="ti ti-eye f-20"></i>
+              </a>
+              <a href="javascript:" class="avatar avatar-xs hover text-accent-500 m-x-5">
+                <i class="ti ti-edit f-20"></i>
+              </a>
+              <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+                <i class="ti ti-trash f-20"></i>
+              </a>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="history"></tr>
+          <tr mat-row *matRowDef="let row; columns: history"></tr>
+        </table>
+      </div>
+    </app-card>
+  </div>
+</div>

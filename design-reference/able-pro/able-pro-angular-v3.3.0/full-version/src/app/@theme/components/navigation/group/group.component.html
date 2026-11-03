@@ -1,0 +1,8 @@
+<li class="nav-item coded-menu-caption">
+  <div class="f-w-600 f-16 m-b-0">{{ item().title }}</div>
+</li>
+@for (item of item().children; track item) {
+  @if (item.type === 'item') {
+    <app-component-item [item]="item"></app-component-item>
+  }
+}

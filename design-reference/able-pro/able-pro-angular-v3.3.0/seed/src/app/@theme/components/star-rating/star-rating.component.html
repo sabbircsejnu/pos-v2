@@ -1,0 +1,9 @@
+<a class="flex align-item-center">
+  @for (ratingId of ratingArr; track ratingId; let i = $index) {
+    <div class="text-warning-500 m-l-5" [id]="'star_' + i" (click)="onClick(i + 1)" [matTooltip]="ratingId + 1" matTooltipPosition="above">
+      <mat-icon>
+        {{ showIcon(i) }}
+      </mat-icon>
+    </div>
+  }
+</a>

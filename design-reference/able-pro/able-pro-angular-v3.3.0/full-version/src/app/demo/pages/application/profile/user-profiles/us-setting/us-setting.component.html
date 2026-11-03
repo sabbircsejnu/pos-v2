@@ -1,0 +1,27 @@
+<app-card cardTitle="Settings">
+  <div class="row">
+    <div class="col-sm-12">
+      <ul class="list-group list-group-flush">
+        @for (task of settings; track task) {
+          <li class="list-group-item p-x-0">
+            <div class="flex align-item-center justify-content-between">
+              <div class="flex align-item-center">
+                <i class="f-24 m-r-15 text-primary-500 {{ task.icon }}"></i>
+                <div>
+                  <div class="m-b-5 f-16 f-w-600">{{ task.title }}</div>
+                  <div class="text-muted mat-caption">{{ task.text }}</div>
+                </div>
+              </div>
+              <mat-slide-toggle checked color="primary"></mat-slide-toggle>
+            </div>
+          </li>
+        }
+      </ul>
+      <mat-divider class="m-y-15"></mat-divider>
+      <div class="text-end">
+        <button mat-stroked-button class="m-r-10">Cancel</button>
+        <button mat-flat-button color="primary">Save</button>
+      </div>
+    </div>
+  </div>
+</app-card>

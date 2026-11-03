@@ -1,0 +1,182 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@componentId = 1
+@structureId = 1
+@version = 1
+@periodId = 1
+@runId = 1
+@employeeId = 1
+@expectedPeriodVersion = 1
+
+### List salary components (payroll.salary.view)
+GET {{baseUrl}}/api/payroll/v1/salary-components
+Authorization: ****** 
+Accept: application/json
+
+### Get one salary component (same-Business only)
+GET {{baseUrl}}/api/payroll/v1/salary-components/{{componentId}}
+Authorization: ****** 
+Accept: application/json
+
+### Create a fixed earning component (payroll.salary.manage)
+POST {{baseUrl}}/api/payroll/v1/salary-components
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "code": "BASE",
+  "name": "Base Salary",
+  "componentType": "Earning",
+  "valueType": "Fixed",
+  "taxTreatmentCode": null,
+  "isRecurring": true,
+  "calculationOrder": 1,
+  "formulaExpression": null
+}
+
+### Create a formula component referencing another component code
+POST {{baseUrl}}/api/payroll/v1/salary-components
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "code": "ALLOWANCE",
+  "name": "Allowance",
+  "componentType": "Earning",
+  "valueType": "Formula",
+  "taxTreatmentCode": null,
+  "isRecurring": true,
+  "calculationOrder": 2,
+  "formulaExpression": "BASE * 0.1"
+}
+
+### Update a component using its expected version
+PUT {{baseUrl}}/api/payroll/v1/salary-components/{{componentId}}
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "expectedVersion": {{version}},
+  "data": {
+    "code": "BASE",
+    "name": "Base Salary",
+    "componentType": "Earning",
+    "valueType": "Fixed",
+    "taxTreatmentCode": null,
+    "isRecurring": true,
+    "calculationOrder": 1,
+    "formulaExpression": null
+  }
+}
+
+### Deactivate an unused component
+POST {{baseUrl}}/api/payroll/v1/salary-components/{{componentId}}/deactivate
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "expectedVersion": {{version}}
+}
+
+### List salary structure templates
+GET {{baseUrl}}/api/payroll/v1/salary-structures
+Authorization: ****** 
+Accept: application/json
+
+### Get one salary structure template
+GET {{baseUrl}}/api/payroll/v1/salary-structures/{{structureId}}
+Authorization: ****** 
+Accept: application/json
+
+### Create a reusable structure template
+POST {{baseUrl}}/api/payroll/v1/salary-structures
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "code": "STANDARD",
+  "name": "Standard Monthly",
+  "lines": [
+    {
+      "salaryComponentId": {{componentId}},
+      "defaultValue": 25000.0,
+      "formulaOverride": null,
+      "calculationOrder": 1
+    }
+  ]
+}
+
+### Update a structure template using its expected version
+PUT {{baseUrl}}/api/payroll/v1/salary-structures/{{structureId}}
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "expectedVersion": {{version}},
+  "data": {
+    "code": "STANDARD",
+    "name": "Standard Monthly",
+    "lines": [
+      {
+        "salaryComponentId": {{componentId}},
+        "defaultValue": 26000.0,
+        "formulaOverride": null,
+        "calculationOrder": 1
+      }
+    ]
+  }
+}
+
+### Deactivate a salary structure template
+POST {{baseUrl}}/api/payroll/v1/salary-structures/{{structureId}}/deactivate
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "expectedVersion": {{version}}
+}
+
+### Create a controlled Payroll correction run (payroll.run.reopen + payroll.run.create)
+POST {{baseUrl}}/api/payroll/v1/periods/{{periodId}}/runs/{{runId}}/corrections
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "correctionReference": "CORR-2026-001",
+  "correctionType": "Recalculation",
+  "reason": "Correct approved attendance evidence",
+  "employeeIds": [{{employeeId}}],
+  "idempotencyKey": "correction-2026-001",
+  "expectedPeriodVersion": 1,
+  "expectedOriginalRunVersion": 1
+}
+
+### Read correction lineage and downstream correction requirements
+GET {{baseUrl}}/api/payroll/v1/periods/{{periodId}}/runs/{{runId}}/correction
+Authorization: ****** 
+Accept: application/json
+
+### Create an Off-Cycle Payroll run for an explicit employee subset
+POST {{baseUrl}}/api/payroll/v1/periods/{{periodId}}/runs/off-cycle
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "runReference": "OFF-2026-001",
+  "reason": "Approved supplemental payroll",
+  "scopeType": "Business",
+  "scopeId": null,
+  "employeeIds": [{{employeeId}}],
+  "idempotencyKey": "offcycle-2026-001",
+  "expectedPeriodVersion": 1
+}
+
+### Return an unused Processing period to Open (payroll.period.reopen)
+POST {{baseUrl}}/api/payroll/v1/periods/{{periodId}}/return-to-open
+Authorization: ****** 
+Content-Type: application/json
+
+{
+  "expectedVersion": {{expectedPeriodVersion}},
+  "reason": "No payroll run was required for this period"
+}

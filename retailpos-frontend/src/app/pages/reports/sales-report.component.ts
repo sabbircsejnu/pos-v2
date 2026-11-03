@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +13,12 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-sales-report',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './sales-report.component.html',
   styleUrls: ['./sales-report.component.css']
 })
 export class SalesReportComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   startDate = signal('');
   endDate = signal('');
   isLoading = signal(false);
@@ -93,6 +97,6 @@ export class SalesReportComponent implements OnInit {
   }
 
   formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return this.companyDates.format(dateStr, false);
   }
 }

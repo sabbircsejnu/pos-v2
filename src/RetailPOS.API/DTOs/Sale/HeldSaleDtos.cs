@@ -24,8 +24,8 @@ public class HoldSaleDto
     [Required]
     public long OutletId { get; set; }
 
-    [Required]
-    public long CashierId { get; set; }
+    /// <summary>Deprecated and never trusted: the held cart is always owned by the authenticated user.</summary>
+    public long? CashierId { get; set; }
 
     public long? CustomerId { get; set; }
 

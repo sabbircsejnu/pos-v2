@@ -1,0 +1,87 @@
+<div class="auth-main">
+  <div class="auth-wrapper version-2">
+    <div class="auth-side-content">
+      <img src="assets/images/authentication/img-auth-sideimg.jpg" alt="images" class="img-fluid img-auth-side" />
+    </div>
+    <div class="auth-form">
+      <app-card [showHeader]="false" class="auth-form-card" padding="40">
+        <form (ngSubmit)="onSubmit($event)">
+          <div class="text-center">
+            <a href="javascript:">
+              <img src="assets/images/logo-dark.svg" alt="logo" />
+            </a>
+            <div class="login-with">
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/facebook.svg" alt="facebook" />
+                  <span class="p-l-10">Sign In with Facebook</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/twitter.svg" alt="facebook" />
+                  <span class="p-l-10">Sign In with Twitter</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/google.svg" alt="facebook" />
+                  <span class="p-l-10">Sign In with Google</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="separator">
+            <span>OR</span>
+          </div>
+          <div class="text-center m-b-25 f-20 f-w-500">Login With Your Email</div>
+          <div class="text-start">
+            <label for="name" class="f-w-500 text-start">Enter Username</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput [field]="loginForm.email" placeholder="Email Address" />
+              @if (submitted() && loginForm.email().errors()) {
+                <mat-hint class="text-warn-500">
+                  @if (loginForm.email().errors().required) {
+                    <div>Email is required and must be valid</div>
+                  }
+                </mat-hint>
+              }
+            </mat-form-field>
+            <label for="name" class="f-w-500 text-start">Enter Your Password</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              @if (hide) {
+                <input type="password" id="password" matInput [field]="loginForm.password" placeholder="Enter Password " />
+              } @else {
+                <input type="text" id="password" matInput [field]="loginForm.password" placeholder="Enter Password" />
+              }
+              @if (submitted() && loginForm.password().errors()) {
+                <mat-hint class="text-warn-500">
+                  @if (loginForm.password().errors().required) {
+                    <div>Password is required</div>
+                  }
+                </mat-hint>
+              }
+              <button type="button" mat-icon-button matSuffix (click)="hide = !hide">
+                <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+          <div class="check-me">
+            <mat-checkbox class="float-start" checked color="primary">Remember me?</mat-checkbox>
+            <a class="f-w-400 text-primary-500" [routerLink]="['/authentication-2/forgot-password']">Forgot Password</a>
+          </div>
+          @if (error()) {
+            <div class="bg-warn-50 text-warn-500 p-10 m-t-15 mb-0">{{ error() }}</div>
+          }
+          <div class="grid">
+            <button type="submit" mat-flat-button color="primary" class="b-rad-20 m-t-20">Login</button>
+          </div>
+          <div class="check-me m-t-20">
+            <div class="f-w-400 text-muted">Don't have an Account?</div>
+            <a [routerLink]="['/authentication-2/register']" class="text-primary-500">Create Account</a>
+          </div>
+        </form>
+      </app-card>
+    </div>
+  </div>
+</div>

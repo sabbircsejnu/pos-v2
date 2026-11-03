@@ -8,11 +8,12 @@ import { LowStock } from '../../models/inventory.model';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { Outlet } from '../../models/outlet.model';
 import { Warehouse } from '../../models/warehouse.model';
+import { ProductVariantCellComponent } from '../shared/product-variant-cell.component';
 
 @Component({
   selector: 'app-low-stock-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ProductVariantCellComponent],
   template: `
     <div class="py-4">
       <div class="mb-4 flex justify-between items-center">
@@ -93,8 +94,7 @@ import { Warehouse } from '../../models/warehouse.model';
           <table class="table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Variant</th>
+                <th>Product / Variant</th>
                 <th>SKU</th>
                 <th>Location</th>
                 <th>Current Qty</th>
@@ -106,8 +106,14 @@ import { Warehouse } from '../../models/warehouse.model';
             <tbody>
               @for (item of lowStockItems(); track item.inventoryId) {
                 <tr>
-                  <td class="font-medium">{{ item.productName }}</td>
-                  <td>{{ item.variantName }}</td>
+                  <td class="px-4 py-2.5">
+                    <app-product-variant-cell
+                      [productName]="item.productName"
+                      [variantName]="item.variantName"
+                      [variantAttributes]="item.variantAttributes"
+                      [primaryImageThumb]="item.primaryImageThumb"
+                    />
+                  </td>
                   <td class="text-gray-600">{{ item.sku || '-' }}</td>
                   <td>
                     <div class="text-sm">

@@ -1,0 +1,68 @@
+<app-card cardTitle="Edit Customer" padding="0" cardClass="customer-edit-card m-b-0" headerClass="p-15" actionClass="card-footer block">
+  <ng-template #headerOptionsTemplate>
+    <a class="avatar avatar-s customer-edit-header" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </ng-template>
+  <app-scrollbar [customStyle]="{ height: 'calc(100vh - 275px)', position: 'relative' }">
+    <div class="p-20 edit-customer">
+      <div class="row">
+        <div class="col-sm-3 text-center">
+          <img src="assets/images/user/avatar-5.jpg" alt="avatar" class="img-fluid wid-70 border-50" />
+        </div>
+        <div class="col-sm-9">
+          <label for="name" class="f-w-500">Name</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput placeholder="Name" />
+          </mat-form-field>
+          <label for="name" class="f-w-500">Email</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input type="text" matInput placeholder="Email" />
+          </mat-form-field>
+          <label for="phone" class="f-w-500">Company size</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <mat-select>
+              <mat-option value="1">Select Status</mat-option>
+              <mat-option value="2">Complicated</mat-option>
+              <mat-option value="3">Single</mat-option>
+              <mat-option value="3">Relationship</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <label for="name" class="f-w-500">Location</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <textarea matInput rows="3" placeholder="Enter Location"></textarea>
+          </mat-form-field>
+          <div class="flex align-item-center justify-content-between p-0 m-b-15">
+            <label class="f-w-500 p-r-15">
+              Make Contact Info Public
+              <span class="text-muted w-75 block mat-caption f-w-400 m-t-10">
+                Means that anyone viewing your profile will be able to see your contacts details
+              </span>
+            </label>
+            <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+          </div>
+          <div class="flex align-item-center justify-content-between p-0">
+            <label class="f-w-500 p-r-15">
+              Available to hire
+              <span class="text-muted w-75 block mat-caption f-w-400 m-t-10">
+                Means that anyone viewing your profile will be able to see your contacts details
+              </span>
+            </label>
+            <mat-slide-toggle color="primary" checked></mat-slide-toggle>
+          </div>
+        </div>
+      </div>
+    </div>
+  </app-scrollbar>
+  <ng-template #actionTemplate>
+    <div class="flex align-item-center justify-content-between">
+      <a href="javascript:" class="avatar avatar-s text-warn-500">
+        <i class="ti ti-trash f-18"></i>
+      </a>
+      <div class="flex-grow-1 text-end">
+        <button mat-button mat-dialog-close class="m-r-10">Cancel</button>
+        <button mat-flat-button color="primary" mat-dialog-close>Submit</button>
+      </div>
+    </div>
+  </ng-template>
+</app-card>

@@ -108,8 +108,8 @@
 
           <!-- Metadata -->
           <div class="mt-4 pt-4 border-t text-xs text-gray-500">
-            <div>Created: {{ role.createdAt | date: 'short' }}</div>
-            <div>Updated: {{ role.updatedAt | date: 'short' }}</div>
+            <div>Created: {{ role.createdAt | appDate: 'short' }}</div>
+            <div>Updated: {{ role.updatedAt | appDate: 'short' }}</div>
           </div>
         </div>
       } @empty {

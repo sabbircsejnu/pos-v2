@@ -1,0 +1,34 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@runId = 1
+@compareRunId = 2
+
+### Query a Payroll register report
+GET {{baseUrl}}/api/payroll/v1/reports/advanced?kind=PayrollRegister&from=2026-10-01&to=2026-10-31&page=1&pageSize=50
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Query Payroll variance between two runs
+GET {{baseUrl}}/api/payroll/v1/reports/advanced?kind=PayrollVariance&from=2026-10-01&to=2026-10-31&runId={{runId}}&compareRunId={{compareRunId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Query payment / outstanding / reconciliation evidence
+GET {{baseUrl}}/api/payroll/v1/reports/advanced?kind=PaymentOutstanding&from=2026-10-01&to=2026-10-31&runId={{runId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Query Payroll cost by location and location type
+GET {{baseUrl}}/api/payroll/v1/reports/advanced?kind=CostByLocation&from=2026-10-01&to=2026-10-31&runId={{runId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Export the Payroll register as CSV
+GET {{baseUrl}}/api/payroll/v1/reports/advanced/export/csv?kind=PayrollRegister&from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{token}}
+Accept: text/csv
+
+### Export the Payroll register as XLSX
+GET {{baseUrl}}/api/payroll/v1/reports/advanced/export/xlsx?kind=PayrollRegister&from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{token}}
+Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet

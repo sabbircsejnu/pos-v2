@@ -1,0 +1,53 @@
+.user-comment {
+  .col-sm-auto {
+    margin: 0;
+
+    @media (max-width: 576px) {
+      margin-bottom: 16px;
+    }
+  }
+
+  .user-details {
+    display: inline-block;
+
+    @media (max-width: 576px) {
+      display: flex;
+      align-items: center;
+    }
+    .user-ticket {
+      display: flex;
+      align-items: center;
+      margin-left: 0px;
+      @media (min-width: 576px) {
+        justify-content: center;
+      }
+      @media (max-width: 576px) {
+        margin-left: 16px;
+      }
+    }
+  }
+}
+
+.mark-unread {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+
+  @media (max-width: 576px) {
+    justify-content: start;
+  }
+}
+
+.details-verified {
+  padding: 12px 20px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.list-group-flush {
+  .list-group-item {
+    border-top: 1px solid var(--accent-300);
+  }
+}

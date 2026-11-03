@@ -1,0 +1,25 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-start justify-content-between">
+    <div>
+      <div class="f-16 f-w-600 m-b-5">Earning Courses</div>
+    </div>
+    <select class="form-select-sm" [(ngModel)]="selectType" (change)="onOptionSelected()">
+      <option value="today">Today</option>
+      <option value="week">Weekly</option>
+      <option value="month">Monthly</option>
+    </select>
+  </div>
+  <div id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [dataLabels]="chartOptions.dataLabels"
+      [colors]="chartOptions.colors"
+      [tooltip]="chartOptions.tooltip"
+      [stroke]="chartOptions.stroke"
+      [markers]="chartOptions.markers"
+      [xaxis]="chartOptions.xaxis"
+      [grid]="chartOptions.grid"
+    ></apx-chart>
+  </div>
+</app-card>

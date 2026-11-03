@@ -1,0 +1,85 @@
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+.able-user-group .avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.chart-body {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--accent-100);
+}
+
+.card-head {
+  margin: 0px 10px;
+}
+
+.income-value {
+  background: var(--accent-100);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.gap {
+  gap: 1rem;
+
+  .dot {
+    border-radius: 50%;
+    background: map-get($yellow-theme, 500);
+
+    &.primary {
+      background: var(--primary-500);
+    }
+  }
+}
+
+::ng-deep.welcome-banner {
+  background-color: var(--primary-800);
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: '';
+    background-image: url('../../../../../assets/images/widget/img-dropbox-bg.svg');
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    opacity: 0.5;
+    background-position: bottom right;
+    background-size: 100%;
+    background-repeat: no-repeat;
+    border-radius: 12px;
+  }
+
+  .img-welcome-banner {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    position: relative;
+    z-index: 2;
+    padding-right: 64px;
+
+    @media (max-width: 768px) {
+      padding-right: 24px;
+    }
+
+    img {
+      width: 200px;
+    }
+  }
+
+  .mdc-button.therefore-button {
+    border-color: $white;
+    color: $white;
+  }
+
+  ::ng-deep.dark & {
+    background-color: var(--primary-500) !important;
+  }
+}

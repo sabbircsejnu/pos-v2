@@ -419,8 +419,8 @@ WHERE email = 'suparadmin@sabbir.com';
 - [DbSeeder.cs](DbSeeder.cs) - Main seeder implementation
 - [Program.cs](../../RetailPOS.API/Program.cs) - Startup configuration
 - [RetailPOSDbContext.cs](RetailPOSDbContext.cs) - Database context
-- [User.cs](../../RetailPOS.Core/Entities/User.cs) - User entity
-- [Role.cs](../../RetailPOS.Core/Entities/Role.cs) - Role entity
+- [User.cs](../../RetailPOS.Domain/Entities/User.cs) - User entity
+- [Role.cs](../../RetailPOS.Domain/Entities/Role.cs) - Role entity
 
 ---
 

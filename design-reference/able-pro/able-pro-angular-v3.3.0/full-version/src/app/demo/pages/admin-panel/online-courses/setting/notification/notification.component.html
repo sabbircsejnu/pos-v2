@@ -1,0 +1,20 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Notifications">
+      @for (notification of notifications; track notification) {
+        <div class="f-w-600">{{ notification.title }}</div>
+        <p class="text-muted">{{ notification.description }}</p>
+        <app-card [showHeader]="false" cardClass="shadow-none border" [padding]="16">
+          @for (list of notification.type; track list; let i = $index) {
+            <div class="flex align-item-center justify-content-between m-b-10">
+              <div>
+                <p class="text-muted m-b-0">{{ list.name }}</p>
+              </div>
+              <mat-slide-toggle color="primary" [(ngModel)]="list.checked"></mat-slide-toggle>
+            </div>
+          }
+        </app-card>
+      }
+    </app-card>
+  </div>
+</div>

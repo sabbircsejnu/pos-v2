@@ -1,3 +1,4 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +14,7 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-stock-movement-report',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './stock-movement-report.component.html',
   styleUrls: ['./stock-movement-report.component.css']
 })

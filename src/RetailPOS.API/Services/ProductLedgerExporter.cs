@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
 
@@ -21,11 +22,11 @@ public static class ProductLedgerExporter
     public static string ToCsv(
         IReadOnlyList<ProductLedgerRowDto> rows,
         ProductLedgerSummaryDto summary,
-        string productName)
+        string productName, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Product Ledger Report — {EscapeCsv(productName)}");
-        sb.AppendLine($"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC");
+        sb.AppendLine($"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine();
         sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
 
@@ -33,7 +34,7 @@ public static class ProductLedgerExporter
         {
             sb.AppendLine(string.Join(",", new[]
             {
-                EscapeCsv(r.TransactionDate.ToString("dd/MM/yyyy HH:mm")),
+                EscapeCsv(UiDateFormatting.Format(r.TransactionDate, dateFormat)),
                 EscapeCsv(r.TransactionTypeLabel),
                 EscapeCsv(r.ReferenceNumber),
                 EscapeCsv(r.Sku),
@@ -68,7 +69,7 @@ public static class ProductLedgerExporter
     public static byte[] ToExcel(
         IReadOnlyList<ProductLedgerRowDto> rows,
         ProductLedgerSummaryDto summary,
-        string productName)
+        string productName, string dateFormat = "dd/MM/yyyy")
     {
         using var workbook = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Product Ledger");
@@ -76,7 +77,7 @@ public static class ProductLedgerExporter
         ws.Cell(1, 1).Value = $"Product Ledger Report — {productName}";
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC";
+        ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(3, 1).Value = $"Total Transactions: {rows.Count}";
 
         int headerRow = 5;
@@ -93,7 +94,7 @@ public static class ProductLedgerExporter
         int row = headerRow + 1;
         foreach (var r in rows)
         {
-            ws.Cell(row, 1).Value  = r.TransactionDate.ToString("dd/MM/yyyy HH:mm");
+            ws.Cell(row, 1).Value  = UiDateFormatting.Format(r.TransactionDate, dateFormat);
             ws.Cell(row, 2).Value  = r.TransactionTypeLabel;
             ws.Cell(row, 3).Value  = r.ReferenceNumber;
             ws.Cell(row, 4).Value  = r.Sku;

@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Product;
 using RetailPOS.API.Services;
+using RetailPOS.Application.Products.Commands;
+using RetailPOS.Application.Products.Queries;
+using RetailPOS.Application.Products.ReadModels;
+using MediatR;
 
 namespace RetailPOS.API.Controllers;
 
@@ -14,14 +18,56 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "products.view")]
 public class ProductsController : ControllerBase
 {
-    private readonly IProductService _productService;
     private readonly ILogger<ProductsController> _logger;
+    private readonly ISender _sender;
 
-    public ProductsController(IProductService productService, ILogger<ProductsController> logger)
+    public ProductsController(
+        ILogger<ProductsController> logger,
+        ISender sender)
     {
-        _productService = productService;
         _logger = logger;
+        _sender = sender;
     }
+
+    private static ProductDto ToDto(ProductReadModel product) => new()
+    {
+        Id = product.Id,
+        Name = product.Name,
+        Description = product.Description,
+        ProductCode = product.ProductCode,
+        Sku = product.Sku,
+        Barcode = product.Barcode,
+        CategoryId = product.CategoryId,
+        CategoryName = product.CategoryName,
+        BasePrice = product.BasePrice,
+        CostPrice = product.CostPrice,
+        TaxRate = product.TaxRate,
+        TaxClassification = product.TaxClassification,
+        HasVariants = product.HasVariants,
+        PrimaryImageThumb = product.PrimaryImageThumb,
+        PrimaryImageMedium = product.PrimaryImageMedium,
+        Status = product.Status,
+        IsActive = product.IsActive,
+        VariantCount = product.VariantCount,
+        TotalStock = product.TotalStock,
+        StockStatus = product.StockStatus,
+        Variants = product.Variants.Select(variant => new ProductVariantDto
+        {
+            Id = variant.Id,
+            ProductId = variant.ProductId,
+            ProductCode = variant.ProductCode,
+            Name = variant.Name,
+            Sku = variant.Sku,
+            Barcode = variant.Barcode,
+            Attributes = variant.Attributes,
+            PriceAdjustment = variant.PriceAdjustment,
+            FinalPrice = variant.FinalPrice,
+            CreatedAt = variant.CreatedAt,
+            UpdatedAt = variant.UpdatedAt
+        }).ToList(),
+        CreatedAt = product.CreatedAt,
+        UpdatedAt = product.UpdatedAt
+    };
 
     // ── Cost-visibility helpers ──────────────────────────────────────────────
     /// <summary>Strips cost fields from <paramref name="dto"/> when the caller lacks products.view_cost.</summary>
@@ -42,25 +88,25 @@ public class ProductsController : ControllerBase
         if (User.CanViewCost()) return;
         foreach (var p in list.Products) RedactCost(p);
     }
-
-    private void RedactCost(IEnumerable<ProductVariantSearchDto> variants)
-    {
-        if (User.CanViewCost()) return;
-        foreach (var v in variants) v.CostPrice = null;
-    }
     // ────────────────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Get all products
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll(CancellationToken cancellationToken)
     {
         try
         {
-            var products = (await _productService.GetAllAsync()).ToList();
+            var products = (await _sender.Send(new GetAllProductsQuery(), cancellationToken))
+                .Select(ToDto)
+                .ToArray();
             RedactCost(products);
             return Ok(new { data = products, message = "Products retrieved successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -77,9 +123,46 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var result = await _productService.SearchAsync(searchDto);
-            RedactCost(result);
-            return Ok(new { data = result, message = "Products searched successfully" });
+            var result = await _sender.Send(
+                new SearchProductsQuery(new ProductSearchCriteria(
+                    searchDto.SearchQuery,
+                    searchDto.CategoryId,
+                    searchDto.Status,
+                    searchDto.HasVariants,
+                    searchDto.MinPrice,
+                    searchDto.MaxPrice,
+                    searchDto.PageNumber,
+                    searchDto.PageSize,
+                    searchDto.SortBy,
+                    searchDto.SortOrder)
+                {
+                    OutletId = searchDto.OutletId,
+                    WarehouseId = searchDto.WarehouseId
+                }),
+                HttpContext.RequestAborted);
+            var response = new ProductListDto
+            {
+                Products = result.Products.Select(ToDto).ToList(),
+                TotalCount = result.TotalCount,
+                PageNumber = result.PageNumber,
+                PageSize = result.PageSize
+            };
+            RedactCost(response);
+            return Ok(new { data = response, message = "Products searched successfully" });
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Product stock location access denied");
+            return StatusCode(403, new { error = "The requested inventory location is not authorized." });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid product stock location");
+            return BadRequest(new { error = "Select either a valid outlet or a valid warehouse." });
         }
         catch (Exception ex)
         {
@@ -92,18 +175,35 @@ public class ProductsController : ControllerBase
     /// Get product by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<ProductDto>> GetById(long id)
+    public async Task<ActionResult<ProductDto>> GetById(
+        long id, CancellationToken cancellationToken,
+        [FromQuery] long? outletId = null, [FromQuery] long? warehouseId = null)
     {
         try
         {
-            var product = await _productService.GetByIdAsync(id);
+            var product = await _sender.Send(new GetProductByIdQuery(id, outletId, warehouseId), cancellationToken);
             if (product == null)
             {
                 return NotFound(new { error = $"Product with ID {id} not found" });
             }
 
-            RedactCost(product);
-            return Ok(new { data = product, message = "Product retrieved successfully" });
+            var response = ToDto(product);
+            RedactCost(response);
+            return Ok(new { data = response, message = "Product retrieved successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Product stock location access denied");
+            return StatusCode(403, new { error = "The requested inventory location is not authorized." });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid product stock location");
+            return BadRequest(new { error = "Select either a valid outlet or a valid warehouse." });
         }
         catch (Exception ex)
         {
@@ -116,18 +216,23 @@ public class ProductsController : ControllerBase
     /// Get product by SKU
     /// </summary>
     [HttpGet("sku/{sku}")]
-    public async Task<ActionResult<ProductDto>> GetBySku(string sku)
+    public async Task<ActionResult<ProductDto>> GetBySku(string sku, CancellationToken cancellationToken)
     {
         try
         {
-            var product = await _productService.GetBySkuAsync(sku);
+            var product = await _sender.Send(new GetProductBySkuQuery(sku), cancellationToken);
             if (product == null)
             {
                 return NotFound(new { error = $"Product with SKU '{sku}' not found" });
             }
 
-            RedactCost(product);
-            return Ok(new { data = product, message = "Product retrieved successfully" });
+            var response = ToDto(product);
+            RedactCost(response);
+            return Ok(new { data = response, message = "Product retrieved successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -140,18 +245,23 @@ public class ProductsController : ControllerBase
     /// Get product by Barcode
     /// </summary>
     [HttpGet("barcode/{barcode}")]
-    public async Task<ActionResult<ProductDto>> GetByBarcode(string barcode)
+    public async Task<ActionResult<ProductDto>> GetByBarcode(string barcode, CancellationToken cancellationToken)
     {
         try
         {
-            var product = await _productService.GetByBarcodeAsync(barcode);
+            var product = await _sender.Send(new GetProductByBarcodeQuery(barcode), cancellationToken);
             if (product == null)
             {
                 return NotFound(new { error = $"Product with barcode '{barcode}' not found" });
             }
 
-            RedactCost(product);
-            return Ok(new { data = product, message = "Product retrieved successfully" });
+            var response = ToDto(product);
+            RedactCost(response);
+            return Ok(new { data = response, message = "Product retrieved successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -164,13 +274,23 @@ public class ProductsController : ControllerBase
     /// Get products by category
     /// </summary>
     [HttpGet("category/{categoryId}")]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetByCategory(long categoryId)
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetByCategory(
+        long categoryId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var products = (await _productService.GetByCategoryAsync(categoryId)).ToList();
+            var products = (await _sender.Send(
+                    new GetProductsByCategoryQuery(categoryId),
+                    cancellationToken))
+                .Select(ToDto)
+                .ToArray();
             RedactCost(products);
             return Ok(new { data = products, message = "Products retrieved successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -184,13 +304,37 @@ public class ProductsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "products.create")]
-    public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductDto createDto)
+    public async Task<ActionResult<ProductDto>> Create(
+        [FromBody] CreateProductDto createDto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var product = await _productService.CreateAsync(createDto);
+            var product = ToDto(await _sender.Send(new CreateProductCommand(
+                createDto.Name,
+                createDto.Description,
+                createDto.ProductCode,
+                createDto.Sku,
+                createDto.Barcode,
+                createDto.CategoryId,
+                createDto.BasePrice,
+                createDto.CostPrice,
+                createDto.TaxRate,
+                createDto.TaxClassification,
+                createDto.Status,
+                createDto.HasVariants,
+                createDto.Variants?.Select(variant => new ProductVariantCreation(
+                    variant.Name,
+                    variant.Sku,
+                    variant.Barcode,
+                    variant.Attributes,
+                    variant.PriceAdjustment)).ToArray() ?? []), cancellationToken));
             RedactCost(product);
             return CreatedAtAction(nameof(GetById), new { id = product.Id }, new { data = product, message = "Product created successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (InvalidOperationException ex)
         {
@@ -209,13 +353,32 @@ public class ProductsController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Policy = "products.edit")]
-    public async Task<ActionResult<ProductDto>> Update(long id, [FromBody] UpdateProductDto updateDto)
+    public async Task<ActionResult<ProductDto>> Update(
+        long id,
+        [FromBody] UpdateProductDto updateDto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var product = await _productService.UpdateAsync(id, updateDto);
+            var product = ToDto(await _sender.Send(new UpdateProductCommand(
+                id,
+                updateDto.Name,
+                updateDto.Description,
+                updateDto.ProductCode,
+                updateDto.Sku,
+                updateDto.Barcode,
+                updateDto.CategoryId,
+                updateDto.BasePrice,
+                updateDto.CostPrice,
+                updateDto.TaxRate,
+                updateDto.TaxClassification,
+                updateDto.Status), cancellationToken));
             RedactCost(product);
             return Ok(new { data = product, message = "Product updated successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (KeyNotFoundException ex)
         {
@@ -239,12 +402,16 @@ public class ProductsController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "products.delete")]
-    public async Task<ActionResult> Delete(long id)
+    public async Task<ActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         try
         {
-            await _productService.DeleteAsync(id);
+            await _sender.Send(new DeleteProductCommand(id), cancellationToken);
             return Ok(new { message = "Product deleted successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (KeyNotFoundException ex)
         {
@@ -267,12 +434,18 @@ public class ProductsController : ControllerBase
     /// Generate SKU for a product name
     /// </summary>
     [HttpPost("generate-sku")]
-    public async Task<ActionResult<string>> GenerateSku([FromBody] string productName)
+    public async Task<ActionResult<string>> GenerateSku(
+        [FromBody] string productName,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var sku = await _productService.GenerateSkuAsync(productName);
+            var sku = await _sender.Send(new GenerateProductSkuCommand(productName), cancellationToken);
             return Ok(new { data = sku, message = "SKU generated successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -282,26 +455,36 @@ public class ProductsController : ControllerBase
     }
 
     /// <summary>
-    /// Search product variants for PO/GRN forms
+    /// Generate a unique EAN-13 barcode for a product
     /// </summary>
-    [HttpGet("variants/search")]
-    public async Task<ActionResult> SearchVariants(
-        [FromQuery] string query = "",
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] long? locationId = null,
-        [FromQuery] string? locationType = null)
+    [HttpPost("generate-barcode")]
+    public async Task<ActionResult<string>> GenerateBarcode(
+        [FromQuery] long? categoryId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var variants = (await _productService.SearchVariantsAsync(query, pageNumber, pageSize, locationId, locationType)).ToList();
-            RedactCost(variants);
-            return Ok(new { data = variants, message = "Variants retrieved successfully" });
+            var barcode = await _sender.Send(
+                new GenerateProductBarcodeCommand(categoryId),
+                cancellationToken);
+            return Ok(new { data = barcode, message = "Barcode generated successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Unable to generate a unique product barcode");
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching variants");
-            return StatusCode(500, new { error = "Failed to search variants" });
+            _logger.LogError(ex, "Error generating product barcode");
+            return StatusCode(500, new { error = "Failed to generate barcode" });
         }
     }
+
+    // Product variant search (api/products/variants/search) lives in ProductVariantLookupController so
+    // every screen that embeds the variant picker can use it without the full products.view permission.
 }

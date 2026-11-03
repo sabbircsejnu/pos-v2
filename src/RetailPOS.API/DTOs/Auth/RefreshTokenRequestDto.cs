@@ -10,3 +10,9 @@ public class RefreshTokenRequestDto
     [Required]
     public string RefreshToken { get; set; } = string.Empty;
 }
+
+public sealed class LogoutRequestDto
+{
+    [Required]
+    public string RefreshToken { get; set; } = string.Empty;
+}

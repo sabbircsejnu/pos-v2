@@ -1,13 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using RetailPOS.API.Authorization;
 using RetailPOS.API.Documents.Pdf;
 using RetailPOS.API.DTOs.Barcode;
 using RetailPOS.API.DTOs.Product;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
-using RetailPOS.Infrastructure.Data;
+using RetailPOS.Application.Barcodes.Commands;
+using RetailPOS.Application.Barcodes.Queries;
+using RetailPOS.Application.Barcodes.ReadModels;
+using RetailPOS.Application.Products.Queries;
+using RetailPOS.Application.Products.ReadModels;
+using RetailPOS.Application.Settings.Queries;
 using System.Security.Claims;
 
 namespace RetailPOS.API.Controllers;
@@ -17,24 +22,21 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "barcode.view")]
 public class BarcodesController : ControllerBase
 {
-    private readonly IBarcodeService _barcodeService;
     private readonly IBarcodeLabelPdfService _barcodeLabelPdfService;
-    private readonly ITenantAccessService _tenantAccessService;
-    private readonly ISettingsService _settingsService;
-    private readonly RetailPOSDbContext _dbContext;
+    private readonly IVariantDisplayFormatterService _variantDisplayFormatter;
+    private readonly ISender _sender;
+    private readonly IUserOutletAccessService _outletAccess;
 
     public BarcodesController(
-        IBarcodeService barcodeService,
         IBarcodeLabelPdfService barcodeLabelPdfService,
-        ITenantAccessService tenantAccessService,
-        ISettingsService settingsService,
-        RetailPOSDbContext dbContext)
+        IVariantDisplayFormatterService variantDisplayFormatter,
+        ISender sender,
+        IUserOutletAccessService outletAccess)
     {
-        _barcodeService = barcodeService;
         _barcodeLabelPdfService = barcodeLabelPdfService;
-        _tenantAccessService = tenantAccessService;
-        _settingsService = settingsService;
-        _dbContext = dbContext;
+        _variantDisplayFormatter = variantDisplayFormatter;
+        _sender = sender;
+        _outletAccess = outletAccess;
     }
 
     [HttpGet("variants/search")]
@@ -43,40 +45,113 @@ public class BarcodesController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] long? locationId = null,
-        [FromQuery] string? locationType = null)
+        [FromQuery] string? locationType = null,
+        CancellationToken cancellationToken = default)
     {
-        var variants = await _barcodeService.SearchVariantsAsync(query, pageNumber, pageSize, locationId, locationType);
+        (long? LocationId, string? LocationType) authorizedLocation;
+        try
+        {
+            authorizedLocation = await StockLocationRequestAuthorizer.ResolveAndAuthorizeAsync(
+                _outletAccess,
+                locationId,
+                locationType,
+                Request.Query.ContainsKey("locationType"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<List<ProductVariantSearchDto>>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                ApiResponse<List<ProductVariantSearchDto>>.ErrorResponse(ex.Message));
+        }
+
+        var results = await _sender.Send(
+            new SearchProductVariantsQuery(new ProductVariantSearchCriteria(
+                query,
+                Math.Max(1, pageNumber),
+                Math.Clamp(pageSize, 1, 100),
+                authorizedLocation.LocationId,
+                authorizedLocation.LocationType)),
+            cancellationToken);
+        var variants = new List<ProductVariantSearchDto>(results.Count);
+        foreach (var result in results)
+        {
+            variants.Add(new ProductVariantSearchDto
+            {
+                Id = result.Id,
+                ProductId = result.ProductId,
+                ProductName = result.ProductName,
+                ProductCode = result.ProductCode,
+                Name = result.Name,
+                Sku = result.Sku,
+                Barcode = result.Barcode,
+                Attributes = result.Attributes,
+                VariantDisplay = await _variantDisplayFormatter.FormatAsync(
+                    result.Attributes,
+                    cancellationToken),
+                FinalPrice = result.FinalPrice,
+                CostPrice = result.CostPrice,
+                StockQuantity = result.StockQuantity,
+                PrimaryImageThumb = result.PrimaryImageThumb
+            });
+        }
+
         return Ok(ApiResponse<List<ProductVariantSearchDto>>.SuccessResponse(variants));
     }
 
     [HttpPost("print-history/search")]
-    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryListDto>>> SearchPrintHistory([FromBody] BarcodePrintHistorySearchDto dto)
+    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryListDto>>> SearchPrintHistory(
+        [FromBody] BarcodePrintHistorySearchDto dto,
+        CancellationToken cancellationToken)
     {
-        var result = await _barcodeService.SearchPrintHistoryAsync(dto);
-        return Ok(ApiResponse<BarcodePrintHistoryListDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new SearchBarcodePrintHistoryQuery(new BarcodePrintHistorySearchCriteria(
+                dto.TemplateId,
+                dto.PrintedByUserId,
+                dto.StartDate,
+                dto.EndDate,
+                dto.PageNumber,
+                dto.PageSize)),
+            cancellationToken);
+        return Ok(ApiResponse<BarcodePrintHistoryListDto>.SuccessResponse(new BarcodePrintHistoryListDto
+        {
+            Rows = result.Rows.Select(ToApi).ToList(),
+            TotalCount = result.TotalCount,
+            PageNumber = result.PageNumber,
+            PageSize = result.PageSize
+        }));
     }
 
     [HttpGet("print-history/{id:long}")]
-    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> GetPrintHistoryById(long id)
+    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> GetPrintHistoryById(
+        long id,
+        CancellationToken cancellationToken)
     {
-        var row = await _barcodeService.GetPrintHistoryByIdAsync(id);
-        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(row));
+        var row = await _sender.Send(new GetBarcodePrintHistoryByIdQuery(id), cancellationToken);
+        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(ToApi(row)));
     }
 
     [HttpPost("print-history/single")]
     [Authorize(Policy = "barcode.print")]
-    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> RecordSinglePrint([FromBody] RecordBarcodePrintHistoryDto dto)
+    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> RecordSinglePrint(
+        [FromBody] RecordBarcodePrintHistoryDto dto,
+        CancellationToken cancellationToken)
     {
-        var row = await _barcodeService.RecordPrintHistoryAsync(dto, ResolveUserId());
-        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(row, "Barcode print history recorded"));
+        var row = await _sender.Send(ToCommand(dto), cancellationToken);
+        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(ToApi(row), "Barcode print history recorded"));
     }
 
     [HttpPost("print-history/bulk")]
     [Authorize(Policy = "barcode.bulk_print")]
-    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> RecordBulkPrint([FromBody] RecordBarcodePrintHistoryDto dto)
+    public async Task<ActionResult<ApiResponse<BarcodePrintHistoryDto>>> RecordBulkPrint(
+        [FromBody] RecordBarcodePrintHistoryDto dto,
+        CancellationToken cancellationToken)
     {
-        var row = await _barcodeService.RecordPrintHistoryAsync(dto, ResolveUserId());
-        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(row, "Bulk barcode print history recorded"));
+        var row = await _sender.Send(ToCommand(dto), cancellationToken);
+        return Ok(ApiResponse<BarcodePrintHistoryDto>.SuccessResponse(ToApi(row), "Bulk barcode print history recorded"));
     }
 
     [HttpPost("pdf")]
@@ -88,60 +163,29 @@ public class BarcodesController : ControllerBase
             return Forbid();
         }
 
-        dto.CompanyName = await ResolveCompanyNameAsync(dto.CompanyName, dto.OutletId, cancellationToken);
+        dto.CompanyName = await ResolveCompanyNameAsync(
+            dto.CompanyName,
+            dto.OutletId,
+            ResolveUserId(),
+            cancellationToken);
 
         var result = await _barcodeLabelPdfService.GenerateAsync(dto, cancellationToken);
         return File(result.Content, "application/pdf", result.FileName);
     }
 
-    private async Task<string> ResolveCompanyNameAsync(string? requestedCompanyName, long? outletId, CancellationToken cancellationToken)
+    private async Task<string> ResolveCompanyNameAsync(
+        string? requestedCompanyName,
+        long? outletId,
+        long? userId,
+        CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(requestedCompanyName))
-        {
-            return requestedCompanyName.Trim();
-        }
+        var companyName = await _sender.Send(
+            new ResolveBarcodeCompanyNameQuery(requestedCompanyName, outletId, userId),
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(companyName))
+            return companyName;
 
-        var businessId = _tenantAccessService.EffectiveBusinessId;
-        if (businessId.HasValue)
-        {
-            var businessName = await _dbContext.Businesses
-                .Where(b => b.Id == businessId.Value)
-                .Select(b => b.Name)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(businessName))
-            {
-                return businessName.Trim();
-            }
-        }
-
-        var effectiveOutletId = outletId;
-        if (!effectiveOutletId.HasValue)
-        {
-            var userId = ResolveUserId();
-            if (userId.HasValue)
-            {
-                effectiveOutletId = await _dbContext.Users
-                    .Where(u => u.Id == userId.Value)
-                    .Select(u => u.OutletId)
-                    .FirstOrDefaultAsync(cancellationToken);
-            }
-        }
-
-        if (effectiveOutletId.HasValue)
-        {
-            var outletName = await _dbContext.Outlets
-                .Where(o => o.Id == effectiveOutletId.Value)
-                .Select(o => o.Name)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(outletName))
-            {
-                return outletName.Trim();
-            }
-        }
-
-        var companySettings = await _settingsService.GetCompanySettingsAsync();
+        var companySettings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Company;
         if (!string.IsNullOrWhiteSpace(companySettings.CompanyName))
         {
             return companySettings.CompanyName.Trim();
@@ -155,4 +199,56 @@ public class BarcodesController : ControllerBase
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return long.TryParse(userIdClaim, out var userId) ? userId : null;
     }
+
+    private RecordBarcodePrintHistoryCommand ToCommand(RecordBarcodePrintHistoryDto dto) =>
+        new(
+            dto.TemplateId,
+            dto.OutletId,
+            ResolveUserId(),
+            dto.PrintMode,
+            dto.LabelWidthMm,
+            dto.LabelHeightMm,
+            dto.SourceModule,
+            dto.SourceReferenceType,
+            dto.SourceReferenceId,
+            dto.Items.Select(item => new RecordBarcodePrintHistoryItem(
+                item.VariantId,
+                item.ProductName,
+                item.VariantName,
+                item.VariantSku,
+                item.BarcodeValue,
+                item.VariantAttributes,
+                item.SellingPrice,
+                item.QuantityPrinted)).ToArray());
+
+    private static BarcodePrintHistoryDto ToApi(BarcodePrintHistoryReadModel history) => new()
+    {
+        Id = history.Id,
+        TemplateId = history.TemplateId,
+        TemplateName = history.TemplateName,
+        OutletId = history.OutletId,
+        OutletName = history.OutletName,
+        PrintedByUserId = history.PrintedByUserId,
+        PrintedByUserName = history.PrintedByUserName,
+        PrintMode = history.PrintMode,
+        LabelWidthMm = history.LabelWidthMm,
+        LabelHeightMm = history.LabelHeightMm,
+        TotalLabels = history.TotalLabels,
+        SourceModule = history.SourceModule,
+        SourceReferenceType = history.SourceReferenceType,
+        SourceReferenceId = history.SourceReferenceId,
+        PrintedAt = history.PrintedAt,
+        Items = history.Items.Select(item => new BarcodePrintHistoryItemDto
+        {
+            Id = item.Id,
+            VariantId = item.VariantId,
+            ProductName = item.ProductName,
+            VariantName = item.VariantName,
+            VariantSku = item.VariantSku,
+            BarcodeValue = item.BarcodeValue,
+            VariantAttributes = item.VariantAttributes,
+            SellingPrice = item.SellingPrice,
+            QuantityPrinted = item.QuantityPrinted
+        }).ToList()
+    };
 }

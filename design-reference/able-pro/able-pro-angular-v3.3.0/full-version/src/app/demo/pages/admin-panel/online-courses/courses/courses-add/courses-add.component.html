@@ -1,0 +1,92 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Course Add">
+      <div class="row">
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Name</mat-label>
+            <input matInput type="text" placeholder="Enter Course Name" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Code</mat-label>
+            <input matInput type="text" placeholder="Enter Course Code" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Start Form</mat-label>
+            <input matInput type="date" placeholder="mm/dd/yyyy" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Duration</mat-label>
+            <input matInput type="text" placeholder="Enter Course Duration" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Price</mat-label>
+            <input matInput type="text" placeholder="Enter Course Price" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Teacher Name</mat-label>
+            <input matInput type="text" placeholder="Enter Teacher Name" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Maximum Students</mat-label>
+            <input matInput type="text" placeholder="Enter Maximum Students" />
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Status</mat-label>
+            <mat-select value="deactive">
+              <mat-option value="deactive">Deactive</mat-option>
+              <mat-option value="active">Active</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Course Details</mat-label>
+            <textarea matInput rows="5" placeholder="Ex. It makes me feel..."></textarea>
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <file-upload [control]="control" class="p-25 file-upload">
+            <ng-template let-isFileDragDropAvailable="isFileDragDropAvailable" #placeholder>
+              @if (control.size === 0) {
+                <div class="flex align-item-center">
+                  <div class="upload-text">
+                    @if (isFileDragDropAvailable) {
+                      <ng-container>Drag and drop Template or click here</ng-container>
+                    } @else {
+                      <ng-template>Click here to choose a Template</ng-template>
+                    }
+                  </div>
+                </div>
+              }
+            </ng-template>
+            <ng-template let-i="index" let-file="file" let-control="control" #item>
+              <div class="overlay">
+                <span class="delete-button" (click)="control.removeFile(file)">
+                  <i class="ti ti-trash text-warn-500"></i>
+                </span>
+                @if (control.valid) {
+                  <img [src]="uploadedFile | async" />
+                }
+              </div>
+            </ng-template>
+          </file-upload>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

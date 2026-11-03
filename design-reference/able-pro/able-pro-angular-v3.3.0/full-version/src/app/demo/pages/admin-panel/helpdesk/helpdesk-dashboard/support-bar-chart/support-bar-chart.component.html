@@ -1,0 +1,35 @@
+<app-card [showHeader]="false" cardClass="support-bar" [padding]="0" actionClass="block p-0 dashboard-summary">
+  <div class="p-20 p-b-0">
+    <h2 class="m-0 f-w-700">{{ value() }}</h2>
+    <span class="{{ inputColor() }}">{{ typeRequest() }}</span>
+    <p class="m-b-15 m-t-15">Total number of support requests that come in.</p>
+  </div>
+  <div id="chart">
+    <apx-chart
+      [chart]="chartOptions.chart"
+      [dataLabels]="chartOptions.dataLabels"
+      [colors]="chartOptions.colors"
+      [stroke]="chartOptions.stroke"
+      [series]="chartOptions.series"
+      [tooltip]="chartOptions.tooltip"
+    ></apx-chart>
+  </div>
+  <ng-template #actionTemplate>
+    <div class="text-white p-25 {{ backgroundColor() }}">
+      <div class="row text-center">
+        <div class="col" [ngClass]="themeRTL === 'rtl' ? 'border-start' : 'border-end'">
+          <div class="f-20 f-w-600 text-white">{{ openValue() }}</div>
+          <span>Open</span>
+        </div>
+        <div class="col" [ngClass]="themeRTL === 'rtl' ? 'border-start' : 'border-end'">
+          <div class="f-20 f-w-600 text-white">{{ runningValue() }}</div>
+          <span>Running</span>
+        </div>
+        <div class="col">
+          <div class="f-20 f-w-600 text-white">{{ solvedValue() }}</div>
+          <span>Solved</span>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</app-card>

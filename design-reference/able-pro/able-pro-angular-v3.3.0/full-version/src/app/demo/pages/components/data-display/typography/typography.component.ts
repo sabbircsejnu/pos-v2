@@ -1,0 +1,14 @@
+// Angular import
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+// project import
+import { SharedModule } from 'src/app/demo/shared/shared.module';
+
+@Component({
+  selector: 'app-typography',
+  imports: [CommonModule, SharedModule],
+  templateUrl: './typography.component.html',
+  styleUrls: ['./typography.component.scss']
+})
+export class TypographyComponent {}

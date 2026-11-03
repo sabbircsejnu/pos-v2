@@ -1,0 +1,45 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-16 f-w-600">Total Income</div>
+    <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+    <mat-menu #menu="matMenu">
+      <a mat-menu-item>Today</a>
+      <a mat-menu-item>Weekly</a>
+      <a mat-menu-item>Monthly</a>
+    </mat-menu>
+  </div>
+  <apx-chart
+    [series]="chartOptions.series!"
+    [chart]="chartOptions.chart!"
+    [colors]="incomeColors"
+    [labels]="chartOptions.labels!"
+    [plotOptions]="chartOptions.plotOptions!"
+    [fill]="chartOptions.fill!"
+    [legend]="chartOptions.legend!"
+    [responsive]="chartOptions.responsive!"
+    [dataLabels]="chartOptions.dataLabels!"
+  ></apx-chart>
+  <div class="row g-3 m-t-15">
+    @for (task of income_card; track task) {
+      <div class="col-sm-6 m-t-15">
+        <div class="income-value">
+          <div class="flex align-item-center m-b-10">
+            <div class="flex-shrink-0">
+              <span class="p-5 block {{ task.background }} border-50"></span>
+            </div>
+            <div class="flex-grow-1 m-l-10">
+              <p class="m-b-0">{{ task.item }}</p>
+            </div>
+          </div>
+          <div class="f-16 f-w-600">
+            {{ task.value }}
+            <span class="text-muted f-w-500">
+              <i class="ti ti-chevrons-up"></i>
+              {{ task.number }}
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</app-card>

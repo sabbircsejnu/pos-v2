@@ -4,6 +4,8 @@
 
 This document defines the Purchase Order process, approval workflow, goods receiving process, stock update rules, and audit requirements.
 
+Purchases can be received directly into either an **Outlet** or a **Warehouse** (the PO "destination location"). This supports businesses that operate only Outlets, only Warehouses, or both — no dummy Warehouse is needed for Outlet-only businesses.
+
 ---
 
 # Workflow Overview
@@ -36,11 +38,11 @@ Completed
 
 # User Roles
 
-## Warehouse Manager
+## Warehouse / Outlet Manager
 
 Can:
 
-- Create Purchase Order
+- Create Purchase Order (for destination locations they can access)
 - Submit for Approval
 - Receive Goods
 - Create GRN
@@ -72,7 +74,8 @@ Can:
 | Field | Required |
 |---------|---------|
 | Supplier | Yes |
-| Warehouse | Yes |
+| Location Type (Outlet / Warehouse) | Yes |
+| Location (filtered by Location Type) | Yes |
 | Purchase Date | Yes |
 | Products | Yes |
 | Quantity | Yes |
@@ -92,6 +95,81 @@ Can:
 | Discount |
 | Tax |
 | Total |
+
+---
+
+# Destination Location (Outlet or Warehouse)
+
+Every Purchase Order has exactly one destination location: an Outlet **or** a Warehouse. Goods received against the PO (Purchase & Receive or manual GRN) are always stocked into that location.
+
+## Business Scenarios
+
+| Business setup | Behaviour |
+|---------|---------|
+| Outlet-only | Location Type defaults to Outlet; Warehouse is shown as "(none available)". Stock is added directly to the Outlet. No dummy Warehouse is required. |
+| Warehouse-only | Location Type defaults to Warehouse. Existing Warehouse-based purchasing is unchanged. |
+| Mixed (Outlets and Warehouses) | User chooses the Location Type; the Location dropdown lists only locations of that type. The user's default location is pre-selected when available. |
+
+## Create Purchase Order Screen
+
+- **Location Type**: Outlet / Warehouse. Types with no accessible locations are disabled.
+- **Location**: dropdown filtered by the selected Location Type. When only one location of that type exists it is selected automatically.
+- The location list comes from `GET /api/me/outlets` (the user's authorized outlets and warehouses), so it contains only locations that:
+  - belong to the current Business, and
+  - are accessible to the user (`all_locations`, `specific_locations` assignments, or `assigned_only` default outlet / primary warehouse).
+- An unswitched Business Owner with the effective `*` permission can select every location in the current Business, even when their stored location scope is `assigned_only` and they have no assignments. This does not grant access to other Businesses. Switched sessions do not inherit this wildcard-based owner grant; wildcard policy permissions alone do not broaden a non-owner's location access.
+- API failures and invalid location responses show an error with **Retry locations**, not the empty-location hint. The "No active outlets or warehouses..." hint appears only after a successful, empty response.
+- Outlets and Warehouses do not have an active/inactive flag; existing (non-deleted) locations are treated as active.
+- When editing an existing PO, its saved destination stays selected even if it is no longer in the user's list; the backend still enforces access on save.
+
+## Location Rules (enforced on the backend)
+
+| Rule | Result when violated |
+|---------|---------|
+| Location Type must be `outlet` or `warehouse` | 400 Bad Request |
+| Location must exist and belong to the current Business | 404 Not Found (`Outlet with ID x not found` / `Warehouse with ID x not found`) |
+| User must have write access to the location (`IUserOutletAccessService.EnforceWriteLocationAsync`) | 403 Forbidden |
+| Role permission (`purchases.create`, `purchases.edit`, `purchases.receive`, `grn.create`, `grn.receive`) | 403 Forbidden |
+
+Access is checked on PO create, PO update, Purchase & Receive, manual GRN creation and GRN completion. The destination of an existing PO cannot be bypassed during receiving: GRNs always use the PO's saved location.
+
+## API Contract
+
+Create / update / Purchase & Receive requests accept:
+
+```json
+{
+  "supplierId": 1001,
+  "locationType": "outlet",
+  "locationId": 12,
+  "orderDate": "2026-10-04",
+  "items": [ ... ]
+}
+```
+
+- `locationType` + `locationId` is the preferred contract.
+- The legacy `warehouseId` field is still accepted (treated as `locationType = "warehouse"`), so existing Warehouse-based clients keep working.
+- List filters: `GET /api/purchase-orders?locationType=outlet&locationId=12` and `POST /api/purchase-orders/search` with `locationType` / `locationId`; the legacy `warehouseId` filter still works.
+
+PO, GRN and pending-GRN responses include:
+
+| Field | Description |
+|---------|---------|
+| `locationType` | `outlet` or `warehouse` |
+| `locationId` | Destination outlet or warehouse id |
+| `locationName` | Destination display name |
+| `outletId` / `outletName` | Set for Outlet destinations, otherwise null |
+| `warehouseId` / `warehouseName` | Set for Warehouse destinations, otherwise null/empty (kept for backward compatibility) |
+
+## Data Model
+
+- `purchase_orders.warehouse_id` is nullable and a nullable `purchase_orders.outlet_id` (FK → `outlets`, restrict delete) was added.
+- Check constraint `ck_purchase_orders_single_destination`: exactly one of `warehouse_id` / `outlet_id` is set.
+- Purchase & Receive idempotency is unique per destination: `(warehouse_id, idempotency_key)` and `(outlet_id, idempotency_key)`.
+- A PO's Business is derived from its destination location (Warehouse or Outlet `business_id`).
+- GRNs reference the PO; they do not store their own location.
+- Stock uses the existing location-specific `inventories` (`location_type`, `location_id`) and `stock_ledgers` tables. No separate purchase inventory model exists; product/variant identity remains Business-scoped.
+- Migration: `20261023072233_PurchaseOrderOutletDestination` (additive only). Existing rows keep their `warehouse_id`; no stock balances or historical PO/GRN references are changed.
 
 ---
 
@@ -156,7 +234,7 @@ User submits PO for approval.
 ### Validation
 
 - Supplier required
-- Warehouse required
+- Destination location (Location Type + Location) required
 - At least one item required
 
 ---
@@ -169,6 +247,7 @@ Approver reviews and approves PO.
 
 - Status = Approved
 - No stock update
+- The selected destination location is preserved unchanged for receiving
 
 ---
 
@@ -191,22 +270,30 @@ Users with proper permission can purchase and receive stock in a single action.
 ### Process
 
 ```text
-Create PO
+Create PO (destination = selected Outlet or Warehouse)
     ↓
 Approve Automatically
     ↓
 Generate GRN Automatically
     ↓
-Update Warehouse Stock
+Update Destination Stock (Outlet or Warehouse)
     ↓
 Mark PO Completed
 ```
 
 ### Result
 
-- Stock updated immediately
+- Stock updated immediately at the selected Outlet or Warehouse
+- Inventory movements (stock ledger, transaction type `GRN`) recorded against the same location
 - System-generated GRN created
+- Purchase receipt journal posted with the Outlet or Warehouse dimension
 - Full audit log maintained
+
+### Safeguards (unchanged)
+
+- PO, GRN, inventory, stock ledger and journal are written in one database transaction; any failure rolls back everything.
+- Duplicate-submission protection: the client sends an `idempotencyKey`; the key is unique per destination location, and a repeated request returns the existing PO/GRN with `isDuplicateRequest = true` without repeating stock effects.
+- The action is audited as "Purchase & Receive Immediate", including failures.
 
 ---
 
@@ -215,6 +302,8 @@ Mark PO Completed
 ## Manual GRN
 
 Created against Approved Purchase Orders.
+
+Goods are always received into the PO's destination location (Outlet or Warehouse). The GRN screen shows "Receive Into: Outlet/Warehouse: name" and the user cannot change it; the user must have access to that location.
 
 ### Supported
 
@@ -239,7 +328,8 @@ Generated automatically when Purchase & Receive Immediately is used.
 | GRN Number |
 | PO Number |
 | Supplier |
-| Warehouse |
+| Location Type |
+| Location |
 | Received By |
 | Received Date |
 | Source |
@@ -259,8 +349,9 @@ AUTO_GENERATED_FROM_PURCHASE_ORDER
 | Draft PO | No |
 | Pending Approval | No |
 | Approved PO | No |
-| GRN Created | Yes |
-| Purchase & Receive Immediately | Yes |
+| GRN Created | No (draft receipt) |
+| GRN Completed | Yes — at the PO's destination Outlet or Warehouse |
+| Purchase & Receive Immediately | Yes — at the selected Outlet or Warehouse |
 
 ---
 
@@ -334,7 +425,7 @@ Return goods back to supplier.
 
 ### Result
 
-- Reduce warehouse stock
+- Reduce stock at the location that originally received the goods (Outlet or Warehouse)
 - Create supplier return transaction
 - Reference original PO and GRN
 
@@ -381,11 +472,11 @@ Warn user if:
 
 ---
 
-## Multi Warehouse Support
+## Multi-Location Support
 
-Purchase Order must belong to a single warehouse.
+A Purchase Order belongs to a single destination location: one Outlet or one Warehouse.
 
-Stock updates only affect that warehouse.
+Stock updates only affect that location. The same product variant keeps separate stock balances per location.
 
 ---
 
@@ -433,8 +524,16 @@ Trigger notifications for:
 - GRN Report
 - Supplier Purchase Report
 - Product Purchase History
-- Warehouse Purchase Report
+- Location Purchase Report (Outlet / Warehouse)
 - Purchase Return Report
+
+## Screens and Documents
+
+Purchase Order list, Purchase Order details, GRN list, GRN details, GRN create, and the PO / GRN PDFs show **Location Type** and **Location** instead of assuming a Warehouse:
+
+- PO list: "Location Type" and "Location" columns; the location filter offers All Locations, All Outlets, All Warehouses, or a specific Outlet/Warehouse.
+- PO PDF: "Ship To (Outlet)" or "Ship To (Warehouse)" with the location name.
+- GRN PDF: "Received At (Outlet)" or "Received At (Warehouse)" with the location name.
 
 ---
 
@@ -460,9 +559,9 @@ Then the Purchase Order shall move to Approved status.
 
 Given a Purchase Order is Approved
 
-When a GRN is created
+When a GRN is completed
 
-Then warehouse stock shall increase.
+Then stock shall increase at the PO's destination Outlet or Warehouse.
 
 ## AC4
 
@@ -473,7 +572,7 @@ When Purchase & Receive Immediately is selected
 Then:
 
 - PO shall be completed
-- Stock shall be updated
+- Stock shall be updated at the selected Outlet or Warehouse
 - System GRN shall be generated
 
 ## AC5
@@ -484,6 +583,38 @@ When only part of the quantity is received
 
 Then the system shall:
 
-- Update stock for received quantity
+- Update stock for received quantity at the PO's destination location
 - Keep remaining quantity open
 - Mark PO as Partially Received
+
+## AC6 — Outlet-only Business
+
+Given a Business has Outlets but no Warehouses
+
+When a user purchases into an Outlet (draft/approval or Purchase & Receive)
+
+Then the PO, GRN, inventory and stock ledger shall reference that Outlet, and no Warehouse shall be required.
+
+## AC7 — Mixed Business
+
+Given a Business has both Outlets and Warehouses
+
+When the user selects a Location Type
+
+Then the Location dropdown shall list only accessible locations of that type, and stock shall be kept separately per location.
+
+## AC8 — Location access
+
+Given a user is not authorized for a location, or the location belongs to another Business
+
+When the user creates, edits, purchases-and-receives or receives a PO for that location
+
+Then the request shall be rejected (403 for access, 404 for another Business) and no stock shall change.
+
+## AC9 — Backward compatibility
+
+Given existing Warehouse-based Purchase Orders and clients that send only `warehouseId`
+
+When they are listed, approved, received or created
+
+Then they shall continue to work unchanged, with `locationType = warehouse`.

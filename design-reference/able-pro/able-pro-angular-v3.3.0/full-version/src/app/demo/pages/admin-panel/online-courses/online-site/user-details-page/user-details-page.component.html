@@ -1,0 +1,42 @@
+<div class="m-b-5 table-responsive">
+  <table mat-table [dataSource]="userDetailsData" class="mat-elevation-z8">
+    <ng-container matColumnDef="title">
+      <th mat-header-cell *matHeaderCellDef>PAGE TITLE</th>
+      <td mat-cell class="text-nowrap" *matCellDef="let element">
+        {{ element.title }}
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="url">
+      <th mat-header-cell *matHeaderCellDef>URL</th>
+      <td mat-cell *matCellDef="let element" class="text-nowrap">
+        {{ element.url }}
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="state">
+      <th mat-header-cell *matHeaderCellDef>Date/Time</th>
+      <td mat-cell *matCellDef="let element" class="text-nowrap">
+        @if (element.state === 'published') {
+          <div class="user-status bg-success-500 text-white">Published</div>
+        } @else if (element.state === 'unpublished') {
+          <div class="user-status bg-warn-500 text-white">UnPublished</div>
+        }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="Action">
+      <th mat-header-cell *matHeaderCellDef>Action</th>
+      <td mat-cell *matCellDef="let element" class="text-nowrap">
+        <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+          <i class="ti ti-eye f-20"></i>
+        </a>
+        <a href="javascript:" class="avatar avatar-xs hover text-accent-500 m-x-10">
+          <i class="ti ti-edit f-20"></i>
+        </a>
+        <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+          <i class="ti ti-trash f-20"></i>
+        </a>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="pageData"></tr>
+    <tr mat-row *matRowDef="let row; columns: pageData"></tr>
+  </table>
+</div>

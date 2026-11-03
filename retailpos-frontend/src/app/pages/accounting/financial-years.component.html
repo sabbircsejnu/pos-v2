@@ -1,0 +1,134 @@
+<div class="container mx-auto p-6 space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Financial Years & Accounting Periods</h1>
+      <p class="text-sm text-slate-600">Manage fiscal years, open periods, and close or reopen accounting periods.</p>
+    </div>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Financial Years</h2>
+        <button *ngIf="canManageFinancialYears()" type="button" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="startCreateYear()">
+          New Year
+        </button>
+      </div>
+
+      <div *ngIf="isLoading()" class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">Loading financial years…</div>
+      <div *ngIf="!isLoading() && years().length === 0" class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">No financial years found.</div>
+
+      <div *ngIf="!isLoading() && years().length > 0" class="space-y-3">
+        <div *ngFor="let year of years()" class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-semibold text-slate-900">{{ year.name }}</h3>
+                <span *ngIf="year.isCurrent" class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Current</span>
+                <span *ngIf="year.status" class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{{ year.status }}</span>
+              </div>
+              <p class="mt-1 text-sm text-slate-600">{{ year.yearCode }} • {{ year.startDate | appDate:'mediumDate' }} to {{ year.endDate | appDate:'mediumDate' }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button *ngIf="canManageFinancialYears() && !year.isCurrent" type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700" (click)="activateYear(year)">Activate</button>
+              <button *ngIf="canManageFinancialYears()" type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700" (click)="startEditYear(year)">Edit</button>
+              <button *ngIf="canManageFinancialYears() && year.status !== 'Closed'" type="button" class="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-medium text-amber-700" (click)="closeYear(year)">Close</button>
+              <button *ngIf="canManageFinancialYears() && year.status === 'Closed'" type="button" class="rounded-md border border-emerald-300 px-2.5 py-1.5 text-xs font-medium text-emerald-700" (click)="reopenYear(year)">Reopen</button>
+            </div>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700" [class.bg-slate-900]="selectedYearId() === year.id" [class.text-white]="selectedYearId() === year.id" (click)="selectYear(year.id)">View periods</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="text-lg font-semibold">{{ editingYearId() ? 'Edit Financial Year' : 'Create Financial Year' }}</h2>
+      <div class="mt-4 space-y-3">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Year Code</label>
+          <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="yearCode" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Name</label>
+          <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="yearName" />
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Start Date</label>
+            <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="yearStartDate" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">End Date</label>
+            <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="yearEndDate" />
+          </div>
+        </div>
+        <div *ngIf="!editingYearId()" class="flex items-center gap-2">
+          <input type="checkbox" id="isCurrent" [(ngModel)]="yearIsCurrent" />
+          <label for="isCurrent" class="text-sm text-slate-700">Set as current year</label>
+        </div>
+        <button type="button" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="saveYear()" [disabled]="isSavingYear()">
+          {{ isSavingYear() ? 'Saving…' : (editingYearId() ? 'Save Changes' : 'Create Year') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Accounting Periods</h2>
+      <span class="text-sm text-slate-500">{{ selectedYearId() ? 'Selected year' : 'Select a financial year to manage periods' }}</span>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <div class="space-y-3 rounded-lg border border-slate-200 p-4">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Period Name</label>
+          <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="periodName" />
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Period Number</label>
+            <input type="number" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="periodNumber" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Status</label>
+            <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" value="Open" disabled />
+          </div>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Start Date</label>
+            <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="periodStartDate" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">End Date</label>
+            <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="periodEndDate" />
+          </div>
+        </div>
+        <button type="button" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="savePeriod()" [disabled]="isSavingPeriod() || !selectedYearId()">
+          {{ isSavingPeriod() ? 'Creating…' : 'Create Period' }}
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div *ngIf="periods().length === 0" class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">No periods available for the selected year.</div>
+        <div *ngFor="let period of periods()" class="rounded-lg border border-slate-200 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-semibold text-slate-900">{{ period.name }}</h3>
+              <p class="mt-1 text-sm text-slate-600">Period {{ period.periodNumber }} • {{ period.startDate | appDate:'mediumDate' }} to {{ period.endDate | appDate:'mediumDate' }}</p>
+              <p class="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{{ period.status }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button *ngIf="canManagePeriods() && period.status !== 'Closed'" type="button" class="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-medium text-amber-700" (click)="closePeriod(period)">Close</button>
+              <button *ngIf="canManagePeriods() && period.status === 'Closed'" type="button" class="rounded-md border border-emerald-300 px-2.5 py-1.5 text-xs font-medium text-emerald-700" (click)="reopenPeriod(period)">Reopen</button>
+              <button *ngIf="canManagePeriods() && period.status !== 'Locked'" type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700" (click)="lockPeriod(period)">Lock</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

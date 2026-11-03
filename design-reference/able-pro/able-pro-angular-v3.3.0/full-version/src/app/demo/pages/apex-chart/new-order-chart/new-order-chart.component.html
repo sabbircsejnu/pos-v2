@@ -1,0 +1,33 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-16 f-w-600">New Orders</div>
+    <select class="form-select-sm">
+      <option>Today</option>
+      <option>Weekly</option>
+      <option selected>Monthly</option>
+    </select>
+  </div>
+  <div class="m-t-15">
+    <div id="chart">
+      <apx-chart
+        [series]="chartOptions.series"
+        [chart]="chartOptions.chart"
+        [colors]="chartOptionColor"
+        [plotOptions]="chartOptions.plotOptions"
+        [xaxis]="chartOptions.xaxis"
+        [tooltip]="chartOptions.tooltip"
+        [theme]="chartOptions.theme"
+      ></apx-chart>
+    </div>
+    <div class="text-center m-y-15 f-w-600">
+      $30200
+      <span class="text-primary-500 mat-caption f-w-500">
+        <i class="ti ti-arrow-up-right"></i>
+        30.6%
+      </span>
+    </div>
+  </div>
+  <div class="grid">
+    <button class="b-rad-20" mat-stroked-button>View more</button>
+  </div>
+</app-card>

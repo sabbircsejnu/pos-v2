@@ -4,11 +4,45 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router, ActivatedRoute } from '@angular/router';
 import { RoleService } from '../../services/role.service';
 import { CreateRoleDto, UpdateRoleDto } from '../../models/role.model';
+import { HR_PAYROLL_PERMISSION_CATEGORIES } from '../../models/hr-payroll-permissions';
 
 interface PermissionCategory {
   name: string;
   permissions: string[];
 }
+
+/** Readable labels for permissions whose raw key is not self-explanatory. */
+export const PERMISSION_DETAILS: Record<string, { label: string; description: string }> = {
+  'sales.discount.apply': {
+    label: 'Apply Manual Discounts',
+    description: 'Apply discounts at the POS, up to the maximum manual discount percentage.'
+  },
+  'sales.discount.override_limit': {
+    label: 'Override Discount Limit',
+    description: 'Apply discounts above the maximum manual discount percentage.'
+  },
+  'sales.discount.configure': {
+    label: 'Configure Discount Limit',
+    description: 'Change the maximum manual discount percentage in POS settings.'
+  },
+  'outlets.terminals.manage': {
+    label: 'Manage POS Terminals',
+    description: 'Add, rename, activate, deactivate and delete POS terminals when editing an outlet.'
+  },
+  'cash_sessions.view': { label: 'View Cash Sessions', description: 'See cash session history, details and reconciliation for authorized outlets.' },
+  'cash_sessions.open': { label: 'Open Cash Sessions', description: 'Open a cash session on an active terminal of an authorized outlet.' },
+  'cash_sessions.close': { label: 'Close Cash Sessions', description: 'Count the drawer and close a cash session, including an overdue one.' },
+  'cash_sessions.handover.confirm': { label: 'Confirm Cash Handovers', description: 'Confirm a cash handover or a bank deposit recorded at close.' },
+  'cash_sessions.attachments.upload': { label: 'Attach Closing Evidence', description: 'Upload photos or PDFs to a cash session.' },
+  'cash_sessions.attachments.download': { label: 'Download Closing Evidence', description: 'Download cash session attachments.' },
+  'cash_sessions.variance.view': { label: 'View Cash Differences', description: 'See cash differences awaiting a decision.' },
+  'cash_sessions.variance.approve': { label: 'Approve Cash Differences', description: 'Approve or reject a closing cash difference (never your own close).' },
+  'cash_sessions.variance.retry_posting': { label: 'Retry Cash Difference Posting', description: 'Retry the accounting posting of an approved cash difference.' },
+  'sales.financial_postings.view': { label: 'View Sale Financial Postings', description: 'See pending/failed sale and reversal GL postings and the posting worker health for the Business.' },
+  'sales.financial_postings.retry': { label: 'Retry Sale Financial Posting', description: 'Re-run a pending or failed sale/reversal GL posting. Never changes its amounts or accounting date.' },
+  'cash_sessions.expenses.pay': { label: 'Pay Drawer Expenses', description: 'Record the cash payout of an approved POS Drawer expense from an open session.' },
+  'expenses.self_approve': { label: 'Owner Expense Self-Approval', description: 'Business Owner exception to approve own POS Drawer/Petty Cash expenses. Needs the Business setting and is never implied by the wildcard.' }
+};
 
 @Component({
   selector: 'app-role-form',
@@ -35,6 +69,7 @@ export class RoleFormComponent implements OnInit {
   useWildcard = signal(false);
 
   permissionCategories: PermissionCategory[] = [
+    ...HR_PAYROLL_PERMISSION_CATEGORIES,
     {
       name: 'User Management',
       permissions: ['users.view', 'users.create', 'users.edit', 'users.delete']
@@ -124,7 +159,16 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Sales Management',
-      permissions: ['sales.view', 'sales.create', 'sales.backdate', 'sales.void', 'sales.refund']
+      permissions: ['sales.view', 'sales.create', 'sales.backdate', 'sales.void', 'sales.refund', 'sales.discount.apply', 'sales.discount.override_limit', 'sales.discount.configure', 'sales.financial_postings.view', 'sales.financial_postings.retry']
+    },
+    {
+      name: 'Cash Sessions',
+      permissions: [
+        'cash_sessions.view', 'cash_sessions.open', 'cash_sessions.close',
+        'cash_sessions.handover.confirm', 'cash_sessions.attachments.upload', 'cash_sessions.attachments.download',
+        'cash_sessions.variance.view', 'cash_sessions.variance.approve', 'cash_sessions.variance.retry_posting',
+        'cash_sessions.expenses.pay', 'expenses.self_approve'
+      ]
     },
     {
       name: 'Purchase Management',
@@ -156,39 +200,55 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Outlet Management',
-      permissions: ['outlets.view', 'outlets.create', 'outlets.edit', 'outlets.delete']
+      permissions: ['outlets.view', 'outlets.create', 'outlets.edit', 'outlets.delete', 'outlets.terminals.manage']
     },
     {
       name: 'Warehouse Management',
       permissions: ['warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete']
     },
     {
-      name: 'Accounting Chart of Accounts',
+      name: 'Finance - Chart of Accounts',
       permissions: ['accounting.chart_accounts.view', 'accounting.chart_accounts.create', 'accounting.chart_accounts.edit']
     },
     {
-      name: 'Accounting Configuration',
+      name: 'Finance - Accounting Configuration',
       permissions: ['accounting.configuration.view', 'accounting.configuration.edit']
     },
     {
-      name: 'Accounting Journals',
-      permissions: ['accounting.journals.view', 'accounting.journals.create', 'accounting.journals.update', 'accounting.journals.cancel', 'accounting.journals.post', 'accounting.journals.reverse', 'accounting.manual_journals.create', 'accounting.manual_journals.post']
+      name: 'Finance - Journals and Manual Journals',
+      permissions: ['accounting.journals.view', 'accounting.journals.create', 'accounting.journals.update', 'accounting.journals.cancel', 'accounting.journals.post', 'accounting.journals.reverse', 'accounting.manual_journals.view', 'accounting.manual_journals.create', 'accounting.manual_journals.update', 'accounting.manual_journals.submit', 'accounting.manual_journals.approve', 'accounting.manual_journals.reject', 'accounting.manual_journals.cancel', 'accounting.manual_journals.post', 'accounting.manual_journals.reverse']
     },
     {
-      name: 'Accounting Expenses',
+      name: 'Finance - Expenses and Expense Categories',
       permissions: ['accounting.expenses.view', 'accounting.expenses.create', 'accounting.expenses.edit', 'accounting.expenses.submit', 'accounting.expenses.approve', 'accounting.expenses.reject', 'accounting.expenses.cancel']
     },
     {
-      name: 'Accounting Other Income',
-      permissions: ['accounting.other_income.view', 'accounting.other_income.create', 'accounting.other_income.edit', 'accounting.other_income.submit', 'accounting.other_income.approve', 'accounting.other_income.cancel']
+      name: 'Finance - Supplier Payments and Advances',
+      permissions: ['accounting.supplier_payments.view', 'accounting.supplier_payments.create', 'accounting.supplier_payments.submit', 'accounting.supplier_payments.approve', 'accounting.supplier_payments.reject', 'accounting.supplier_payments.cancel', 'accounting.supplier_advances.view', 'accounting.supplier_advances.create', 'accounting.supplier_advances.submit', 'accounting.supplier_advances.approve', 'accounting.supplier_advances.reject', 'accounting.supplier_advances.cancel']
     },
     {
-      name: 'Accounting Period Governance',
-      permissions: ['accounting.financial_years.view', 'accounting.financial_years.manage', 'accounting.periods.view', 'accounting.periods.close', 'accounting.periods.reopen', 'accounting.opening_balances.post']
+      name: 'Finance - Other Income',
+      permissions: ['accounting.other_income.view', 'accounting.other_income.create', 'accounting.other_income.edit', 'accounting.other_income.submit', 'accounting.other_income.approve', 'accounting.other_income.reject', 'accounting.other_income.cancel']
     },
     {
-      name: 'Accounting Reports',
-      permissions: ['accounting.reports.general_ledger', 'accounting.reports.trial_balance', 'accounting.reports.profit_loss', 'accounting.reports.balance_sheet', 'accounting.reports.cash_book', 'accounting.reports.expense', 'accounting.reports.income', 'accounting.reports.cogs', 'accounting.reports.inventory_valuation', 'accounting.reports.cash_closing']
+      name: 'Finance - Financial Years, Periods and Opening Balances',
+      permissions: ['accounting.financial_years.view', 'accounting.financial_years.manage', 'accounting.financial_years.reopen', 'accounting.periods.view', 'accounting.periods.close', 'accounting.periods.reopen', 'accounting.opening_balances.post', 'accounting.opening_balances.adjust']
+    },
+    {
+      name: 'Finance - Bank Statements, Settlements and Transfers',
+      permissions: ['accounting.statement_import.view', 'accounting.statement_import.create', 'accounting.settlements.view', 'accounting.settlements.create', 'accounting.settlements.post', 'accounting.settlements.reverse', 'accounting.liquidity_transfers.view', 'accounting.liquidity_transfers.create', 'accounting.liquidity_transfers.post', 'accounting.liquidity_transfers.reverse']
+    },
+    {
+      name: 'Finance - Bank Reconciliation and Adjustments',
+      permissions: ['accounting.reconciliation.view', 'accounting.reconciliation.create', 'accounting.reconciliation.match', 'accounting.reconciliation.unmatch', 'accounting.reconciliation.close', 'accounting.reconciliation.reopen', 'accounting.adjustments.propose', 'accounting.adjustments.approve', 'accounting.adjustments.reverse', 'accounting.exceptions.manage']
+    },
+    {
+      name: 'Finance - Period Close',
+      permissions: ['accounting.close.prepare', 'accounting.close.approve', 'accounting.close.execute', 'accounting.close.override_exception', 'accounting.close.audit.view']
+    },
+    {
+      name: 'Finance - Reports',
+      permissions: ['accounting.reports.general_ledger', 'accounting.reports.trial_balance', 'accounting.reports.profit_loss', 'accounting.reports.balance_sheet', 'accounting.reports.cash_book', 'accounting.reports.cash_flow', 'accounting.reports.profitability', 'accounting.reports.expense', 'accounting.reports.income', 'accounting.reports.cogs', 'accounting.reports.inventory_valuation', 'accounting.reports.cash_closing', 'accounting.reports.ap_subledger', 'accounting.reports.ap_aging', 'accounting.reports.supplier_statement', 'accounting.reports.ap_reconciliation', 'accounting.reports.vat']
     }
   ];
 
@@ -210,7 +270,7 @@ export class RoleFormComponent implements OnInit {
   ngOnInit(): void {
     this.initializeForm();
     this.loadPermissions();
-    
+
     // Check if edit mode
     this.route.params.subscribe(params => {
       if (params['id']) {
@@ -245,7 +305,7 @@ export class RoleFormComponent implements OnInit {
         this.roleForm.patchValue({
           name: role.name
         });
-        
+
         // Check if wildcard permission
         if (role.permissions.includes('*')) {
           this.useWildcard.set(true);
@@ -253,7 +313,7 @@ export class RoleFormComponent implements OnInit {
         } else {
           this.selectedPermissions.set(new Set(role.permissions));
         }
-        
+
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -275,7 +335,7 @@ export class RoleFormComponent implements OnInit {
 
   togglePermission(permission: string): void {
     if (this.useWildcard()) return;
-    
+
     const current = new Set(this.selectedPermissions());
     if (current.has(permission)) {
       current.delete(permission);
@@ -287,10 +347,10 @@ export class RoleFormComponent implements OnInit {
 
   toggleCategory(category: PermissionCategory): void {
     if (this.useWildcard()) return;
-    
+
     const current = new Set(this.selectedPermissions());
     const allSelected = category.permissions.every(p => current.has(p));
-    
+
     if (allSelected) {
       category.permissions.forEach(p => current.delete(p));
     } else {
@@ -380,6 +440,14 @@ export class RoleFormComponent implements OnInit {
   }
 
   getPermissionDisplayName(permission: string): string {
+    const expenseCategoryHints: Record<string, string> = {
+      'accounting.expenses.view': 'accounting.expenses.view (Expenses and Expense Categories list)',
+      'accounting.expenses.edit': 'accounting.expenses.edit (edit Expenses, create/edit Expense Categories)'
+    };
+    if (expenseCategoryHints[permission]) {
+      return expenseCategoryHints[permission];
+    }
+
     if (permission === 'stock_transfers.view_all_locations') {
       return 'View Transfers Across All Locations';
     }
@@ -388,6 +456,10 @@ export class RoleFormComponent implements OnInit {
       return 'Transfer From Any Location';
     }
 
-    return permission;
+    return PERMISSION_DETAILS[permission]?.label ?? permission;
+  }
+
+  getPermissionDescription(permission: string): string {
+    return PERMISSION_DETAILS[permission]?.description ?? '';
   }
 }

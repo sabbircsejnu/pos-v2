@@ -1,3 +1,5 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -15,6 +17,7 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./supplier-details.component.css']
 })
 export class SupplierDetailsComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   supplier = signal<Supplier | null>(null);
   performance = signal<SupplierPerformanceDto | null>(null);
   isLoading = signal(false);
@@ -123,10 +126,6 @@ export class SupplierDetailsComponent implements OnInit {
 
   formatDate(date: Date | string | undefined): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return this.companyDates.format(date, false);
   }
 }

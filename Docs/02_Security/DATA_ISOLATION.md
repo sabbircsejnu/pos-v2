@@ -66,7 +66,7 @@ Updated: 2026-06-07
   - `PosController` accepts `outletId` input but does not enforce authorized outlet membership before lookup/stock-hint/cart-pricing.
 - Legacy compatibility path can over-broaden scope.
   - `UserOutletAccessService` returns all outlets/warehouses if a BusinessOwner has no `BusinessId` claim (legacy fallback).
-- Role-switch outlet validation is existence-based, not business-bound in `RoleSwitchService`.
+- Role-switch commands re-read the active User and persisted BusinessOwner Role; a selected outlet must belong to that User's persisted Business. Foreign-business outlet rejection is covered by the role-switch tests.
 - Outlet/Warehouse rules are strong in some flows (sales, transfers) but not uniformly applied across all inventory/GRN endpoints.
 
 ## Recommended improvements

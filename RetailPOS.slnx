@@ -1,10 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/RetailPOS.API/RetailPOS.API.csproj" />
-    <Project Path="src/RetailPOS.Core/RetailPOS.Core.csproj" />
+    <Project Path="src/RetailPOS.Application/RetailPOS.Application.csproj" />
+    <Project Path="src/RetailPOS.Domain/RetailPOS.Domain.csproj" />
     <Project Path="src/RetailPOS.Infrastructure/RetailPOS.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/RetailPOS.Tests/RetailPOS.Tests.csproj" />
+    <Project Path="tests/RetailPOS.IntegrationTests/RetailPOS.IntegrationTests.csproj" />
+    <Project Path="tests/RetailPOS.UnitTests/RetailPOS.UnitTests.csproj" />
   </Folder>
 </Solution>

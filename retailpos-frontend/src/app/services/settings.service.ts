@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { CompanyDateService } from './company-date.service';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -10,10 +11,13 @@ import {
   InvoiceNumberSettings,
   InventorySettings,
   SystemSettings,
+  PosSettingsResponse,
+  UpdatePosSettingsRequest,
 } from '../models/settings.model';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
+  private readonly dates = inject(CompanyDateService);
   private settingsUrl = `${environment.apiUrl}/settings`;
 
   isLoading = signal(false);
@@ -26,7 +30,7 @@ export class SettingsService {
     this.isLoading.set(true);
     return this.http.get<any>(this.settingsUrl).pipe(
       tap({
-        next: (res) => { this.allSettings.set(res.data); this.isLoading.set(false); },
+        next: (res) => { this.allSettings.set(res.data); this.dates.setFormat(res.data.company.dateFormat); this.isLoading.set(false); },
         error: () => this.isLoading.set(false)
       })
     );
@@ -56,8 +60,19 @@ export class SettingsService {
     return this.http.get<any>(`${this.settingsUrl}/invoice-number`);
   }
 
+  getPosSettings(): Observable<PosSettingsResponse> {
+    return this.http.get<PosSettingsResponse>(`${this.settingsUrl}/pos`);
+  }
+
+  /** Partial update: send only the fields the caller may change (the discount limit needs sales.discount.configure). */
+  updatePosSettings(dto: UpdatePosSettingsRequest): Observable<PosSettingsResponse> {
+    return this.http.put<PosSettingsResponse>(`${this.settingsUrl}/pos`, dto);
+  }
+
   updateCompanySettings(dto: CompanySettings): Observable<any> {
-    return this.http.put<any>(`${this.settingsUrl}/company`, dto);
+    return this.http.put<any>(`${this.settingsUrl}/company`, dto).pipe(
+      tap(response => this.dates.setFormat(response.data?.company?.dateFormat ?? dto.dateFormat))
+    );
   }
 
   updateCurrencySettings(dto: CurrencySettings): Observable<any> {

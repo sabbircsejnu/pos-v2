@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, OnDestroy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -33,11 +36,12 @@ export const TRANSACTION_TYPES = [
 @Component({
   selector: 'app-product-ledger-report',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './product-ledger-report.component.html',
   styleUrls: ['./product-ledger-report.component.css']
 })
 export class ProductLedgerReportComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   // ── Product search ────────────────────────────────────────────────────────
   productQuery    = signal('');
   productResults  = signal<ProductOption[]>([]);
@@ -258,7 +262,7 @@ export class ProductLedgerReportComponent implements OnInit, OnDestroy {
 
   formatDate(s?: string): string {
     if (!s) return '—';
-    return new Date(s).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return this.companyDates.format(s, false);
   }
 
   txTypeBadge(type: string): string {

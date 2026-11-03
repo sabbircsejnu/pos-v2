@@ -1,0 +1,127 @@
+<div class="row user-profile-details">
+  <div class="col-sm-12">
+    <div class="profile-wave-card">
+      <app-top-svg class="top-svg"></app-top-svg>
+      <app-back-svg class="back-svg"></app-back-svg>
+      <div class="p-20">
+        <div class="row">
+          <div class="col">
+            <div class="flex align-item-center">
+              <div class="profile-complete">
+                <apx-chart
+                  [series]="totalEarningChart.series"
+                  [chart]="totalEarningChart.chart"
+                  [colors]="totalEarningChart.colors"
+                  [plotOptions]="totalEarningChart.plotOptions"
+                  [fill]="totalEarningChart.fill"
+                  [stroke]="totalEarningChart.stroke"
+                ></apx-chart>
+              </div>
+              <div class="m-l-15">
+                <div class="f-16 f-w-600">Edit Your Profile</div>
+                <p class="m-b-0">Complete your profile to unlock all features</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <button mat-flat-button color="primary" class="m-y-15">Edit Your Profile</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-4">
+        <app-card [showHeader]="false">
+          <div class="account-info">
+            <div class="user-status">
+              <button mat-button [matMenuTriggerFor]="menu">
+                <i class="ti ti-dots f-20"></i>
+              </button>
+              <mat-menu #menu="matMenu" xPosition="before">
+                <button mat-menu-item>Edit</button>
+                <button mat-menu-item>Details</button>
+              </mat-menu>
+            </div>
+            <div class="text-center m-t-15">
+              <div class="chat-avatar">
+                <img src="assets/images/user/avatar-5.jpg" alt="avatar" class="img-fluid wid-120" />
+              </div>
+              <div class="f-16 f-w-600">Stebin Ben</div>
+              <p class="text-muted">Full Stack Developer</p>
+              <ul class="list-inline m-b-0">
+                <li class="list-inline-item m-r-10">
+                  <div class="avatar avatar-xs google-icon">
+                    <i class="ti ti-brand-google f-16"></i>
+                  </div>
+                </li>
+                <li class="list-inline-item m-r-10">
+                  <div class="avatar avatar-xs fb-icon">
+                    <i class="fab fa-facebook-f f-16"></i>
+                  </div>
+                </li>
+                <li class="list-inline-item m-r-10">
+                  <div class="avatar avatar-xs apple-icon">
+                    <i class="ti ti-brand-apple f-16"></i>
+                  </div>
+                </li>
+              </ul>
+              <mat-divider class="m-y-15"></mat-divider>
+              <div class="row">
+                <div class="col-4">
+                  <div class="f-16 f-w-500">85</div>
+                  <div class="text-muted">Post</div>
+                </div>
+                <div class="col-4 border-side">
+                  <div class="f-16 f-w-500">40</div>
+                  <div class="text-muted">Project</div>
+                </div>
+                <div class="col-4">
+                  <div class="f-16 f-w-500">4.5K</div>
+                  <div class="text-muted">Members</div>
+                </div>
+              </div>
+            </div>
+            <mat-divider class="m-y-15"></mat-divider>
+            <ul class="list-group list-group-flush user-personal-information">
+              <li class="list-group-item" [routerLinkActive]="['active']" routerLink="/application/profile/user/personal">
+                <a class="text-muted">
+                  <span class="f-w-500">
+                    <i class="ti ti-user f-16 m-r-10"></i>
+                    Personal Information
+                  </span>
+                </a>
+              </li>
+              <li class="list-group-item" routerLink="/application/profile/user/payment" [routerLinkActive]="['active']">
+                <a class="text-muted">
+                  <span class="f-w-500">
+                    <i class="ti ti-credit-card f-16 m-r-10"></i>
+                    Payment
+                  </span>
+                </a>
+              </li>
+              <li class="list-group-item" routerLink="/application/profile/user/password" [routerLinkActive]="['active']">
+                <a class="text-muted">
+                  <span class="f-w-500">
+                    <i class="ti ti-lock f-16 m-r-10"></i>
+                    Change Password
+                  </span>
+                </a>
+              </li>
+              <li class="list-group-item" routerLink="/application/profile/user/setting" [routerLinkActive]="['active']">
+                <a class="text-muted">
+                  <span class="f-w-500">
+                    <i class="ti ti-settings f-16 m-r-10"></i>
+                    Settings
+                  </span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </app-card>
+      </div>
+      <div class="col-md-8">
+        <router-outlet></router-outlet>
+      </div>
+    </div>
+  </div>
+</div>

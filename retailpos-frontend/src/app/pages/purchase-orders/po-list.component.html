@@ -32,7 +32,7 @@
             type="text"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event); onSearchChange()"
-            placeholder="Search PO #, supplier, warehouse..."
+            placeholder="Search PO #, supplier, location..."
             class="input pl-8 h-8 text-sm" />
         </div>
 
@@ -54,15 +54,22 @@
           <option *ngFor="let supplier of supplierService.suppliers()" [ngValue]="supplier.id">{{ supplier.name }}</option>
         </select>
 
-        <select [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event); onFilterChange()" class="select h-8 text-sm sm:w-40 shrink-0">
-          <option [ngValue]="undefined">All Warehouses</option>
-          <option *ngFor="let warehouse of warehouseService.warehouses()" [ngValue]="warehouse.id">{{ warehouse.name }}</option>
+        <select [ngModel]="locationFilter()" (ngModelChange)="locationFilter.set($event); onFilterChange()" class="select h-8 text-sm sm:w-44 shrink-0" aria-label="Filter by destination location">
+          <option value="">All Locations</option>
+          <option value="outlet">All Outlets</option>
+          <option value="warehouse">All Warehouses</option>
+          <optgroup *ngIf="filterOutlets().length" label="Outlets">
+            <option *ngFor="let outlet of filterOutlets()" [value]="'outlet:' + outlet.id">{{ outlet.name }}</option>
+          </optgroup>
+          <optgroup *ngIf="filterWarehouses().length" label="Warehouses">
+            <option *ngFor="let warehouse of filterWarehouses()" [value]="'warehouse:' + warehouse.id">{{ warehouse.name }}</option>
+          </optgroup>
         </select>
 
         <div class="flex items-center gap-1.5 shrink-0">
-          <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
+          <input type="date" appCompanyDate [ngModel]="startDate()" (ngModelChange)="startDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
           <span class="text-xs text-gray-400">to</span>
-          <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
+          <input type="date" appCompanyDate [ngModel]="endDate()" (ngModelChange)="endDate.set($event); onFilterChange()" class="input h-8 text-sm w-36" />
         </div>
 
         <button type="button" class="btn btn-outline h-8 text-sm px-3 gap-1.5 whitespace-nowrap" [class.btn-active]="hasActiveFilters()">
@@ -95,7 +102,8 @@
               <th (click)="sort('id')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">PO # {{ getSortIcon('id') }}</th>
               <th (click)="sort('order_date')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Order Date {{ getSortIcon('order_date') }}</th>
               <th (click)="sort('supplier')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Supplier {{ getSortIcon('supplier') }}</th>
-              <th class="px-4 py-2.5">Warehouse</th>
+              <th class="px-4 py-2.5">Location Type</th>
+              <th class="px-4 py-2.5">Location</th>
               <th class="px-4 py-2.5 text-right">Items</th>
               <th (click)="sort('total_amount')" class="px-4 py-2.5 text-right cursor-pointer hover:bg-gray-100">Total Amount {{ getSortIcon('total_amount') }}</th>
               <th (click)="sort('status')" class="px-4 py-2.5 cursor-pointer hover:bg-gray-100">Status {{ getSortIcon('status') }}</th>
@@ -108,7 +116,8 @@
               <td class="px-4 py-2.5 font-semibold text-slate-900">{{ po.poNumber || ('PO-' + po.id) }}</td>
               <td class="px-4 py-2.5 text-slate-700">{{ formatDate(po.orderDate) }}</td>
               <td class="px-4 py-2.5 text-slate-900">{{ po.supplierName }}</td>
-              <td class="px-4 py-2.5 text-slate-700">{{ po.warehouseName }}</td>
+              <td class="px-4 py-2.5 text-slate-700">{{ getLocationTypeLabel(po) }}</td>
+              <td class="px-4 py-2.5 text-slate-700">{{ getLocationName(po) }}</td>
               <td class="px-4 py-2.5 text-right text-slate-700">{{ po.totalItems }} ({{ po.totalQuantity }} units)</td>
               <td class="px-4 py-2.5 text-right font-semibold text-slate-900">{{ formatCurrency(po.totalAmount) }}</td>
               <td class="px-4 py-2.5">
@@ -154,7 +163,7 @@
             </tr>
 
             <tr *ngIf="poService.purchaseOrders().length === 0">
-              <td colspan="8" class="px-6 py-10 text-center text-slate-500">
+              <td colspan="9" class="px-6 py-10 text-center text-slate-500">
                 <i class="fas fa-file-invoice text-3xl text-slate-300"></i>
                 <p class="mt-2 text-sm">No purchase orders found</p>
                 <button *ngIf="can('purchases.create')" (click)="createNew()" class="btn btn-primary mt-4" type="button">Create First Purchase Order</button>

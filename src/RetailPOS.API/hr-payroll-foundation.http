@@ -1,0 +1,17 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@businessId = 1
+
+### Scoped discovery; missing settings must return false
+GET {{baseUrl}}/api/hr/v1/capabilities
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+
+### Missing Business for an unscoped administrator must return 403
+GET {{baseUrl}}/api/hr/v1/capabilities
+Authorization: Bearer {{token}}
+
+### Invalid Business header must return 400
+GET {{baseUrl}}/api/hr/v1/capabilities
+Authorization: Bearer {{token}}
+X-Business-Id: 0

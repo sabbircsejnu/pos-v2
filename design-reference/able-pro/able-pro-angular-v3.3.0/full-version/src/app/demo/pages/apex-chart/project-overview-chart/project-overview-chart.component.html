@@ -1,0 +1,57 @@
+<app-card [showHeader]="false" [padding]="20">
+  <div class="flex align-item-center justify-content-between">
+    <div class="customer-report f-16 f-w-600">Project overview</div>
+    <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots f-18"></i></a>
+    <mat-menu #menu="matMenu">
+      <a mat-menu-item>Today</a>
+      <a mat-menu-item>Weekly</a>
+      <a mat-menu-item>Monthly</a>
+    </mat-menu>
+  </div>
+  <div class="row align-item-center justify-content-center">
+    <div class="col-md-6 col-xl-4">
+      <div class="m-t-15 row align-item-center">
+        <div class="col-6">
+          <p class="text-muted m-b-5 f-16">Total Tasks</p>
+          <div class="f-16 f-w-600">34,686</div>
+        </div>
+        <div class="col-6" id="chart">
+          <apx-chart
+            [series]="chartOptions.series"
+            [chart]="chartOptions.chart"
+            [colors]="chartOptions.colors"
+            [stroke]="chartOptions.stroke"
+            [fill]="chartOptions.fill"
+            [tooltip]="chartOptions.tooltip"
+          ></apx-chart>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="m-t-15 row align-item-center">
+        <div class="col-6">
+          <p class="text-muted m-b-5 f-16">Pending Tasks</p>
+          <div class="f-16 f-w-600">3,786</div>
+        </div>
+        <div class="col-6" id="chart-1">
+          <apx-chart
+            [series]="chartOptions_1.series"
+            [chart]="chartOptions_1.chart"
+            [colors]="chartOptions_1.colors"
+            [stroke]="chartOptions_1.stroke"
+            [fill]="chartOptions_1.fill"
+            [tooltip]="chartOptions_1.tooltip"
+          ></apx-chart>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+      <div class="m-t-15 grid">
+        <button mat-flat-button class="b-rad-20" color="primary">
+          <i class="ti ti-plus"></i>
+          Add project
+        </button>
+      </div>
+    </div>
+  </div>
+</app-card>

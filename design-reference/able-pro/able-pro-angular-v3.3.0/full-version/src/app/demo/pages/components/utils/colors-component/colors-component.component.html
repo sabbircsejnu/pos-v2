@@ -1,0 +1,49 @@
+<div class="row">
+  @for (color of colors; track color) {
+    <div class="col-md-6">
+      <app-card cardTitle="{{ color.colorName }}">
+        @for (list of color.colorPlatte; track list) {
+          <div [ngClass]="list.class" class="{{ DarkMode ? list.classDark : list.classLight }}">
+            <div class="color-block">
+              <div class="color-code">
+                <div class="color-code-inner">
+                  <p class="m-b-0 mat-caption">{{ list.label }}</p>
+                  <p class="m-b-0 f-w-600 mat-body">{{ DarkMode ? list.dark : list.light }}</p>
+                </div>
+              </div>
+              <div class="color-name">
+                <div class="color-code-inner">
+                  <p class="m-b-0 f-w-600">{{ list.name }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </app-card>
+    </div>
+  }
+
+  @for (color of subColor; track color) {
+    <div class="col-md-4">
+      <app-card cardTitle="{{ color.colorName }}">
+        @for (list of color.colorPlatte; track list) {
+          <div [ngClass]="list.class" class="{{ DarkMode ? list.classDark : list.classLight }}">
+            <div class="color-block">
+              <div class="color-code">
+                <div class="color-code-inner">
+                  <p class="m-b-0 mat-caption">{{ list.label }}</p>
+                  <p class="m-b-0 f-w-600 mat-body">{{ DarkMode ? list.dark : list.light }}</p>
+                </div>
+              </div>
+              <div class="color-name">
+                <div class="color-code-inner">
+                  <p class="m-b-0 f-w-600">{{ DarkMode ? list.darkName : list.lightName }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </app-card>
+    </div>
+  }
+</div>

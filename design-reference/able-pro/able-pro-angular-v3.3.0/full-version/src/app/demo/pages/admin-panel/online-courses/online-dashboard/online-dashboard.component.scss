@@ -1,0 +1,13 @@
+::ng-deep.upcoming-course {
+  .list-group {
+    .list-group-item {
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--accent-300);
+      }
+    }
+  }
+}
+
+.demo-inline-calendar-card {
+  width: 300px;
+}

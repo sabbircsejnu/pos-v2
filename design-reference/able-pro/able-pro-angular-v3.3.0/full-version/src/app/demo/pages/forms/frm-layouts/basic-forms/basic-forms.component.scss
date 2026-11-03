@@ -1,0 +1,15 @@
+.language-select {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.horizontal-language {
+  padding: 5px 15px;
+}
+
+::ng-deep.basic-layouts {
+  .mat-mdc-form-field-hint-wrapper,
+  .mat-mdc-form-field-error-wrapper {
+    padding: 0 !important;
+  }
+}

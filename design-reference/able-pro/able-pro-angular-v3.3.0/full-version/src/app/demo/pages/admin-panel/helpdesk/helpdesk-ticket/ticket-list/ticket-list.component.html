@@ -1,0 +1,299 @@
+<div class="row">
+  <div class="col-xl-8 col-lg-12 help-main" [ngClass]="group.value">
+    <app-card [showHeader]="false">
+      <nav class="flex align-item-center justify-content-between p-0">
+        <div class="f-16 f-w-600">Ticket List</div>
+        <mat-button-toggle-group #group="matButtonToggleGroup" value="large-view">
+          <mat-button-toggle value="sm-view">
+            <svg class="wid-20 hei-20 f-20">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-text-align-justify-center"></use>
+            </svg>
+          </mat-button-toggle>
+          <mat-button-toggle value="md-view">
+            <svg class="wid-20 hei-20 f-20">
+              <use xlink:href="assets/fonts/custom-icon.svg#hambergerMenu"></use>
+            </svg>
+          </mat-button-toggle>
+          <mat-button-toggle value="large-view">
+            <svg class="wid-20 hei-20 f-20">
+              <use xlink:href="assets/fonts/custom-icon.svg#element3"></use>
+            </svg>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      </nav>
+    </app-card>
+    @for (list of ticketCards; track list) {
+      <mat-card class="ticket-card" [ngClass]="list.type">
+        <mat-card-content class="p-20">
+          <div class="row">
+            <div class="col-sm-auto m-b-15">
+              <div class="user">
+                <img src="assets/images/user/avatar-1.png" alt="Generic placeholder image" class="user-image border-50 img-radius" />
+                <div class="user-ticket">
+                  <ul class="list-unstyled">
+                    <li class="list-unstyled-item"><a class="link-secondary">1 Ticket</a></li>
+                    <li class="list-unstyled-item flex align-item-center justify-content-center">
+                      <a href="javascript:" class="text-warn-500 flex align-item-center">
+                        <i class="ti ti-heart-filled text-warn-500 m-r-5 f-16"></i>
+                        3
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="popup-trigger">
+                <div class="f-16 f-w-600">
+                  {{ list.name }}
+                  <div class="mat-small bg-accent-300 user-status m-l-10">Replied</div>
+                </div>
+                <div class="help-sm-hidden">
+                  <ul class="list-unstyled text-muted comment-list">
+                    <li>
+                      <img src="assets/images/admin/p1.jpg" class="wid-20 border-8 m-r-10 img-fluid" />
+                      Piaf able
+                    </li>
+                    <li>
+                      <img src="assets/images/user/avatar-5.jpg" class="wid-20 border-8 m-r-10 img-fluid" />
+                      Assigned to
+                      <b class="m-l-5">Robert alia</b>
+                    </li>
+                    <li>
+                      <i class="ti ti-calendar f-18 m-r-5"></i>
+                      Updated 22 hours ago
+                    </li>
+                    <li>
+                      <i class="ti ti-message f-18 m-r-5"></i>
+                      9
+                    </li>
+                  </ul>
+                </div>
+                <div class="f-w-600 f-16 m-t-15 m-b-10">
+                  <i class="f-18 m-r-5 ti ti-lock"></i>
+                  Theme customisation issue
+                </div>
+                <div class="help-md-hidden">
+                  <div class="comment-content m-b-15 p-15">
+                    <div class="f-14 f-w-600 flex align-item-center">
+                      <img src="assets/images/user/avatar-5.jpg" class="wid-40 m-r-10 border-50" />
+                      Last comment from
+                      <a href="javascript:" class="text-accent-500 m-l-5">Robert alia:</a>
+                    </div>
+                    <p class="mb-0">
+                      <b>hello John lui</b>
+                      ,
+                      <br />
+                      you need to create
+                      <b>"toolbar-options" div only</b>
+                      once in a page&nbsp;in your code,
+                      <br />
+                      this div fill found every "td" tag in your page,
+                      <br />
+                      just remove those things and also in option button add
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="m-t-10 flex">
+                <button mat-button class="bg-primary-50 text-primary-500 m-r-10" (click)="ticketDetails.toggle()">
+                  <div class="flex align-item-center">
+                    <i class="ti ti-eye m-r-5 f-20"></i>
+                    View Ticket
+                  </div>
+                </button>
+                <button mat-button class="bg-warn-50 text-warn-500">
+                  <div class="flex align-item-center">
+                    <i class="ti ti-trash m-r-5 f-20"></i>
+                    Delete
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+  </div>
+  <div class="col-xl-4 col-lg-12">
+    <div class="right-side">
+      <app-card cardTitle="Ticket Categories" [padding]="0" cardClass="ticketCategories">
+        <ul class="list-group list-group-flush p-b-10">
+          @for (ticket of tickets; track ticket) {
+            <li class="flex align-item-center justify-content-between">
+              <div class="flex align-item-center">
+                <img src="{{ ticket.src }}" alt="ticket-img" class="wid-20 border-8 m-r-5 img-fluid" />
+                <a href="javascript:" class="text-accent-500">{{ ticket.name }}</a>
+              </div>
+              <div class="float-end">
+                <a href="javascript:" class="user-status {{ ticket.background }} border-50 m-r-5">
+                  {{ ticket.number }}
+                </a>
+                <a href="javascript:" class="user-status border-50 bg-accent-300 m-r-0" title="Total Ticket">3</a>
+              </div>
+            </li>
+          }
+        </ul>
+      </app-card>
+      <app-card cardTitle="Support Agent" [padding]="0" cardClass="ticketCategories">
+        <ul class="list-group list-group-flush p-b-10">
+          @for (ticket of agents; track ticket) {
+            <li class="flex align-item-center justify-content-between">
+              <div class="flex align-item-center">
+                <img src="{{ ticket.src }}" alt="ticket-img" class="wid-20 border-8 m-r-5 img-fluid" />
+                <a href="javascript:" class="text-accent-500">{{ ticket.name }}</a>
+              </div>
+              <div class="float-end">
+                <a href="javascript:" class="user-status {{ ticket.background }} border-50 m-r-5">
+                  {{ ticket.number }}
+                </a>
+                <a href="javascript:" class="user-status border-50 bg-accent-300 m-r-0" title="Total Ticket">3</a>
+              </div>
+            </li>
+          }
+        </ul>
+      </app-card>
+    </div>
+  </div>
+</div>
+
+<mat-drawer #ticketDetails position="end" mode="over" class="ticket-drawer">
+  <div class="ticket-header">
+    <div class="f-16 f-w-600">
+      Chrome bug The page uses a roller to slide under a black block
+      <span class="user-status bg-warn-50 text-warn-500">Private</span>
+    </div>
+    <a class="avatar avatar-s text-accent-500" href="javascript:">
+      <i class="ti ti-x f-20" (click)="ticketDetails.toggle()"></i>
+    </a>
+  </div>
+  <app-scrollbar [customStyle]="{ height: 'calc(100vh - 90px)', position: 'relative' }">
+    <div class="p-x-25 p-y-20 border-bottom">
+      <div class="row">
+        <div class="col-md-7">
+          <div class="flex align-item-center">
+            <div class="user-status bg-success-50 text-success-500">
+              <div class="flex align-item-center">
+                <i class="ti ti-check m-r-5"></i>
+                Closed
+              </div>
+            </div>
+            <p class="flex align-item-center m-b-0 m-l-10">
+              <img src="assets/images/admin/p1.jpg" class="wid-20 border-8 m-r-10 img-fluid" />
+              Alpha pro
+            </p>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <p class="flex align-item-center m-b-0 justify-content-end">
+            <i class="ti ti-calendar f-20 m-r-5"></i>
+            <mat-label class="m-b-0">Jan,1st,2019</mat-label>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="p-x-25 p-y-20 border-bottom">
+      <div class="row">
+        <div class="col-auto">
+          <img class="border-50 user-image img-radius" src="assets/images/user/avatar-5.jpg" alt="Generic placeholder image " />
+        </div>
+        <div class="col">
+          <quill-editor>
+            <div quill-editor-toolbar>
+              <span class="ql-formats">
+                <select class="ql-header" [title]="'header'">
+                  <option value="1"></option>
+                  <option value="2"></option>
+                  <option value="3"></option>
+                  <option value="4"></option>
+                  <option value="5"></option>
+                  <option value="6"></option>
+                  <option selected="selected"></option>
+                </select>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-bold" [title]="'Bold'"></button>
+                <button class="ql-italic" [title]="'Italic'"></button>
+                <button class="ql-underline" [title]="'Italic'"></button>
+                <button class="ql-italic" [title]="'strike'"></button>
+                <button class="ql-link" [title]="'link'"></button>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-list" value="ordered"></button>
+                <button class="ql-list" value="bullet"></button>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-clean"></button>
+              </span>
+            </div>
+          </quill-editor>
+          <div class="flex align-item-center">
+            <button mat-button class="bg-primary-50 text-primary-500 m-r-10">primary</button>
+            <button mat-button class="bg-accent-300 text-accent-500">
+              <div class="flex align-item-center">
+                <i class="ti ti-paperclip f-16"></i>
+                Add Attachment
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    @for (list of profiles; track list) {
+      <div class="p-x-25 p-y-20 border-bottom">
+        <div class="row align-item-center">
+          <div class="col-auto">
+            <img class="border-50 user-image img-radius" src="assets/images/user/avatar-5.jpg" alt="Generic placeholder image " />
+          </div>
+          <div class="col">
+            <div class="f-w-600">
+              Support Agent name
+              <div class="mat-small bg-accent-300 user-status">Support Agent</div>
+            </div>
+            <label class="text-muted">5 Month ago</label>
+          </div>
+          <div class="col-auto">
+            <div class="flex align-item-center">
+              <div class="m-r-5">
+                <a href="javascript:"><i class="text-muted m-r-5 ti ti-edit f-20"></i></a>
+              </div>
+              <div>
+                <a href="javascript:"><i class="text-muted ti ti-trash f-20"></i></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="m-t-15">
+          <p>hello John lui,</p>
+          <p>
+            you need to create
+            <strong>"toolbar-options" div only once</strong>
+            in a page in your code, this div fill found
+            <strong>every "td"</strong>
+            tag in your page, just remove those things.
+          </p>
+          <p>and also</p>
+          <p>
+            in option button add "
+            <strong>p-0</strong>
+            " class in "
+            <strong>I</strong>
+            " tag
+          </p>
+          <p>to</p>
+          <p></p>
+          <p>Thanks...</p>
+        </div>
+        @if (list.uploadImage === true) {
+          <div class="row text-center m-b-10">
+            @for (images of img; track images) {
+              <div class="col-xl-2 col-lg-3 col-sm-4 col-xs-12">
+                <img src="{{ images.image }}" class="img-fluid m-b-10" />
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </app-scrollbar>
+</mat-drawer>

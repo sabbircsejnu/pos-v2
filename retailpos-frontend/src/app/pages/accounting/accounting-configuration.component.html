@@ -1,0 +1,18 @@
+<div class="flex flex-col gap-4 p-4 max-w-4xl">
+  <div><h1 class="text-2xl font-bold text-gray-900">Accounting Configuration</h1><p class="text-sm text-gray-500">Control accounts used by financial reporting and posting workflows.</p></div>
+  @if (isLoading()) { <div class="py-16 text-center text-gray-500"><i class="fas fa-spinner fa-spin text-2xl"></i></div> }
+  @else if (error()) { <div class="card p-5 text-red-700">{{ error() }}</div> }
+  @else if (configuration()) {
+    <section class="card p-5">
+      <h2 class="font-semibold text-gray-900">Equity Presentation</h2>
+      <p class="text-sm text-gray-600 mt-1">Owner Capital records owner contributions. Owner Drawings records owner withdrawals. Retained Earnings is maintained separately for approved year-end transfers.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 text-sm"><div><p class="text-gray-500">Owner Capital</p><p class="font-medium">{{ accountName(configuration().ownerCapitalAccountId) }}</p></div><div><p class="text-gray-500">Owner Drawings</p><p class="font-medium">{{ accountName(configuration().ownerDrawingsAccountId) }}</p></div><div><p class="text-gray-500">Current Year Earnings</p><p class="font-medium">Calculated dynamically in financial statements</p></div></div>
+      <div class="mt-5 max-w-lg"><label class="label">Retained Earnings Account</label><select class="input mt-1" [ngModel]="retainedEarningsAccountId()" (ngModelChange)="retainedEarningsAccountId.set($event ? +$event : null)"><option [ngValue]="null">Select an Equity account</option>@for (account of equityAccounts(); track account.id) { <option [ngValue]="account.id">{{ accountLabel(account) }}</option> }</select><p class="text-xs text-gray-500 mt-2">Only active Equity accounts can be selected. No balances or historical closing entries are created here.</p></div>
+      <div class="mt-5 max-w-lg"><label class="label">Default Supplier Payment Terms (Calendar Days)</label><input type="number" min="0" max="3650" class="input mt-1" [ngModel]="defaultSupplierPaymentTermsDays()" (ngModelChange)="defaultSupplierPaymentTermsDays.set(+$event)"><p class="text-xs text-gray-500 mt-2">Used only when a supplier does not have a specific term. Existing payable document due dates remain unchanged.</p></div>
+      <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2"><div><label class="label">Output VAT Payable Account</label><select class="input mt-1" [ngModel]="vatPayableAccountId()" (ngModelChange)="vatPayableAccountId.set($event ? +$event : null)"><option [ngValue]="null">Select a Liability account</option>@for (account of liabilityAccounts(); track account.id) { <option [ngValue]="account.id">{{ accountLabel(account) }}</option> }</select></div><div><label class="label">Input VAT Receivable Account</label><select class="input mt-1" [ngModel]="vatReceivableAccountId()" (ngModelChange)="vatReceivableAccountId.set($event ? +$event : null)"><option [ngValue]="null">Select an Asset account</option>@for (account of assetAccounts(); track account.id) { <option [ngValue]="account.id">{{ accountLabel(account) }}</option> }</select></div></div>
+      @if (auth.hasPermission('accounting.configuration.edit')) {
+      <div class="mt-5 flex justify-end"><button class="btn btn-primary text-sm" (click)="save()" [disabled]="isSaving()"><i class="fas fa-save" [class.fa-spin]="isSaving()"></i> Save</button></div>
+      }
+    </section>
+  }
+</div>

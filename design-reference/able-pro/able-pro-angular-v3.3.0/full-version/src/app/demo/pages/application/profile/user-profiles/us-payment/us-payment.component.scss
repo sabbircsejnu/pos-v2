@@ -1,0 +1,21 @@
+.price-check {
+  border: 1px solid var(--accent-300);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.mat-mdc-radio-button.select-card {
+  .mdc-form-field {
+    width: 100%;
+  }
+
+  .mdc-label {
+    width: 100%;
+  }
+
+  .flex-inline {
+    span {
+      margin-top: 7px;
+    }
+  }
+}

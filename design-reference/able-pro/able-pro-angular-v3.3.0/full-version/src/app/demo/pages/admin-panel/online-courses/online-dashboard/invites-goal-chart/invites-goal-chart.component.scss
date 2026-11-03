@@ -1,0 +1,17 @@
+.summary-details {
+  display: inline-block;
+  text-align: center;
+  padding-left: 16px;
+  padding-right: 16px;
+
+  @media (max-width: 575px) {
+    padding: 0px;
+  }
+
+  h5 {
+    display: inline-flex;
+    align-items: center;
+    gap: 1;
+    margin-bottom: 0;
+  }
+}

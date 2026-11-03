@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.Reports;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using MediatR;
+using RetailPOS.Application.SalesReports;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,14 +13,14 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "reports.sales")]
 public class SalesReportsController : ControllerBase
 {
-    private readonly ISalesReportService _salesReportService;
+    private readonly ISender _sender;
     private readonly IUserOutletAccessService _outletAccess;
 
     public SalesReportsController(
-        ISalesReportService salesReportService,
+        ISender sender,
         IUserOutletAccessService outletAccess)
     {
-        _salesReportService = salesReportService;
+        _sender = sender;
         _outletAccess = outletAccess;
     }
 
@@ -28,18 +30,22 @@ public class SalesReportsController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] long? outletId,
-        [FromQuery] string? paymentMethod)
+        [FromQuery] string? paymentMethod,
+        CancellationToken cancellationToken)
     {
         outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
-        var filter = new SalesReportFilterDto
+        var result = await _sender.Send(
+            new GetSalesReportSummaryQuery(startDate, endDate, outletId, paymentMethod),
+            cancellationToken);
+        return Ok(ApiResponse<SalesReportDto>.SuccessResponse(new SalesReportDto
         {
-            StartDate     = startDate,
-            EndDate       = endDate,
-            OutletId      = outletId,
-            PaymentMethod = paymentMethod
-        };
-        var result = await _salesReportService.GetSummaryAsync(filter);
-        return Ok(ApiResponse<SalesReportDto>.SuccessResponse(result));
+            TotalRevenue = result.TotalRevenue,
+            TotalDiscount = result.TotalDiscount,
+            TotalTax = result.TotalTax,
+            NetRevenue = result.NetRevenue,
+            TotalTransactions = result.TotalTransactions,
+            AverageOrderValue = result.AverageOrderValue
+        }));
     }
 
     /// <summary>Returns top-selling products</summary>
@@ -48,32 +54,42 @@ public class SalesReportsController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] long? outletId,
-        [FromQuery] int limit = 10)
+        [FromQuery] int limit = 10,
+        CancellationToken cancellationToken = default)
     {
         outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
-        var filter = new SalesReportFilterDto
+        var result = await _sender.Send(
+            new GetTopSalesProductsQuery(startDate, endDate, outletId, limit),
+            cancellationToken);
+        return Ok(ApiResponse<List<TopProductDto>>.SuccessResponse(result.Select(item => new TopProductDto
         {
-            StartDate = startDate,
-            EndDate   = endDate,
-            OutletId  = outletId
-        };
-        var result = await _salesReportService.GetTopProductsAsync(filter, limit);
-        return Ok(ApiResponse<List<TopProductDto>>.SuccessResponse(result));
+            VariantId = item.VariantId,
+            ProductName = item.ProductName,
+            Sku = item.Sku,
+            TotalQuantity = item.TotalQuantity,
+            TotalRevenue = item.TotalRevenue
+        }).ToList()));
     }
 
     /// <summary>Returns sales grouped by outlet</summary>
     [HttpGet("by-outlet")]
     public async Task<ActionResult<ApiResponse<List<SalesByOutletDto>>>> GetByOutlet(
         [FromQuery] DateTime? startDate,
-        [FromQuery] DateTime? endDate)
+        [FromQuery] DateTime? endDate,
+        CancellationToken cancellationToken)
     {
         // Cross-outlet aggregation. Non-BusinessOwner only sees their own outlet's row.
         var scopedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(null);
-        var filter = new SalesReportFilterDto { StartDate = startDate, EndDate = endDate };
-        var result = await _salesReportService.GetSalesByOutletAsync(filter);
+        var result = await _sender.Send(new GetSalesByOutletQuery(startDate, endDate), cancellationToken);
         if (scopedOutletId.HasValue)
-            result = result.Where(r => r.OutletId == scopedOutletId.Value).ToList();
-        return Ok(ApiResponse<List<SalesByOutletDto>>.SuccessResponse(result));
+            result = result.Where(r => r.OutletId == scopedOutletId.Value).ToArray();
+        return Ok(ApiResponse<List<SalesByOutletDto>>.SuccessResponse(result.Select(item => new SalesByOutletDto
+        {
+            OutletId = item.OutletId,
+            OutletName = item.OutletName,
+            TransactionCount = item.TransactionCount,
+            TotalRevenue = item.TotalRevenue
+        }).ToList()));
     }
 
     /// <summary>Returns sales grouped by payment method</summary>
@@ -81,17 +97,19 @@ public class SalesReportsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<SalesByPaymentMethodDto>>>> GetByPaymentMethod(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
-        [FromQuery] long? outletId)
+        [FromQuery] long? outletId,
+        CancellationToken cancellationToken)
     {
         outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
-        var filter = new SalesReportFilterDto
+        var result = await _sender.Send(
+            new GetSalesByPaymentMethodQuery(startDate, endDate, outletId),
+            cancellationToken);
+        return Ok(ApiResponse<List<SalesByPaymentMethodDto>>.SuccessResponse(result.Select(item => new SalesByPaymentMethodDto
         {
-            StartDate = startDate,
-            EndDate   = endDate,
-            OutletId  = outletId
-        };
-        var result = await _salesReportService.GetSalesByPaymentMethodAsync(filter);
-        return Ok(ApiResponse<List<SalesByPaymentMethodDto>>.SuccessResponse(result));
+            PaymentMethod = item.PaymentMethod,
+            Count = item.Count,
+            Amount = item.Amount
+        }).ToList()));
     }
 
     /// <summary>Returns daily sales trend for the period</summary>
@@ -99,16 +117,18 @@ public class SalesReportsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<DailySalesTrendDto>>>> GetDailyTrend(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
-        [FromQuery] long? outletId)
+        [FromQuery] long? outletId,
+        CancellationToken cancellationToken)
     {
         outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
-        var filter = new SalesReportFilterDto
+        var result = await _sender.Send(
+            new GetDailySalesTrendQuery(startDate, endDate, outletId),
+            cancellationToken);
+        return Ok(ApiResponse<List<DailySalesTrendDto>>.SuccessResponse(result.Select(item => new DailySalesTrendDto
         {
-            StartDate = startDate,
-            EndDate   = endDate,
-            OutletId  = outletId
-        };
-        var result = await _salesReportService.GetDailySalesTrendAsync(filter);
-        return Ok(ApiResponse<List<DailySalesTrendDto>>.SuccessResponse(result));
+            Date = item.Date,
+            TransactionCount = item.TransactionCount,
+            Revenue = item.Revenue
+        }).ToList()));
     }
 }

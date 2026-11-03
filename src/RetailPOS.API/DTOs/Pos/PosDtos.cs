@@ -26,6 +26,9 @@ public class PosProductLookupDto
     /// <summary>Final per-unit price after outlet override and best campaign rule.</summary>
     public decimal EffectivePrice { get; set; }
     public decimal TaxRate        { get; set; }
+    /// <summary>standard | zero_rated | exempt | none.</summary>
+    public string  TaxClassification { get; set; } = "standard";
+    public bool    PricesIncludeTax  { get; set; }
     /// <summary>Name of the winning discount rule, if any.</summary>
     public string? AppliedRuleName { get; set; }
 
@@ -33,7 +36,7 @@ public class PosProductLookupDto
     /// <summary>
     /// Current quantity at the outlet.
     /// ⚠ DISPLAY HINT ONLY. This value may be up to 30 seconds stale when served
-    ///   from Redis. Authoritative stock deduction happens inside SaleService
+    ///   from Redis. Authoritative stock deduction happens inside the Application sale command
     ///   using a DB-level xmin concurrency token — not from this field.
     /// </summary>
     public int  StockQty       { get; set; }
@@ -47,7 +50,7 @@ public class PosProductLookupDto
 /// Used to colour cart rows (green / amber / red) before checkout is pressed.
 ///
 /// ⚠ NEVER use this as the final gate for allowing a sale.
-///   Definitive stock validation always runs inside SaleService.CreateAsync
+///   Definitive stock validation always runs inside the Application sale command
 ///   within a DB transaction with an xmin optimistic concurrency check.
 /// </summary>
 public class PosStockHintDto

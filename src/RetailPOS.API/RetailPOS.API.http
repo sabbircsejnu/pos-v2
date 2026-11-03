@@ -1,6 +1,43 @@
-@RetailPOS.API_HostAddress = http://localhost:5037
+@RetailPOS.API_HostAddress = http://localhost:5005
+@superAdminToken = supply-locally-do-not-save-a-real-token
+@businessId = 1
 
-GET {{RetailPOS.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### Company-controlled UI date format (authenticated; no settings administration permission needed)
+GET {{RetailPOS.API_HostAddress}}/api/settings/formatting
+Authorization: Bearer {{superAdminToken}}
 
-###
+### Unauthenticated date-format request: 401
+GET {{RetailPOS.API_HostAddress}}/api/settings/formatting
+
+### Explicit Business selection (active persisted Super Admin and active Business required)
+POST {{RetailPOS.API_HostAddress}}/api/Auth/business-context
+Authorization: Bearer {{superAdminToken}}
+Content-Type: application/json
+
+{"businessId": {{businessId}}}
+
+### Every scoped request independently revalidates the selected Business
+GET {{RetailPOS.API_HostAddress}}/api/Auth/me
+Authorization: Bearer {{superAdminToken}}
+X-Business-Id: {{businessId}}
+
+### Clear selection without choosing a default Business
+POST {{RetailPOS.API_HostAddress}}/api/Auth/business-context
+Authorization: Bearer {{superAdminToken}}
+Content-Type: application/json
+
+{"businessId": null}
+
+### Invalid positive-ID contract: 400
+POST {{RetailPOS.API_HostAddress}}/api/Auth/business-context
+Authorization: Bearer {{superAdminToken}}
+Content-Type: application/json
+
+{"businessId": -1}
+
+### Missing/inactive Business: 403
+POST {{RetailPOS.API_HostAddress}}/api/Auth/business-context
+Authorization: Bearer {{superAdminToken}}
+Content-Type: application/json
+
+{"businessId": 9223372036854775807}

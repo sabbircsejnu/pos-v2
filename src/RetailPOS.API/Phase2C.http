@@ -1,0 +1,49 @@
+@baseUrl = https://localhost:5006
+@token = replace-with-token
+
+### List scoped devices
+GET {{baseUrl}}/api/hr/v1/attendance/devices
+Authorization: Bearer {{token}}
+
+### Read
+GET {{baseUrl}}/api/hr/v1/attendance/devices/1
+Authorization: Bearer {{token}}
+
+### Create non-secret device metadata (no credential values)
+POST {{baseUrl}}/api/hr/v1/attendance/devices
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"deviceCode":"OUTLET-01","serialNumber":"SERIAL-01","vendorCode":"ConfiguredVendor","model":"ConfiguredModel","operationalLocationProjectionId":10,"protocolType":"ADMS","deviceTimeZoneId":"Asia/Dhaka","connectionHost":"terminal.internal","connectionPort":443,"credentialSecretReference":"outlet-device-secret"}
+
+### Update with explicit credential-reference preservation
+PUT {{baseUrl}}/api/hr/v1/attendance/devices/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"replaceCredentialReference":false,"data":{"deviceCode":"OUTLET-01","serialNumber":"SERIAL-01","vendorCode":"ConfiguredVendor","model":"ConfiguredModel","operationalLocationProjectionId":10,"protocolType":"ADMS","deviceTimeZoneId":"Asia/Dhaka","status":"Offline"}}
+
+### Deactivate (mapping history is retained)
+POST {{baseUrl}}/api/hr/v1/attendance/devices/1/deactivate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":2}
+
+### List mapping history
+GET {{baseUrl}}/api/hr/v1/attendance/devices/1/mappings
+Authorization: Bearer {{token}}
+
+### Create half-open mapping interval; offset normalized to UTC
+POST {{baseUrl}}/api/hr/v1/attendance/devices/1/mappings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"employeeId":1,"deviceUserId":"23","effectiveFromUtc":"2027-01-01T00:00:00+06:00"}
+
+### Close without deletion, explicit UTC instant + expected version
+DELETE {{baseUrl}}/api/hr/v1/attendance/device-user-mappings/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"effectiveToUtc":"2027-02-01T00:00:00+06:00"}

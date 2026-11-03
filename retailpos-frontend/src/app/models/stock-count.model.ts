@@ -19,6 +19,21 @@ export interface StockCountLineDto {
   remarks?: string | null;
 }
 
+export interface StockCountAdjustmentJobDto {
+  jobId: string;
+  status: 'Pending' | 'Processing' | 'RetryScheduled' | 'Completed' | 'Blocked' | 'Failed';
+  isTerminal: boolean;
+  attemptCount: number;
+  nextAttemptAtUtc?: string | null;
+  failureCode?: string | null;
+  evidenceStatus?: string | null;
+  blockedReasonCodes: string[];
+  stockAdjustmentId?: number | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  completedAtUtc?: string | null;
+}
+
 export interface StockCountDto {
   id: number;
   stockCountNo: string;
@@ -43,6 +58,8 @@ export interface StockCountDto {
   hasPostGenerationMovements: boolean;
   postGenerationMovementCount: number;
   lastPostGenerationMovementAt?: string | null;
+  adjustmentState?: string;
+  adjustmentJob?: StockCountAdjustmentJobDto | null;
   lines: StockCountLineDto[];
 }
 

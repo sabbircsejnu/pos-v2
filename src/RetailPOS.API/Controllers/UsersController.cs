@@ -1,5 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using RetailPOS.Application.Identity.Abstractions;
+using RetailPOS.Application.Identity.Commands;
+using RetailPOS.Application.Identity.Queries;
+using RetailPOS.Application.Identity.ReadModels;
+using RetailPOS.Application.Authentication.Commands;
 using RetailPOS.API.DTOs.Users;
 using RetailPOS.API.Services;
 
@@ -10,12 +16,17 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "users.view")]
 public class UsersController : ControllerBase
 {
-    private readonly IUserService _userService;
+    private readonly ISender _sender;
+    private readonly ITenantAccessService _tenantAccess;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
+    public UsersController(
+        ISender sender,
+        ITenantAccessService tenantAccess,
+        ILogger<UsersController> logger)
     {
-        _userService = userService;
+        _sender = sender;
+        _tenantAccess = tenantAccess;
         _logger = logger;
     }
 
@@ -33,8 +44,24 @@ public class UsersController : ControllerBase
     {
         try
         {
-            var result = await _userService.GetUsersAsync(pageNumber, pageSize, search, roleId, outletId, isActive);
-            return Ok(result);
+            long? businessId = _tenantAccess.IsSuperAdmin
+                ? null
+                : _tenantAccess.RequireBusinessId();
+            var result = await _sender.Send(
+                new SearchUsersQuery(
+                    pageNumber,
+                    pageSize,
+                    search,
+                    roleId,
+                    outletId,
+                    isActive,
+                    businessId),
+                HttpContext.RequestAborted);
+            return Ok(ToDto(result));
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -47,16 +74,25 @@ public class UsersController : ControllerBase
     /// Get user by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<UserDto>> GetUser(long id)
+    public async Task<ActionResult<UserDto>> GetUser(long id, CancellationToken cancellationToken)
     {
         try
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            return Ok(user);
+            long? businessId = _tenantAccess.IsSuperAdmin
+                ? null
+                : _tenantAccess.RequireBusinessId();
+            var user = await _sender.Send(
+                new GetUserByIdQuery(id, businessId),
+                cancellationToken);
+            return Ok(ToDto(user));
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -70,12 +106,14 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "users.create")]
-    public async Task<ActionResult<UserDto>> CreateUser([FromBody] CreateUserDto dto)
+    public async Task<ActionResult<UserDto>> CreateUser(
+        [FromBody] CreateUserDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var user = await _userService.CreateUserAsync(dto);
-            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+            var user = await _sender.Send(new CreateUserCommand(ToProfile(dto), dto.Password), cancellationToken);
+            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, ToDto(user));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -88,6 +126,10 @@ public class UsersController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -101,12 +143,15 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Policy = "users.edit")]
-    public async Task<ActionResult<UserDto>> UpdateUser(long id, [FromBody] UpdateUserDto dto)
+    public async Task<ActionResult<UserDto>> UpdateUser(
+        long id,
+        [FromBody] UpdateUserDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var user = await _userService.UpdateUserAsync(id, dto);
-            return Ok(user);
+            var user = await _sender.Send(new UpdateUserCommand(id, ToProfile(dto)), cancellationToken);
+            return Ok(ToDto(user));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -120,6 +165,10 @@ public class UsersController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating user {UserId}", id);
@@ -132,16 +181,28 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "users.delete")]
-    public async Task<ActionResult> DeleteUser(long id)
+    public async Task<ActionResult> DeleteUser(long id, CancellationToken cancellationToken)
     {
         try
         {
-            var result = await _userService.DeleteUserAsync(id);
+            await _sender.Send(new DeleteUserCommand(id), cancellationToken);
             return Ok(new { message = "User deleted successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -155,12 +216,16 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id}/activate")]
     [Authorize(Policy = "users.edit")]
-    public async Task<ActionResult> ActivateUser(long id)
+    public async Task<ActionResult> ActivateUser(long id, CancellationToken cancellationToken)
     {
         try
         {
-            await _userService.ActivateUserAsync(id);
+            await _sender.Send(new SetUserActiveCommand(id, true), cancellationToken);
             return Ok(new { message = "User activated successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
@@ -169,6 +234,10 @@ public class UsersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -182,12 +251,16 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPut("{id}/deactivate")]
     [Authorize(Policy = "users.edit")]
-    public async Task<ActionResult> DeactivateUser(long id)
+    public async Task<ActionResult> DeactivateUser(long id, CancellationToken cancellationToken)
     {
         try
         {
-            await _userService.DeactivateUserAsync(id);
+            await _sender.Send(new SetUserActiveCommand(id, false), cancellationToken);
             return Ok(new { message = "User deactivated successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
@@ -196,6 +269,10 @@ public class UsersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -209,12 +286,25 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPost("{id}/change-password")]
     [Authorize(Policy = "users.edit")]
-    public async Task<ActionResult> ChangePassword(long id, [FromBody] ChangePasswordDto dto)
+    public async Task<ActionResult> ChangePassword(
+        long id,
+        [FromBody] ChangePasswordDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            await _userService.ChangePasswordAsync(id, dto);
+            await _sender.Send(
+                new ChangeUserPasswordCommand(
+                    id,
+                    dto.CurrentPassword,
+                    dto.NewPassword,
+                    dto.ConfirmPassword),
+                cancellationToken);
             return Ok(new { message = "Password changed successfully" });
+        }
+        catch (ProtectedUserPasswordChangeException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
@@ -223,6 +313,10 @@ public class UsersController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -235,12 +329,23 @@ public class UsersController : ControllerBase
     /// Get users by outlet
     /// </summary>
     [HttpGet("outlet/{outletId}")]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByOutlet(long outletId)
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByOutlet(
+        long outletId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var users = await _userService.GetUsersByOutletAsync(outletId);
-            return Ok(users);
+            long? businessId = _tenantAccess.IsSuperAdmin
+                ? null
+                : _tenantAccess.RequireBusinessId();
+            var users = await _sender.Send(
+                new GetUsersByOutletQuery(outletId, businessId),
+                cancellationToken);
+            return Ok(users.Select(ToDto).ToArray());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -253,12 +358,23 @@ public class UsersController : ControllerBase
     /// Get users by role
     /// </summary>
     [HttpGet("role/{roleId}")]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByRole(long roleId)
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByRole(
+        long roleId,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var users = await _userService.GetUsersByRoleAsync(roleId);
-            return Ok(users);
+            long? businessId = _tenantAccess.IsSuperAdmin
+                ? null
+                : _tenantAccess.RequireBusinessId();
+            var users = await _sender.Send(
+                new GetUsersByRoleQuery(roleId, businessId),
+                cancellationToken);
+            return Ok(users.Select(ToDto).ToArray());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -274,7 +390,9 @@ public class UsersController : ControllerBase
     /// </summary>
     [HttpPost("my-password")]
     [Authorize]
-    public async Task<ActionResult> ChangeOwnPassword([FromBody] ChangePasswordDto dto)
+    public async Task<ActionResult> ChangeOwnPassword(
+        [FromBody] ChangePasswordDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -285,7 +403,12 @@ public class UsersController : ControllerBase
                 return Unauthorized(new { error = "Unable to determine current user" });
             }
 
-            await _userService.ChangePasswordAsync(userId, dto);
+            await _sender.Send(
+                new ChangeMyPasswordCommand(
+                    dto.CurrentPassword,
+                    dto.NewPassword,
+                    dto.ConfirmPassword),
+                cancellationToken);
             return Ok(new { message = "Your password has been changed successfully" });
         }
         catch (KeyNotFoundException ex)
@@ -296,10 +419,86 @@ public class UsersController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error changing password for current user");
             return StatusCode(500, new { error = "An error occurred while changing your password" });
         }
     }
+
+    private static UserGovernanceProfile ToProfile(CreateUserDto dto) => new(
+        dto.Name,
+        dto.Email,
+        dto.RoleId,
+        dto.OutletId,
+        dto.WarehouseIds?.ToArray(),
+        dto.OutletIds?.ToArray(),
+        dto.DefaultLocationType,
+        dto.DefaultLocationId,
+        dto.InventoryLocationAccessScope,
+        dto.BusinessId,
+        dto.UserPermissions?.Cast<string?>().ToArray(),
+        dto.IsActive);
+
+    private static UserGovernanceProfile ToProfile(UpdateUserDto dto) => new(
+        dto.Name,
+        dto.Email,
+        dto.RoleId,
+        dto.OutletId,
+        dto.WarehouseIds?.ToArray(),
+        dto.OutletIds?.ToArray(),
+        dto.DefaultLocationType,
+        dto.DefaultLocationId,
+        dto.InventoryLocationAccessScope,
+        dto.BusinessId,
+        dto.UserPermissions?.Cast<string?>().ToArray(),
+        dto.IsActive);
+
+    private static UserListDto ToDto(UserListReadModel users) => new()
+    {
+        Users = users.Users.Select(ToDto).ToArray(),
+        TotalCount = users.TotalCount,
+        PageNumber = users.PageNumber,
+        PageSize = users.PageSize
+    };
+
+    private static UserDto ToDto(UserReadModel user) => new()
+    {
+        Id = user.Id,
+        Name = user.Name,
+        Email = user.Email,
+        RoleId = user.RoleId,
+        RoleName = user.RoleName,
+        OutletId = user.OutletId,
+        OutletName = user.OutletName,
+        BusinessId = user.BusinessId,
+        BusinessName = user.BusinessName,
+        InventoryLocationAccessScope = user.InventoryLocationAccessScope,
+        DefaultLocationType = user.DefaultLocationType,
+        DefaultLocationId = user.DefaultLocationId,
+        UserPermissions = user.UserPermissions,
+        OutletAssignments = user.OutletAssignments.Select(assignment => new UserOutletAssignmentDto
+        {
+            Id = assignment.Id,
+            OutletId = assignment.OutletId,
+            OutletName = assignment.OutletName,
+            IsPrimary = assignment.IsPrimary,
+            IsActive = assignment.IsActive
+        }).ToArray(),
+        WarehouseAssignments = user.WarehouseAssignments.Select(assignment => new UserWarehouseAssignmentDto
+        {
+            Id = assignment.Id,
+            WarehouseId = assignment.WarehouseId,
+            WarehouseName = assignment.WarehouseName,
+            IsPrimary = assignment.IsPrimary,
+            IsActive = assignment.IsActive
+        }).ToArray(),
+        IsActive = user.IsActive,
+        CreatedAt = user.CreatedAt,
+        UpdatedAt = user.UpdatedAt
+    };
 }

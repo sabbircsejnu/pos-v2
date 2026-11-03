@@ -214,6 +214,69 @@ Represents movement of inventory between two inventory locations.
 | Unit Cost          |             |
 | Remarks            |             |
 
+Product identity must remain consistent across transfer creation, dispatch, view, receiving, partial receiving, rejection, and return workflows. Every item must display product name, main product code, SKU, and human-readable variant attributes. Raw variant JSON must never be displayed.
+
+All transactional create/edit screens must protect users against accidental navigation, refresh, or browser close when there are unsaved changes.
+
+## TRANSFER ACTION OWNERSHIP
+
+Source location owns creation, approval, dispatch, and the In Transit transition.
+
+Destination location owns receiving, partial acceptance, and rejection.
+
+Permissions and location ownership must both be validated for every transfer action.
+
+Destination users cannot approve or dispatch incoming transfers.
+
+## TRANSFER VISIBILITY PERMISSIONS
+
+`stock_transfers.view` controls access to the Stock Transfer module.
+
+`stock_transfers.view_all_locations` allows users to view transfers across all locations in scope.
+
+Users without `stock_transfers.view_all_locations` can only view transfers where their default inventory location is involved as either source or destination.
+
+When `stock_transfers.view_all_locations` is not granted, a configured default inventory location is required. If missing, the API must return a clear configuration message: `Your default inventory location is not configured.`
+
+The same visibility rule must be enforced consistently for list/search, details (including direct URL access), reports, exports/downloads/prints, and aggregate counts.
+
+Visibility permissions are separate from workflow action permissions. Viewing a transfer never grants approve, dispatch, receive, reject, cancel, edit, delete, or return-transfer creation rights.
+
+## ADVANCED TRANSFER SEARCH AND FILTERING
+
+The Stock Transfer List supports a route-persistent filtering model where list state is encoded in query parameters and restored on direct navigation, refresh, and browser back/forward.
+
+### Basic Filters (Always Visible)
+
+- Search (transfer number)
+- Status
+
+### Advanced Filters (Drawer-Based)
+
+- From Location Type and From Location
+- To Location Type and To Location
+- Product Variant
+- Transfer Type
+- Transfer Date From and Transfer Date To
+
+### Behavior Requirements
+
+- Advanced filters open in a right-side drawer with Apply, Clear, and Close actions.
+- Drawer edits are draft-only until Apply is pressed.
+- Active advanced filters are shown as removable chips in the list header.
+- Filtering, total count, and pagination must be computed from the same database-filtered query.
+- Product variant filtering must be executed in SQL using transfer items, not post-pagination in memory.
+
+### Permission-Aware Filtering
+
+- Advanced filters must not bypass visibility policy.
+- Users without `stock_transfers.view_all_locations` remain restricted to transfers involving their default inventory location, even when filtering by location pairs, product variant, transfer type, or date range.
+- For restricted users, unauthorized location pair combinations must return an empty result set (or only records that still satisfy visibility), while keeping count and page metadata consistent.
+
+## STOCK TRANSFER DETAILS PAGE PRESENTATION
+
+The Stock Transfer Details page must present a compact header summary, basic information, workflow actions, transfer summary, item details, related records, and audit information.
+
 ---
 
 # 7. TRANSFER LIFECYCLE
@@ -231,6 +294,14 @@ Inventory remains unchanged.
 Transfer ready for dispatch.
 
 Inventory remains unchanged.
+
+Submit only moves a transfer from Draft to Submitted.
+
+Submit & Dispatch is an atomic shortcut for authorized users. It completes all required intermediate transitions and finishes in In Transit.
+
+Source inventory deduction and transfer_out ledger creation occur only once during dispatch.
+
+If Submit & Dispatch fails at any step, the operation must rollback completely so the transfer does not remain partially submitted and inventory or ledger entries are not partially written.
 
 ---
 
@@ -705,6 +776,10 @@ Destination location is selected by the user.
 Destination options may include any outlet/warehouse in business scope (not limited to assigned locations).
 
 Destination location must not be the same as source location.
+
+On Stock Transfer Create, destination options exclude the selected source when both location types match. When the source is editable, source options likewise exclude the selected destination. Options update as either location or type changes; identical numeric IDs remain valid across different location types.
+
+Changing the source clears a conflicting destination selection. Changing the destination clears a conflicting editable source, subject to the existing confirmation before clearing transfer items; a read-only source is never cleared. Existing authorized-location filtering and permissions remain unchanged.
 
 If source and destination are the same, transfer creation must be blocked.
 

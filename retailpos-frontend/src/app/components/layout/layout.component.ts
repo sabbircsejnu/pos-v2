@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { NavbarComponent } from './navbar.component';
 import { SidebarComponent } from './sidebar.component';
+import { BusinessContextSelectorComponent } from './business-context-selector.component';
 import { MenuService } from '../../services/menu.service';
 import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent, SidebarComponent],
+  imports: [CommonModule, RouterModule, NavbarComponent, SidebarComponent, BusinessContextSelectorComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.css']
 })

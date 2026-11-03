@@ -1,0 +1,157 @@
+<div class="auth-main">
+  <div class="auth-wrapper version-1">
+    <div class="auth-form">
+      <div class="auth-background">
+        <div class="yellow-circle"></div>
+        <div class="red-circle"></div>
+      </div>
+      <div class="main-form">
+        <app-card [showHeader]="false" class="auth-form-card" padding="40">
+          <div class="text-center">
+            <a href="javascript:">
+              <img src="assets/images/logo-dark.svg" alt="logo" />
+            </a>
+            <div class="login-with">
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/facebook.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Facebook</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/twitter.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Twitter</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/google.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Google</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <form (ngSubmit)="onSubmit()">
+            <div class="separator">
+              <span>OR</span>
+            </div>
+            <div class="text-center m-b-25 f-20 f-w-500">Sign up with your work email.</div>
+            <div class="row text-start">
+              <div class="col-md-6">
+                <mat-label>First Name</mat-label>
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  <input
+                    type="text"
+                    matInput
+                    [field]="registerForm.firstName"
+                    [class.is-invalid]="submitted() && registerForm.firstName().errors().length > 0"
+                    placeholder="First Name"
+                  />
+                  @if (submitted() && registerForm.firstName().errors().length > 0) {
+                    <mat-hint class="text-warn-500">
+                      @for (error of registerForm.firstName().errors(); track error.kind) {
+                        @if (error.kind === 'required') {
+                          {{ error.message }}
+                        }
+                      }
+                    </mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <label for="name" class="f-w-500">Last Name</label>
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  <input
+                    type="text"
+                    matInput
+                    [field]="registerForm.lastName"
+                    [class.is-invalid]="submitted() && registerForm.lastName().errors().length > 0"
+                    placeholder="Last Name"
+                  />
+                  @if (submitted() && registerForm.lastName().errors().length > 0) {
+                    <mat-hint class="text-warn-500">
+                      @for (error of registerForm.lastName().errors(); track error.kind) {
+                        @if (error.kind === 'required') {
+                          {{ error.message }}
+                        }
+                      }
+                    </mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+              <div class="col-12">
+                <label for="name" class="f-w-500">Enter Your Email</label>
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  <input
+                    type="email"
+                    matInput
+                    [field]="registerForm.email"
+                    [class.is-invalid]="submitted() && registerForm.email().errors().length > 0"
+                    placeholder="Email Address"
+                  />
+                  @if (submitted() && registerForm.email().errors().length > 0) {
+                    <mat-hint class="text-warn-500">
+                      @for (error of registerForm.email().errors(); track error.kind) {
+                        {{ error.message }}
+                      }
+                    </mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+              <div class="col-12">
+                <label for="name" class="f-w-500">Enter your password</label>
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  @if (hide) {
+                    <input
+                      matInput
+                      type="password"
+                      placeholder="Enter Password"
+                      [field]="registerForm.password"
+                      [class.is-invalid]="submitted() && registerForm.password().errors().length > 0"
+                    />
+                  } @else {
+                    <input
+                      matInput
+                      type="text"
+                      placeholder="Enter Password"
+                      [field]="registerForm.password"
+                      [class.is-invalid]="submitted() && registerForm.password().errors().length > 0"
+                    />
+                  }
+                  <button mat-icon-button matSuffix (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
+                    <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                  @if (submitted() && registerForm.password().errors().length > 0) {
+                    <mat-hint class="text-warn-500">
+                      @for (error of registerForm.password().errors(); track error.kind) {
+                        {{ error.message }}
+                      }
+                    </mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+            </div>
+            <div class="check-me">
+              <mat-checkbox class="float-start" checked color="primary">I agree to all the Terms & Condition</mat-checkbox>
+            </div>
+            @if (error()) {
+              <div class="bg-warn-50 text-warn-500 p-10 m-t-15 mb-0">{{ error() }}</div>
+            }
+            <div class="grid">
+              <button type="submit" mat-flat-button color="primary" class="b-rad-20 m-t-15" [disabled]="loading()">
+                {{ loading() ? 'Register...' : 'Register' }}
+              </button>
+            </div>
+          </form>
+          <div class="check-me m-t-15">
+            <div class="text-muted">Don't have an Account?</div>
+            <a class="text-primary-500" [routerLink]="[this.authenticationService.isLoggedIn() ? '/authentication-1/login' : '/login']">
+              Login Account
+            </a>
+          </div>
+        </app-card>
+      </div>
+    </div>
+  </div>
+</div>

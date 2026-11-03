@@ -1,3 +1,5 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,7 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { PurchaseOrder, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
+import { PurchaseOrder, getPOStatusLabel, getPOStatusColor, getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
 
@@ -17,6 +19,7 @@ import { DocumentPdfService } from '../../services/document-pdf.service';
   styleUrl: './po-details.component.css'
 })
 export class PoDetailsComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   poId = signal<number>(0);
   po = signal<PurchaseOrder | null>(null);
   isLoading = signal(false);
@@ -229,11 +232,7 @@ export class PoDetailsComponent implements OnInit {
   }
 
   formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return this.companyDates.format(dateString, false);
   }
 
   getVariantDetails(item: { variantName?: string; variantAttributes?: string }): string {
@@ -250,6 +249,14 @@ export class PoDetailsComponent implements OnInit {
     if (trimmed === '{}' || trimmed === '[]' || trimmed.toLowerCase() === 'null') return false;
     if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return false;
     return true;
+  }
+
+  getLocationTypeLabel(): string {
+    return getPurchaseLocationTypeLabel(this.po()?.locationType);
+  }
+
+  getLocationName(): string {
+    return getPurchaseLocationName(this.po());
   }
 
   getStatusLabel(status: string): string {

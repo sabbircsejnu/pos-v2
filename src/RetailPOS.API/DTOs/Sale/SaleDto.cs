@@ -8,10 +8,15 @@ public class SaleDto
     public string OutletName { get; set; } = string.Empty;
     public long? TerminalId { get; set; }
     public string? TerminalName { get; set; }
+    public long? CashSessionId { get; set; }
+    public DateTime? BusinessDate { get; set; }
+    public DateTime? SaleDateTime { get; set; }
     public long? CustomerId { get; set; }
     public string? CustomerName { get; set; }
     public long CashierId { get; set; }
     public string CashierName { get; set; } = string.Empty;
+    public long? SalespersonUserId { get; set; }
+    public string? SalespersonName { get; set; }
     public DateTime SaleDate { get; set; }
     public decimal TotalAmount { get; set; }
     public decimal Discount { get; set; }

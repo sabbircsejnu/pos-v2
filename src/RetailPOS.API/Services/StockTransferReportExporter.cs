@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using System.Text;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
@@ -6,16 +7,16 @@ namespace RetailPOS.API.Services;
 
 public static class StockTransferReportExporter
 {
-    public static byte[] ToCsv(List<StockTransferRowDto> rows)
+    public static byte[] ToCsv(List<StockTransferRowDto> rows, string dateFormat = "yyyy-MM-dd")
     {
         var sb = new StringBuilder();
         sb.AppendLine("Transfer ID,Date,From Location,From Type,To Location,To Type,Status,Product Code,Barcode,SKU,Product Name,Category,Quantity,Unit Cost,Transfer Value,Created By");
         foreach (var r in rows)
-            sb.AppendLine($"{r.TransferId},{r.TransferDate:yyyy-MM-dd},{Csv(r.FromLocationName)},{Csv(r.FromLocationType)},{Csv(r.ToLocationName)},{Csv(r.ToLocationType)},{Csv(r.Status)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{r.Quantity},{r.UnitCost:F2},{r.TransferValue:F2},{Csv(r.CreatedBy)}");
+            sb.AppendLine($"{r.TransferId},{UiDateFormatting.Format(r.TransferDate, dateFormat, false)},{Csv(r.FromLocationName)},{Csv(r.FromLocationType)},{Csv(r.ToLocationName)},{Csv(r.ToLocationType)},{Csv(r.Status)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{r.Quantity},{r.UnitCost:F2},{r.TransferValue:F2},{Csv(r.CreatedBy)}");
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public static byte[] ToExcel(List<StockTransferRowDto> rows, StockTransferSummaryDto summary)
+    public static byte[] ToExcel(List<StockTransferRowDto> rows, StockTransferSummaryDto summary, string dateFormat = "yyyy-MM-dd")
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Stock Transfer Report");
@@ -58,7 +59,7 @@ public static class StockTransferReportExporter
 
             ws.Cell(row, 1).Value = (double)r.TransferId;
             ws.Cell(row, 2).Value = r.TransferDate;
-            ws.Cell(row, 2).Style.DateFormat.Format = "yyyy-MM-dd";
+            ws.Cell(row, 2).Style.DateFormat.Format = UiDateFormatting.Normalize(dateFormat).ToLowerInvariant();
             ws.Cell(row, 3).Value = r.FromLocationName;
             ws.Cell(row, 4).Value = r.FromLocationType;
             ws.Cell(row, 5).Value = r.ToLocationName;

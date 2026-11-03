@@ -51,7 +51,7 @@
         <section class="space-y-4 lg:col-span-7">
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="text-base font-semibold text-slate-900">Basic Information</h2>
-            <p class="mb-4 text-sm text-slate-600">Supplier, warehouse, schedule, and important notes for this order.</p>
+            <p class="mb-4 text-sm text-slate-600">Supplier, destination location, schedule, and important notes for this order.</p>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -59,8 +59,12 @@
                 <p class="font-medium text-slate-900">{{ po()!.supplierName }}</p>
               </div>
               <div>
-                <p class="text-xs text-slate-500">Warehouse</p>
-                <p class="font-medium text-slate-900">{{ po()!.warehouseName }}</p>
+                <p class="text-xs text-slate-500">Location Type</p>
+                <p class="font-medium text-slate-900">{{ getLocationTypeLabel() }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Location</p>
+                <p class="font-medium text-slate-900">{{ getLocationName() }}</p>
               </div>
               <div>
                 <p class="text-xs text-slate-500">Order Date</p>

@@ -24,6 +24,12 @@ public class StockLedgerDto
     public int QtyIn { get; set; }
     public int QtyOut { get; set; }
     public int BalanceAfter { get; set; }
+    public decimal UnitCost { get; set; }
+    public decimal MovementValue { get; set; }
+    public bool IsCostValuationReliable { get; set; }
+    public DateTime BusinessDate { get; set; }
+    public long MovementSequence { get; set; }
+    public long? ReversalOfMovementId { get; set; }
 
     /// <summary>e.g. "grn", "sale", "stock_adjustment", "stock_transfer"</summary>
     public string ReferenceType { get; set; } = string.Empty;

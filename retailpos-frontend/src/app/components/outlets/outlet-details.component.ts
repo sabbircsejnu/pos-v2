@@ -1,3 +1,4 @@
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -7,7 +8,7 @@ import { Outlet } from '../../models/outlet.model';
 @Component({
   selector: 'app-outlet-details',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [AppDatePipe, CommonModule, RouterModule],
   templateUrl: './outlet-details.component.html',
   styleUrls: ['./outlet-details.component.css']
 })

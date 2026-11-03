@@ -2,13 +2,9 @@
   <!-- Header -->
   <div class="flex justify-between items-center mb-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Bills Payable</h1>
-      <p class="text-sm text-gray-600 mt-0.5">Manage outstanding supplier bills</p>
+      <h1 class="text-2xl font-bold text-gray-900">Legacy Bills Payable</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Read-only historical records; Supplier Payable Documents and AP reports are authoritative.</p>
     </div>
-    <button (click)="openModal()" class="btn btn-primary">
-      <i class="fas fa-plus"></i>
-      Add Bill
-    </button>
   </div>
 
   <!-- Summary Cards -->
@@ -95,7 +91,7 @@
               <th class="px-4 py-2.5 text-right">Amount Due</th>
               <th class="px-4 py-2.5">Due Date</th>
               <th class="px-4 py-2.5">Status</th>
-              <th class="px-4 py-2.5 text-center">Actions</th>
+              <th class="px-4 py-2.5 text-center">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -118,13 +114,7 @@
                 </td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-center gap-2">
-                    @if (bill.status !== 'paid') {
-                      <button (click)="markAsPaid(bill.id, $event)"
-                              class="btn btn-ghost py-1 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 text-xs"
-                              title="Mark as Paid">
-                        <i class="fas fa-check mr-1"></i> Pay
-                      </button>
-                    }
+                    <span class="text-xs text-gray-500">Read-only legacy</span>
                   </div>
                 </td>
               </tr>
@@ -203,7 +193,7 @@
         </div>
         <div>
           <label class="label">Due Date <span class="text-red-500">*</span></label>
-          <input type="date" class="input"
+          <input type="date" appCompanyDate class="input"
                  [ngModel]="formDueDate()" (ngModelChange)="formDueDate.set($event)" />
         </div>
       </div>

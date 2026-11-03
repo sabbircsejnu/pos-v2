@@ -1,3 +1,5 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +9,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CustomerDto } from '../../models/customer.model';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-customer-details',
@@ -16,6 +19,7 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./customer-details.component.css']
 })
 export class CustomerDetailsComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   customer = signal<CustomerDto | null>(null);
   isLoading = signal(false);
   showPointsInput = signal(false);
@@ -29,10 +33,17 @@ export class CustomerDetailsComponent implements OnInit {
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
-    private currencyService: CurrencyService
+    private currencyService: CurrencyService,
+    private authService: AuthService
   ) {}
 
+  /** Legacy points actions need the enabled backend flag and customers.edit; hidden while the flag is unknown or the lookup failed. */
+  canMutateLegacyPoints(): boolean {
+    return this.customerService.legacyPointsMutationEnabled() && this.authService.hasPermission('customers.edit');
+  }
+
   ngOnInit(): void {
+    this.customerService.getLoyaltyCapabilities().subscribe();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.loadCustomer(+id);
@@ -65,6 +76,7 @@ export class CustomerDetailsComponent implements OnInit {
   }
 
   onAddPoints(): void {
+    if (!this.canMutateLegacyPoints()) return;
     const pts = this.pointsToAdd();
     if (!pts || pts <= 0) {
       this.alertService.error('Enter a valid number of points');
@@ -99,9 +111,7 @@ export class CustomerDetailsComponent implements OnInit {
 
   formatDate(date: string): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric'
-    });
+    return this.companyDates.format(date, false);
   }
 
   formatCurrency(amount: number | undefined): string {

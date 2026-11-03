@@ -1,0 +1,292 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false">
+      @if (selectedProduct) {
+        <div class="row">
+          <div class="col-md-4">
+            <div class="main-img">
+              <img [src]="img" class="block w-100 bg-accent-100" alt="product-img" />
+              <div class="favorite">
+                <svg class="pc-icon">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-heart"></use>
+                </svg>
+              </div>
+              <div class="img-zoom">
+                <div class="flex align-item-center">
+                  <svg class="pc-icon">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-zoom-in"></use>
+                  </svg>
+                  <svg class="pc-icon">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-zoom-out"></use>
+                  </svg>
+                  <svg class="pc-icon">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-reload"></use>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="toggle-img">
+              @for (item of productData; track item) {
+                <div class="product-images">
+                  <img
+                    src="assets/images/e-commerce/{{ item.image }}"
+                    class="block wid-60"
+                    alt="Product images"
+                    (click)="showImages($event)"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+          <div class="col-md-8">
+            <div class="content-body">
+              <div class="star f-18">
+                <app-star-rating
+                  [rating]="selectedProduct.rating"
+                  [starCount]="5"
+                  (ratingUpdated)="onRatingChanged($event)"
+                ></app-star-rating>
+              </div>
+              <div class="f-w-600 f-24 m-b-10">
+                {{ selectedProduct.name }}
+              </div>
+              <div class="stock m-b-10" [ngClass]="{ 'sold-out': !selectedProduct.isStock }">
+                {{ selectedProduct.isStock ? 'In Stock' : 'Sold Out' }}
+              </div>
+              <p>{{ selectedProduct.about }}</p>
+              <div class="m-b-5">Color</div>
+              <div class="flex align-item-center m-b-10">
+                <section name="product-color">
+                  @for (color of selectedProduct.colors; track color; let index = $index) {
+                    <mat-radio-button [value]="index" class="product-color">
+                      <i class="fas fa-circle {{ color }} f-28"></i>
+                    </mat-radio-button>
+                  }
+                </section>
+              </div>
+              <div class="m-b-10">Quantity</div>
+              <div class="quantity-group">
+                <mat-form-field appearance="outline">
+                  <input type="text" matInput name="quantity" [(ngModel)]="quantityToAdd" min="1" />
+                </mat-form-field>
+                <div class="quantity-more">
+                  <div class="add-button" (click)="increaseQuantity()"><i class="ti ti-plus"></i></div>
+                  <div class="add-button" (click)="decreaseQuantity()">
+                    <i class="ti ti-minus" [ngClass]="quantityToAdd === 0 ? 'disable' : ''"></i>
+                  </div>
+                </div>
+              </div>
+              <div class="f-24 f-w-600 m-t-10 m-b-20 prod-price">
+                <b>${{ selectedProduct.offerPrice }}</b>
+                @if (selectedProduct?.salePrice && selectedProduct?.salePrice.length !== 0) {
+                  <span class="text-muted f-16 m-l-10 f-w-400">${{ selectedProduct.salePrice }}</span>
+                }
+              </div>
+              <button mat-flat-button color="primary" class="m-r-10" (click)="goToBuy(selectedProduct)">
+                <div class="flex align-item-center">
+                  <svg class="pc-icon m-r-10">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-shopping-cart"></use>
+                  </svg>
+                  Buy Now
+                </div>
+              </button>
+              <button mat-stroked-button (click)="addToCart(selectedProduct)">
+                <div class="flex align-item-center">
+                  <svg class="pc-icon m-r-10 text-muted">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-add-cart"></use>
+                  </svg>
+                  Add to Cart
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </app-card>
+  </div>
+  <div class="col-xl-8">
+    <app-card [showHeader]="false" cardClass="checkout-card">
+      <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start" class="product-details-list">
+        <mat-tab label="Features">
+          @for (task of features; track task) {
+            <div class="product-features">
+              <div class="title">
+                <p class="text-truncate">{{ task.title }} :</p>
+              </div>
+              <div class="details">
+                <p>{{ task.details }}</p>
+              </div>
+            </div>
+          }
+        </mat-tab>
+        <mat-tab label="Specifications">
+          <div class="specifications">
+            <div class="row">
+              <div class="col-sm-6">
+                <div class="f-w-600 f-16">Product Category</div>
+                <mat-divider class="m-y-20"></mat-divider>
+                @for (task of specifications; track task) {
+                  <div class="specifications-details">
+                    <div class="title">
+                      <p>{{ task.title }} :</p>
+                    </div>
+                    <div class="sub-title">
+                      <p>{{ task.details }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+              <div class="col-sm-6">
+                <div class="f-w-600 f-16">Manufacturer Details</div>
+                <mat-divider class="m-y-20"></mat-divider>
+                @for (task of manufacturer; track task) {
+                  <div class="specifications-details">
+                    <div class="title">
+                      <p>{{ task.title }} :</p>
+                    </div>
+                    <div class="sub-title">
+                      <p>{{ task.details }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+        <mat-tab label="Overview">
+          <p>
+            Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industrys standard dummy
+            text ever since the 1500s, “When an unknown printer took a galley of type and scrambled it to make a type specimen book.” It has
+            survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was
+            popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop
+            publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+          </p>
+          <p class="m-t-15">
+            It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with
+            desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+          </p>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            Reviews
+            <span class="notification">275</span>
+          </ng-template>
+          <app-card [showHeader]="false">
+            <div class="row justify-content-between align-item-center">
+              <div class="col-xxl-4 col-xl-5">
+                <h2 class="m-b-10">
+                  4
+                  <span class="text-muted f-16">/5</span>
+                </h2>
+                <p class="text-muted">Based On 275 reviews</p>
+                <app-star-rating [rating]="ratings" [starCount]="starCount" (ratingUpdated)="onRatingChanged($event)"></app-star-rating>
+              </div>
+              <div class="col-xxl-4 col-xl-5">
+                <div class="flex align-item-center">
+                  <div class="w-100">
+                    @for (item of rating; track item) {
+                      <div class="row align-item-center m-y-10">
+                        <div class="col">
+                          <mat-progress-bar mode="determinate" value="{{ item.value }}"></mat-progress-bar>
+                        </div>
+                        <div class="col-auto">
+                          <p class="m-b-0 text-muted">{{ item.text }}</p>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </app-card>
+          @for (item of commentList; track item) {
+            <app-card [showHeader]="false" cardClass="bg-accent-100">
+              <div class="flex align-item-start">
+                <div class="chat-avatar">
+                  <img src="{{ item.images }}" alt="img" class="img-fluid wid-40" />
+                </div>
+                <div class="flex-grow-1 m-l-10">
+                  <div class="f-w-600">{{ item.name }}</div>
+                  <div class="text-muted mat-small m-b-0">{{ item.date }}</div>
+                  <app-star-rating [rating]="ratings" [starCount]="starCount" (ratingUpdated)="onRatingChanged($event)"></app-star-rating>
+                  <p class="m-b-0 m-t-10">{{ item.details }}</p>
+                </div>
+              </div>
+            </app-card>
+          }
+          <button mat-button color="primary" class="more-comment m-b-30">View More Comments</button>
+          <app-card [showHeader]="false" [padding]="16">
+            <mat-form-field appearance="outline" class="w-100 comment-section">
+              <input matInput placeholder="Add Comment Here" name="inputField" />
+            </mat-form-field>
+            <div class="flex align-item-center justify-content-between">
+              <div class="flex align-item-center">
+                <div class="avatar avatar-s">
+                  <svg class="pc-icon text-primary-500">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-clip"></use>
+                  </svg>
+                </div>
+                <div class="avatar avatar-s">
+                  <svg class="pc-icon text-primary-500">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-emojiHappy"></use>
+                  </svg>
+                </div>
+                <div class="avatar avatar-s">
+                  <svg class="pc-icon text-primary-500">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-images"></use>
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <button mat-flat-button color="primary" type="submit">Comment</button>
+              </div>
+            </div>
+          </app-card>
+        </mat-tab>
+      </mat-tab-group>
+    </app-card>
+  </div>
+  <div class="col-xl-4 sub-part">
+    <app-card cardTitle="Related Products" [padding]="0" cardClass="related-product">
+      <ul class="list-inline">
+        @for (item of productData; track item) {
+          <li class="list-group-item">
+            <div class="related-pro-body text-muted">
+              <img src="assets/images/e-commerce/{{ item.image }}" alt="img" class="img-fluid wid-60" rel="noopener" />
+
+              <div class="flex-grow-1 m-l-10">
+                <div class="f-w-500">{{ item.name }}</div>
+                <div class="text-mute mat-caption">{{ item.description }}</div>
+                <div class="f-16 f-w-500 prod-price">
+                  <b>${{ item.offerPrice }}</b>
+                  @if (item?.salePrice && item?.salePrice.length !== 0) {
+                    <span class="mat-small text-muted f-w-400">${{ item.salePrice }}</span>
+                  }
+                </div>
+                <app-star-rating [rating]="item.rating" [starCount]="5"></app-star-rating>
+              </div>
+              <a href="javascript:" class="text-accent-500" (click)="toggleWhitelist(item)">
+                <i class="f-20" [ngClass]="item.isWhitelisted ? 'ti ti-heart-filled text-warn-500' : 'ti ti-heart'"></i>
+              </a>
+            </div>
+          </li>
+        }
+
+        <li>
+          <div class="grid">
+            <button mat-stroked-button>View all Products</button>
+          </div>
+        </li>
+      </ul>
+    </app-card>
+  </div>
+  <div class="ec-cart">
+    <a (click)="goToCheckout()" class="icon" title="Cart Icon">
+      <mat-icon [matBadge]="cartItemCount" matBadgeSize="small" matBadgeColor="warn">
+        <svg class="pc-icon">
+          <use xlink:href="assets/fonts/custom-icon.svg#e-commerce-cart"></use>
+        </svg>
+      </mat-icon>
+    </a>
+  </div>
+</div>

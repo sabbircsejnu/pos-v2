@@ -60,7 +60,8 @@
               <th class="px-4 py-2.5">GRN ID</th>
               <th class="px-4 py-2.5">PO Number</th>
               <th class="px-4 py-2.5">Supplier</th>
-              <th class="px-4 py-2.5">Warehouse</th>
+              <th class="px-4 py-2.5">Location Type</th>
+              <th class="px-4 py-2.5">Location</th>
               <th class="px-4 py-2.5">Received Date &amp; Time</th>
               <th class="px-4 py-2.5">Status</th>
               <th class="px-4 py-2.5 text-center">Actions</th>
@@ -73,7 +74,8 @@
               <td class="px-4 py-2.5 font-semibold text-gray-900">#{{ grn.id }}</td>
               <td class="px-4 py-2.5 text-gray-700">{{ grn.poNumber }}</td>
               <td class="px-4 py-2.5 text-gray-700">{{ grn.supplierName }}</td>
-              <td class="px-4 py-2.5 text-gray-700">{{ grn.warehouseName }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ locationTypeLabel(grn.locationType) }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ locationName(grn) }}</td>
               <td class="px-4 py-2.5 text-gray-600">{{ formatDateTime(grn.receivedDate) }}</td>
               <td class="px-4 py-2.5">
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold capitalize"

@@ -1,0 +1,56 @@
+<div cdkDropList [cdkDropListData]="taskItems" (cdkDropListDropped)="drop($event)">
+  @for (task of taskItems; track task) {
+    <div class="kanban-card m-b-10" cdkDrag>
+      <div class="task-header">
+        <a (click)="editTaskOpen(task)">
+          <div class="m-b-5 text-accent-900 task-title f-w-600">
+            {{ task.title }}
+          </div>
+        </a>
+        <div [matMenuTriggerFor]="menu"><i class="ti ti-dots-vertical"></i></div>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="editTaskOpen(task)">Edit</button>
+          <button mat-menu-item (click)="deleteTask(task)">Delete</button>
+        </mat-menu>
+      </div>
+      <a href="javascript:" class="text-primary-500 text-stroy" (click)="editStoryOpen(getStoryId(task.id))">
+        <i class="ti ti-stack f-16 m-r-5"></i>
+        User Story #{{ getStoryId(task.id) }}
+      </a>
+      @if (task.image !== false) {
+        <img src="assets/images/profile/{{ task.image }}" class="img-fluid kanban-img m-t-10" />
+      }
+    </div>
+  }
+
+  <div class="task-add" [ngClass]="{ open: taskAdd }">
+    <div class="grid">
+      <button mat-stroked-button class="m-t-10 new-task-add" (click)="toggleTask()">Add Task</button>
+    </div>
+    <div class="kanban-card m-t-10">
+      <div class="input-title">
+        <form (ngSubmit)="taskSubmit()">
+          <mat-form-field appearance="outline" class="w-100 comment-section">
+            <input matInput placeholder="Add Task" name="inputField" [(ngModel)]="inputDetails" />
+          </mat-form-field>
+          <div class="flex align-item-center justify-content-between">
+            <div class="flex align-item-center">
+              <svg class="pc-icon m-r-10">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-profile-2user-outline"></use>
+              </svg>
+              <svg class="pc-icon">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-calculator"></use>
+              </svg>
+            </div>
+            <div class="flex align-item-center">
+              <div class="pc-icon m-r-10" (click)="toggleTask()">
+                <i class="ti ti-x f-18 text-warn-500"></i>
+              </div>
+              <button mat-flat-button color="primary" class="submit-details" type="submit">Add</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

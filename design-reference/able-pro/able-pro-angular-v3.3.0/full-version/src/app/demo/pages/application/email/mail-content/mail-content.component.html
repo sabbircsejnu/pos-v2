@@ -1,0 +1,282 @@
+@if (titleContent) {
+  <div class="mail-content-table">
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 280px)', position: 'relative' }">
+      <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <div class="flex align-item-center">
+              <mat-checkbox
+                (click)="$event.stopPropagation()"
+                (change)="$event ? selection.toggle(row) : null"
+                [checked]="selection.isSelected(row)"
+                [aria-label]="checkboxLabel(row)"
+                color="primary"
+              ></mat-checkbox>
+              @if (unStar()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" title="star" type="checkbox" />
+                  <i class="material-icons-two-tone pc-icon-uncheck">star_outline</i>
+                  <i class="material-icons-two-tone text-warning pc-icon-check">star</i>
+                </div>
+              }
+              @if (star()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" title="star" type="checkbox" checked />
+                  <i class="material-icons-two-tone pc-icon-uncheck">star_outline</i>
+                  <i class="material-icons-two-tone text-warning pc-icon-check">star</i>
+                </div>
+              }
+              @if (unImportant()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" title="label" type="checkbox" />
+                  <i class="material-icons-two-tone pc-icon-uncheck">label</i>
+                  <i class="material-icons-two-tone text-secondary pc-icon-check">label</i>
+                </div>
+              }
+              @if (important()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" title="label" type="checkbox" checked />
+                  <i class="material-icons-two-tone pc-icon-uncheck">label</i>
+                  <i class="material-icons-two-tone text-secondary pc-icon-check">label</i>
+                </div>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element">
+            <div class="flex align-item-center text-truncate">
+              <img src="{{ element.images }}" alt="user-image" class="img-user wid-40 border-50" />
+              <div class="f-w-600 f-14 m-l-10 text-truncate">
+                {{ element.name }}
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="text">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element" (click)="detailsContentShow()">
+            <div class="flex w-100 align-item-center">
+              <div class="flex-grow-1 details">
+                <p class="m-b-0 text-truncate">{{ element.text }}</p>
+              </div>
+              <div class="mail-content-badge">
+                @if (common()) {
+                  @if (element.promo === 'promotion') {
+                    <a href="javascript:" class="attachment promo m-r-5 f-12">
+                      {{ element.promo }}
+                    </a>
+                  }
+                  @if (element.forums === 'forums') {
+                    <a href="javascript:" class="attachment form f-12">{{ element.forums }}</a>
+                  }
+                }
+                @if (promotion()) {
+                  <a href="javascript:" class="attachment promo m-r-5 f-12">Promotion</a>
+                }
+                @if (forums()) {
+                  <a href="javascript:" class="attachment form f-12">Forums</a>
+                }
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="symbol">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element">
+            @if (paperClip()) {
+              <a href="javascript:" class="avatar avatar-s text-muted">
+                <i class="{{ element.symbol }} f-18"></i>
+              </a>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element" class="mail-option">
+            {{ element.date }}
+            <div class="mail-button">
+              <ul class="list-inline m-b-0">
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s text-muted" title="archive"><i class="ti ti-archive f-18"></i></a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s text-muted" title="mail"><i class="ti ti-mail f-18"></i></a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s text-muted" title="trash"><i class="ti ti-trash f-18"></i></a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s text-muted" title="eye-off"><i class="ti ti-eye-off f-18"></i></a>
+                </li>
+              </ul>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </app-scrollbar>
+  </div>
+}
+@if (detailsContent) {
+  <div class="details-content">
+    <app-card [showHeader]="false" [padding]="16">
+      <div class="title align-item-center">
+        <ul class="list-inline">
+          <li class="list-inline-item" (click)="backToMail()">
+            <a href="javascript:" class="avatar avatar-s text-accent-900" matTooltip="left side" id="mail-backinbox">
+              <i class="ti ti-chevron-left f-18"></i>
+            </a>
+          </li>
+          <li class="list-inline-item">
+            <div class="flex align-item-center">
+              <img src="assets/images/user/avatar-1.png" alt="user-image" class="img-user wid-40 border-50" />
+              <div class="flex-grow-1 m-l-10">
+                <div class="f-16 f-w-600 text-truncate">Matthew Hawkins</div>
+                <div class="m-b-0 text-muted mat-small">From: &lt;tazeanu&#64;company.com&gt;</div>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <ul class="list-inline">
+          <li class="list-inline-item text-muted">12 Jul 22 08:23 AM</li>
+          <li class="list-inline-item">
+            <div class="flex align-item-center">
+              @if (unStar()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" matTooltip="star" type="checkbox" />
+                  <i class="material-icons-two-tone pc-icon-uncheck">star_outline</i>
+                  <i class="material-icons-two-tone text-warning pc-icon-check">star</i>
+                </div>
+              }
+              @if (star()) {
+                <div class="pc-icon-checkbox">
+                  <input class="form-check-input" matTooltip="star" type="checkbox" checked />
+                  <i class="material-icons-two-tone pc-icon-uncheck">star_outline</i>
+                  <i class="material-icons-two-tone text-warning pc-icon-check">star</i>
+                </div>
+              }
+
+              <div class="pc-icon-checkbox">
+                <input class="form-check-input" matTooltip="label" type="checkbox" />
+                <i class="material-icons-two-tone pc-icon-uncheck">label</i>
+                <i class="material-icons-two-tone text-secondary pc-icon-check">label</i>
+              </div>
+              <div class="pc-icon-checkbox">
+                <input class="form-check-input" matTooltip="new release" type="checkbox" />
+                <i class="material-icons-two-tone pc-icon-uncheck">new_releases</i>
+                <i class="material-icons-two-tone text-danger pc-icon-check">new_releases</i>
+              </div>
+            </div>
+          </li>
+          <li class="list-inline-item">
+            <a class="avatar avatar-s" [matMenuTriggerFor]="menu">
+              <i class="ti ti-dots f-18"></i>
+            </a>
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item>Name</button>
+              <button mat-menu-item>Date</button>
+              <button mat-menu-item>Rating</button>
+              <button mat-menu-item>unread</button>
+            </mat-menu>
+          </li>
+        </ul>
+      </div>
+    </app-card>
+    <div class="mail-details">
+      <div class="f-w-600 f-20">Lorem Ipsum is simply dummy text</div>
+      <div class="f-16 f-w-600 m-t-20 m-b-15">Dear Martha Jenkins,</div>
+      <p class="text-muted indent-text">
+        Lorem Ipsum is simply dummy text of the printing and
+        <b>typesetting industry</b>
+        . Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and
+        scrambled it to make a type
+        <b>specimen book</b>
+        . It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was
+        popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop
+        publishing software like
+        <abbr title="Aldus PageMaker" class="initialism">Aldus PageMaker</abbr>
+        of Lorem Ipsum.
+      </p>
+      <p class="text-muted indent-text">
+        It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The
+        point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content
+        here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their
+        default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved
+        over the years, sometimes by accident, sometimes on purpose
+      </p>
+      <p class="m-t-25 m-b-0">Kind Regards,</p>
+      <div class="f-16 f-w-600 m-b-20">Jean Anderson</div>
+      <mat-divider class="m-y-15"></mat-divider>
+      <div class="f-16 f-w-600 m-b-15">
+        <b>
+          <i class="ti ti-paperclip m-r-10"></i>
+          3 Attachments
+        </b>
+      </div>
+      <ul class="list-inline">
+        <li class="list-inline-item m-r-15">
+          <app-card [showHeader]="false" [padding]="16">
+            <div class="flex align-item-center">
+              <div class="flex-grow-1 m-r-10">
+                <div class="f-16 f-w-600 text-truncate">table_denar.pdf</div>
+              </div>
+              <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                <i class="ti ti-download f-16"></i>
+              </a>
+            </div>
+          </app-card>
+        </li>
+        <li class="list-inline-item">
+          <app-card [showHeader]="false" [padding]="16">
+            <div class="flex align-item-center">
+              <div class="flex-grow-1 m-r-10">
+                <div class="f-16 f-w-600 text-truncate">handmade.mp2</div>
+              </div>
+              <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                <i class="ti ti-download f-16"></i>
+              </a>
+            </div>
+          </app-card>
+        </li>
+      </ul>
+      <mat-divider class="m-y-15"></mat-divider>
+      <div class="user-details">
+        <div class="flex align-item-start mb-3">
+          <img class="border-50 img-fluid wid-30" src="assets/images/user/avatar-4.jpg" alt="User image" />
+          <div class="flex-grow-1 m-l-15">
+            <div class="flex align-item-center m-b-15">
+              <div class="f-16 f-w-600 m-r-15">Barney Thea</div>
+              <div class="m-b-0 text-muted mat-small">&lt;tazeanu&#64;company.com&gt;</div>
+            </div>
+            <p class="text-primary-500">On Tue, Nov 1, 2022 at 12:05 AM Sreekumar Ks &lt;tazeanu&#64;company.com&gt; wrote:</p>
+            <p class="text-header m-b-5">It is a long established fact that a reader will be distracted</p>
+            <p class="text-header m-b-5">by the readable content</p>
+            <p class="text-header m-b-5">of a page when</p>
+            <p class="text-header m-b-5">looking at</p>
+            <p class="text-header m-b-5">its layout.</p>
+          </div>
+        </div>
+      </div>
+      <button mat-button color="primary" class="send-mail">
+        <div class="flex align-item-center">
+          <i class="f-18 ti ti-arrow-back-up m-r-5"></i>
+          Reply
+        </div>
+      </button>
+      <button mat-button color="primary" class="send-mail">
+        <div class="flex align-item-center">
+          <i class="f-18 ti ti-arrow-big-right m-r-5"></i>
+          Forward
+        </div>
+      </button>
+    </div>
+  </div>
+}

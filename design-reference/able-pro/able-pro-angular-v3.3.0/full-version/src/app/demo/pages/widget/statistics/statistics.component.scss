@@ -1,0 +1,112 @@
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.statistics {
+  .social-widget-card {
+    color: $white;
+
+    &.bg-info {
+      background: map-get($cyan-theme, 500);
+    }
+
+    &.bg-dark {
+      background: var(--accent-700);
+
+      ::ng-deep.dark & {
+        background: var(--accent-400);
+      }
+    }
+
+    i {
+      position: absolute;
+      right: 14px;
+      top: 24px;
+      font-size: 48px;
+      opacity: 0.4;
+      transition: all ease-in 0.3s;
+    }
+
+    &:hover i {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+
+  .sub-head {
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--primary-50);
+    border: 1px solid var(--primary-500);
+    padding: 5px 10px;
+    color: var(--primary-500);
+
+    &.success {
+      background: var(--success-50);
+      border: 1px solid var(--success-500);
+      color: var(--success-500);
+    }
+
+    &.warning {
+      background: var(--warning-50);
+      border: 1px solid var(--warning-500);
+      color: var(--warning-500);
+    }
+
+    &.warn {
+      background: var(--warn-50);
+      border: 1px solid var(--warn-500);
+      color: var(--warn-500);
+    }
+  }
+
+  .storage-card {
+    background: var(--accent-800);
+
+    .avatar {
+      background: rgba(255, 255, 255, 0.3);
+      color: var(--accent-50);
+    }
+
+    &::before {
+      content: '';
+      background-image: url('../../../../../assets/images/widget/img-dropbox-bg.svg');
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+      opacity: 0.5;
+      background-position: bottom right;
+      background-size: 100%;
+      background-repeat: no-repeat;
+    }
+  }
+
+  .premium-card {
+    background: var(--primary-50);
+
+    ::ng-deep.dark & {
+      background: var(--primary-200);
+    }
+  }
+
+  .fund-amount {
+    .list-inline-item {
+      padding: 0px 10px;
+      border: 1px solid var(--accent-300);
+      border-radius: 8px;
+
+      &:not(:last-child) {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+
+  .dropbox-card .avatar {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .avatar.balance-card {
+    background: rgba(0, 0, 0, 0.1);
+  }
+}

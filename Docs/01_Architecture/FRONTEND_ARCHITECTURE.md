@@ -93,6 +93,30 @@ Each subdirectory under `pages/` corresponds to a functional domain:
 - API base URLs are configured per environment in `environments/`.
 - Do not hardcode API base URLs inside services.
 
+### Company date formatting
+
+- `CompanyDateService` owns the configured company date format. It loads the authenticated
+  `/settings/formatting` endpoint on login/identity changes; Settings load/save also updates
+  the shared signal. The endpoint exposes only the date format, not administrative settings.
+  Loading failures show a warning rather than silently hiding the failure.
+- Use the shared `appDate` pipe for visible dates and `appCompanyDate` on date/datetime-local
+  inputs (both are exported by `UI_KIT`). The visible input and placeholder follow the company
+  format; a calendar button retains native picker selection without relying on browser-locale
+  text entry. Existing Able Pro input classes, labels and layout remain in place.
+- Company formats are `dd/MM/yyyy`, `MM/dd/yyyy` and `yyyy-MM-dd`; legacy uppercase settings
+  are normalized. Typed input is validated strictly, including calendar dates and leap years.
+  Date-only values must not be shifted through a timezone.
+- Form models, API JSON/query parameters, import templates, bank integrations and audit
+  metadata retain their ISO/machine contracts. Format only at the presentation boundary.
+  UI-facing report downloads use the server's company setting, not a client-supplied format.
+  New Payslip PDFs include the normalized date format in their template-version identity,
+  so changing the format cannot replay a differently formatted artifact. Existing immutable
+  artifact versions are retained; they are not rewritten.
+- Declare date columns with `type: 'date'` in the shared data table; it formats those cells
+  and searches their visible text without reinterpreting date-shaped codes. It sorts
+  raw values. For composite formatted summaries, specify `sortField` pointing to the raw
+  ISO date rather than sorting `dd/MM/yyyy` lexically.
+
 ---
 
 ## State Management

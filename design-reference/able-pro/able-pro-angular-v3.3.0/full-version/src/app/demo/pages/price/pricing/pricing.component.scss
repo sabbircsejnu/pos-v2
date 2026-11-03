@@ -1,0 +1,73 @@
+// ==========================//
+//    Price css start        //
+// ==========================//
+
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+.price-page {
+  ::ng-deep.mat-mdc-card.price-top {
+    background: transparent;
+    border: none !important;
+    .price-top-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      @media (max-width: 576px) {
+        display: block;
+      }
+    }
+
+    .left-side-content {
+      @media (max-width: 576px) {
+        margin-bottom: 10px;
+      }
+    }
+  }
+
+  .price-card {
+    .mat-mdc-outlined-button:not(:disabled) {
+      border-color: var(--accent-600) !important;
+    }
+
+    .most-useable {
+      background: var(--primary-50);
+      border-radius: 8px;
+      margin-bottom: 25px;
+
+      ::ng-deep.dark & {
+        background: rgba(70, 128, 255, 0.1) !important;
+      }
+
+      .useable {
+        background: var(--success-500);
+        color: $white;
+        padding: 0.25rem;
+        border-radius: 8px;
+      }
+    }
+
+    .price-price {
+      line-height: 1.1;
+    }
+  }
+
+  .product-list {
+    padding-left: 0;
+
+    .list-group {
+      padding: 8px 0px 8px 25px;
+      position: relative;
+      opacity: 1;
+      text-align: center;
+
+      &.enable {
+        opacity: 0.5;
+        text-decoration: line-through;
+      }
+    }
+  }
+}
+// ==========================//
+//      Price css end        //
+// ==========================//

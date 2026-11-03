@@ -1,0 +1,37 @@
+// ==========================//
+//   customer list css start   //
+// ==========================//
+
+.table-top {
+  padding: 20px 20px 0px;
+}
+
+.table-search {
+  padding: 20px 20px 4px;
+}
+
+table {
+  tr {
+    td {
+      .row {
+        margin-right: 50px;
+
+        .col {
+          display: flex;
+          flex-direction: column;
+          width: 1%;
+        }
+      }
+    }
+  }
+  .customer-status {
+    font-size: 0.75em;
+    padding: 0.15em 0.9em;
+    display: inline-block;
+    border-radius: 24px;
+  }
+}
+
+// ==========================//
+//   customer list css end     //
+// ==========================//

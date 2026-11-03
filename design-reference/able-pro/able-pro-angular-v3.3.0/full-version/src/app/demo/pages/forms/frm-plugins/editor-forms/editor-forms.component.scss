@@ -1,0 +1,55 @@
+@import '../../../../../@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.editor {
+  .NgxEditor__MenuBar {
+    border: 1px solid var(--accent-300);
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+  }
+
+  .NgxEditor {
+    border: 1px solid var(--accent-300) !important;
+    border-radius: 0px !important;
+    border-bottom-left-radius: 4px !important;
+    border-bottom-right-radius: 4px !important;
+  }
+
+  ::ng-deep.dark & {
+    .NgxEditor__MenuBar {
+      background: var(--accent-200);
+    }
+
+    .NgxEditor__Dropdown .NgxEditor__Dropdown--DropdownMenu,
+    .NgxEditor__Popup {
+      background: var(--accent-100);
+    }
+
+    .NgxEditor__Dropdown .NgxEditor__Dropdown--Active {
+      background: var(--accent-400);
+    }
+
+    .NgxEditor {
+      background: var(--accent-200);
+      color: $white;
+    }
+
+    .NgxEditor__Popup .NgxEditor__Popup--FormGroup input[type='text'],
+    .NgxEditor__Popup .NgxEditor__Popup--FormGroup input[type='url'],
+    .ql-snow .ql-tooltip input[type='text'] {
+      background: var(--accent-400);
+      color: var(--accent-800);
+    }
+
+    .NgxEditor__MenuItem .NgxEditor__MenuItem--Icon:hover,
+    .NgxEditor__Dropdown:hover,
+    .NgxEditor__Dropdown .NgxEditor__Dropdown--Item:hover {
+      background-color: var(--accent-200);
+    }
+
+    .NgxEditor__Dropdown .NgxEditor__Dropdown--Selected,
+    .NgxEditor__Dropdown .NgxEditor__Dropdown--Open {
+      background: var(--accent-100);
+    }
+  }
+}

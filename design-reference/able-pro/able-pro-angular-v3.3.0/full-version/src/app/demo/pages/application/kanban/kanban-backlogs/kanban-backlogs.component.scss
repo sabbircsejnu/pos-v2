@@ -1,0 +1,113 @@
+@import '../../../../../@theme/styles/theme-palette-colors.scss';
+
+.kanban-backlog {
+  .add-task {
+    width: 120px;
+    min-width: 120px;
+    padding: 0.9rem 1.75rem;
+    cursor: pointer;
+
+    .avatar {
+      color: var(--primary-500);
+
+      ::ng-deep.dark & {
+        color: $white !important;
+      }
+    }
+  }
+
+  .user-id {
+    width: 110px;
+  }
+
+  .user-edit {
+    width: 60px;
+  }
+  .user-live {
+    width: 90px;
+  }
+  .user-assigned {
+    width: 140px;
+  }
+  .user-priority {
+    width: 85px;
+  }
+  .user-date {
+    width: 120px;
+  }
+
+  .kanban-drop {
+    width: 60px;
+    min-width: 60px;
+    padding: 0.9rem 1.75rem;
+  }
+
+  .user-story-button {
+    border: 1px dotted;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  table {
+    width: 100%;
+  }
+
+  .story-title {
+    cursor: pointer;
+  }
+
+  tr.kanban-detail-row {
+    height: 0;
+  }
+
+  tr.kanban-row:not(.example-expanded-row):hover {
+    background: whitesmoke;
+
+    ::ng-deep.dark & {
+      background: var(--accent-300) !important;
+    }
+  }
+
+  tr.kanban-row:not(.example-expanded-row):active {
+    background: #efefef;
+  }
+
+  .kanban-row td {
+    border-bottom-width: 0;
+  }
+
+  .kanban-diagram {
+    font-weight: lighter;
+    height: auto;
+  }
+
+  .example-element-symbol {
+    font-weight: bold;
+    font-size: 40px;
+    line-height: normal;
+  }
+
+  .example-element-description {
+    padding: 16px;
+  }
+
+  .example-element-description-attribution {
+    opacity: 0.5;
+  }
+}
+
+::ng-deep.mdc-data-table__content td.collapse_data {
+  .children-content {
+    height: 0;
+    min-height: 0;
+    animation: 225ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.collapsed {
+      height: auto;
+      min-height: auto;
+      animation: 225ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+}

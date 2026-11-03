@@ -88,14 +88,14 @@
       <!-- Date From -->
       <div>
         <label class="label">Date From</label>
-        <input type="date" class="input"
+        <input type="date" appCompanyDate class="input"
           [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
       </div>
 
       <!-- Date To -->
       <div>
         <label class="label">Date To</label>
-        <input type="date" class="input"
+        <input type="date" appCompanyDate class="input"
           [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
       </div>
     </div>

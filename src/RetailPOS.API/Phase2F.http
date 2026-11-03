@@ -1,0 +1,57 @@
+@baseUrl = https://localhost:5006
+@token = replace-with-token
+@dailyAttendanceId = 1
+@approvalInstanceId = 1
+@correctionId = 6f4a3301-bb5a-4b2c-9e27-8fbe0c8f4f41
+
+### Read retained correction evidence
+GET {{baseUrl}}/api/hr/v1/attendance/daily/{{dailyAttendanceId}}/corrections
+Authorization: Bearer {{token}}
+
+### Submit an explicit correction for Approval Kernel review
+POST {{baseUrl}}/api/hr/v1/attendance/daily/{{dailyAttendanceId}}/corrections
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "correctionId": "{{correctionId}}",
+  "expectedProcessingVersion": 1,
+  "firstInAtLocal": "2026-10-10T09:15:00",
+  "lastOutAtLocal": "2026-10-10T17:00:00",
+  "workedMinutes": 465,
+  "breakMinutes": 0,
+  "lateMinutes": 10,
+  "earlyLeaveMinutes": 0,
+  "status": "Late",
+  "reason": "Verified against signed attendance source"
+}
+
+### Approve a pending correction
+POST {{baseUrl}}/api/hr/v1/attendance/corrections/approvals/{{approvalInstanceId}}/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "correction-approval-001",
+  "reason": "Verified"
+}
+
+### Reject a pending correction
+POST {{baseUrl}}/api/hr/v1/attendance/corrections/approvals/{{approvalInstanceId}}/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "correction-rejection-001",
+  "reason": "Evidence does not support the requested change"
+}
+
+### Cancel a pending correction approval
+POST {{baseUrl}}/api/hr/v1/attendance/corrections/approvals/{{approvalInstanceId}}/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "correction-cancellation-001",
+  "reason": "Request was submitted in error"
+}

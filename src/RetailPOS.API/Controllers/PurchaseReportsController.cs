@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using RetailPOS.API.DTOs.Reports;
 using RetailPOS.API.Models;
-using RetailPOS.Infrastructure.Data;
+using RetailPOS.Application.PurchaseOrders.Queries;
 
 namespace RetailPOS.API.Controllers;
 
@@ -12,33 +12,33 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "purchases.view")]
 public class PurchaseReportsController : ControllerBase
 {
-    private readonly RetailPOSDbContext _context;
+    private readonly ISender _sender;
 
-    public PurchaseReportsController(RetailPOSDbContext context)
+    public PurchaseReportsController(ISender sender)
     {
-        _context = context;
+        _sender = sender;
     }
 
     /// <summary>Returns aggregated purchase order summary</summary>
     [HttpGet("summary")]
     public async Task<ActionResult<ApiResponse<PurchaseSummaryDto>>> GetSummary(
         [FromQuery] DateTime? startDate,
-        [FromQuery] DateTime? endDate)
+        [FromQuery] DateTime? endDate,
+        CancellationToken cancellationToken)
     {
         var end   = endDate?.ToUniversalTime()   ?? DateTime.UtcNow;
         var start = startDate?.ToUniversalTime() ?? end.AddDays(-30);
 
-        var orders = await _context.PurchaseOrders
-            .AsNoTracking()
-            .Where(po => po.OrderDate >= start && po.OrderDate <= end)
-            .ToListAsync();
+        var report = await _sender.Send(
+            new GetPurchaseSummaryQuery(start, end),
+            cancellationToken);
 
         var result = new PurchaseSummaryDto
         {
-            TotalOrders       = orders.Count,
-            TotalAmount       = orders.Sum(po => po.TotalAmount),
-            PendingApprovals  = orders.Count(po => po.Status == "pending"),
-            ReceivedOrders    = orders.Count(po => po.Status == "received")
+            TotalOrders = report.TotalOrders,
+            TotalAmount = report.TotalAmount,
+            PendingApprovals = report.PendingApprovals,
+            ReceivedOrders = report.ReceivedOrders
         };
 
         return Ok(ApiResponse<PurchaseSummaryDto>.SuccessResponse(result));
@@ -48,38 +48,23 @@ public class PurchaseReportsController : ControllerBase
     [HttpGet("by-supplier")]
     public async Task<ActionResult<ApiResponse<List<PurchaseBySupplierDto>>>> GetBySupplier(
         [FromQuery] DateTime? startDate,
-        [FromQuery] DateTime? endDate)
+        [FromQuery] DateTime? endDate,
+        CancellationToken cancellationToken)
     {
         var end   = endDate?.ToUniversalTime()   ?? DateTime.UtcNow;
         var start = startDate?.ToUniversalTime() ?? end.AddDays(-30);
 
-        var grouped = await _context.PurchaseOrders
-            .AsNoTracking()
-            .Where(po => po.OrderDate >= start && po.OrderDate <= end)
-            .GroupBy(po => po.SupplierId)
-            .Select(g => new
-            {
-                SupplierId  = g.Key,
-                OrderCount  = g.Count(),
-                TotalAmount = g.Sum(po => po.TotalAmount)
-            })
-            .ToListAsync();
-
-        var supplierIds = grouped.Select(x => x.SupplierId).ToList();
-        var supplierNames = await _context.Suppliers
-            .AsNoTracking()
-            .Where(s => supplierIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.Name);
-
+        var grouped = await _sender.Send(
+            new GetPurchasesBySupplierQuery(start, end),
+            cancellationToken);
         var result = grouped
-            .Select(g => new PurchaseBySupplierDto
+            .Select(group => new PurchaseBySupplierDto
             {
-                SupplierId   = g.SupplierId,
-                SupplierName = supplierNames.TryGetValue(g.SupplierId, out var n) ? n : string.Empty,
-                OrderCount   = g.OrderCount,
-                TotalAmount  = g.TotalAmount
+                SupplierId = group.SupplierId,
+                SupplierName = group.SupplierName,
+                OrderCount = group.OrderCount,
+                TotalAmount = group.TotalAmount
             })
-            .OrderByDescending(x => x.TotalAmount)
             .ToList();
 
         return Ok(ApiResponse<List<PurchaseBySupplierDto>>.SuccessResponse(result));

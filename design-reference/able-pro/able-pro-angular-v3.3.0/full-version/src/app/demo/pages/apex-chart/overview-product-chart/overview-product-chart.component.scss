@@ -1,0 +1,29 @@
+.overview-product-legends {
+  border: 1px solid var(--accent-300);
+  padding: 16px;
+  margin-top: 16px;
+  border-radius: 8px;
+
+  p {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: currentColor;
+      margin-left: -10px;
+    }
+
+    span {
+      color: var(--accent-600);
+    }
+  }
+}

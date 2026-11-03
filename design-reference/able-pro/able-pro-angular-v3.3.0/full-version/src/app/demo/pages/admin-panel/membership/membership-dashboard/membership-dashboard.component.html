@@ -1,0 +1,130 @@
+<div class="row">
+  @for (summary of membership; track $index) {
+    <div class="col-xxl-3 col-md-6">
+      <app-card [showHeader]="false" [padding]="20" cardClass="dashboard-summary">
+        <div class="flex align-item-center">
+          <div class="flex-grow-1 m-r-15">
+            <p class="m-b-5 f-w-500 text-muted">{{ summary.title }}</p>
+            <div class="f-20 f-w-600">{{ summary.value }}</div>
+            <p class="m-b-0 text-sm">{{ summary.date }}</p>
+          </div>
+          <div class="flex-shrink-0">
+            <div class="icon-body {{ summary.background }}">
+              <svg class="pc-icon">
+                <use attr.xlink:href="assets/fonts/custom-icon.svg{{ summary.icon }}"></use>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </app-card>
+      <div class="card">
+        <div class="card-body"></div>
+      </div>
+    </div>
+  }
+  <div class="col-lg-7 col-md-12">
+    <app-statistics-chart [height]="310" />
+  </div>
+  <div class="col-lg-5 col-md-12">
+    <app-card [showHeader]="false">
+      <div class="calendar-header">
+        <div class="f-w-600 f-16 m-b-10">Calender</div>
+        <div class="flex align-item-center justify-content-between m-b-15">
+          <p class="m-b-0">
+            Aug 10, Mon
+            <span class="badge text-white mat-small">TODAY</span>
+          </p>
+          <div class="flex align-item-center direction">
+            <div class="flex align-item-center p-5 border border-4 m-r-10">
+              <i class="ti ti-chevron-left f-16"></i>
+            </div>
+            <div class="flex align-item-center p-5 border border-4">
+              <i class="ti ti-chevron-right f-16"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      @for (list of tasks; track list) {
+        <div class="calendar-list">
+          <div class="body-list {{ list.border_color }}">
+            <div>{{ list.title }}</div>
+            <p class="m-b-0">{{ list.time }}</p>
+          </div>
+        </div>
+      }
+    </app-card>
+  </div>
+  <div class="col-lg-6 col-md-12">
+    <app-state-chart />
+  </div>
+  <div class="col-lg-6 col-md-12">
+    <app-activity-chart />
+  </div>
+  <div class="col-lg-7 col-md-12">
+    <app-card cardTitle="Latest Signup List" padding="0">
+      <ng-template #headerOptionsTemplate>
+        <a href="javascript:" class="text-primary-500">View All</a>
+      </ng-template>
+      <div class="m-b-5 table-responsive">
+        <table mat-table [dataSource]="signupSource" class="mat-elevation-z8 monthly-table">
+          <ng-container matColumnDef="Name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell class="text-nowrap" *matCellDef="let element">
+              <div class="flex align-item-center">
+                <div class="flex-shrink-0">
+                  <img src="{{ element.image }}" alt="user image" class="img-radius wid-40 border-50" />
+                </div>
+                <div class="flex-grow-1 m-l-15">
+                  <div>{{ element.name }}</div>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.email }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Date">
+            <th mat-header-cell *matHeaderCellDef>JOINING DATE</th>
+            <td mat-cell class="text-nowrap" *matCellDef="let element">
+              {{ element.date }}
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="signup"></tr>
+          <tr mat-row *matRowDef="let row; columns: signup"></tr>
+        </table>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-lg-5 col-md-12">
+    <app-card cardTitle="Notifications">
+      <ng-template #headerOptionsTemplate>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </ng-template>
+      <ul class="list-group list-group-flush notification-list">
+        @for (type of notifications; track type; let last = $last) {
+          <li class="list-group-item" [ngClass]="{ 'p-b-0': last, 'border-bottom': !last }">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0 flex">
+                <img src="{{ type.image }}" alt="img" class="wid-40 border-50" />
+              </div>
+              <div class="flex-grow-1 m-x-15">
+                <div class="f-16 f-w-600">{{ type.title }}</div>
+              </div>
+              <div class="flex-shrink-0">
+                <p class="m-b-0 text-muted">{{ type.date }}</p>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+</div>

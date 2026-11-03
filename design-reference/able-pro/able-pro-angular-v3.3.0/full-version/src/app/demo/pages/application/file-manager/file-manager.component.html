@@ -1,0 +1,255 @@
+<div class="row p-t-25">
+  <div class="col-12 filter">
+    <div class="f-16 f-w-600 m-b-10">Quick Filter</div>
+    <div class="row">
+      @for (task of filter_data; track task) {
+        <div class="col-md-6 col-xl-3">
+          <app-card [showHeader]="false">
+            <div class="avatar {{ task.background }}">
+              <svg class="pc-icon wid-30 hei-30 {{ task.color }}">
+                <use attr.xlink:href="assets/fonts/custom-icon.svg{{ task.icon }}"></use>
+              </svg>
+            </div>
+            <div class="flex align-item-end justify-content-between m-t-20">
+              <div>
+                <div class="m-b-5 f-w-600">{{ task.type }}</div>
+                <p class="m-b-0">100 files</p>
+              </div>
+              <span class="store {{ task.store_bg }} f-12">{{ task.store }}</span>
+            </div>
+          </app-card>
+        </div>
+      }
+      <div class="col-md-6 col-xl-3">
+        <app-card [showHeader]="false" cardClass="pro-card">
+          <div class="f-16 f-w-600">20.5GB of 50GB</div>
+          <div class="row align-item-center m-y-15">
+            <div class="col">
+              <mat-progress-bar mode="determinate" value="70"></mat-progress-bar>
+            </div>
+            <div class="col-auto">
+              <p class="m-b-0 text-muted">70%</p>
+            </div>
+          </div>
+          <button mat-flat-button class="warning">Want More Storage?</button>
+        </app-card>
+      </div>
+    </div>
+    <mat-divider class="m-y-15"></mat-divider>
+    <div class="f-16 f-w-600 m-y-10">Recent file</div>
+    <div class="row">
+      @for (task of recent_file; track task) {
+        <div class="col-md-6 col-xl-3">
+          <app-card [showHeader]="false">
+            <div class="flex">
+              <div class="flex-shrink-0 m-r-15">
+                <svg class="wid-40 hei-40 text-warning-500">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-folder-open"></use>
+                </svg>
+              </div>
+              <div class="flex-grow-1 m-r-15">
+                <div class="m-b-8 f-16 f-w-600 grid">
+                  <span class="text-truncate w-100">{{ task.title }}</span>
+                </div>
+                <p class="m-b-0">
+                  <small>{{ task.file }}</small>
+                </p>
+              </div>
+              <a href="javascript:" class="flex align-item-center text-muted" [matMenuTriggerFor]="menu">
+                <i class="material-icons-two-tone f-18">more_vert</i>
+              </a>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item>Edit</button>
+                <button mat-menu-item>Delete</button>
+              </mat-menu>
+            </div>
+          </app-card>
+        </div>
+      }
+    </div>
+    <mat-divider class="m-t-15 m-b-20"></mat-divider>
+    <div class="row m-t-10 m-b-5 file-search">
+      <div class="col">
+        <ul class="list-inline">
+          <li class="list-inline-item">
+            <mat-form-field appearance="outline" class="m-b-10">
+              <input matInput placeholder="Search Followers" />
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+          </li>
+          <li class="list-inline-item">
+            <mat-form-field appearance="outline" class="m-b-10">
+              <mat-select value="option1">
+                <mat-option value="option1">All Type</mat-option>
+                <mat-option value="option2">Document</mat-option>
+                <mat-option value="option3">Videos</mat-option>
+                <mat-option value="option4">Images</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </li>
+          <li class="list-inline-item">
+            <mat-form-field appearance="outline" class="m-b-10">
+              <input matInput [matDatepicker]="picker" placeholder="dd/mm/yyyy" />
+              <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+          </li>
+        </ul>
+      </div>
+      <div class="col-auto">
+        <app-card [showHeader]="false" [padding]="0" cardClass="bg-transparent m-b-0">
+          <mat-tab-group (selectedIndexChange)="tabChanged($event)" class="type-layout">
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <i class="ti ti-layout-grid f-18"></i>
+              </ng-template>
+            </mat-tab>
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <i class="ti ti-layout-list f-18"></i>
+              </ng-template>
+            </mat-tab>
+          </mat-tab-group>
+        </app-card>
+      </div>
+    </div>
+    <div class="row m-y-15">
+      <div class="col">
+        <div class="flex align-item-center">
+          <div class="f-16 f-w-600 m-r-10">File</div>
+          <a class="avatar avatar-xs p-0 bg-primary-500 text-accent-50" (click)="newFileAdd()">
+            <i class="ti ti-plus f-16"></i>
+          </a>
+        </div>
+      </div>
+      <div class="col-auto">
+        <button mat-stroked-button>
+          View All
+          <i class="ti ti-chevron-right ms-2"></i>
+        </button>
+      </div>
+    </div>
+    @if (selectedTabIndex === 0) {
+      <div class="row">
+        @for (task of file_card; track task) {
+          <div class="col-md-6 col-lg-4 col-xxl-3">
+            <mat-card class="file-card">
+              <mat-card-content>
+                <div class="flex align-item-center justify-content-between">
+                  <mat-radio-button value="1" color="primary" (click)="fileSlider()"></mat-radio-button>
+                  <a href="javascript:" class="avatar avatar-xs edit-card text-muted">
+                    <div [matMenuTriggerFor]="menu">
+                      <i class="ti ti-dots-vertical f-18"></i>
+                    </div>
+                  </a>
+                  <mat-menu #menu="matMenu">
+                    <button mat-menu-item (click)="fileSlider()">Edit</button>
+                    <button mat-menu-item>Delete</button>
+                  </mat-menu>
+                </div>
+                <div class="m-y-15 text-center">
+                  <img src="{{ task.img }}" alt="img" class="img-fluid" />
+                </div>
+                <div class="flex align-item-center justify-content-between m-t-20">
+                  <div>
+                    <div class="f-w-600"><span class="text-truncate w-100">Document-final.docx</span></div>
+                    <p class="m-b-0 text-muted mat-small">16 Nov 2022</p>
+                  </div>
+                  <a href="javascript:" class="avatar avatar-s user-popup" (click)="fileShare()">
+                    <svg class="pc-icon">
+                      <use xlink:href="assets/fonts/custom-icon.svg#custom-user-add"></use>
+                    </svg>
+                  </a>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        }
+      </div>
+    }
+    @if (selectedTabIndex === 1) {
+      <ng-container position="end">
+        <div class="file-table-layout">
+          <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+            <ng-container matColumnDef="select">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let row">
+                <mat-checkbox
+                  (click)="$event.stopPropagation()"
+                  (change)="$event ? selection.toggle(row) : null"
+                  [checked]="selection.isSelected(row)"
+                  [aria-label]="checkboxLabel(row)"
+                  color="primary"
+                ></mat-checkbox>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element" (click)="fileSlider()">
+                <a class="flex align-item-center">
+                  <img src="{{ element.images }}" alt="user-image" class="wid-35" />
+                  <div class="f-w-600 m-l-10 text-truncate">{{ element.title }}</div>
+                </a>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="size">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element">{{ element.size }}MB</td>
+            </ng-container>
+
+            <ng-container matColumnDef="date">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element">{{ element.date }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="user">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element">
+                @if (element.user === 4) {
+                  <div class="user-group p-1">
+                    <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+                    <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+                    <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+                    <span class="avatar avatar-xs bg-primary-50 text-primary-500">+2</span>
+                  </div>
+                }
+                @if (element.user === 2) {
+                  <div class="user-group p-1">
+                    <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+                    <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+                  </div>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="options">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element">
+                <ul class="list-inline text-end">
+                  <li class="list-inline-item m-r-20">
+                    <i class="fas {{ element.rating }} f-20"></i>
+                  </li>
+                  <li class="list-inline-item">
+                    <div [matMenuTriggerFor]="menu">
+                      <i class="ti ti-dots-vertical f-18"></i>
+                    </div>
+                    <mat-menu #menu="matMenu">
+                      <button mat-menu-item>Item 1</button>
+                      <button mat-menu-item>Item 2</button>
+                    </mat-menu>
+                  </li>
+                </ul>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+      </ng-container>
+    }
+  </div>
+</div>
+<app-file-slider></app-file-slider>

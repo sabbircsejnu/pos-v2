@@ -1,0 +1,20 @@
+.account-info {
+  .user-status {
+    position: absolute;
+    padding: 16px;
+    right: 0;
+    top: 0;
+
+    span {
+      font-size: 0.75em;
+      padding: 0.25em 0.9em;
+      display: inline-block;
+      border-radius: 8px;
+    }
+  }
+
+  .border-side {
+    border-right: 1px solid var(--accent-300);
+    border-left: 1px solid var(--accent-300);
+  }
+}

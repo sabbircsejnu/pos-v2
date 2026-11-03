@@ -1,3 +1,5 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +21,7 @@ import { CurrentStockRowDto } from '../../models/report.model';
   styleUrls: ['./current-stock-report.component.css']
 })
 export class CurrentStockReportComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   // ── Filter state ─────────────────────────────────────────────────────────
   outletId    = signal<number | null>(null);
   warehouseId = signal<number | null>(null);
@@ -208,9 +211,7 @@ export class CurrentStockReportComponent implements OnInit {
 
   formatDate(dateStr?: string): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      year: 'numeric', month: 'short', day: '2-digit'
-    });
+    return this.companyDates.format(dateStr, false);
   }
 
   stockStatusBadge(status: string): string {

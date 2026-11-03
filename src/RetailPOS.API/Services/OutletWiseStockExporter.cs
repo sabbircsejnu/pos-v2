@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
 
@@ -15,12 +16,12 @@ public static class OutletWiseStockExporter
         "Category", "Quantity", "Unit Cost", "Stock Value"
     ];
 
-    public static string ToCsv(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary)
+    public static string ToCsv(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("Outlet Wise Stock Report");
-        sb.AppendLine($"Generated:,{DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC");
+        sb.AppendLine($"Generated:,{UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine($"Total Outlets:,{summary.TotalOutlets}");
         sb.AppendLine($"Total Stock Value:,{summary.TotalStockValue:F2}");
         sb.AppendLine();
@@ -59,7 +60,7 @@ public static class OutletWiseStockExporter
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary)
+    public static byte[] ToExcel(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         using var wb = new XLWorkbook();
 
@@ -69,7 +70,7 @@ public static class OutletWiseStockExporter
         ws.Cell(1, 1).Value = "Outlet Wise Stock Report";
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC";
+        ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(2, 1).Style.Font.Italic = true;
 
         const int headerRow = 4;

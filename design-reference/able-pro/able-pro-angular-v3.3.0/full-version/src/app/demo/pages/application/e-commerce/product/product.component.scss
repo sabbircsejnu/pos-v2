@@ -1,0 +1,310 @@
+@import 'src/app/@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.e-comm-body {
+  .filter-columns {
+    width: 300px;
+
+    .mat-mdc-card {
+      height: 100%;
+
+      .mat-mdc-card-content {
+        height: calc(100% - 67px);
+      }
+    }
+
+    .list-group-flush {
+      .list-group-item {
+        padding: 8px 0px;
+
+        .filer-select {
+          display: inline-flex;
+          flex-direction: column;
+        }
+
+        &.color {
+          .color-details {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 10px;
+
+            .filter {
+              cursor: pointer;
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 32px;
+              font-family: Inter var;
+              border-radius: 50%;
+              overflow: hidden;
+              user-select: none;
+              border: 3px solid;
+              font-size: 0.875rem;
+              color: var(--accent-100);
+              border-color: $white;
+            }
+          }
+
+          .product-color {
+            .mdc-checkbox {
+              z-index: 8;
+              opacity: 0;
+              position: absolute;
+              clip: rect(0, 0, 0, 0);
+              pointer-events: none;
+            }
+
+            &.mat-mdc-checkbox-checked {
+              i::after {
+                content: '\ea5e';
+                font-family: tabler-icons !important;
+                line-height: 1;
+                font-size: 14px;
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                position: absolute;
+                top: 0px;
+                left: 0px;
+                color: $white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow:
+                  0 0 0 1px var(--accent-50),
+                  0 0 0 5px var(--accent-300);
+              }
+
+              i {
+                position: relative;
+              }
+            }
+          }
+        }
+
+        .example-section {
+          display: flex;
+          flex-wrap: wrap;
+          align-content: center;
+          align-items: center;
+        }
+      }
+    }
+  }
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+  }
+
+  .material-icons.search-icons {
+    line-height: 0 !important;
+  }
+
+  .ec-cart {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    -webkit-user-select: none;
+    transition:
+      background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    width: 56px;
+    height: 56px;
+    border-radius: 50% 4px 4px 50%;
+    top: 65%;
+    position: fixed;
+    right: 0px;
+    z-index: 1050;
+    box-shadow: rgba(19, 25, 32, 0.08) 0px 8px 24px;
+    background-color: var(--accent-50);
+    border-top: 4px solid var(--accent-50);
+    border-bottom: 4px solid var(--accent-50);
+    border-left: 4px solid var(--accent-50);
+
+    .icon {
+      color: rgb(222, 119, 0);
+
+      .pc-icon {
+        width: 28px;
+        height: 28px;
+      }
+    }
+
+    &:hover {
+      background-color: rgb(247, 220, 179);
+    }
+  }
+}
+
+.mat-drawer-container {
+  .mat-drawer-side {
+    &.filter-columns {
+      border-right: none !important;
+
+      ::ng-deep.able-pro-rtl & {
+        border-left: none !important;
+      }
+    }
+  }
+
+  .mat-drawer-content {
+    overflow: hidden;
+
+    &.product-list-details {
+      padding-left: 25px !important;
+
+      ::ng-deep.able-pro-rtl & {
+        padding-right: 25px !important;
+        padding-left: 0px !important;
+      }
+
+      @media (max-width: 1399px) {
+        padding-left: 0px !important;
+      }
+
+      .product-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        @media (max-width: 576px) {
+          display: block;
+
+          .mat-mdc-form-field {
+            margin-bottom: 15px;
+          }
+        }
+      }
+
+      .no-product {
+        display: flex;
+        flex-flow: wrap;
+        align-items: center;
+        justify-content: center;
+        height: calc(100vh - 240px);
+      }
+    }
+  }
+}
+
+::ng-deep.mat-mdc-card.product-card {
+  .product-img {
+    position: relative;
+    padding: 8px 8px 0;
+    overflow: hidden;
+
+    .unStock {
+      opacity: 0.25;
+    }
+
+    a {
+      width: 250px;
+      margin: auto;
+      display: block;
+    }
+
+    .img-prod {
+      border-radius: 8px;
+    }
+
+    .discount-tabs {
+      position: absolute;
+      left: 0;
+      top: 0;
+      padding-top: 14px;
+      padding-left: 16px;
+
+      .discount-stock {
+        border: 1px solid var(--success-500);
+        height: 24px;
+        border-radius: 10px;
+        padding: 0px 10px;
+        background: var(--success-50);
+        color: var(--success-900);
+
+        ::ng-deep.dark & {
+          background: var(--success-100);
+          border-color: var(--success-300);
+        }
+      }
+
+      .discount-out {
+        border: 1px solid var(--warn-50);
+        border-radius: 10px;
+        padding: 0px 10px;
+        background: var(--warn-50);
+        color: var(--warn-500);
+      }
+    }
+
+    .whilst-tab {
+      position: absolute;
+      right: 0;
+      top: 0;
+      padding-right: 16px;
+      padding-top: 14px;
+
+      i {
+        cursor: pointer;
+      }
+    }
+  }
+
+  .product-content {
+    padding: 20px;
+    border-top: 1px solid var(--accent-300);
+
+    .prod-name {
+      -webkit-line-clamp: 2;
+      font-size: 16px;
+      font-weight: 600;
+      display: block;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--accent-800);
+    }
+
+    .prod-price {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      span {
+        text-decoration: line-through;
+      }
+    }
+
+    .prod-color {
+      display: inline-flex;
+      align-items: center;
+
+      span {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px $white;
+
+        &:not(:first-child) {
+          margin-left: -3px;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  ::ng-deep.e-comm-body {
+    .filter-columns {
+      .mat-mdc-card {
+        height: 100%;
+        margin-right: 10px;
+      }
+    }
+  }
+}

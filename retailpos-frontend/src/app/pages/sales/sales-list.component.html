@@ -69,7 +69,7 @@
       <div>
         <label class="label">From Date</label>
         <input
-          type="date"
+          type="date" appCompanyDate
           class="input"
           [ngModel]="startDate()"
           (ngModelChange)="startDate.set($event); onSearchChange()"
@@ -79,7 +79,7 @@
         <label class="label">To Date</label>
         <div class="flex gap-2">
           <input
-            type="date"
+            type="date" appCompanyDate
             class="input"
             [ngModel]="endDate()"
             (ngModelChange)="endDate.set($event); onSearchChange()"
@@ -136,7 +136,7 @@
                   <span class="font-mono text-sm font-semibold text-gray-900">{{ sale.saleNumber }}</span>
                 </td>
                 <td class="px-4 py-2.5 text-sm text-gray-600">
-                  {{ sale.saleDate | date:'dd/MM/yyyy HH:mm' }}
+                  {{ sale.saleDate | appDate:'dd/MM/yyyy HH:mm' }}
                 </td>
                 <td class="px-4 py-2.5 text-sm text-gray-700">
                   {{ sale.customerName || '-' }}

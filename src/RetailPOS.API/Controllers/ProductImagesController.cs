@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RetailPOS.API.Services;
+using MediatR;
+using RetailPOS.Application.Products.Commands;
+using RetailPOS.Application.Products.Queries;
 
 namespace RetailPOS.API.Controllers;
 
@@ -15,31 +17,42 @@ public class ProductImagesController : ControllerBase
         public bool IsPrimary { get; set; }
     }
 
-    private readonly IProductMediaService _media;
+    private readonly ISender _sender;
     private readonly ILogger<ProductImagesController> _logger;
 
-    public ProductImagesController(IProductMediaService media, ILogger<ProductImagesController> logger)
+    public ProductImagesController(ISender sender, ILogger<ProductImagesController> logger)
     {
-        _media = media;
+        _sender = sender;
         _logger = logger;
     }
 
     [HttpGet]
-    public async Task<IActionResult> List(long productId)
+    public async Task<IActionResult> List(long productId, CancellationToken cancellationToken)
     {
-        var items = await _media.ListAsync(productId);
-        return Ok(items);
+        var images = await _sender.Send(new GetProductImagesQuery(productId), cancellationToken);
+        return Ok(images.Select(ToDto).ToList());
     }
 
     [HttpPost]
     [Authorize(Policy = "products.edit")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<IActionResult> Upload(long productId, [FromForm] UploadProductImageRequest request)
+    public async Task<IActionResult> Upload(
+        long productId,
+        [FromForm] UploadProductImageRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var dto = await _media.UploadAsync(productId, request.File, request.IsPrimary);
+            using var content = request.File?.OpenReadStream();
+            var image = await _sender.Send(new UploadProductImageCommand(
+                productId,
+                content,
+                request.File?.FileName,
+                request.File?.ContentType,
+                request.File?.Length ?? 0,
+                request.IsPrimary), cancellationToken);
+            var dto = ToDto(image);
             return CreatedAtAction(nameof(List), new { productId }, dto);
         }
         catch (ArgumentException ex)
@@ -50,6 +63,10 @@ public class ProductImagesController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Image upload failed");
@@ -59,11 +76,11 @@ public class ProductImagesController : ControllerBase
 
     [HttpDelete("{imageId:long}")]
     [Authorize(Policy = "products.edit")]
-    public async Task<IActionResult> Delete(long productId, long imageId)
+    public async Task<IActionResult> Delete(long productId, long imageId, CancellationToken cancellationToken)
     {
         try
         {
-            await _media.DeleteAsync(productId, imageId);
+            await _sender.Send(new DeleteProductImageCommand(productId, imageId), cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException ex)
@@ -74,11 +91,11 @@ public class ProductImagesController : ControllerBase
 
     [HttpPut("{imageId:long}/primary")]
     [Authorize(Policy = "products.edit")]
-    public async Task<IActionResult> SetPrimary(long productId, long imageId)
+    public async Task<IActionResult> SetPrimary(long productId, long imageId, CancellationToken cancellationToken)
     {
         try
         {
-            var id = await _media.SetPrimaryAsync(productId, imageId);
+            var id = await _sender.Send(new SetPrimaryProductImageCommand(productId, imageId), cancellationToken);
             return Ok(new { primaryImageId = id });
         }
         catch (KeyNotFoundException ex)
@@ -86,4 +103,24 @@ public class ProductImagesController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    private static RetailPOS.API.DTOs.Product.ProductImageDto ToDto(
+        RetailPOS.Application.Products.ReadModels.ProductImageReadModel image) =>
+        new()
+        {
+            Id = image.Id,
+            ProductId = image.ProductId,
+            OriginalName = image.OriginalName,
+            MimeType = image.MimeType,
+            Size = image.Size,
+            Width = image.Width,
+            Height = image.Height,
+            ThumbUrl = image.ThumbUrl,
+            MediumUrl = image.MediumUrl,
+            OriginalUrl = image.OriginalUrl,
+            IsPrimary = image.IsPrimary,
+            SortOrder = image.SortOrder,
+            CreatedAt = image.CreatedAt,
+            UpdatedAt = image.UpdatedAt
+        };
 }

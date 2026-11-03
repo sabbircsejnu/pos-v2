@@ -1,0 +1,15 @@
+<app-scrollbar [customStyle]="{ height: 'calc(100vh - 88px)', position: 'relative' }">
+  <div class="navbar-content">
+    <ul class="nav coded-inner-navbar" (click)="fireOutClick()">
+      @for (item of menus(); track item.id) {
+        @if (item.type === 'group') {
+          <app-menu-group-compact [item]="item"></app-menu-group-compact>
+        } @else if (item.type === 'item') {
+          <app-menu-item-compact [item]="item"></app-menu-item-compact>
+        } @else if (item.type === 'collapse') {
+          <app-menu-collapse-compact [item]="item"></app-menu-collapse-compact>
+        }
+      }
+    </ul>
+  </div>
+</app-scrollbar>

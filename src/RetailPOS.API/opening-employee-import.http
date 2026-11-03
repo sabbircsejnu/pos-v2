@@ -1,0 +1,55 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@businessId = 1
+@batchId = 1
+
+### Download CSV v1 template
+GET {{baseUrl}}/api/hr/v1/opening-imports/template?importType=Employee&templateVersion=1
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+
+### Private upload requires approved ADR-03 composition; otherwise 503
+POST {{baseUrl}}/api/hr/v1/opening-imports
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+Content-Type: multipart/form-data; boundary=OpeningImport
+
+--OpeningImport
+Content-Disposition: form-data; name="ImportType"
+
+Employee
+--OpeningImport
+Content-Disposition: form-data; name="TemplateVersion"
+
+1
+--OpeningImport
+Content-Disposition: form-data; name="IdempotencyKey"
+
+opening-example-employee-v1
+--OpeningImport
+Content-Disposition: form-data; name="File"; filename="opening.csv"
+Content-Type: text/csv
+
+ExternalKey,EmployeeCode,FirstName,DisplayName,EmploymentTypeId,EmploymentStatus,JoiningDate,PositionId,OrgUnitId,LocationProjectionId,AssignmentType,NationalId,Mobile
+opening-001,EMP-OPEN-001,Alex,Alex Employee,11,Active,2026-10-01,,,,,,
+--OpeningImport--
+
+### Mandatory dry-run (no employees, periods or assignments)
+POST {{baseUrl}}/api/hr/v1/opening-imports/{{batchId}}/dry-run
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+
+### Review summary and row errors
+GET {{baseUrl}}/api/hr/v1/opening-imports/{{batchId}}
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+
+### Execute only after Ready; atomic and duplicate-safe
+POST {{baseUrl}}/api/hr/v1/opening-imports/{{batchId}}/execute
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}
+
+### Unknown Business-scoped batch returns 404
+GET {{baseUrl}}/api/hr/v1/opening-imports/999999
+Authorization: Bearer {{token}}
+X-Business-Id: {{businessId}}

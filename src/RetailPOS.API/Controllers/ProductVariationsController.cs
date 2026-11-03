@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
 using RetailPOS.API.DTOs.Product;
 using RetailPOS.API.Models;
-using RetailPOS.API.Services;
+using RetailPOS.Application.Products.Commands;
+using RetailPOS.Application.Products.Queries;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,14 +13,14 @@ namespace RetailPOS.API.Controllers;
 [Route("api/products/{productId}/variations")]
 public class ProductVariationsController : ControllerBase
 {
-    private readonly IProductVariationService _service;
+    private readonly ISender _sender;
     private readonly ILogger<ProductVariationsController> _logger;
 
     public ProductVariationsController(
-        IProductVariationService service,
+        ISender sender,
         ILogger<ProductVariationsController> logger)
     {
-        _service = service;
+        _sender = sender;
         _logger = logger;
     }
 
@@ -26,9 +28,30 @@ public class ProductVariationsController : ControllerBase
     /// Get variations assigned to a product
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<ProductVariationDto>>>> GetProductVariations(long productId)
+    public async Task<ActionResult<ApiResponse<List<ProductVariationDto>>>> GetProductVariations(
+        long productId,
+        CancellationToken cancellationToken)
     {
-        var variations = await _service.GetProductVariationsAsync(productId);
+        var readModels = await _sender.Send(
+            new GetProductVariationsQuery(productId),
+            cancellationToken);
+        var variations = readModels
+            .Select(variation => new ProductVariationDto
+            {
+                VariationId = variation.VariationId,
+                VariationName = variation.VariationName,
+                IsRequired = variation.IsRequired,
+                Options = variation.Options
+                    .Select(option => new VariationOptionInfo
+                    {
+                        Id = option.Id,
+                        Name = option.Name,
+                        PriceAdjustment = option.PriceAdjustment
+                    })
+                    .ToList(),
+                SelectedOptionIds = variation.SelectedOptionIds.ToList()
+            })
+            .ToList();
         return Ok(ApiResponse<List<ProductVariationDto>>.SuccessResponse(variations));
     }
 
@@ -37,9 +60,22 @@ public class ProductVariationsController : ControllerBase
     /// </summary>
     [HttpPost("assign")]
     [Authorize(Policy = "products.edit")]
-    public async Task<ActionResult<ApiResponse>> AssignVariations(long productId, [FromBody] AssignVariationsRequest request)
+    public async Task<ActionResult<ApiResponse>> AssignVariations(
+        long productId,
+        [FromBody] AssignVariationsRequest request,
+        CancellationToken cancellationToken)
     {
-        await _service.AssignVariationsToProductAsync(productId, request.VariationIds, request.SelectedOptionsByVariation);
+        await _sender.Send(
+            new AssignProductVariationsCommand(
+                productId,
+                request.VariationIds,
+                request.SelectedOptionsByVariation),
+            cancellationToken);
+        _logger.LogInformation(
+            "Assigned {Count} variations to product {ProductId} with {OptionCount} total selected options",
+            request.VariationIds.Count,
+            productId,
+            request.SelectedOptionsByVariation.Values.Sum(options => options.Count));
         return Ok(ApiResponse.SuccessResponse("Variations assigned successfully"));
     }
 
@@ -47,9 +83,14 @@ public class ProductVariationsController : ControllerBase
     /// Get all combinations for a product
     /// </summary>
     [HttpGet("combinations")]
-    public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GetCombinations(long productId)
+    public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GetCombinations(
+        long productId,
+        CancellationToken cancellationToken)
     {
-        var combinations = await _service.GetProductCombinationsAsync(productId);
+        var result = await _sender.Send(
+            new GetProductCombinationsQuery(productId),
+            cancellationToken);
+        var combinations = MapCombinations(result);
         return Ok(ApiResponse<List<CombinationDto>>.SuccessResponse(combinations));
     }
 
@@ -58,11 +99,16 @@ public class ProductVariationsController : ControllerBase
     /// </summary>
     [HttpPost("combinations/generate-all")]
     [Authorize(Policy = "products.edit")]
-    public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GenerateAllCombinations(long productId)
+    public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GenerateAllCombinations(
+        long productId,
+        CancellationToken cancellationToken)
     {
-        var combinations = await _service.GenerateAllCombinationsAsync(productId);
-        var message = combinations.Count > 0 
-            ? $"Successfully generated {combinations.Count} new combination(s)" 
+        var generated = await _sender.Send(
+            new GenerateProductCombinationsCommand(productId),
+            cancellationToken);
+        var combinations = MapCombinations(generated);
+        var message = combinations.Count > 0
+            ? $"Successfully generated {combinations.Count} new combination(s)"
             : "All combinations already exist";
         return Ok(ApiResponse<List<CombinationDto>>.SuccessResponse(combinations, message));
     }
@@ -74,9 +120,15 @@ public class ProductVariationsController : ControllerBase
     [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GenerateSelectedCombinations(
         long productId,
-        [FromBody] GenerateCombinationsRequest request)
+        [FromBody] GenerateCombinationsRequest request,
+        CancellationToken cancellationToken)
     {
-        var combinations = await _service.GenerateSelectedCombinationsAsync(productId, request.VariationIds ?? new List<long>());
+        var generated = await _sender.Send(
+            new GenerateSelectedProductCombinationsCommand(
+                productId,
+                request.VariationIds ?? []),
+            cancellationToken);
+        var combinations = MapCombinations(generated);
         var message = combinations.Count > 0 
             ? $"Successfully generated {combinations.Count} new combination(s)" 
             : "All combinations already exist";
@@ -90,13 +142,24 @@ public class ProductVariationsController : ControllerBase
     [Authorize(Policy = "products.edit")]
     public async Task<ActionResult<ApiResponse<CombinationDto>>> CreateManualCombination(
         long productId,
-        [FromBody] CreateCombinationRequest request)
+        [FromBody] CreateCombinationRequest request,
+        CancellationToken cancellationToken)
     {
-        var combination = await _service.CreateManualCombinationAsync(productId, request);
+        var combination = await _sender.Send(
+            new CreateManualProductCombinationCommand(
+                productId,
+                request.OptionIds,
+                request.Sku,
+                request.Barcode,
+                request.PriceAdjustment,
+                request.CostAdjustment),
+            cancellationToken);
         return CreatedAtAction(
             nameof(GetCombinations), 
             new { productId }, 
-            ApiResponse<CombinationDto>.SuccessResponse(combination, "Combination created successfully"));
+            ApiResponse<CombinationDto>.SuccessResponse(
+                MapCombination(combination),
+                "Combination created successfully"));
     }
 
     /// <summary>
@@ -107,9 +170,17 @@ public class ProductVariationsController : ControllerBase
     public async Task<ActionResult<ApiResponse>> UpdateCombination(
         long productId,
         long variantId,
-        [FromBody] UpdateCombinationRequest request)
+        [FromBody] UpdateCombinationRequest request,
+        CancellationToken cancellationToken)
     {
-        await _service.UpdateCombinationAsync(variantId, request);
+        await _sender.Send(
+            new UpdateProductVariantCommand(
+                variantId,
+                request.Sku,
+                request.Barcode,
+                request.PriceAdjustment,
+                request.CostAdjustment),
+            cancellationToken);
         return Ok(ApiResponse.SuccessResponse("Combination updated successfully"));
     }
 
@@ -118,9 +189,37 @@ public class ProductVariationsController : ControllerBase
     /// </summary>
     [HttpDelete("combinations/{variantId}")]
     [Authorize(Policy = "products.edit")]
-    public async Task<ActionResult<ApiResponse>> DeleteCombination(long productId, long variantId)
+    public async Task<ActionResult<ApiResponse>> DeleteCombination(
+        long productId,
+        long variantId,
+        CancellationToken cancellationToken)
     {
-        await _service.DeleteCombinationAsync(variantId);
+        await _sender.Send(new DeleteProductVariantCommand(variantId), cancellationToken);
         return Ok(ApiResponse.SuccessResponse("Combination deleted successfully"));
     }
+
+    private static List<CombinationDto> MapCombinations(
+        IReadOnlyList<RetailPOS.Application.Products.ReadModels.ProductCombinationModel> generated) =>
+        generated.Select(MapCombination).ToList();
+
+    private static CombinationDto MapCombination(
+        RetailPOS.Application.Products.ReadModels.ProductCombinationModel combination) =>
+        new()
+        {
+            Id = combination.Id,
+            Sku = combination.Sku,
+            Barcode = combination.Barcode,
+            PriceAdjustment = combination.PriceAdjustment,
+            CostAdjustment = combination.CostAdjustment,
+            OptionIds = combination.OptionIds.ToList(),
+            Options = combination.Options.Select(option => new CombinationOptionInfo
+            {
+                Id = option.OptionId,
+                VariationName = option.VariationName,
+                OptionName = option.OptionName,
+                PriceAdjustment = option.PriceAdjustment
+            }).ToList(),
+            CombinationName = combination.CombinationName,
+            FinalPrice = combination.FinalPrice
+        };
 }

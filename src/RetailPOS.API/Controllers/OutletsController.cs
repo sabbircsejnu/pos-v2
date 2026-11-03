@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Outlet;
-using RetailPOS.API.Services;
+using RetailPOS.Application.Outlets;
+using RetailPOS.Application.Outlets.Commands;
+using RetailPOS.Application.Outlets.Queries;
+using MediatR;
 
 namespace RetailPOS.API.Controllers;
 
@@ -10,25 +14,27 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "outlets.view")]
 public class OutletsController : ControllerBase
 {
-    private readonly IOutletService _outletService;
     private readonly ILogger<OutletsController> _logger;
+    private readonly ISender _sender;
 
-    public OutletsController(IOutletService outletService, ILogger<OutletsController> logger)
+    public OutletsController(
+        ILogger<OutletsController> logger,
+        ISender sender)
     {
-        _outletService = outletService;
         _logger = logger;
+        _sender = sender;
     }
 
     /// <summary>
     /// Get all outlets
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<OutletDto>>> GetAllOutlets()
+    public async Task<ActionResult<IEnumerable<OutletDto>>> GetAllOutlets(CancellationToken cancellationToken)
     {
         try
         {
-            var outlets = await _outletService.GetAllOutletsAsync();
-            return Ok(new { data = outlets, message = "Outlets retrieved successfully" });
+            var outlets = await _sender.Send(new GetOutletsQuery(), cancellationToken);
+            return Ok(new { data = outlets.Select(MapOutlet), message = "Outlets retrieved successfully" });
         }
         catch (Exception ex)
         {
@@ -41,15 +47,15 @@ public class OutletsController : ControllerBase
     /// Get outlet by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<OutletDto>> GetOutletById(long id)
+    public async Task<ActionResult<OutletDto>> GetOutletById(long id, CancellationToken cancellationToken)
     {
         try
         {
-            var outlet = await _outletService.GetOutletByIdAsync(id);
+            var outlet = await _sender.Send(new GetOutletByIdQuery(id), cancellationToken);
             if (outlet == null)
                 return NotFound(new { error = $"Outlet with ID {id} not found" });
 
-            return Ok(new { data = outlet, message = "Outlet retrieved successfully" });
+            return Ok(new { data = MapOutlet(outlet), message = "Outlet retrieved successfully" });
         }
         catch (Exception ex)
         {
@@ -63,7 +69,9 @@ public class OutletsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "outlets.create")]
-    public async Task<ActionResult<OutletDto>> CreateOutlet([FromBody] CreateOutletDto dto)
+    public async Task<ActionResult<OutletDto>> CreateOutlet(
+        [FromBody] CreateOutletDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -73,11 +81,27 @@ public class OutletsController : ControllerBase
             if (string.IsNullOrWhiteSpace(dto.Address))
                 return BadRequest(new { error = "Outlet address is required" });
 
-            var outlet = await _outletService.CreateOutletAsync(dto);
+            var result = await _sender.Send(
+                new CreateOutletCommand(
+                    dto.Name,
+                    dto.Address,
+                    dto.ContactNumber,
+                    dto.ManagerId,
+                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals)),
+                cancellationToken);
+            var outlet = MapOutlet(result);
             return CreatedAtAction(
                 nameof(GetOutletById),
                 new { id = outlet.Id },
                 new { data = outlet, message = "Outlet created successfully" });
+        }
+        catch (OutletSetupException ex)
+        {
+            return Conflict(new { error = ex.Message, errorCode = ex.Code });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message, errorCode = "forbidden" });
         }
         catch (InvalidOperationException ex)
         {
@@ -95,7 +119,10 @@ public class OutletsController : ControllerBase
     /// </summary>
     [HttpPut("{id}")]
     [Authorize(Policy = "outlets.edit")]
-    public async Task<ActionResult<OutletDto>> UpdateOutlet(long id, [FromBody] UpdateOutletDto dto)
+    public async Task<ActionResult<OutletDto>> UpdateOutlet(
+        long id,
+        [FromBody] UpdateOutletDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -105,8 +132,25 @@ public class OutletsController : ControllerBase
             if (string.IsNullOrWhiteSpace(dto.Address))
                 return BadRequest(new { error = "Outlet address is required" });
 
-            var outlet = await _outletService.UpdateOutletAsync(id, dto);
+            var result = await _sender.Send(
+                new UpdateOutletCommand(
+                    id,
+                    dto.Name,
+                    dto.Address,
+                    dto.ContactNumber,
+                    dto.ManagerId,
+                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals)),
+                cancellationToken);
+            var outlet = MapOutlet(result);
             return Ok(new { data = outlet, message = "Outlet updated successfully" });
+        }
+        catch (OutletSetupException ex)
+        {
+            return Conflict(new { error = ex.Message, errorCode = ex.Code });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message, errorCode = "forbidden" });
         }
         catch (InvalidOperationException ex)
         {
@@ -122,15 +166,42 @@ public class OutletsController : ControllerBase
     }
 
     /// <summary>
+    /// Delete a terminal that has no sales, cash-session or receipt history (otherwise deactivate it)
+    /// </summary>
+    [HttpDelete("{id}/terminals/{terminalId}")]
+    [Authorize(Policy = "outlets.terminals.manage")]
+    public async Task<ActionResult> DeleteTerminal(long id, long terminalId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _sender.Send(new DeleteOutletTerminalCommand(id, terminalId), cancellationToken);
+            return Ok(new { message = "Terminal deleted successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (OutletSetupException ex)
+        {
+            return Conflict(new { error = ex.Message, errorCode = ex.Code });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting terminal {TerminalId} of outlet {Id}", terminalId, id);
+            return StatusCode(500, new { error = "An error occurred while deleting the terminal" });
+        }
+    }
+
+    /// <summary>
     /// Delete an outlet
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Policy = "outlets.delete")]
-    public async Task<ActionResult> DeleteOutlet(long id)
+    public async Task<ActionResult> DeleteOutlet(long id, CancellationToken cancellationToken)
     {
         try
         {
-            var deleted = await _outletService.DeleteOutletAsync(id);
+            var deleted = await _sender.Send(new DeleteOutletCommand(id), cancellationToken);
             if (!deleted)
                 return NotFound(new { error = $"Outlet with ID {id} not found" });
 
@@ -151,15 +222,17 @@ public class OutletsController : ControllerBase
     /// Search outlets by name, address, or contact number
     /// </summary>
     [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<OutletDto>>> SearchOutlets([FromQuery] string q)
+    public async Task<ActionResult<IEnumerable<OutletDto>>> SearchOutlets(
+        [FromQuery] string q,
+        CancellationToken cancellationToken)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(q))
                 return BadRequest(new { error = "Search term is required" });
 
-            var outlets = await _outletService.SearchOutletsAsync(q);
-            return Ok(new { data = outlets, message = "Search completed successfully" });
+            var outlets = await _sender.Send(new GetOutletsQuery(q), cancellationToken);
+            return Ok(new { data = outlets.Select(MapOutlet), message = "Search completed successfully" });
         }
         catch (Exception ex)
         {
@@ -172,15 +245,26 @@ public class OutletsController : ControllerBase
     /// Get outlet statistics
     /// </summary>
     [HttpGet("{id}/stats")]
-    public async Task<ActionResult<OutletStatsDto>> GetOutletStats(long id)
+    public async Task<ActionResult<OutletStatsDto>> GetOutletStats(long id, CancellationToken cancellationToken)
     {
         try
         {
-            var stats = await _outletService.GetOutletStatsAsync(id);
+            var stats = await _sender.Send(new GetOutletStatsQuery(id), cancellationToken);
             if (stats == null)
                 return NotFound(new { error = $"Outlet with ID {id} not found" });
 
-            return Ok(new { data = stats, message = "Statistics retrieved successfully" });
+            return Ok(new
+            {
+                data = new OutletStatsDto
+                {
+                    Id = stats.Id,
+                    Name = stats.Name,
+                    UserCount = stats.UserCount,
+                    SalesCount = stats.SalesCount,
+                    TotalSales = stats.TotalSales
+                },
+                message = "Statistics retrieved successfully"
+            });
         }
         catch (Exception ex)
         {
@@ -188,4 +272,38 @@ public class OutletsController : ControllerBase
             return StatusCode(500, new { error = "An error occurred while retrieving statistics" });
         }
     }
+
+    private OutletPosSetupInput ToPosSetup(string? invoicePrefix, string? timeZoneId, List<OutletTerminalDto>? terminals) =>
+        new(
+            invoicePrefix,
+            timeZoneId,
+            terminals?.Select(terminal => new OutletTerminalInput(terminal.Id, terminal.Name, terminal.IsActive)).ToList(),
+            User.HasPermission("outlets.terminals.manage"));
+
+    private static OutletDto MapOutlet(OutletReadModel outlet) => new()
+    {
+        Id = outlet.Id,
+        Name = outlet.Name,
+        Address = outlet.Address,
+        ContactNumber = outlet.ContactNumber,
+        ManagerId = outlet.ManagerId,
+        ManagerName = outlet.ManagerName,
+        UserCount = outlet.UserCount,
+        CreatedAt = outlet.CreatedAt,
+        UpdatedAt = outlet.UpdatedAt,
+        InvoicePrefix = outlet.InvoicePrefix,
+        InvoicePrefixLocked = outlet.InvoicePrefixLocked,
+        TimeZoneId = outlet.TimeZoneId,
+        Terminals = (outlet.Terminals ?? [])
+            .Select(terminal => new OutletTerminalDto
+            {
+                Id = terminal.Id,
+                Name = terminal.Name,
+                Code = terminal.Code,
+                IsActive = terminal.IsActive,
+                HasHistory = terminal.HasHistory,
+                HasOpenSession = terminal.HasOpenSession
+            })
+            .ToList()
+    };
 }

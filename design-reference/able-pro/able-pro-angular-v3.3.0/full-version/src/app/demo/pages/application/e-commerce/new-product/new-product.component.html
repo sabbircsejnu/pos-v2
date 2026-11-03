@@ -1,0 +1,72 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false">
+      <div class="row">
+        <div class="col-sm-6">
+          <app-card [showHeader]="false" padding="16">
+            <label for="name" class="f-w-500">Product Name</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="Enter Product Name" />
+            </mat-form-field>
+            <label for="name" class="f-w-500">Product Description</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="Enter Product Description" />
+            </mat-form-field>
+            <label for="name" class="f-w-500">Category</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="Enter your Category" />
+            </mat-form-field>
+            <label for="name" class="f-w-500">Price</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <mat-select value="1">
+                <mat-option value="1">$100</mat-option>
+                <mat-option value="2">$200</mat-option>
+                <mat-option value="3">$300</mat-option>
+                <mat-option value="4">$400</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </app-card>
+        </div>
+        <div class="col-sm-6">
+          <app-card [showHeader]="false" padding="16">
+            <label for="name" class="f-w-500">Qty</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <mat-select value="1">
+                <mat-option value="1">1</mat-option>
+                <mat-option value="2">2</mat-option>
+                <mat-option value="3">3</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <label for="name" class="f-w-500">Status</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <mat-select value="1">
+                <mat-option value="1">In Stock</mat-option>
+                <mat-option value="2">Out of Stock</mat-option>
+                <mat-option value="3">3</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <div class="m-b-10">
+              <span class="text-warn-500">*</span>
+              Recommended resolution is 640*640 with file size
+            </div>
+            <div>
+              <label for="flup">
+                <button mat-stroked-button>
+                  <svg class="pc-icon">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-document-2"></use>
+                  </svg>
+                  Click to upload
+                </button>
+              </label>
+              <input type="file" id="flup" class="d-none" />
+            </div>
+            <div class="text-end m-t-25">
+              <button mat-stroked-button class="m-r-10">Cancel</button>
+              <button mat-flat-button color="primary">Add New Product</button>
+            </div>
+          </app-card>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

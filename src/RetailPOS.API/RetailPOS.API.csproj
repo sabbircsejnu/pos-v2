@@ -4,10 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>RetailPOS.API.LocalDevelopment</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="ClosedXML" Version="0.102.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
     <!-- NEW: Redis distributed cache -->
@@ -18,14 +18,14 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
     <PackageReference Include="QuestPDF" Version="2026.6.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="System.IO.Packaging" Version="10.0.9" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
     <PackageReference Include="ZXing.Net" Version="0.16.9" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RetailPOS.Core\RetailPOS.Core.csproj" />
+    <ProjectReference Include="..\RetailPOS.Domain\RetailPOS.Domain.csproj" />
+    <ProjectReference Include="..\RetailPOS.Application\RetailPOS.Application.csproj" />
     <ProjectReference Include="..\RetailPOS.Infrastructure\RetailPOS.Infrastructure.csproj" />
   </ItemGroup>
 

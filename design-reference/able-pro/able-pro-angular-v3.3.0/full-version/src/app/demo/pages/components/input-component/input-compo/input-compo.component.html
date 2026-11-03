@@ -1,0 +1,74 @@
+<div class="row">
+  <div class="col-sm-12">
+    <app-card cardTitle="Basic Inputs">
+      <form>
+        <mat-form-field class="w-100">
+          <mat-label>Favorite food</mat-label>
+          <input matInput placeholder="Ex. PhoenixCoded" value="PhoenixCoded" />
+        </mat-form-field>
+
+        <mat-form-field class="w-100">
+          <mat-label>Leave a comment</mat-label>
+          <textarea matInput placeholder="Ex. It makes me feel..."></textarea>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Input With a Clear Button">
+      <mat-form-field class="w-100">
+        <mat-label>Clearable input</mat-label>
+        <input matInput type="text" [(ngModel)]="value" />
+        @if (value) {
+          <button matSuffix mat-icon-button aria-label="Clear" (click)="value = ''">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Input With a Custom ErrorStateMatcher">
+      <form>
+        <mat-form-field class="w-100">
+          <mat-label>Email</mat-label>
+          <input type="email" matInput [formControl]="emailFormControl" [errorStateMatcher]="matcher" placeholder="Ex. pat@example.com" />
+          <mat-hint>Errors appear instantly!</mat-hint>
+          @if (emailFormControl.hasError('email') && !emailFormControl.hasError('required')) {
+            <mat-error>Please enter a valid email address</mat-error>
+          }
+          @if (emailFormControl.hasError('required')) {
+            <mat-error>
+              Email is
+              <strong>required</strong>
+            </mat-error>
+          }
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Input With Hints">
+      <form>
+        <mat-form-field class="w-100">
+          <mat-label>Message</mat-label>
+          <input matInput #message maxlength="256" placeholder="Ex. I need help with..." />
+          <mat-hint align="start"><strong>Don't disclose personal info</strong></mat-hint>
+          <mat-hint align="end">{{ message.value.length }} / 256</mat-hint>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Inputs With Prefixes And Suffixes">
+      <form>
+        <mat-form-field class="w-100">
+          <mat-label>Telephone</mat-label>
+          <span matPrefix>+1 &nbsp;</span>
+          <input type="tel" matInput placeholder="555-555-1234" />
+          <mat-icon matSuffix>mode_edit</mat-icon>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+</div>

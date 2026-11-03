@@ -1,0 +1,42 @@
+<div class="card-flex">
+  <app-card cardTitle="Basic Spinner">
+    <div class="flex">
+      <mat-spinner class="spinner-small"></mat-spinner>
+      <mat-spinner class="spinner-small" color="accent"></mat-spinner>
+      <mat-spinner class="spinner-small" color="warn"></mat-spinner>
+    </div>
+  </app-card>
+  <app-card cardTitle="Configurable progress spinner">
+    <div class="m-b-10">
+      <section class="flex align-item-center hei-60 m-b-10">
+        <label class="m-x-10">Color:</label>
+        <mat-radio-group [(ngModel)]="color">
+          <mat-radio-button class="m-x-10" value="primary">Primary</mat-radio-button>
+          <mat-radio-button class="m-x-10" value="accent">Accent</mat-radio-button>
+          <mat-radio-button class="m-x-10" value="warn">Warn</mat-radio-button>
+        </mat-radio-group>
+      </section>
+
+      <section class="flex align-item-center hei-60">
+        <label class="m-x-10">Mode:</label>
+        <mat-radio-group [(ngModel)]="mode">
+          <mat-radio-button class="m-x-10" value="determinate">Determinate</mat-radio-button>
+          <mat-radio-button class="m-x-10" value="indeterminate">Indeterminate</mat-radio-button>
+        </mat-radio-group>
+      </section>
+
+      @if (mode === 'determinate') {
+        <section class="flex align-item-center hei-60">
+          <label class="m-x-10">Progress:</label>
+          <mat-slider class="m-x-10">
+            <input type="range" [(ngModel)]="value" matSliderThumb />
+          </mat-slider>
+        </section>
+      }
+      <h2 class="m-30">Result</h2>
+      <section class="flex align-item-center hei-60">
+        <mat-progress-spinner class="m-20 spinner-medium" [color]="color" [mode]="mode" [value]="value"></mat-progress-spinner>
+      </section>
+    </div>
+  </app-card>
+</div>

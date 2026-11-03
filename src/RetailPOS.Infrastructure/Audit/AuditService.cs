@@ -79,6 +79,20 @@ public sealed class AuditService : IAuditService
 
     public async Task RecordAsync(AuditEventInput input, CancellationToken ct = default)
     {
+        if (_ctx.RequiresAtomicPersistence)
+        {
+            if (!_ctx.HasActiveScope || _db.Database.CurrentTransaction is null)
+                throw new InvalidOperationException("Required Audit v2 recording needs its active transaction.");
+            if (!string.Equals(input.Module, _ctx.ScopeModule, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Explicit audit evidence must belong to the required scope's module.");
+            foreach (var entity in input.Entities)
+                _ctx.AddEntityToScope(new PendingScopeEntity(entity.EntityType, entity.EntityId,
+                    entity.OperationType, entity.Fields.Select(field =>
+                        (field.FieldName, field.OldValue, field.NewValue)).ToArray(),
+                    IsInternalOperation: false, InternalOperationName: null));
+            return;
+        }
+
         var header = BuildPendingEvent(input.ActionType, input.Module, input.Summary,
             input.PrimaryEntity?.Type, input.PrimaryEntity?.Id);
         header.Status = input.Status;
@@ -93,6 +107,7 @@ public sealed class AuditService : IAuditService
             AttachEntity(header, e.EntityType, e.EntityId, e.OperationType, e.Fields, e.Metadata);
         }
 
+        ConfidentialAuditSanitizer.Sanitize(header);
         _db.AuditEvents.Add(header);
         await _db.SaveChangesAsync(ct);
     }
@@ -165,6 +180,8 @@ public sealed class AuditService : IAuditService
     public async Task FlushScopeAsync(CancellationToken ct = default)
     {
         if (!_ctx.HasActiveScope) return;
+        if (_ctx.RequiresAtomicPersistence && _db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Required Audit v2 flush must occur before transaction commit.");
 
         var entities = _ctx.DrainScopeEntities();
         var failed = _ctx.ScopeFailed;
@@ -209,6 +226,8 @@ public sealed class AuditService : IAuditService
         }
         catch (Exception ex)
         {
+            if (_ctx.RequiresAtomicPersistence)
+                throw;
             _logger.LogWarning(ex,
                 "Audit scope snapshot pre-load failed — scope will be saved with raw values only. " +
                 "ActionSummary={ActionSummary}", _ctx.ScopeActionSummary);
@@ -235,6 +254,8 @@ public sealed class AuditService : IAuditService
                     try { snapshot = resolver.Resolve(f.Name, f.Old, f.New); }
                     catch (Exception fieldEx)
                     {
+                        if (_ctx.RequiresAtomicPersistence)
+                            throw;
                         _logger.LogWarning(fieldEx,
                             "Audit scope snapshot resolve failed for field {FieldName} on {EntityType}",
                             f.Name, e.EntityType);
@@ -261,6 +282,7 @@ public sealed class AuditService : IAuditService
             header.Entities.Add(entityRow);
         }
 
+        ConfidentialAuditSanitizer.Sanitize(header);
         _db.AuditEvents.Add(header);
         await _db.SaveChangesAsync(ct);
 
@@ -278,15 +300,16 @@ public sealed class AuditService : IAuditService
         var header = BuildPendingEvent(actionType, module, summary, entityType, entityId);
         header.Status = AuditStatus.Failed;
         header.ErrorMessage = Truncate(errorMessage, 4000); // nullable — null stays null
+        ConfidentialAuditSanitizer.Sanitize(header);
         freshDb.AuditEvents.Add(header);
         await freshDb.SaveChangesAsync(ct);
     }
 
-    private static string? ToJson(object? v)
+    private string? ToJson(object? v)
     {
         if (v is null) return null;
         try { return JsonSerializer.Serialize(v); }
-        catch { return JsonSerializer.Serialize(v.ToString()); }
+        catch when (!_ctx.RequiresAtomicPersistence) { return JsonSerializer.Serialize(v.ToString()); }
     }
 
     // Returns null for null inputs (used for nullable DB columns like UserAgent, IpAddress).

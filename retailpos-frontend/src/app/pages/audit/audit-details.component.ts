@@ -1,11 +1,12 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { AppDatePipe } from '../../pipes/app-date.pipe';
+import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { AuditEventDetails } from '../../models/audit.model';
 
 @Component({
   selector: 'app-audit-details-drawer',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [AppDatePipe, CommonModule],
   template: `
     <div class="fixed inset-0 z-40 bg-black/40" (click)="closed.emit()"></div>
     <aside class="fixed top-0 right-0 z-50 h-full w-full md:w-[640px] bg-white shadow-2xl overflow-y-auto">
@@ -55,7 +56,7 @@ import { AuditEventDetails } from '../../models/audit.model';
 
           <div>
             <div class="text-xs uppercase text-slate-500">Timestamp</div>
-            <div>{{ event.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
+            <div>{{ event.createdAt | appDate: 'yyyy-MM-dd HH:mm:ss' }}</div>
           </div>
 
           <div class="col-span-2">

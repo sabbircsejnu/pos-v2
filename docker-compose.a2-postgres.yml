@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: retailpos-a2-pgtest-20261014
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${A2_PG_DATABASE:?Set A2_PG_DATABASE in .env.a2-postgres}
+      POSTGRES_USER: ${A2_PG_USER:?Set A2_PG_USER in .env.a2-postgres}
+      POSTGRES_PASSWORD: ${A2_PG_PASSWORD:?Set A2_PG_PASSWORD in .env.a2-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - a2_pgdata:/var/lib/postgresql/data
+    networks:
+      - a2_test_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    shm_size: 256mb
+
+volumes:
+  a2_pgdata:
+    name: retailpos-a2-pgtest-data
+    driver: local
+
+networks:
+  a2_test_net:
+    name: retailpos-a2-pgtest-net
+    driver: bridge

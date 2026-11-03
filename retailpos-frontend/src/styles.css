@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+.company-date-control {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+}
+.company-date-control > input:not(.company-date-native-picker) {
+  width: 100%;
+  min-width: 0;
+  padding-right: 2.5rem;
+}
+.company-date-native-picker {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.company-date-trigger {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--rp-color-text-secondary, #64748b);
+  border-radius: var(--rp-radius-sm, 0.25rem);
+}
+.company-date-trigger:focus-visible {
+  outline: 2px solid var(--rp-color-focus-ring, #2563eb);
+}
+.company-date-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Modern Black & White Design System */
 
 @layer base {
@@ -201,5 +237,756 @@
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
     @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+}
+
+/* Global receipt styles kept outside component budget-heavy stylesheet. */
+.receipt-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.receipt-modal.thermal-mode {
+  max-width: 320px;
+  border-radius: 6px;
+  padding: 14px;
+  font-family: "Courier New", Consolas, monospace;
+}
+
+.receipt-modal.a4-mode {
+  max-width: 760px;
+  border-radius: 10px;
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.receipt-logo {
+  width: 56px;
+  height: 56px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+}
+
+.receipt-logo-image-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.receipt-logo-image {
+  max-height: 52px;
+  max-width: 130px;
+  object-fit: contain;
+}
+
+.receipt-title {
+  font-size: 22px;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.receipt-sub {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.35;
+}
+
+.receipt-customer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 8px;
+}
+
+.thermal-meta {
+  display: block;
+  border-bottom: 1px dashed #9ca3af;
+  border-top: 1px dashed #9ca3af;
+  padding: 8px 0;
+  margin: 8px 0 10px;
+}
+
+.thermal-meta > div {
+  font-size: 12px;
+  color: #1f2937;
+  line-height: 1.42;
+}
+
+.receipt-items {
+  margin-bottom: 12px;
+}
+
+.receipt-items-header,
+.receipt-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+.receipt-items-header {
+  padding: 4px 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.receipt-item-row {
+  padding: 4px 0;
+  border-bottom: 1px solid #f9fafb;
+  align-items: start;
+}
+
+.thermal-items-header {
+  border-bottom: 1px dashed #6b7280;
+  color: #374151;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.thermal-item-row {
+  border-bottom: 1px dotted #d1d5db;
+  padding: 6px 0;
+}
+
+.receipt-totals {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 10px;
+  margin-bottom: 12px;
+}
+
+.receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.thermal-totals {
+  border-top: 1px dashed #6b7280;
+  border-bottom: 1px dashed #6b7280;
+  padding: 8px 0;
+}
+
+.total-strong {
+  font-weight: 700;
+  padding-top: 4px;
+}
+
+.receipt-footer {
+  padding: 12px 0;
+  border-top: 1px dashed #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.thermal-footer {
+  border-top: 1px dashed #6b7280;
+  margin-top: 8px;
+}
+
+.receipt-code {
+  margin: 8px auto 4px;
+  border: 1px solid #4b5563;
+  width: fit-content;
+  padding: 4px 8px;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.receipt-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.receipt-actions-left .select {
+  min-width: 132px;
+  height: 30px;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.receipt-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The 80 mm receipt is narrow: let the action buttons wrap instead of being clipped. */
+.receipt-modal.thermal-mode .receipt-actions-right {
+  width: 100%;
+}
+
+.receipt-modal.thermal-mode .receipt-actions-right .btn {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+/* POS quick customer modal styles moved global to keep component stylesheet lean. */
+.quick-customer-modal {
+  width: min(900px, 95vw);
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.quick-customer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #1f4f7a;
+  color: #ffffff;
+}
+
+.quick-customer-head h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.quick-customer-body {
+  padding: 14px;
+}
+
+.quick-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quick-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-customer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+/*
+ * RetailPOS design tokens (UI standardisation, Phase 1B shell + Phase 2A shared UI).
+ * Values come from the purchased Able Pro Angular 3.3.0 light theme (blue primary, grey neutrals,
+ * green/yellow/red semantics). Defining custom properties restyles nothing by itself: only the
+ * shell (.rp-shell) and the shared UI components (components/shared/ui, `ui-*` classes) consume them.
+ * A future dark theme adds a [data-theme='dark'] block that redefines the same names
+ * (including the semantic aliases, because var() aliases resolve where they are declared).
+ */
+:root,
+[data-theme='light'] {
+  /* Primary: Able Pro blue ramp */
+  --rp-color-primary-50: #e9f0ff;
+  --rp-color-primary-100: #dae6ff;
+  --rp-color-primary-200: #b5ccff;
+  --rp-color-primary-300: #90b3ff;
+  --rp-color-primary-400: #6b99ff;
+  --rp-color-primary-500: #4680ff;
+  --rp-color-primary-600: #2281df;
+  --rp-color-primary-700: #1c76da;
+  --rp-color-primary-800: #176cd6;
+  --rp-color-primary-900: #0d59cf;
+  --rp-color-primary-soft: rgba(70, 128, 255, 0.1);
+
+  /* Neutral: Able Pro grey ramp */
+  --rp-color-neutral-0: #ffffff;
+  --rp-color-neutral-100: #f8f9fa;
+  --rp-color-neutral-200: #f3f5f7;
+  --rp-color-neutral-300: #dbe0e5;
+  --rp-color-neutral-400: #bec8d0;
+  --rp-color-neutral-500: #8996a4;
+  --rp-color-neutral-600: #5b6b79;
+  --rp-color-neutral-700: #3e4853;
+  --rp-color-neutral-800: #1d2630;
+  --rp-color-neutral-900: #131920;
+
+  /* Status ramps: Able Pro green / yellow / red */
+  --rp-color-success-50: #e6f5f0;
+  --rp-color-success-100: #c0e5d9;
+  --rp-color-success-200: #96d4bf;
+  --rp-color-success-500: #2ca87f;
+  --rp-color-success-700: #21976c;
+  --rp-color-success-900: #107d4f;
+  --rp-color-warning-50: #fcf1e0;
+  --rp-color-warning-100: #f7dcb3;
+  --rp-color-warning-200: #f2c580;
+  --rp-color-warning-500: #e58a00;
+  --rp-color-warning-700: #de7700;
+  --rp-color-warning-900: #d35a00;
+  --rp-color-danger-50: #fbe5e5;
+  --rp-color-danger-100: #f5bebe;
+  --rp-color-danger-200: #ee9393;
+  --rp-color-danger-500: #dc2626;
+  --rp-color-danger-700: #d31c1c;
+  --rp-color-danger-800: #ce1717;
+  --rp-color-danger-900: #c50d0d;
+
+  /*
+   * Semantic roles: components consume these, never the ramps directly.
+   * #4680ff is only 3.6:1 on white, so it is reserved for accents/icons; filled controls use
+   * primary-700 (4.5:1 with white text) and text links primary-800 (5.1:1).
+   */
+  --rp-color-primary: var(--rp-color-primary-500);
+  --rp-color-action: var(--rp-color-primary-700);
+  --rp-color-action-hover: var(--rp-color-primary-800);
+  --rp-color-action-active: var(--rp-color-primary-900);
+  --rp-color-on-action: #ffffff;
+  --rp-color-primary-fg: var(--rp-color-primary-800);
+  --rp-color-secondary: var(--rp-color-neutral-600);
+  --rp-color-secondary-bg: var(--rp-color-neutral-200);
+  --rp-color-secondary-bg-hover: var(--rp-color-neutral-300);
+  --rp-color-danger-action: var(--rp-color-danger-700);
+  --rp-color-danger-action-hover: var(--rp-color-danger-800);
+  --rp-color-danger-action-active: var(--rp-color-danger-900);
+
+  --rp-color-status-success-bg: var(--rp-color-success-50);
+  --rp-color-status-success-border: var(--rp-color-success-200);
+  --rp-color-status-success-fg: var(--rp-color-success-900);
+  --rp-color-status-success-icon: var(--rp-color-success-900);
+  --rp-color-status-warning-bg: var(--rp-color-warning-50);
+  --rp-color-status-warning-border: var(--rp-color-warning-200);
+  --rp-color-status-warning-fg: var(--rp-color-neutral-800);
+  --rp-color-status-warning-icon: var(--rp-color-warning-900);
+  --rp-color-status-danger-bg: var(--rp-color-danger-50);
+  --rp-color-status-danger-border: var(--rp-color-danger-200);
+  --rp-color-status-danger-fg: var(--rp-color-danger-900);
+  --rp-color-status-danger-icon: var(--rp-color-danger-900);
+  --rp-color-status-info-bg: var(--rp-color-primary-50);
+  --rp-color-status-info-border: var(--rp-color-primary-200);
+  --rp-color-status-info-fg: var(--rp-color-primary-900);
+  --rp-color-status-info-icon: var(--rp-color-primary-900);
+  --rp-color-status-neutral-bg: var(--rp-color-neutral-200);
+  --rp-color-status-neutral-border: var(--rp-color-neutral-300);
+  --rp-color-status-neutral-fg: var(--rp-color-neutral-700);
+
+  --rp-color-surface-page: var(--rp-color-neutral-100);
+  --rp-color-surface-card: var(--rp-color-neutral-0);
+  --rp-color-surface-muted: var(--rp-color-neutral-100);
+  --rp-color-surface-hover: var(--rp-color-neutral-200);
+  --rp-color-surface-sidebar: var(--rp-color-neutral-0);
+  --rp-color-surface-header: rgba(248, 249, 250, 0.88);
+  --rp-color-backdrop: rgba(19, 25, 32, 0.45);
+
+  --rp-color-text-primary: var(--rp-color-neutral-800);
+  --rp-color-text-secondary: var(--rp-color-neutral-600);
+  --rp-color-text-inverse: #ffffff;
+  --rp-color-text-link: var(--rp-color-primary-fg);
+
+  /* Layout borders are decorative; control borders must reach 3:1 (WCAG 1.4.11). */
+  --rp-color-border: var(--rp-color-neutral-300);
+  --rp-color-border-control: var(--rp-color-neutral-500);
+  --rp-color-border-control-hover: var(--rp-color-neutral-600);
+
+  --rp-color-focus-ring: var(--rp-color-primary-500);
+  --rp-focus-ring-width: 2px;
+  --rp-focus-ring-offset: 2px;
+
+  /* Disabled controls are exempt from contrast rules but must stay legible and clearly inert. */
+  --rp-color-disabled-bg: var(--rp-color-neutral-200);
+  --rp-color-disabled-fg: var(--rp-color-neutral-500);
+  --rp-color-disabled-border: var(--rp-color-neutral-300);
+
+  /* Typography (sizes follow the Able Pro theme: 14px body, 12px caption, 16px card title, 13px breadcrumb) */
+  --rp-font-family-base: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --rp-font-family-shell: var(--rp-font-family-base);
+  --rp-font-family-mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+  --rp-font-weight-regular: 400;
+  --rp-font-weight-medium: 500;
+  --rp-font-weight-semibold: 600;
+  --rp-text-page-title-size: 1.5rem;
+  --rp-text-page-title-line: 2rem;
+  --rp-text-section-size: 1rem;
+  --rp-text-section-line: 1.5rem;
+  --rp-text-body-size: 0.875rem;
+  --rp-text-body-line: 1.5;
+  --rp-text-label-size: 0.8125rem;
+  --rp-text-label-line: 1.25rem;
+  --rp-text-helper-size: 0.75rem;
+  --rp-text-helper-line: 1.25rem;
+  --rp-text-table-head-size: 0.75rem;
+  --rp-text-table-cell-size: 0.875rem;
+  --rp-text-breadcrumb-size: 0.8125rem;
+
+  /* Spacing: 4px base */
+  --rp-space-0: 0;
+  --rp-space-1: 0.25rem;
+  --rp-space-2: 0.5rem;
+  --rp-space-3: 0.75rem;
+  --rp-space-4: 1rem;
+  --rp-space-5: 1.25rem;
+  --rp-space-6: 1.5rem;
+  --rp-space-8: 2rem;
+  --rp-space-10: 2.5rem;
+  --rp-space-12: 3rem;
+
+  /* Radii and elevation (Able Pro: 8px general, 12px cards, flat cards with a 1px border) */
+  --rp-radius-sm: 4px;
+  --rp-radius-md: 6px;
+  --rp-radius-control: 8px;
+  --rp-radius-card: 12px;
+  --rp-radius-pill: 9999px;
+  --rp-shadow-none: none;
+  --rp-shadow-popover: 0 8px 24px rgba(19, 25, 32, 0.08);
+  --rp-shadow-drawer: 0 8px 24px rgba(19, 25, 32, 0.18);
+  --rp-shadow-modal: 0 8px 24px rgba(19, 25, 32, 0.18);
+
+  /* Component sizing; density-dependent values are overridden by [data-density='compact'] below. */
+  --rp-control-height-sm: 32px;
+  --rp-control-height-md: 40px;
+  --rp-control-height-lg: 44px;
+  --rp-control-height-filled: calc(var(--rp-control-height-lg) + var(--rp-space-3));
+  --rp-control-height-filled-compact: calc(var(--rp-control-height-md) + var(--rp-space-2));
+  --rp-date-picker-calendar-width: 20rem;
+  --rp-z-index-popover: 20;
+  --rp-control-height: var(--rp-control-height-md);
+  --rp-control-padding-x: var(--rp-space-3);
+  --rp-card-padding: var(--rp-space-5);
+  --rp-form-gap: var(--rp-space-4);
+  --rp-form-label-gap: var(--rp-space-1);
+  --rp-table-cell-padding-y: var(--rp-space-3);
+  --rp-table-cell-padding-x: var(--rp-space-4);
+}
+
+/* Compact data density: apply data-density="compact" on any container (page, card, form, table). */
+[data-density='compact'] {
+  --rp-control-height: 34px;
+  --rp-card-padding: var(--rp-space-4);
+  --rp-form-gap: var(--rp-space-3);
+  --rp-table-cell-padding-y: var(--rp-space-2);
+  --rp-table-cell-padding-x: var(--rp-space-3);
+}
+
+/* Shell dimensions (Phase 1B) stay scoped to the application shell. */
+.rp-shell[data-theme='light'] {
+  --rp-shell-header-height: 64px;
+  --rp-shell-sidebar-width: 280px;
+  --rp-shell-sidebar-collapsed-width: 60px;
+  --rp-shell-sidebar-offset: 0px;
+}
+
+@media (min-width: 1024px) {
+  .rp-shell[data-theme='light'] {
+    --rp-shell-header-height: 74px;
+    --rp-shell-sidebar-offset: var(--rp-shell-sidebar-width);
+  }
+
+  .rp-shell[data-theme='light'].rp-shell--collapsed {
+    --rp-shell-sidebar-offset: var(--rp-shell-sidebar-collapsed-width);
+  }
+}
+
+/*
+ * Shared form-control styling (Phase 2A). Applied by the appUiControl directive
+ * (components/shared/ui/ui-control.directive.ts) to native input/select/textarea elements and used
+ * by label.ui-check for checkbox/radio rows. Own namespace: it never touches .input/.select/.label.
+ * Kept in the components layer so Tailwind utilities (w-48, mt-2...) can still override it.
+ */
+@layer components {
+  .ui-control {
+    display: block;
+    width: 100%;
+    height: var(--rp-control-height);
+    padding: 0 var(--rp-control-padding-x);
+    border: 1px solid var(--rp-color-border-control);
+    border-radius: var(--rp-radius-control);
+    background-color: var(--rp-color-surface-card);
+    color: var(--rp-color-text-primary);
+    font-family: var(--rp-font-family-base);
+    font-size: var(--rp-text-body-size);
+    line-height: 1.25;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  textarea.ui-control {
+    height: auto;
+    min-height: calc(var(--rp-control-height) * 2);
+    padding-top: var(--rp-space-2);
+    padding-bottom: var(--rp-space-2);
+    line-height: var(--rp-text-body-line);
+    resize: vertical;
+  }
+
+  select.ui-control {
+    cursor: pointer;
+  }
+
+  .ui-control[type='search'] {
+    padding-left: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6b79' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0.75rem center;
+    background-size: 1rem;
+  }
+
+  .ui-control::placeholder {
+    color: var(--rp-color-text-secondary);
+    opacity: 1;
+  }
+
+  .ui-control:hover:not(:disabled):not([readonly]) {
+    border-color: var(--rp-color-border-control-hover);
+  }
+
+  .ui-control:focus {
+    border-color: var(--rp-color-primary);
+    outline: var(--rp-focus-ring-width) solid var(--rp-color-focus-ring);
+    outline-offset: 0;
+  }
+
+  .ui-control[readonly] {
+    background-color: var(--rp-color-surface-muted);
+    border-color: var(--rp-color-border);
+  }
+
+  .ui-control:disabled {
+    background-color: var(--rp-color-disabled-bg);
+    border-color: var(--rp-color-disabled-border);
+    color: var(--rp-color-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  .ui-control--invalid,
+  .ui-control--invalid:hover:not(:disabled):not([readonly]) {
+    border-color: var(--rp-color-danger-700);
+  }
+
+  .ui-control--invalid:focus {
+    border-color: var(--rp-color-danger-700);
+    outline-color: var(--rp-color-danger-700);
+  }
+
+  .ui-check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--rp-space-2);
+    color: var(--rp-color-text-primary);
+    font-size: var(--rp-text-body-size);
+    line-height: var(--rp-text-body-line);
+    cursor: pointer;
+  }
+
+  .ui-check:has(:disabled) {
+    color: var(--rp-color-disabled-fg);
+    cursor: not-allowed;
+  }
+
+  .ui-check__input {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--rp-color-action);
+  }
+
+  .ui-check__input:focus-visible {
+    outline: var(--rp-focus-ring-width) solid var(--rp-color-focus-ring);
+    outline-offset: var(--rp-focus-ring-offset);
+  }
+
+  .ui-check__input:disabled {
+    cursor: not-allowed;
+  }
+
+  .ui-check__input.ui-control--invalid {
+    outline: var(--rp-focus-ring-width) solid var(--rp-color-danger-700);
+    outline-offset: 1px;
+  }
+
+  /* Vertical rhythm between app-ui-form-field blocks. */
+  .ui-form-stack {
+    display: grid;
+    gap: var(--rp-form-gap);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__control {
+    position: relative;
+    min-height: var(--rp-control-height-filled);
+    padding-inline: var(--rp-space-3);
+    border-bottom: 1px solid var(--rp-color-border-control);
+    border-radius: var(--rp-radius-control) var(--rp-radius-control) 0 0;
+    background: var(--rp-color-surface-muted);
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'][data-size='compact'] .ui-field__control {
+    min-height: var(--rp-control-height-filled-compact);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__label--inset {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: var(--rp-space-1);
+    inset-inline-start: var(--rp-space-3);
+    margin: 0;
+    color: var(--rp-color-text-secondary);
+    font-size: var(--rp-text-helper-size);
+    line-height: var(--rp-text-helper-line);
+    pointer-events: none;
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-control {
+    align-self: stretch;
+    height: auto;
+    min-height: var(--rp-control-height-filled);
+    padding: var(--rp-space-5) 0 var(--rp-space-2);
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    background: transparent;
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'][data-size='compact'] .ui-control {
+    min-height: var(--rp-control-height-filled-compact);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-control:focus-visible {
+    outline: var(--rp-focus-ring-width) solid var(--rp-color-focus-ring);
+    outline-offset: var(--rp-focus-ring-offset);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] textarea.ui-control {
+    min-height: calc(var(--rp-control-height-lg) + var(--rp-space-8));
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__control:focus-within {
+    border-bottom: var(--rp-focus-ring-width) solid var(--rp-color-primary);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__control:has(.ui-control--invalid) {
+    border-bottom-color: var(--rp-color-danger-700);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__control:has(.ui-control:disabled) {
+    background: var(--rp-color-disabled-bg);
+    color: var(--rp-color-disabled-fg);
+  }
+
+  app-ui-form-field .ui-field[data-appearance='filled'] .ui-field__control:has(.ui-control[readonly]) {
+    background: var(--rp-color-surface-muted);
+  }
+
+  app-ui-form-field .ui-field__control > [uiFieldPrefix],
+  app-ui-form-field .ui-field__control > [uiFieldSuffix] {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    color: var(--rp-color-text-secondary);
+  }
+
+  .ui-action-btn {
+    display: inline-grid;
+    place-items: center;
+    width: var(--rp-control-height-sm);
+    height: var(--rp-control-height-sm);
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--rp-radius-pill);
+    background: var(--rp-color-surface-muted);
+    color: var(--rp-color-text-secondary);
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .ui-action-btn[data-action='edit'] {
+    background: var(--rp-color-primary-50);
+    color: var(--rp-color-primary-fg);
+  }
+
+  .ui-action-btn[data-action='delete'] {
+    background: var(--rp-color-danger-50);
+    color: var(--rp-color-danger-700);
+  }
+
+  .ui-action-btn[data-action='download'] {
+    background: var(--rp-color-success-50);
+    color: var(--rp-color-success-700);
+  }
+
+  .ui-action-btn:hover:not(:disabled) {
+    background: var(--rp-color-surface-hover);
+    color: var(--rp-color-text-primary);
+  }
+
+  .ui-action-btn[data-action='edit']:hover:not(:disabled) {
+    background: var(--rp-color-primary-100);
+    color: var(--rp-color-primary-fg);
+  }
+
+  .ui-action-btn[data-action='delete']:hover:not(:disabled) {
+    background: var(--rp-color-danger-100);
+    color: var(--rp-color-danger-700);
+  }
+
+  .ui-action-btn:focus-visible {
+    outline: var(--rp-focus-ring-width) solid var(--rp-color-focus-ring);
+    outline-offset: var(--rp-focus-ring-offset);
+  }
+
+  .ui-action-btn:disabled {
+    border-color: var(--rp-color-disabled-border);
+    background: var(--rp-color-disabled-bg);
+    color: var(--rp-color-disabled-fg);
+    cursor: not-allowed;
+  }
+}
+
+/* POS fullscreen (Phase 4): the browser is fullscreen and the ERP shell is hidden; the POS state is untouched. */
+body.pos-fullscreen app-navbar,
+body.pos-fullscreen app-sidebar,
+body.pos-fullscreen app-business-context-selector {
+  display: none !important;
+}
+
+body.pos-fullscreen .rp-shell-main,
+body.pos-fullscreen .rp-shell-content {
+  padding: 0 !important;
+}
+
+/* Printing an ERP page (e.g. the cash-session closing summary) prints the content only, not the app shell. */
+@media print {
+  app-navbar,
+  app-sidebar,
+  app-business-context-selector,
+  .rp-skip-link {
+    display: none !important;
+  }
+
+  .rp-shell-main,
+  .rp-shell-content {
+    padding: 0 !important;
   }
 }

@@ -1,3 +1,4 @@
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -7,7 +8,7 @@ import { Warehouse } from '../../models/warehouse.model';
 @Component({
   selector: 'app-warehouse-details',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [AppDatePipe, CommonModule, RouterModule],
   templateUrl: './warehouse-details.component.html',
   styleUrls: ['./warehouse-details.component.css']
 })

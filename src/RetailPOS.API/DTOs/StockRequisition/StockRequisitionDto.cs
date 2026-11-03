@@ -34,8 +34,12 @@ public class StockRequisitionLineDto
 {
     public long Id { get; set; }
     public long VariantId { get; set; }
+    public string? ProductCode { get; set; }
     public string VariantSku { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string? VariantAttributes { get; set; }
+    public string? VariantDisplay { get; set; }
+    public string? PrimaryImageThumb { get; set; }
     public int RequestedQuantity { get; set; }
     public int FulfilledQuantity { get; set; }
     public int PendingQuantity => RequestedQuantity - FulfilledQuantity;

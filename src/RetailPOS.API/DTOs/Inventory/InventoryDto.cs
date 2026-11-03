@@ -11,6 +11,8 @@ public class InventoryDto
     public string ProductName { get; set; } = string.Empty;
     public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
+    public string? VariantAttributes { get; set; }
+    public string? PrimaryImageThumb { get; set; }
     public string? Sku { get; set; }
     public string? Barcode { get; set; }
     public long? OutletId { get; set; }
@@ -59,6 +61,8 @@ public class LowStockDto
     public long LocationId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;
+    public string? VariantAttributes { get; set; }
+    public string? PrimaryImageThumb { get; set; }
     public string? Sku { get; set; }
     public int CurrentQuantity { get; set; }
     public int ReorderLevel { get; set; }
@@ -113,6 +117,7 @@ public class InventorySearchDto
     public string? ProductSearch { get; set; }
     public long? VariantId { get; set; }
     public string? VariantSearch { get; set; }
+    public List<VariantAttributeFilterSelectionDto>? VariantAttributeFilters { get; set; }
     public long? CategoryId { get; set; }
     public long? OutletId { get; set; }
     public long? WarehouseId { get; set; }
@@ -122,4 +127,16 @@ public class InventorySearchDto
     public int? ExpiringWithinDays { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+}
+
+public class VariantAttributeFilterSelectionDto
+{
+    public string AttributeName { get; set; } = string.Empty;
+    public List<string> Values { get; set; } = new();
+}
+
+public class VariantAttributeFilterOptionsDto
+{
+    public string AttributeName { get; set; } = string.Empty;
+    public List<string> Values { get; set; } = new();
 }

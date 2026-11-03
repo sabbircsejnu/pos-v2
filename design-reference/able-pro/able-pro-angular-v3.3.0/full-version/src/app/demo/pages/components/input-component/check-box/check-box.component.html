@@ -1,0 +1,80 @@
+<div class="row">
+  <div class="col-sm-12">
+    <app-card cardTitle="Basic Checkboxes">
+      <section class="check-section">
+        <mat-checkbox class="check-box-margin">Check me!</mat-checkbox>
+        <mat-checkbox class="check-box-margin" [disabled]="true">Disabled</mat-checkbox>
+      </section>
+      <section class="check-section">
+        <span class="example-list-section">
+          <mat-checkbox
+            class="check-box-margin"
+            [checked]="allComplete"
+            [color]="task.color"
+            [indeterminate]="someComplete()"
+            (change)="setAll($event.checked)"
+          >
+            {{ task.name }}
+          </mat-checkbox>
+        </span>
+        <span class="example-list-section">
+          <ul>
+            @for (subtask of task.subtasks; track subtask) {
+              <li>
+                <mat-checkbox [(ngModel)]="subtask.completed" [color]="subtask.color" (ngModelChange)="updateAllComplete()">
+                  {{ subtask.name }}
+                </mat-checkbox>
+              </li>
+            }
+          </ul>
+        </span>
+      </section>
+    </app-card>
+  </div>
+  <div class="col-sm-12">
+    <app-card cardTitle="Configurable Checkbox">
+      <section class="check-box-section">
+        <mat-checkbox class="check-box-margin" [(ngModel)]="checked">Checked</mat-checkbox>
+        <mat-checkbox class="check-box-margin" [(ngModel)]="indeterminate">Indeterminate</mat-checkbox>
+      </section>
+      <section class="check-box-section">
+        <label class="check-box-margin">Align:</label>
+        <mat-radio-group [(ngModel)]="labelPosition">
+          <mat-radio-button class="check-box-margin" value="after">After</mat-radio-button>
+          <mat-radio-button class="check-box-margin" value="before">Before</mat-radio-button>
+        </mat-radio-group>
+      </section>
+      <section class="check-box-section">
+        <mat-checkbox class="check-box-margin" [(ngModel)]="disabled">Disabled</mat-checkbox>
+      </section>
+      <h2 class="m-10">Result</h2>
+      <section class="check-box-section">
+        <mat-checkbox
+          class="check-box-margin"
+          [(ngModel)]="checked"
+          [(indeterminate)]="indeterminate"
+          [labelPosition]="labelPosition"
+          [disabled]="disabled"
+        >
+          I'm a checkbox
+        </mat-checkbox>
+      </section>
+    </app-card>
+  </div>
+
+  <div class="col-sm-12">
+    <app-card cardTitle="Checkboxes With Reactive Forms">
+      <section class="check-section" [formGroup]="toppings">
+        <h4>Select your toppings:</h4>
+        <p><mat-checkbox formControlName="pepperoni">Pepperoni</mat-checkbox></p>
+        <p><mat-checkbox formControlName="extraCheese">Extra Cheese</mat-checkbox></p>
+        <p><mat-checkbox formControlName="mushroom">Mushroom</mat-checkbox></p>
+      </section>
+
+      <section class="check-section" [formGroup]="toppings">
+        <h4>You chose:</h4>
+        {{ toppings.value | json }}
+      </section>
+    </app-card>
+  </div>
+</div>

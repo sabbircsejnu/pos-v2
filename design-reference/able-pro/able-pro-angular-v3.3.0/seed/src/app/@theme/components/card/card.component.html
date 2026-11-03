@@ -1,0 +1,21 @@
+<mat-card [ngClass]="cardClass()">
+  @if (showHeader()) {
+    <mat-card-header class="card-header justify-content-between align-item-center" [ngClass]="headerClass()">
+      <div class="f-16 f-w-600">
+        {{ cardTitle() }}
+        <ng-container *ngTemplateOutlet="headerTitleTemplate()"></ng-container>
+      </div>
+      <ng-container *ngTemplateOutlet="headerOptionsTemplate()"></ng-container>
+    </mat-card-header>
+  }
+  @if (showContent()) {
+    <mat-card-content [style.padding.px]="padding()">
+      <ng-content></ng-content>
+    </mat-card-content>
+  }
+  @if (actionTemplate) {
+    <mat-card-actions [ngClass]="actionClass()">
+      <ng-container *ngTemplateOutlet="actionTemplate"></ng-container>
+    </mat-card-actions>
+  }
+</mat-card>

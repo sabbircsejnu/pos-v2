@@ -1,97 +1,113 @@
 <aside
-  class="app-sidebar fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] -translate-x-full border-r border-slate-200 bg-[#f7f7f8] transition-all duration-200 ease-in-out lg:translate-x-0"
+  id="app-sidebar"
+  class="rp-sidebar"
+  aria-label="Application sidebar"
+  [class.rp-sidebar--open]="menuService.mobileSidebarOpen()"
+  [class.rp-sidebar--collapsed]="menuService.sidebarCollapsed()"
   [class.sidebar-density-comfortable]="menuService.sidebarDensity() === 'comfortable'"
   [class.sidebar-density-compact]="menuService.sidebarDensity() === 'compact'"
-  [class.translate-x-0]="menuService.mobileSidebarOpen()"
-  [ngClass]="menuService.sidebarCollapsed()
-    ? 'w-72 lg:w-14'
-    : (menuService.sidebarDensity() === 'comfortable' ? 'w-72 lg:w-[18rem]' : 'w-72 lg:w-[17rem]')">
-  <div class="h-full overflow-y-auto px-0 py-0">
-    <header class="border-b border-[#e6e6ea] bg-white px-5 py-3.5" [class.compact]="menuService.sidebarCollapsed()">
-      <div class="flex items-center justify-between gap-2" [class.justify-center]="menuService.sidebarCollapsed()">
-        <div class="flex items-center gap-2.5" [class.hidden]="menuService.sidebarCollapsed()">
-          <div class="brand-mark inline-flex h-9 w-9 items-center justify-center rounded-lg text-white shadow-sm">
-            <i class="fas fa-layer-group text-sm"></i>
-          </div>
-          <div>
-            <p class="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#64748b]">RetailPOS</p>
-            <p class="text-[15px] font-semibold leading-4 text-[#0f172a]">ERP Workspace</p>
-          </div>
-        </div>
+  (keydown.escape)="menuService.closeMobileSidebar()">
+  <header class="rp-sidebar__brand">
+    <div class="rp-brand">
+      <span class="rp-brand__mark" aria-hidden="true">
+        <i class="fas fa-layer-group"></i>
+      </span>
+      <span class="rp-brand__text rp-label">
+        <span class="rp-brand__name">RetailPOS</span>
+        <span class="rp-brand__sub">ERP Workspace</span>
+      </span>
+    </div>
+    <button
+      type="button"
+      class="rp-sidebar__close"
+      (click)="menuService.closeMobileSidebar()"
+      aria-label="Close navigation menu"
+      title="Close navigation menu">
+      <i class="fas fa-times" aria-hidden="true"></i>
+    </button>
+  </header>
+
+
+  <nav class="rp-sidebar__nav" aria-label="Main navigation">
+    @for (section of sections; track section.id) {
+      <section class="rp-nav-section">
         <button
           type="button"
-          (click)="menuService.toggleSidebar()"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-md text-[#444a5c] hover:bg-slate-100"
-          title="Toggle Sidebar">
-          <i class="fas fa-bars text-lg"></i>
+          class="rp-nav-caption"
+          (click)="toggleGroup(section.id)"
+          [attr.aria-expanded]="!isGroupCollapsed(section.id)"
+          [attr.aria-controls]="'nav-group-' + section.id">
+          <span class="rp-nav-caption__text">{{ formatSectionLabel(section.label) }}</span>
+          <i class="fas fa-chevron-down rp-nav-caption__chevron" aria-hidden="true"></i>
         </button>
-      </div>
-    </header>
 
-    <div class="px-5 py-4" [class.hidden]="menuService.sidebarCollapsed()">
-      <div class="relative">
-        <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#a2a7b4]"></i>
-        <input
-          type="text"
-          placeholder="Search here"
-          class="w-full rounded-lg border border-[#e3e5ea] bg-[#f8f8fb] py-2.5 pl-11 pr-3 text-[14px] text-[#666d80] placeholder:text-[#a2a7b4] focus:border-[#cfd3df] focus:bg-white focus:outline-none" />
-      </div>
-    </div>
-
-    <div class="space-y-4 px-4 pb-5">
-      @for (section of sections; track section.id) {
-        <section>
-          <button
-            type="button"
-            (click)="toggleGroup(section.id)"
-            class="group-header flex w-full items-center gap-2 rounded px-2 py-1 text-left"
-            [class.hidden]="menuService.sidebarCollapsed()">
-            <span class="text-[11px] uppercase font-semibold tracking-[0.18em] text-[#94a3b8]">
-              {{ formatSectionLabel(section.label) }}
-            </span>
-            <span class="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-[#b2b7c5] transition"
-              [class.rotate-180]="!isGroupCollapsed(section.id)">
-              <i class="fas fa-chevron-down text-[11px]"></i>
-            </span>
-          </button>
-
-          <div
-            class="group-items mt-2 space-y-1.5"
-            [class.group-items-collapsed]="isGroupCollapsed(section.id)"
-            [class.group-items-expanded]="!isGroupCollapsed(section.id)">
-            <div class="group-items-inner space-y-1">
-              @for (item of section.items; track item.id) {
+        <ul
+          class="rp-nav-list"
+          [id]="'nav-group-' + section.id"
+          [class.rp-nav-list--collapsed]="isGroupCollapsed(section.id)">
+          @for (item of section.items; track item.id) {
+            <li>
+              @if (item.children?.length) {
                 <button
                   type="button"
-                  (click)="navigateToItem(item)"
-                  [disabled]="item.disabled"
+                  class="rp-nav-item rp-nav-item--group"
+                  (click)="toggleSubGroup(item.id)"
                   [title]="item.label"
-                  class="nav-item group flex w-full items-center gap-2.5 rounded-lg border-l-[3px] px-3 py-2 text-[15px] leading-5 transition"
-                  [ngClass]="isItemActive(item)
-                    ? 'is-active text-[#1e3a8a] font-semibold'
-                    : 'border-l-transparent text-[#475569] hover:bg-white hover:text-[#0f172a]'"
-                  [class.justify-center]="menuService.sidebarCollapsed()"
-                  [class.cursor-not-allowed]="item.disabled"
-                  [class.opacity-50]="item.disabled">
-                  <span class="nav-icon inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-current">
-                    <i [class]="item.icon" class="text-[18px]"></i>
+                  [attr.aria-label]="item.label"
+                  [attr.aria-expanded]="!isSubGroupCollapsed(item.id)"
+                  [attr.aria-controls]="'nav-subgroup-' + item.id"
+                  [class.rp-nav-item--group-active]="isSubGroupActive(item)">
+                  <span class="rp-nav-item__icon" aria-hidden="true">
+                    <i [class]="item.icon"></i>
                   </span>
-                  <span class="truncate" [class.hidden]="menuService.sidebarCollapsed()">{{ item.label }}</span>
-                  @if (item.disabled && !menuService.sidebarCollapsed()) {
-                    <span class="ml-auto rounded-full bg-[#eceef4] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#7d8497]">Soon</span>
-                  }
+                  <span class="rp-nav-item__label rp-label">{{ item.label }}</span>
+                  <i class="fas fa-chevron-down rp-nav-item__chevron rp-label" aria-hidden="true"></i>
                 </button>
+                <ul
+                  class="rp-nav-list rp-nav-sublist"
+                  [id]="'nav-subgroup-' + item.id"
+                  [class.rp-nav-list--collapsed]="isSubGroupCollapsed(item.id)">
+                  @for (child of item.children; track child.id) {
+                    <li>
+                      <ng-container *ngTemplateOutlet="navLeaf; context: { $implicit: child, nested: true }" />
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <ng-container *ngTemplateOutlet="navLeaf; context: { $implicit: item, nested: false }" />
               }
-            </div>
-          </div>
-        </section>
-      }
-    </div>
-  </div>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </nav>
 </aside>
+
+<ng-template #navLeaf let-item let-nested="nested">
+  <button
+    type="button"
+    class="rp-nav-item"
+    (click)="navigateToItem(item)"
+    [disabled]="item.disabled"
+    [title]="item.label"
+    [attr.aria-label]="item.label"
+    [attr.aria-current]="isItemActive(item) ? 'page' : null"
+    [class.rp-nav-item--nested]="nested"
+    [class.rp-nav-item--active]="isItemActive(item)">
+    <span class="rp-nav-item__icon" aria-hidden="true">
+      <i [class]="item.icon"></i>
+    </span>
+    <span class="rp-nav-item__label rp-label">{{ item.label }}</span>
+    @if (item.disabled) {
+      <span class="rp-nav-item__badge rp-label">Soon</span>
+    }
+  </button>
+</ng-template>
 
 @if (menuService.mobileSidebarOpen()) {
   <div
-    (click)="menuService.closeMobileSidebar()"
-    class="fixed inset-0 z-30 bg-slate-900/45 lg:hidden top-14"></div>
+    class="rp-sidebar-backdrop"
+    aria-hidden="true"
+    (click)="menuService.closeMobileSidebar()"></div>
 }

@@ -1,5 +1,27 @@
 // Product Models
 
+/** exempt / zero_rated force 0% tax; null derives the treatment from the rate. */
+export type ProductTaxClassification = 'standard' | 'zero_rated' | 'exempt';
+
+export const PRODUCT_TAX_CLASSIFICATIONS: { value: ProductTaxClassification | null; label: string }[] = [
+  { value: null, label: 'Automatic (from tax rate)' },
+  { value: 'standard', label: 'Standard' },
+  { value: 'zero_rated', label: 'Zero-rated' },
+  { value: 'exempt', label: 'Exempt' },
+];
+
+/** Readable tax treatment: a null rate means "not configured", so the Business default rate applies. */
+export function describeProductTax(
+  taxRate: number | null | undefined,
+  taxClassification: ProductTaxClassification | null | undefined
+): string {
+  if (taxClassification === 'exempt') return 'Exempt';
+  if (taxClassification === 'zero_rated') return '0% (zero-rated)';
+  if (taxRate === null || taxRate === undefined) return 'Business default';
+  if (taxRate === 0) return '0% (zero-rated)';
+  return `${taxRate}%`;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -12,7 +34,9 @@ export interface Product {
   categoryName: string;
   basePrice: number;
   costPrice: number;
-  taxRate: number;
+  /** null = not configured (the Business default rate applies); 0 = explicit zero-rated. */
+  taxRate: number | null;
+  taxClassification?: ProductTaxClassification | null;
   hasVariants: boolean;
   primaryImageThumb?: string;
   primaryImageMedium?: string;
@@ -22,6 +46,7 @@ export interface Product {
   isActive: boolean;
   variantCount: number;
   totalStock: number;
+  stockStatus?: 'in_stock' | 'partially_in_stock' | 'out_of_stock' | 'not_initialized' | 'unavailable';
   variants: ProductVariant[];
   createdAt: Date;
   updatedAt: Date;
@@ -51,7 +76,8 @@ export interface CreateProductRequest {
   categoryId: number;
   basePrice: number;
   costPrice: number;
-  taxRate: number;
+  taxRate: number | null;
+  taxClassification?: ProductTaxClassification | null;
   hasVariants: boolean;
   /** 'active' | 'inactive' | 'draft' */
   status: string;
@@ -75,7 +101,8 @@ export interface UpdateProductRequest {
   categoryId: number;
   basePrice: number;
   costPrice: number;
-  taxRate: number;
+  taxRate: number | null;
+  taxClassification?: ProductTaxClassification | null;
   /** 'active' | 'inactive' | 'draft' */
   status: string;
 }
@@ -89,6 +116,8 @@ export interface UpdateProductVariantRequest {
 }
 
 export interface ProductSearchRequest {
+  outletId?: number;
+  warehouseId?: number;
   searchQuery?: string;
   categoryId?: number;
   /** Filter by status. 'active' | 'inactive' | 'draft'. Undefined = all. */

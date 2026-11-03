@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
@@ -20,7 +20,7 @@ export class BusinessService {
 
   constructor(private http: HttpClient) {}
 
-  getBusinesses(search?: string, isActive?: boolean): Observable<ApiResponse<BusinessSummaryDto[]>> {
+  getBusinesses(search?: string, isActive?: boolean, context?: HttpContext): Observable<ApiResponse<BusinessSummaryDto[]>> {
     let params = new HttpParams();
 
     if (search && search.trim()) {
@@ -31,7 +31,7 @@ export class BusinessService {
       params = params.set('isActive', String(isActive));
     }
 
-    return this.http.get<ApiResponse<BusinessSummaryDto[]>>(this.apiUrl, { params });
+    return this.http.get<ApiResponse<BusinessSummaryDto[]>>(this.apiUrl, { params, context });
   }
 
   getBusinessById(businessId: number): Observable<ApiResponse<BusinessSummaryDto>> {

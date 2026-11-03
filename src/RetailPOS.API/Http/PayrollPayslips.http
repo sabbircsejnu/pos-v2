@@ -1,0 +1,31 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-local-access-token
+@runId = 1
+@employeeId = 1
+@idempotencyKey = payroll-payslip-email-001
+
+### Generate or reuse a private Payslip from an approved Payroll result
+POST {{baseUrl}}/api/payroll/v1/runs/{{runId}}/payslips/{{employeeId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Read Payslip artifact metadata without exposing private storage identifiers
+GET {{baseUrl}}/api/payroll/v1/runs/{{runId}}/payslips/{{employeeId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Download the private PDF
+GET {{baseUrl}}/api/payroll/v1/runs/{{runId}}/payslips/{{employeeId}}/download
+Authorization: Bearer {{token}}
+Accept: application/pdf
+
+### Open the private PDF for printing
+GET {{baseUrl}}/api/payroll/v1/runs/{{runId}}/payslips/{{employeeId}}/print
+Authorization: Bearer {{token}}
+Accept: application/pdf
+
+### Request protected email delivery; retry with the same key after an uncertain response
+POST {{baseUrl}}/api/payroll/v1/runs/{{runId}}/payslips/{{employeeId}}/email
+Authorization: Bearer {{token}}
+Idempotency-Key: {{idempotencyKey}}
+Accept: application/json

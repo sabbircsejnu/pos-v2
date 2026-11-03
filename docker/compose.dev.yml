@@ -1,0 +1,128 @@
+name: iranimart-dev
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DEV_POSTGRES_DB:-retailpos_db}
+      POSTGRES_USER: ${DEV_POSTGRES_USER:?Set DEV_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DEV_POSTGRES_PASSWORD:?Set DEV_POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:${DEV_POSTGRES_PORT:-5435}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+    networks: [dev_net]
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${DEV_RABBITMQ_USER:?Set DEV_RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${DEV_RABBITMQ_PASSWORD:?Set DEV_RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${DEV_RABBITMQ_VHOST:-retailpos_dev}
+    ports:
+      - "127.0.0.1:${DEV_RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${DEV_RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks: [dev_net]
+  redis:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    environment:
+      REDISCLI_AUTH: ${DEV_REDIS_PASSWORD:?Set DEV_REDIS_PASSWORD}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --save '60 1000' --requirepass \"$$REDISCLI_AUTH\""]
+    ports:
+      - "127.0.0.1:${DEV_REDIS_PORT:-6382}:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [dev_net]
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.4
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${DEV_ELASTIC_PASSWORD:?Set DEV_ELASTIC_PASSWORD}
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:${DEV_ELASTIC_PORT:-9200}:9200"
+    volumes:
+      - elastic_dev_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u \"elastic:$$ELASTIC_PASSWORD\" 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' > /dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
+    networks: [dev_net]
+  # One-shot: sets the built-in kibana_system password in Elasticsearch (env var alone does not).
+  # DEV_KIBANA_SYSTEM_PASSWORD must not contain double quotes or backslashes.
+  kibana-bootstrap:
+    profiles: [admin]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.4
+    restart: "no"
+    environment:
+      ELASTIC_PASSWORD: ${DEV_ELASTIC_PASSWORD:?Set DEV_ELASTIC_PASSWORD}
+      KIBANA_SYSTEM_PASSWORD: ${DEV_KIBANA_SYSTEM_PASSWORD:?Set DEV_KIBANA_SYSTEM_PASSWORD}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        printf 'user = "elastic:%s"\n' "$$ELASTIC_PASSWORD" > /tmp/curl.cfg
+        printf '{"password":"%s"}' "$$KIBANA_SYSTEM_PASSWORD" | curl -fsS -K /tmp/curl.cfg -X POST -H 'Content-Type: application/json' --data-binary @- http://elasticsearch:9200/_security/user/kibana_system/_password
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks: [dev_net]
+  kibana:
+    profiles: [admin]
+    image: docker.elastic.co/kibana/kibana:8.19.4
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${DEV_KIBANA_SYSTEM_PASSWORD:?Set DEV_KIBANA_SYSTEM_PASSWORD}
+    ports:
+      - "127.0.0.1:${DEV_KIBANA_PORT:-5601}:5601"
+    depends_on:
+      kibana-bootstrap:
+        condition: service_completed_successfully
+    networks: [dev_net]
+  pgadmin:
+    profiles: [admin]
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${DEV_PGADMIN_EMAIL:?Set DEV_PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${DEV_PGADMIN_PASSWORD:?Set DEV_PGADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1:${DEV_PGADMIN_PORT:-8081}:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    networks: [dev_net]
+volumes:
+  postgres_dev_data:
+  rabbitmq_dev_data:
+  redis_dev_data:
+  elastic_dev_data:
+  pgadmin_dev_data:
+networks:
+  dev_net:
+    driver: bridge

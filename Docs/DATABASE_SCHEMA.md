@@ -1,6 +1,26 @@
 # Database Schema Documentation
 
+## EF PostgreSQL Timestamp Mapping
+
+`RetailPOSDbContext` explicitly maps otherwise-unconfigured `DateTime` and nullable
+`DateTime` properties to `timestamp with time zone`, matching the preserved migration
+chain. Explicit mappings such as `date` remain unchanged. The API's
+`Npgsql.EnableLegacyTimestampBehavior` switch preserves existing timestamp value
+handling, but must not change the model's column types. Design-time tooling and
+runtime migration checks must agree without suppressing `PendingModelChangesWarning`.
+
 ## Complete Entity Relationship Diagram (ERD)
+
+### Phase 1I Opening Import Persistence
+
+`hr_import_batches` and `hr_import_rows` are added by the forward
+`Phase1IOpeningEmployeeImport` migration in `RetailPOSDbContext`. Batches have a
+unique `(business_id, idempotency_key)`, immutable private source identity,
+content hash/retention metadata and a concurrency version. Rows have a
+Business-safe composite batch FK and unique
+`(business_id, import_batch_id, revision, row_no)`; revisions are append-only.
+Only Employee and Assignment imports are accepted. Execution is whole-batch
+atomic, while retained encrypted blobs are outside the database transaction.
 
 ### Tables Summary (24 Tables)
 
@@ -158,7 +178,9 @@ updated_at        TIMESTAMPTZ DEFAULT NOW()
 ```sql
 id                  BIGSERIAL PRIMARY KEY
 supplier_id         BIGINT FK -> suppliers(id)
-warehouse_id        BIGINT FK -> warehouses(id)
+warehouse_id        BIGINT NULL FK -> warehouses(id)   -- destination when receiving into a warehouse
+outlet_id           BIGINT NULL FK -> outlets(id)      -- destination when receiving into an outlet
+                    -- CHECK ck_purchase_orders_single_destination: exactly one of warehouse_id / outlet_id
 order_date          DATE NOT NULL
 expected_delivery   DATE
 total_amount        NUMERIC(10,2) NOT NULL

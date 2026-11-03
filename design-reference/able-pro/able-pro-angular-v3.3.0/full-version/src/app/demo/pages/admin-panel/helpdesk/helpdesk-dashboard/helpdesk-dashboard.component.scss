@@ -1,0 +1,38 @@
+::ng-deep.feed-card {
+  .mat-mdc-card-content {
+    padding-left: 12px !important;
+
+    .border-feed {
+      transition: all 0.3s ease-in-out;
+      position: relative;
+      border-top-left-radius: 8px;
+      border-bottom-left-radius: 8px;
+
+      ::ng-deep.able-pro-rtl & {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+      }
+      i {
+        position: absolute;
+        top: calc(50% - 20px);
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #fff;
+        transition: all 0.3s ease-in-out;
+      }
+    }
+  }
+  &:hover {
+    .border-feed.bg-primary {
+      background-color: rgba(24, 144, 255, 0.3) !important;
+      color: var(--bs-primary);
+
+      i {
+        color: var(--bs-primary);
+      }
+    }
+  }
+}

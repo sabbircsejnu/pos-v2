@@ -1,0 +1,339 @@
+<div class="header-button">
+  <button mat-button [matMenuTriggerFor]="languages" aria-label="mode" class="header-item">
+    <a class="pc-head-link">
+      <svg class="pc-icon">
+        <use xlink:href="assets/fonts/custom-icon.svg#custom-global"></use>
+      </svg>
+    </a>
+  </button>
+  <button mat-button [matMenuTriggerFor]="setting" aria-label="mode" class="header-item">
+    <a class="pc-head-link">
+      <svg class="pc-icon">
+        <use xlink:href="assets/fonts/custom-icon.svg#custom-setting-2"></use>
+      </svg>
+    </a>
+  </button>
+  <button mat-button (click)="headerBlur(); drawer.toggle()" aria-label="mode" class="header-item" [ngClass]="{ on: headerBlur }">
+    <a class="pc-head-link">
+      <svg class="pc-icon">
+        <use xlink:href="assets/fonts/custom-icon.svg#custom-flash"></use>
+      </svg>
+    </a>
+  </button>
+  <button mat-button [matMenuTriggerFor]="Notification" aria-label="mode" class="header-item">
+    <a href="javascript:" class="pc-head-link badge-on-button" matBadge="4" matBadgeColor="primary" matBadgeOverlap="false">
+      <svg class="pc-icon">
+        <use xlink:href="assets/fonts/custom-icon.svg#custom-notification"></use>
+      </svg>
+    </a>
+  </button>
+  <button mat-button [matMenuTriggerFor]="user" aria-label="mode" class="header-item">
+    <a class="pc-head-link">
+      <img src="assets/images/user/avatar-2.png" alt="user-image" class="user-avatar" />
+    </a>
+  </button>
+  <mat-menu #languages="matMenu" xPosition="before">
+    <button mat-menu-item>
+      <div class="mat-body" (click)="useLanguage('en')">English (uk)</div>
+    </button>
+    <button mat-menu-item>
+      <div class="mat-body" (click)="useLanguage('fr')">français</div>
+    </button>
+    <button mat-menu-item>
+      <div class="mat-body" (click)="useLanguage('ro')">Română</div>
+    </button>
+    <button mat-menu-item>
+      <div class="mat-body" (click)="useLanguage('cn')">中国人</div>
+    </button>
+  </mat-menu>
+  <mat-menu #setting="matMenu" xPosition="before">
+    <button mat-menu-item [routerLink]="['/application/profile/account/account']">
+      <div class="dropdown-item">
+        <i class="ti ti-user"></i>
+        <span>My Account</span>
+      </div>
+    </button>
+    <button mat-menu-item [routerLink]="['/application/profile/account/settings']">
+      <div class="dropdown-item">
+        <i class="ti ti-settings"></i>
+        <span>Settings</span>
+      </div>
+    </button>
+    <button mat-menu-item [routerLink]="['/contact-us']">
+      <div class="dropdown-item">
+        <i class="ti ti-headset"></i>
+        <span>Support</span>
+      </div>
+    </button>
+    <button mat-menu-item [routerLink]="['/application/profile/account/settings']">
+      <div class="dropdown-item">
+        <i class="ti ti-lock"></i>
+        <span>Lock Screen</span>
+      </div>
+    </button>
+    <button mat-menu-item (click)="logout()">
+      <div class="dropdown-item">
+        <i class="ti ti-power"></i>
+        <span>Logout</span>
+      </div>
+    </button>
+  </mat-menu>
+  <mat-drawer #drawer position="end" class="notification-status sidenav" mode="over">
+    <div class="drawer-header">
+      <div class="f-16 f-w-600">What’s new announcement?</div>
+      <button type="button" mat-icon-button class="close-drawer" (click)="headerBlur(); drawer.toggle()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 88px)', position: 'relative' }">
+      <div class="drawer-body">
+        <div class="m-b-10 mat-body f-w-500">Today</div>
+        <app-card [showHeader]="false" padding="16" cardClass="m-b-15">
+          <div class="flex align-item-center m-b-15">
+            <div class="mat-subtitle-2 badge-status bg-success-50 text-success-500 m-r-10">New Feature</div>
+            <p class="mat-caption m-b-0 m-r-10 text-muted">Just Now</p>
+            <span class="fas fa-circle f-8 text-suucess-500"></span>
+          </div>
+          <div class="mat-body f-w-600 m-b-15">Select Business Unit</div>
+          <p class="mat-body text-muted text-wrap">
+            You can use the Analytics Dashboard to explore how many new users download reports daily and monthly
+          </p>
+          <img class="m-b-15 img-fluid" src="assets/images/layout/img-announcement-1.png" alt="img" />
+          <div class="row skip-button">
+            <div class="col-md-6">
+              <div class="grid">
+                <button mat-stroked-button class="mat-body f-w-500">Skip Intro</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="grid">
+                <button mat-flat-button color="primary" class="mat-body f-w-500">Next</button>
+              </div>
+            </div>
+          </div>
+        </app-card>
+        <app-card [showHeader]="false" padding="16" cardClass="m-b-15">
+          <div class="flex align-item-center m-b-15">
+            <div class="mat-subtitle-2 badge-status bg-warning-50 text-warning-500 m-r-10">Meeting</div>
+            <p class="mat-caption m-b-0 m-r-10 text-muted">2 min ago</p>
+            <span class="fas fa-circle f-8 text-warning-500"></span>
+          </div>
+          <div class="m-b-15 mat-body f-w-600">General Meeting for update</div>
+          <p class="mat-body text-muted text-wrap">
+            You can use the Analytics Dashboard to explore how many new users download reports daily and monthly
+          </p>
+          <img class="img-fluid" src="assets/images/layout/img-announcement-2.png" alt="img" />
+        </app-card>
+        <div class="m-b-10 mat-body f-w-500">Yesterday</div>
+        @for (task of notification; track task) {
+          <app-card [showHeader]="false" padding="16" cardClass="m-b-15">
+            <div class="flex align-item-center m-b-15">
+              <div class="mat-subtitle-2 badge-status bg-primary-50 text-primary-500 m-r-10">{{ task.sub_title }}</div>
+              <p class="mat-caption m-b-0 m-r-10 text-muted">{{ task.time }}</p>
+              <span class="fas fa-circle f-8 text-primary-500"></span>
+            </div>
+            <div class="m-b-15 mat-body f-w-600">{{ task.title }}</div>
+            <p class="mat-body text-muted text-wrap">
+              We've made some updates to the emendable widget which we think you are going to love.
+            </p>
+            <img class="img-fluid" src="{{ task.img }}" alt="img" />
+          </app-card>
+        }
+      </div>
+    </app-scrollbar>
+  </mat-drawer>
+  <mat-menu #Notification="matMenu" xPosition="before" class="dropdown-notification">
+    <div class="dropdown-header flex align-item-center justify-content-between">
+      <div class="f-w-600 f-16">Notification</div>
+      <a href="javascript:" class="mat-body text-primary-500">Mark all read</a>
+    </div>
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 215px)', position: 'relative' }">
+      <div class="dropdown-body">
+        <div class="m-b-10 mat-body f-w-500">Today</div>
+        @for (card of cards; track card) {
+          <app-card [showHeader]="false" cardClass="notification-card m-b-10" padding="16">
+            <div class="flex">
+              <div class="topic-icon flex-shrink-0">
+                <svg class="pc-icon text-primary-500">
+                  <use attr.xlink:href="assets/fonts/custom-icon.svg#{{ card.icon }}"></use>
+                </svg>
+              </div>
+              <div class="topic-description flex-grow-1 m-l-15">
+                <span class="mat-caption float-end text-muted">{{ card.time }}</span>
+                <div class="m-b-10 mat-body f-w-600">{{ card.position }}</div>
+                <p class="m-b-0 mat-body">{{ card.description }}</p>
+              </div>
+            </div>
+          </app-card>
+        }
+        <div class="m-b-10 mat-body f-w-500">Yesterday</div>
+        @for (card of cards2; track card) {
+          <app-card [showHeader]="false" cardClass="notification-card m-b-10" padding="16">
+            <div class="flex">
+              <div class="topic-icon">
+                <svg class="pc-icon text-primary-500">
+                  <use attr.xlink:href="assets/fonts/custom-icon.svg#{{ card.icon }}"></use>
+                </svg>
+              </div>
+              <div class="topic-description m-l-15">
+                <span class="mat-caption float-end text-muted">{{ card.time }}</span>
+                <div class="m-b-10 mat-body f-w-600">{{ card.position }}</div>
+                <p class="m-b-0 mat-body">{{ card.description }}</p>
+              </div>
+            </div>
+          </app-card>
+        }
+        <app-card [showHeader]="false" cardClass="notification-card m-b-10" padding="16">
+          <div class="flex">
+            <div class="topic-icon">
+              <svg class="pc-icon text-primary-500">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-user-bold"></use>
+              </svg>
+            </div>
+            <div class="topic-description m-l-15">
+              <span class="mat-caption float-end text-muted">15 hour ago</span>
+              <div class="m-b-10 mat-body f-w-600">Challenge invitation</div>
+              <p class="m-b-2 mat-body">Jonny aber invites to join the challenge</p>
+              <button mat-stroked-button class="m-r-10">Decline</button>
+              <button mat-raised-button color="primary">Accept</button>
+            </div>
+          </div>
+        </app-card>
+      </div>
+    </app-scrollbar>
+  </mat-menu>
+  <mat-menu #user="matMenu" xPosition="before" class="dropdown-user-profile">
+    <div class="dropdown-header flex align-item-center justify-content-between">
+      <div class="user-title f-16 f-w-600">Profile</div>
+    </div>
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 225px)', position: 'relative' }">
+      <div class="dropdown-body">
+        <div class="flex m-b-5">
+          <div class="topic-icon">
+            <img src="assets/images/user/avatar-2.png" alt="user-images" class="user-avatar" />
+          </div>
+          <div class="topic-description m-l-15">
+            <div class="user-name mat-body f-w-600">{{ this.authenticationService.currentUserName }} 🖖</div>
+            <p class="mat-caption">{{ this.authenticationService.currentUserValue?.user.email }}</p>
+          </div>
+        </div>
+        <mat-divider class="m-y-15"></mat-divider>
+        <app-card [showHeader]="false" padding="16">
+          <div class="flex align-item-center justify-content-between">
+            <div class="m-b-0 flex-inline align-item-center f-16 f-w-600">
+              <svg class="pc-icon text-muted m-r-10">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-notification-outline"></use>
+              </svg>
+              Notification
+            </div>
+            <mat-slide-toggle color="primary" (click)="$event.stopPropagation()"></mat-slide-toggle>
+          </div>
+        </app-card>
+        <div class="m-b-15 mat-body f-w-500">Manage</div>
+        <a href="javascript:" class="dropdown-item text-muted" [routerLink]="['/application/profile/account/settings']">
+          <svg class="pc-icon m-r-10">
+            <use xlink:href="assets/fonts/custom-icon.svg#custom-setting-outline"></use>
+          </svg>
+          <div class="m-b-0 mat-body">Settings</div>
+        </a>
+        <a href="javascript:" class="dropdown-item text-muted">
+          <svg class="pc-icon m-r-10">
+            <use xlink:href="assets/fonts/custom-icon.svg#custom-share-bold"></use>
+          </svg>
+          <div class="m-b-0 mat-body">Share</div>
+        </a>
+        <a href="javascript:" class="dropdown-item text-muted" [routerLink]="['/application/profile/account/password']">
+          <svg class="pc-icon m-r-10">
+            <use xlink:href="assets/fonts/custom-icon.svg#custom-lock-outline"></use>
+          </svg>
+          <div class="m-b-0 mat-body">Change Password</div>
+        </a>
+        <mat-divider class="m-b-15 m-t-15"></mat-divider>
+        <div class="m-b-15 mat-body f-w-500">Team</div>
+        <a href="javascript:" class="dropdown-item text-muted justify-content-between">
+          <span class="flex">
+            <svg class="pc-icon m-r-10">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-profile-2user-outline"></use>
+            </svg>
+            <div class="m-b-0 mat-body">UI Design team</div>
+          </span>
+          <div class="user-group">
+            <img src="assets/images/user/avatar-1.png" alt="user-images" class="avatar" />
+            <span class="avatar bg-warn-500 text-white">K</span>
+            <span class="avatar bg-success-500 text-white">
+              <svg class="pc-icon">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-user"></use>
+              </svg>
+            </span>
+            <span class="avatar bg-primary-50 text-primary-500">+2</span>
+          </div>
+        </a>
+        <a href="javascript:" class="dropdown-item text-muted justify-content-between">
+          <span class="flex">
+            <svg class="pc-icon m-r-10">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-profile-2user-outline"></use>
+            </svg>
+            <div class="m-b-0 mat-body">Friends Groups</div>
+          </span>
+          <div class="user-group">
+            <img src="assets/images/user/avatar-1.png" alt="user-images" class="avatar" />
+            <span class="avatar bg-warn-500 text-white">K</span>
+            <span class="avatar bg-success-500 text-white">
+              <svg class="pc-icon">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-user"></use>
+              </svg>
+            </span>
+          </div>
+        </a>
+        <a href="javascript:" class="dropdown-item text-muted justify-content-between">
+          <span class="flex">
+            <svg class="pc-icon m-r-10">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-add-outline"></use>
+            </svg>
+            <div class="m-b-0 mat-body">Add New</div>
+          </span>
+          <div class="user-group">
+            <span class="avatar bg-primary-500 text-white">
+              <svg class="pc-icon">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-add-outline"></use>
+              </svg>
+            </span>
+          </div>
+        </a>
+        <mat-divider class="m-b-15 m-t-15"></mat-divider>
+        <div class="grid m-b-15">
+          <button mat-flat-button color="primary" class="user-logout" (click)="logout()">
+            <div class="flex-inline align-item-center">
+              <svg class="pc-icon m-r-10">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-logout-1-outline"></use>
+              </svg>
+              Logout
+            </div>
+          </button>
+        </div>
+        <app-card cardClass="m-b-0 user-account-card" [showHeader]="false" padding="16">
+          <div class="user-group">
+            <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+            <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+            <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+            <img src="assets/images/user/avatar-4.jpg" alt="user-image" class="avatar" />
+            <img src="assets/images/user/avatar-5.jpg" alt="user-image" class="avatar" />
+            <span class="avatar bg-primary-50 text-primary-500">+20</span>
+          </div>
+          <div class="user-followers f-20 f-w-600">
+            245.3k
+            <span class="text-muted f-16">Followers</span>
+          </div>
+          <a mat-flat-button class="upgrade-button" [href]="buyNowLinkService.buyNowLink" target="_blank">
+            <div class="flex-inline align-item-center">
+              <svg class="pc-icon m-r-10">
+                <use xlink:href="assets/fonts/custom-icon.svg#custom-logout-1-outline"></use>
+              </svg>
+              Upgrade to Business
+            </div>
+          </a>
+        </app-card>
+      </div>
+    </app-scrollbar>
+  </mat-menu>
+</div>

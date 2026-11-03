@@ -1,23 +1,29 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
-import { ProductImageService } from '../../services/product-image.service';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ProductImageService } from '../../services/product-image.service';
 import { VariantSearchItem, VariantSearchPickerComponent } from '../../components/variant-search-picker/variant-search-picker.component';
 import { CreateStockTransferDto } from '../../models/stock-transfer.model';
 import { findVariantIndexById } from '../../utils/variant-selection.util';
+import { UnsavedChangesAware, UnsavedChangesService } from '../../services/unsaved-changes.service';
 
 interface TransferLineItem {
   variantId: number;
   variantSku: string;
+  variantName?: string;
   productName: string;
   productCode?: string;
   attributes?: string;
+  variantAttributes?: string;
+  variantDisplay?: string;
   primaryImageThumb?: string;
   availableStock: number | null;
   destinationStock: number | null;
@@ -30,13 +36,11 @@ type TransferCreateAction = 'draft' | 'submit' | 'submit_dispatch';
 @Component({
   selector: 'app-transfer-create',
   standalone: true,
-  imports: [CommonModule, FormsModule, VariantSearchPickerComponent],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, VariantSearchPickerComponent],
   templateUrl: './transfer-create.component.html',
   styleUrls: ['./transfer-create.component.css']
 })
-export class TransferCreateComponent implements OnInit {
-  private imageService = inject(ProductImageService);
-
+export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
   transferType = signal<string>('direct');
   fromLocationType = signal<string>('outlet');
   fromLocationId = signal<number | null>(null);
@@ -55,6 +59,7 @@ export class TransferCreateComponent implements OnInit {
 
   isLoadingData = signal(false);
   isSubmitting = signal(false);
+  private initialSnapshot = '';
 
   existingVariantIds = computed(() => this.lineItems().map(i => i.variantId));
   canSelectFromLocation = computed(() => this.auth.hasPermission('stock_transfers.transfer_from_any_location'));
@@ -139,46 +144,207 @@ export class TransferCreateComponent implements OnInit {
     private router: Router,
     private location: Location,
     private alertService: AlertService,
-    private errorHandler: ErrorHandlerService
+    private errorHandler: ErrorHandlerService,
+    private imageService: ProductImageService,
+    private unsavedChangesService: UnsavedChangesService
   ) {}
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    this.unsavedChangesService.applyBeforeUnload(event, this.hasUnsavedChanges());
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (!this.initialSnapshot) {
+      return false;
+    }
+
+    return this.initialSnapshot !== this.buildSnapshot();
+  }
+
+  getUnsavedChangesMessage(): string {
+    return this.unsavedChangesService.defaultMessage;
+  }
+
+  formatVariantText(item: TransferLineItem): string {
+    const attributesText = this.formatFromAttributes(item.variantAttributes || item.attributes);
+    if (attributesText) {
+      return attributesText;
+    }
+
+    if (item.variantDisplay?.trim()) {
+      return this.normalizeVariantDisplay(item.variantDisplay.trim());
+    }
+
+    if (item.variantName?.trim()) {
+      return this.normalizeVariantDisplay(item.variantName.trim());
+    }
+
+    return item.variantSku?.trim() || '';
+  }
+
+  private formatFromAttributes(attributes?: string): string {
+    if (!attributes?.trim()) {
+      return '';
+    }
+
+    try {
+      const parsed = JSON.parse(attributes);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return '';
+      }
+
+      const entries = Object.entries(parsed as Record<string, unknown>)
+        .map(([key, value]) => ({ label: this.humanizeKey(key), value: String(value ?? '').trim() }))
+        .filter(x => !!x.label && !!x.value && x.value.toLowerCase() !== 'null' && x.value.toLowerCase() !== 'undefined');
+
+      if (!entries.length) {
+        return '';
+      }
+
+      const preferredOrder = ['color', 'size', 'fabric', 'febric'];
+      entries.sort((a, b) => {
+        const ai = preferredOrder.indexOf(a.label.toLowerCase());
+        const bi = preferredOrder.indexOf(b.label.toLowerCase());
+        const left = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+        const right = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+        if (left !== right) return left - right;
+        return a.label.localeCompare(b.label);
+      });
+
+      return entries.map(x => `${x.label}: ${x.value}`).join(' / ');
+    } catch {
+      return '';
+    }
+  }
+
+  private normalizeVariantDisplay(display: string): string {
+    const parts = display.split('/').map(x => x.trim()).filter(Boolean);
+    if (!parts.length) {
+      return display;
+    }
+
+    return parts
+      .map(part => {
+        if (part.includes(':')) {
+          const [rawLabel, ...rest] = part.split(':');
+          const label = this.humanizeKey(rawLabel.trim());
+          const value = rest.join(':').trim();
+          return value ? `${label}: ${value}` : label;
+        }
+
+        const firstSpace = part.indexOf(' ');
+        if (firstSpace <= 0) {
+          return part;
+        }
+
+        const label = this.humanizeKey(part.substring(0, firstSpace).trim());
+        const value = part.substring(firstSpace + 1).trim();
+        return value ? `${label}: ${value}` : label;
+      })
+      .join(' / ');
+  }
+
+  private humanizeKey(key: string): string {
+    return key
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^./, c => c.toUpperCase());
+  }
+
+  resolveImage(path?: string | null): string {
+    return this.imageService.resolveUrl(path);
+  }
 
   ngOnInit(): void {
     this.loadSupportingData();
   }
 
+  private markAsPristine(): void {
+    this.initialSnapshot = this.buildSnapshot();
+  }
+
+  private markAsSaved(): void {
+    this.initialSnapshot = this.buildSnapshot();
+  }
+
+  private buildSnapshot(): string {
+    const itemState = this.lineItems().map(item => ({
+      variantId: item.variantId,
+      requestedQuantity: Number(item.requestedQuantity) || 0,
+      transferQuantity: Number(item.transferQuantity) || 0
+    }));
+
+    return JSON.stringify({
+      transferType: this.transferType(),
+      transferDate: this.transferDate(),
+      notes: this.notes(),
+      fromLocationType: this.fromLocationType(),
+      fromLocationId: this.canSelectFromLocation() ? this.fromLocationId() : null,
+      toLocationType: this.toLocationType(),
+      toLocationId: this.toLocationId(),
+      items: itemState
+    });
+  }
+
   loadSupportingData(): void {
     this.isLoadingData.set(true);
 
-    this.userOutletAccess.load().subscribe({
-      next: (response: any) => {
-        const auth = response?.data;
+    // `defaults` carries the user's default (pinned) source; `source` carries the Step 5 source locations and
+    // the business-wide destination lookup (StockTransferDestination), which are independent of each other.
+    forkJoin({
+      defaults: this.userOutletAccess.load(),
+      source: this.userOutletAccess.load('StockTransferSource')
+    }).subscribe({
+      next: ({ defaults, source }: any) => {
+        const defaultAuth = defaults?.data;
+        const auth = source?.data;
         this.sourceOutlets.set(auth?.outlets || []);
         this.sourceWarehouses.set(auth?.warehouses || []);
-        this.destinationOutlets.set(auth?.destinationOutlets || auth?.outlets || []);
-        this.destinationWarehouses.set(auth?.destinationWarehouses || auth?.warehouses || []);
+        this.destinationOutlets.set(auth?.destinationOutlets || []);
+        this.destinationWarehouses.set(auth?.destinationWarehouses || []);
 
-        if (auth?.defaultLocationType === 'warehouse') {
+        const defaultType = defaultAuth?.defaultLocationType;
+        const defaultId = defaultAuth?.defaultLocationId;
+        const defaultIsSource = !!defaultId
+          && (defaultType === 'warehouse' ? this.sourceWarehouses() : this.sourceOutlets())
+            .some((location: any) => location.id === defaultId);
+
+        if (defaultIsSource && defaultType === 'warehouse') {
           this.fromLocationType.set('warehouse');
         }
 
-        if (auth?.defaultLocationId) {
-          this.fromLocationId.set(auth.defaultLocationId);
+        if (defaultIsSource) {
+          this.fromLocationId.set(defaultId);
         }
+        if (this.sameLocationSelected()) {
+          this.onToLocationChange(null);
+        }
+        this.markAsPristine();
         this.isLoadingData.set(false);
       },
       error: (err) => {
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.markAsPristine();
         this.isLoadingData.set(false);
       }
     });
   }
 
   getFromLocations(): any[] {
-    return this.fromLocationType() === 'outlet' ? this.sourceOutlets() : this.sourceWarehouses();
+    const locations = this.fromLocationType() === 'outlet' ? this.sourceOutlets() : this.sourceWarehouses();
+    return this.canSelectFromLocation() && this.fromLocationType() === this.toLocationType()
+      ? locations.filter(loc => loc.id !== this.toLocationId())
+      : locations;
   }
 
   getToLocations(): any[] {
-    return this.toLocationType() === 'outlet' ? this.destinationOutlets() : this.destinationWarehouses();
+    const locations = this.toLocationType() === 'outlet' ? this.destinationOutlets() : this.destinationWarehouses();
+    return this.toLocationType() === this.fromLocationType()
+      ? locations.filter(loc => loc.id !== this.fromLocationId())
+      : locations;
   }
 
   getFromLocationName(): string {
@@ -199,10 +365,6 @@ export class TransferCreateComponent implements OnInit {
 
     const selected = this.getToLocations().find(loc => loc.id === selectedId);
     return selected?.name || '-';
-  }
-
-  resolveImage(path?: string | null): string {
-    return this.imageService.resolveUrl(path);
   }
 
   onFromTypeChange(): void {
@@ -227,6 +389,12 @@ export class TransferCreateComponent implements OnInit {
 
   onToLocationChange(nextId: number | null): void {
     this.toLocationId.set(nextId);
+    if (this.sameLocationSelected()) {
+      this.onFromLocationChange(null);
+      if (this.sameLocationSelected()) {
+        this.toLocationId.set(null);
+      }
+    }
     this.lineItems.update(items => items.map(item => ({ ...item, destinationStock: null })));
   }
 
@@ -257,6 +425,9 @@ export class TransferCreateComponent implements OnInit {
       this.lineItems.set([]);
     }
     this.fromLocationId.set(nextId);
+    if (this.sameLocationSelected()) {
+      this.onToLocationChange(null);
+    }
   }
 
   removeItem(index: number): void {
@@ -286,9 +457,12 @@ export class TransferCreateComponent implements OnInit {
       {
         variantId: variant.id,
         variantSku: variant.sku || '-',
+        variantName: variant.name,
         productName: variant.productName,
         productCode: variant.productCode,
-        attributes: variant.attributes,
+        attributes: variant.attributes || variant.variantAttributes,
+        variantAttributes: variant.variantAttributes || variant.attributes,
+        variantDisplay: variant.variantDisplay,
         primaryImageThumb: variant.primaryImageThumb,
         availableStock: variant.stockQuantity ?? null,
         destinationStock: null,
@@ -410,6 +584,7 @@ export class TransferCreateComponent implements OnInit {
     this.isSubmitting.set(true);
     this.transferService.create(dto).subscribe({
       next: (res) => {
+        this.markAsSaved();
         const transferId = this.extractTransferId(res);
 
         if (!transferId || action === 'draft') {
@@ -418,24 +593,24 @@ export class TransferCreateComponent implements OnInit {
           return;
         }
 
+        if (action === 'submit_dispatch') {
+          this.transferService.submitAndDispatch(transferId).subscribe({
+            next: () => {
+              this.alertService.success('Stock transfer submitted and dispatched successfully');
+              this.router.navigate(['/stock-transfers', transferId]);
+            },
+            error: (dispatchErr) => {
+              this.alertService.error(`Transfer created, but submit and dispatch failed: ${this.errorHandler.extractErrorMessage(dispatchErr)}`);
+              this.isSubmitting.set(false);
+            }
+          });
+          return;
+        }
+
         this.transferService.submit(transferId).subscribe({
           next: () => {
-            if (action !== 'submit_dispatch') {
-              this.alertService.success('Stock transfer submitted successfully');
-              this.router.navigate(['/stock-transfers', transferId]);
-              return;
-            }
-
-            this.transferService.send(transferId).subscribe({
-              next: () => {
-                this.alertService.success('Stock transfer submitted and dispatched successfully');
-                this.router.navigate(['/stock-transfers', transferId]);
-              },
-              error: (dispatchErr) => {
-                this.alertService.error(`Transfer submitted, but dispatch failed: ${this.errorHandler.extractErrorMessage(dispatchErr)}`);
-                this.isSubmitting.set(false);
-              }
-            });
+            this.alertService.success('Stock transfer submitted successfully');
+            this.router.navigate(['/stock-transfers', transferId]);
           },
           error: (submitErr) => {
             this.alertService.error(`Transfer created, but submit failed: ${this.errorHandler.extractErrorMessage(submitErr)}`);

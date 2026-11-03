@@ -1,0 +1,122 @@
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.filter {
+  .store {
+    padding: 3px 8px;
+    color: $white;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .file-search {
+    ul {
+      margin-left: auto;
+      margin-right: auto;
+
+      li {
+        &:not(:last-child) {
+          margin-right: 15px;
+
+          ::ng-deep.able-pro-rtl & {
+            margin-left: 15px;
+            margin-right: 0px;
+          }
+        }
+      }
+
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+    }
+
+    .bg-transparent {
+      background: transparent !important;
+    }
+
+    .mat-mdc-tab-label-container {
+      padding: 10px;
+    }
+
+    .type-layout {
+      .mdc-tab {
+        min-width: 0px;
+        border-radius: 6px;
+
+        .mat-mdc-tab-header {
+          min-height: 36px !important;
+        }
+
+        .mat-mdc-tab.mdc-tab {
+          height: 36px !important;
+        }
+
+        &.mdc-tab--active {
+          box-shadow: 0px 8px 24px rgba(27, 46, 94, 0.08);
+
+          .mdc-tab-indicator {
+            position: relative;
+          }
+        }
+      }
+    }
+  }
+
+  .file-card {
+    position: relative;
+
+    .mat-mdc-radio-button {
+      &.mat-mdc-radio-checked {
+        .mdc-form-field > label {
+          &::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 8px;
+            box-shadow:
+              0px 8px 24px rgba(27, 46, 94, 0.12),
+              inset 0 0 0 2px var(--primary-500) !important;
+          }
+        }
+      }
+    }
+
+    .edit-card {
+      position: relative;
+    }
+
+    .user-popup {
+      position: relative;
+      z-index: 5;
+      background: var(--accent-100);
+      color: var(--accent-600);
+    }
+  }
+
+  .file-table-layout {
+    .mat-mdc-header-row {
+      display: none;
+    }
+
+    .mat-mdc-table.mat-elevation-z8 {
+      border-collapse: separate;
+      border-spacing: 0 10px;
+      background: transparent;
+    }
+
+    .mat-mdc-row {
+      box-shadow: 0px 8px 24px rgba(27, 46, 94, 0.08);
+      background: var(--accent-50);
+      border: 1px solid var(--accent-300);
+      border-radius: 8px;
+    }
+
+    .user-group .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+    }
+  }
+}

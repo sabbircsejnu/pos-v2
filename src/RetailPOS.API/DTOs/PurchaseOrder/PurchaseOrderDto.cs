@@ -34,8 +34,16 @@ public class PurchaseOrderDto
     public string PoNumber { get; set; } = string.Empty;
     public long SupplierId { get; set; }
     public string SupplierName { get; set; } = string.Empty;
-    public long WarehouseId { get; set; }
+    /// <summary>Destination warehouse; null when the PO is received into an outlet.</summary>
+    public long? WarehouseId { get; set; }
     public string WarehouseName { get; set; } = string.Empty;
+    /// <summary>Destination outlet; null when the PO is received into a warehouse.</summary>
+    public long? OutletId { get; set; }
+    public string? OutletName { get; set; }
+    /// <summary>outlet | warehouse</summary>
+    public string LocationType { get; set; } = "warehouse";
+    public long LocationId { get; set; }
+    public string LocationName { get; set; } = string.Empty;
     public DateTime OrderDate { get; set; }
     public DateTime? ExpectedDelivery { get; set; }
     public decimal TotalAmount { get; set; }
@@ -77,8 +85,12 @@ public class CreatePurchaseOrderItemDto
 public class CreatePurchaseOrderDto
 {
     public long SupplierId { get; set; }
-    public long WarehouseId { get; set; }
-    public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+    /// <summary>Destination type: outlet | warehouse. Defaults to warehouse when only <see cref="WarehouseId"/> is supplied.</summary>
+    public string? LocationType { get; set; }
+    /// <summary>Destination outlet or warehouse id (interpreted by <see cref="LocationType"/>).</summary>
+    public long? LocationId { get; set; }
+    /// <summary>Legacy destination field, still accepted for Warehouse-based clients.</summary>
+    public long? WarehouseId { get; set; }    public DateTime OrderDate { get; set; } = DateTime.UtcNow;
     public DateTime? ExpectedDelivery { get; set; }
     public string Status { get; set; } = "draft"; // draft or pending
     public string? Notes { get; set; }
@@ -114,8 +126,12 @@ public class PurchaseAndReceiveResultDto
 public class UpdatePurchaseOrderDto
 {
     public long SupplierId { get; set; }
-    public long WarehouseId { get; set; }
-    public DateTime OrderDate { get; set; }
+    /// <summary>Destination type: outlet | warehouse. Defaults to warehouse when only <see cref="WarehouseId"/> is supplied.</summary>
+    public string? LocationType { get; set; }
+    /// <summary>Destination outlet or warehouse id (interpreted by <see cref="LocationType"/>).</summary>
+    public long? LocationId { get; set; }
+    /// <summary>Legacy destination field, still accepted for Warehouse-based clients.</summary>
+    public long? WarehouseId { get; set; }    public DateTime OrderDate { get; set; }
     public DateTime? ExpectedDelivery { get; set; }
     public string? Notes { get; set; }
     public List<CreatePurchaseOrderItemDto> Items { get; set; } = new();
@@ -143,6 +159,9 @@ public class PurchaseOrderSearchDto
     public string? Status { get; set; }
     public long? SupplierId { get; set; }
     public long? WarehouseId { get; set; }
+    /// <summary>Optional destination filter: outlet | warehouse.</summary>
+    public string? LocationType { get; set; }
+    public long? LocationId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public int PageNumber { get; set; } = 1;

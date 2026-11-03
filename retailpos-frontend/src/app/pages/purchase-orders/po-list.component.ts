@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -6,11 +9,12 @@ import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { SupplierService } from '../../services/supplier.service';
-import { WarehouseService } from '../../services/warehouse.service';
+import { UserOutletAccessService } from '../../services/user-outlet-access.service';
+import { AuthorizedLocationDto } from '../../models/report.model';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ListStateService } from '../../services/list-state.service';
-import { PurchaseOrder, PurchaseOrderSearchRequest, getPOStatusLabel, getPOStatusColor } from '../../models/purchase-order.model';
+import { PurchaseOrder, PurchaseOrderSearchRequest, PurchaseLocationType, getPOStatusLabel, getPOStatusColor, getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
 import { AuthService } from '../../services/auth.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
@@ -18,18 +22,22 @@ import { DocumentPdfService } from '../../services/document-pdf.service';
 @Component({
   selector: 'app-po-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './po-list.component.html',
   styleUrls: ['./po-list.component.css']
 })
 export class PoListComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   Math = Math;
 
   // Search and filter signals
   searchQuery = signal<string>('');
   status = signal<string>('');
   supplierId = signal<number | undefined>(undefined);
-  warehouseId = signal<number | undefined>(undefined);
+  /** Destination filter: '' (all), 'outlet' / 'warehouse' (all of a type) or 'outlet:12' / 'warehouse:3'. */
+  locationFilter = signal<string>('');
+  filterOutlets = signal<AuthorizedLocationDto[]>([]);
+  filterWarehouses = signal<AuthorizedLocationDto[]>([]);
   startDate = signal<string>('');
   endDate = signal<string>('');
   
@@ -52,7 +60,7 @@ export class PoListComponent implements OnInit, OnDestroy {
   constructor(
     public poService: PurchaseOrderService,
     public supplierService: SupplierService,
-    public warehouseService: WarehouseService,
+    private locationAccess: UserOutletAccessService,
     private authService: AuthService,
     private router: Router,
     private route: ActivatedRoute,
@@ -69,7 +77,7 @@ export class PoListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadSuppliers();
-    this.loadWarehouses();
+    this.loadLocations();
     this.restoreFromUrl();
     this.setupDebouncedSearch();
     this.performSearch();
@@ -80,7 +88,13 @@ export class PoListComponent implements OnInit, OnDestroy {
     this.searchQuery.set(this.listState.str(p, 'search'));
     this.status.set(this.listState.str(p, 'status'));
     this.supplierId.set(this.listState.optionalId(p, 'supplierId'));
-    this.warehouseId.set(this.listState.optionalId(p, 'warehouseId'));
+    const locationType = this.listState.str(p, 'locationType');
+    const locationId = this.listState.optionalId(p, 'locationId');
+    const legacyWarehouseId = this.listState.optionalId(p, 'warehouseId');
+    this.locationFilter.set(
+      locationType === 'outlet' || locationType === 'warehouse'
+        ? (locationId ? `${locationType}:${locationId}` : locationType)
+        : legacyWarehouseId ? `warehouse:${legacyWarehouseId}` : '');
     this.startDate.set(this.listState.str(p, 'startDate'));
     this.endDate.set(this.listState.str(p, 'endDate'));
     this.pageNumber.set(this.listState.num(p, 'page', 1));
@@ -94,7 +108,9 @@ export class PoListComponent implements OnInit, OnDestroy {
       search: this.searchQuery() || undefined,
       status: this.status() || undefined,
       supplierId: this.supplierId(),
-      warehouseId: this.warehouseId(),
+      locationType: this.parsedLocationFilter().locationType,
+      locationId: this.parsedLocationFilter().locationId,
+      warehouseId: undefined,
       startDate: this.startDate() || undefined,
       endDate: this.endDate() || undefined,
       page: this.pageNumber(),
@@ -127,10 +143,31 @@ export class PoListComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadWarehouses(): void {
-    this.warehouseService.getAllWarehouses().subscribe({
+  loadLocations(): void {
+    this.locationAccess.load().subscribe({
+      next: (response) => {
+        this.filterOutlets.set(response?.data?.outlets ?? []);
+        this.filterWarehouses.set(response?.data?.warehouses ?? []);
+      },
       error: (err: any) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
     });
+  }
+
+  parsedLocationFilter(): { locationType?: PurchaseLocationType; locationId?: number } {
+    const [type, id] = this.locationFilter().split(':');
+    if (type !== 'outlet' && type !== 'warehouse') {
+      return {};
+    }
+    const parsedId = id ? Number(id) : undefined;
+    return { locationType: type, locationId: parsedId && !Number.isNaN(parsedId) ? parsedId : undefined };
+  }
+
+  getLocationTypeLabel(po: PurchaseOrder): string {
+    return getPurchaseLocationTypeLabel(po.locationType);
+  }
+
+  getLocationName(po: PurchaseOrder): string {
+    return getPurchaseLocationName(po);
   }
 
   private performSearch(): void {
@@ -138,7 +175,7 @@ export class PoListComponent implements OnInit, OnDestroy {
       searchQuery: this.searchQuery() || undefined,
       status: this.status() || undefined,
       supplierId: this.supplierId(),
-      warehouseId: this.warehouseId(),
+      ...this.parsedLocationFilter(),
       startDate: this.startDate() ? new Date(this.startDate()) : undefined,
       endDate: this.endDate() ? new Date(this.endDate()) : undefined,
       pageNumber: this.pageNumber(),
@@ -162,7 +199,7 @@ export class PoListComponent implements OnInit, OnDestroy {
     this.searchQuery.set('');
     this.status.set('');
     this.supplierId.set(undefined);
-    this.warehouseId.set(undefined);
+    this.locationFilter.set('');
     this.startDate.set('');
     this.endDate.set('');
     this.listState.clear(this.route);
@@ -317,11 +354,7 @@ export class PoListComponent implements OnInit, OnDestroy {
   }
 
   formatDate(date: Date): string {
-    return new Date(date).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
+    return this.companyDates.format(date, false);
   }
 
   formatCurrency(amount: number): string {
@@ -332,7 +365,7 @@ export class PoListComponent implements OnInit, OnDestroy {
     let count = 0;
     if (this.status()) count++;
     if (this.supplierId()) count++;
-    if (this.warehouseId()) count++;
+    if (this.locationFilter()) count++;
     if (this.startDate()) count++;
     if (this.endDate()) count++;
     return count;

@@ -1,3 +1,5 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -21,6 +23,7 @@ import {
   styleUrls: ['./adjustment-details.component.css']
 })
 export class AdjustmentDetailsComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   adjustment = signal<StockAdjustmentDto | null>(null);
   isLoading = signal(true);
   showRejectModal = signal(false);
@@ -183,9 +186,6 @@ export class AdjustmentDetailsComponent implements OnInit {
 
   formatDateTime(date?: string | null): string {
     if (!date) return '-';
-    return new Date(date).toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    return this.companyDates.format(date, true);
   }
 }

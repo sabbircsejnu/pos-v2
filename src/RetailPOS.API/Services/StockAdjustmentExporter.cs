@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using System.Text;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
@@ -6,16 +7,16 @@ namespace RetailPOS.API.Services;
 
 public static class StockAdjustmentExporter
 {
-    public static byte[] ToCsv(List<StockAdjustmentRowDto> rows)
+    public static byte[] ToCsv(List<StockAdjustmentRowDto> rows, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new StringBuilder();
         sb.AppendLine("Date,Product Code,Barcode,SKU,Product Name,Category,Location,Location Type,Type,Quantity Change,Reason,Adjusted By");
         foreach (var r in rows)
-            sb.AppendLine($"{r.AdjustmentDate:yyyy-MM-dd HH:mm},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.LocationName)},{Csv(r.LocationType)},{Csv(r.AdjustmentType)},{r.QuantityChange},{Csv(r.Reason)},{Csv(r.AdjustedBy)}");
+            sb.AppendLine($"{UiDateFormatting.Format(r.AdjustmentDate, dateFormat)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.LocationName)},{Csv(r.LocationType)},{Csv(r.AdjustmentType)},{r.QuantityChange},{Csv(r.Reason)},{Csv(r.AdjustedBy)}");
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public static byte[] ToExcel(List<StockAdjustmentRowDto> rows, StockAdjustmentSummaryDto summary)
+    public static byte[] ToExcel(List<StockAdjustmentRowDto> rows, StockAdjustmentSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Stock Adjustment Report");
@@ -48,7 +49,7 @@ public static class StockAdjustmentExporter
             var bg = i % 2 == 1 ? XLColor.FromHtml("#F8F9FA") : XLColor.White;
 
             ws.Cell(row, 1).Value = r.AdjustmentDate;
-            ws.Cell(row, 1).Style.DateFormat.Format = "yyyy-MM-dd HH:mm";
+            ws.Cell(row, 1).Style.DateFormat.Format = UiDateFormatting.Normalize(dateFormat).ToLowerInvariant() + " hh:mm";
             ws.Cell(row, 2).Value = r.ProductCode;
             ws.Cell(row, 3).Value = r.Barcode;
             ws.Cell(row, 4).Value = r.Sku;

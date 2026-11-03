@@ -1,3 +1,5 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +14,7 @@ import { ErrorHandlerService } from '../../services/error-handler.service';
 @Component({
   selector: 'app-stock-adjustment-report',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './stock-adjustment-report.component.html',
   styleUrls: ['./stock-adjustment-report.component.css']
 })

@@ -2,13 +2,9 @@
   <!-- Header -->
   <div class="flex justify-between items-center mb-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Transactions</h1>
-      <p class="text-sm text-gray-600 mt-0.5">View and record financial transactions</p>
+      <h1 class="text-2xl font-bold text-gray-900">Legacy Transactions</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Read-only historical records; Journal Entries are authoritative.</p>
     </div>
-    <button (click)="openModal()" class="btn btn-primary">
-      <i class="fas fa-plus"></i>
-      Add Transaction
-    </button>
   </div>
 
   <!-- Filters -->
@@ -27,12 +23,12 @@
       </div>
       <div>
         <label class="label">Start Date</label>
-        <input type="date" class="input"
+        <input type="date" appCompanyDate class="input"
                [ngModel]="filterStartDate()" (ngModelChange)="filterStartDate.set($event)" />
       </div>
       <div>
         <label class="label">End Date</label>
-        <input type="date" class="input"
+        <input type="date" appCompanyDate class="input"
                [ngModel]="filterEndDate()" (ngModelChange)="filterEndDate.set($event)" />
       </div>
       <div class="flex items-end gap-2">
@@ -99,11 +95,7 @@
     <div class="bg-white rounded-lg shadow-md p-12 text-center">
       <i class="fas fa-exchange-alt text-6xl text-gray-300 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">No Transactions Found</h3>
-      <p class="text-gray-600 mb-6">Record your first financial transaction</p>
-      <button (click)="openModal()" class="btn btn-primary">
-        <i class="fas fa-plus mr-2"></i>
-        Add Transaction
-      </button>
+      <p class="text-gray-600 mb-6">Legacy transactions are retained as read-only historical evidence.</p>
     </div>
   }
 </div>
@@ -142,7 +134,7 @@
         </div>
         <div>
           <label class="label">Transaction Date <span class="text-red-500">*</span></label>
-          <input type="date" class="input" [ngModel]="formDate()" (ngModelChange)="formDate.set($event)" />
+          <input type="date" appCompanyDate class="input" [ngModel]="formDate()" (ngModelChange)="formDate.set($event)" />
         </div>
         <div>
           <label class="label">Description</label>

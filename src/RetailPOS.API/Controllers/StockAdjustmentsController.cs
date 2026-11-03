@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
 using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.StockAdjustment;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Application.Inventory.Commands;
+using RetailPOS.Application.Inventory.Queries;
+using RetailPOS.Application.Inventory.StockAdjustments;
 using System.Security.Claims;
 
 namespace RetailPOS.API.Controllers;
@@ -13,15 +17,15 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "stock_adjustments.view")]
 public class StockAdjustmentsController : ControllerBase
 {
-    private readonly IStockAdjustmentService _adjustmentService;
     private readonly IUserOutletAccessService _outletAccess;
+    private readonly ISender _sender;
 
     public StockAdjustmentsController(
-        IStockAdjustmentService adjustmentService,
-        IUserOutletAccessService outletAccess)
+        IUserOutletAccessService outletAccess,
+        ISender sender)
     {
-        _adjustmentService = adjustmentService;
         _outletAccess = outletAccess;
+        _sender = sender;
     }
 
     /// <summary>
@@ -32,20 +36,62 @@ public class StockAdjustmentsController : ControllerBase
         [FromQuery] long? locationId = null,
         [FromQuery] string? locationType = null,
         [FromQuery] long? variantId = null,
-        [FromQuery] string? status = null)
+        [FromQuery] string? status = null,
+        CancellationToken cancellationToken = default)
     {
-        var adjustments = await _adjustmentService.GetAllAsync(locationId, locationType, variantId, status);
-        return Ok(ApiResponse<List<StockAdjustmentDto>>.SuccessResponse(adjustments));
+        if (locationId.HasValue || !string.IsNullOrWhiteSpace(locationType))
+        {
+            (locationId, locationType) = await AuthorizeLocationFilterAsync(
+                locationId,
+                locationType,
+                cancellationToken);
+        }
+
+        var adjustments = await _sender.Send(
+            new GetStockAdjustmentsQuery(new StockAdjustmentListFilter(
+                locationId,
+                locationType,
+                variantId,
+                status)),
+            cancellationToken);
+        return Ok(ApiResponse<List<StockAdjustmentDto>>.SuccessResponse(
+            adjustments.Select(StockAdjustmentDtoMapper.Map).ToList()));
     }
 
     /// <summary>
     /// Search stock adjustments with pagination
     /// </summary>
     [HttpPost("search")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentListDto>>> Search([FromBody] StockAdjustmentSearchDto searchDto)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentListDto>>> Search(
+        [FromBody] StockAdjustmentSearchDto searchDto,
+        CancellationToken cancellationToken)
     {
-        var result = await _adjustmentService.SearchAsync(searchDto);
-        return Ok(ApiResponse<StockAdjustmentListDto>.SuccessResponse(result));
+        if (searchDto.LocationId.HasValue || !string.IsNullOrWhiteSpace(searchDto.LocationType))
+        {
+            (searchDto.LocationId, searchDto.LocationType) = await AuthorizeLocationFilterAsync(
+                searchDto.LocationId,
+                searchDto.LocationType,
+                cancellationToken);
+        }
+
+        var result = await _sender.Send(
+            new SearchStockAdjustmentsQuery(new StockAdjustmentSearchFilter(
+                searchDto.LocationId,
+                searchDto.LocationType,
+                searchDto.VariantId,
+                searchDto.Status,
+                searchDto.StartDate,
+                searchDto.EndDate,
+                searchDto.PageNumber,
+                searchDto.PageSize)),
+            cancellationToken);
+        return Ok(ApiResponse<StockAdjustmentListDto>.SuccessResponse(new StockAdjustmentListDto
+        {
+            StockAdjustments = result.StockAdjustments.Select(StockAdjustmentDtoMapper.Map).ToList(),
+            TotalCount = result.TotalCount,
+            PageNumber = result.PageNumber,
+            PageSize = result.PageSize
+        }));
     }
 
     /// <summary>
@@ -54,28 +100,71 @@ public class StockAdjustmentsController : ControllerBase
     [HttpGet("history")]
     public async Task<ActionResult<ApiResponse<List<StockAdjustmentDto>>>> GetHistory(
         [FromQuery] long variantId,
-        [FromQuery] long locationId)
+        [FromQuery] long locationId,
+        CancellationToken cancellationToken)
     {
-        var history = await _adjustmentService.GetHistoryAsync(variantId, locationId);
-        return Ok(ApiResponse<List<StockAdjustmentDto>>.SuccessResponse(history));
+        var location = await AuthorizeLocationFilterAsync(
+            locationId,
+            null,
+            cancellationToken);
+        var history = await _sender.Send(
+            new GetStockAdjustmentHistoryQuery(
+                variantId,
+                location.LocationId ?? locationId),
+            cancellationToken);
+        return Ok(ApiResponse<List<StockAdjustmentDto>>.SuccessResponse(
+            history.Select(StockAdjustmentDtoMapper.Map).ToList()));
     }
 
     /// <summary>
     /// Get stock adjustment by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> GetById(long id)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> GetById(
+        long id,
+        CancellationToken cancellationToken)
     {
-        var adjustment = await _adjustmentService.GetByIdAsync(id);
-        return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment));
+        var adjustment = await _sender.Send(new GetStockAdjustmentQuery(id), cancellationToken);
+        return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(StockAdjustmentDtoMapper.Map(adjustment)));
     }
+
+    private async Task<(long? LocationId, string? LocationType)> AuthorizeLocationFilterAsync(
+        long? locationId,
+        string? locationType,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (locationId.HasValue && string.IsNullOrWhiteSpace(locationType))
+        {
+            var authorized = await _outletAccess.GetAuthorizedOutletsAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            var outletMatch = authorized.Outlets.Any(location => location.Id == locationId.Value);
+            var warehouseMatch = authorized.Warehouses.Any(location => location.Id == locationId.Value);
+            if (!outletMatch && !warehouseMatch)
+            {
+                throw new UnauthorizedAccessException(
+                    $"You are not authorized to view data for location #{locationId.Value}.");
+            }
+
+            return (locationId, outletMatch ? "outlet" : "warehouse");
+        }
+
+        var resolved = await _outletAccess.ResolveAndAuthorizeLocationAsync(locationId, locationType);
+        cancellationToken.ThrowIfCancellationRequested();
+        return resolved;
+    }
+
+    private static string NormalizeCreationAction(string? action) =>
+        string.IsNullOrWhiteSpace(action) ? StockAdjustmentCreateActions.Draft : action.Trim();
 
     /// <summary>
     /// Create a draft stock adjustment
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "stock_adjustments.create")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Create([FromBody] CreateStockAdjustmentDto dto)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Create(
+        [FromBody] CreateStockAdjustmentDto dto,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var adjustedBy))
         {
@@ -95,7 +184,30 @@ public class StockAdjustmentsController : ControllerBase
             dto.LocationId = locationId;
             dto.LocationType = locationType;
 
-            var adjustment = await _adjustmentService.CreateAsync(dto, adjustedBy);
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new CreateStockAdjustmentCommand(
+                        string.Equals(
+                            NormalizeCreationAction(dto.Action),
+                            StockAdjustmentCreateActions.Submit,
+                            StringComparison.OrdinalIgnoreCase),
+                        locationId,
+                        locationType,
+                        adjustedBy,
+                        null,
+                        null,
+                        [
+                            new StockAdjustmentCreateLine(
+                                dto.VariantId,
+                                dto.QuantityChange,
+                                dto.Reason,
+                                dto.Notes)
+                        ],
+                        string.Equals(
+                            NormalizeCreationAction(dto.Action),
+                            StockAdjustmentCreateActions.SubmitAndApprove,
+                            StringComparison.OrdinalIgnoreCase),
+                        dto.Action),
+                cancellationToken));
             return CreatedAtAction(
                 nameof(GetById),
                 new { id = adjustment.Id },
@@ -115,7 +227,9 @@ public class StockAdjustmentsController : ControllerBase
     /// </summary>
     [HttpPost("batch")]
     [Authorize(Policy = "stock_adjustments.create")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> CreateBatch([FromBody] CreateStockAdjustmentBatchDto dto)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> CreateBatch(
+        [FromBody] CreateStockAdjustmentBatchDto dto,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var adjustedBy))
         {
@@ -135,7 +249,30 @@ public class StockAdjustmentsController : ControllerBase
             dto.LocationId = locationId;
             dto.LocationType = locationType;
 
-            var adjustment = await _adjustmentService.CreateBatchAsync(dto, adjustedBy);
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new CreateStockAdjustmentCommand(
+                        string.Equals(
+                            NormalizeCreationAction(dto.Action),
+                            StockAdjustmentCreateActions.Submit,
+                            StringComparison.OrdinalIgnoreCase),
+                        locationId,
+                        locationType,
+                        adjustedBy,
+                        dto.Reason,
+                        dto.Notes,
+                        (dto.Items ?? [])
+                            .Select(item => new StockAdjustmentCreateLine(
+                                item.VariantId,
+                                item.QuantityChange,
+                                item.Reason,
+                                item.Notes))
+                            .ToArray(),
+                        string.Equals(
+                            NormalizeCreationAction(dto.Action),
+                            StockAdjustmentCreateActions.SubmitAndApprove,
+                            StringComparison.OrdinalIgnoreCase),
+                        dto.Action),
+                cancellationToken));
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
                 adjustment,
                 $"Stock adjustment {adjustment.AdjustmentNumber} created with status {adjustment.Status}"));
@@ -149,7 +286,10 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = "stock_adjustments.edit")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Update(long id, [FromBody] UpdateStockAdjustmentDto dto)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Update(
+        long id,
+        [FromBody] UpdateStockAdjustmentDto dto,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var updatedBy))
         {
@@ -162,10 +302,21 @@ public class StockAdjustmentsController : ControllerBase
             dto.LocationId = locationId;
             dto.LocationType = locationType;
 
-            var existing = await _adjustmentService.GetByIdAsync(id);
-
-            var adjustment = await _adjustmentService.UpdateAsync(id, dto, updatedBy);
-            return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment, "Stock adjustment draft updated successfully"));
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new UpdateStockAdjustmentDraftCommand(
+                    id,
+                    updatedBy,
+                    dto.LocationId,
+                    dto.LocationType,
+                    dto.Items.Select(item => new UpdateStockAdjustmentDraftLine(
+                        item.VariantId,
+                        item.QuantityChange,
+                        item.Reason,
+                        item.Notes)).ToArray()),
+                cancellationToken));
+            return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
+                adjustment,
+                "Stock adjustment draft updated successfully"));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -176,7 +327,9 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "stock_adjustments.delete")]
-    public async Task<ActionResult<ApiResponse<object>>> Delete(long id)
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        long id,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var deletedBy))
         {
@@ -185,8 +338,9 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
-            var existing = await _adjustmentService.GetByIdAsync(id);
-            await _adjustmentService.DeleteAsync(id, deletedBy);
+            await _sender.Send(
+                new DeleteStockAdjustmentDraftCommand(id, deletedBy),
+                cancellationToken);
             return Ok(ApiResponse<object>.SuccessResponse(new { id }, "Stock adjustment draft deleted successfully"));
         }
         catch (UnauthorizedAccessException ex)
@@ -198,7 +352,9 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpPost("{id}/submit")]
     [Authorize(Policy = "stock_adjustments.create")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Submit(long id)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Submit(
+        long id,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var submittedBy))
         {
@@ -207,8 +363,9 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
-            var existing = await _adjustmentService.GetByIdAsync(id);
-            var adjustment = await _adjustmentService.SubmitAsync(id, submittedBy);
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new SubmitStockAdjustmentCommand(id, submittedBy),
+                cancellationToken));
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment, "Stock adjustment submitted for approval"));
         }
         catch (UnauthorizedAccessException ex)
@@ -220,7 +377,7 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpPost("{id}/approve")]
     [Authorize(Policy = "stock_adjustments.approve")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Approve(long id)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Approve(long id, CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var approvedBy))
         {
@@ -229,8 +386,9 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
-            var existing = await _adjustmentService.GetByIdAsync(id);
-            var adjustment = await _adjustmentService.ApproveAsync(id, approvedBy);
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new ApproveStockAdjustmentCommand(id, approvedBy),
+                cancellationToken));
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment, "Stock adjustment approved and inventory updated"));
         }
         catch (UnauthorizedAccessException ex)
@@ -242,7 +400,10 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpPost("{id}/reject")]
     [Authorize(Policy = "stock_adjustments.reject")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Reject(long id, [FromBody] RejectStockAdjustmentDto dto)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Reject(
+        long id,
+        [FromBody] RejectStockAdjustmentDto dto,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var rejectedBy))
         {
@@ -251,9 +412,38 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
-            var existing = await _adjustmentService.GetByIdAsync(id);
-            var adjustment = await _adjustmentService.RejectAsync(id, rejectedBy, dto.Reason);
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new RejectStockAdjustmentCommand(id, rejectedBy, dto.Reason),
+                cancellationToken));
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment, "Stock adjustment rejected"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<StockAdjustmentDto>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("{id}/reverse")]
+    [Authorize(Policy = "stock_adjustments.reject")]
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Reverse(
+        long id,
+        [FromBody] RejectStockAdjustmentDto dto,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var reversedBy))
+        {
+            return Unauthorized(ApiResponse<StockAdjustmentDto>.ErrorResponse("User identity not found"));
+        }
+
+        try
+        {
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new ReverseStockAdjustmentCommand(id, reversedBy, dto.Reason),
+                cancellationToken));
+            return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
+                adjustment,
+                "Stock adjustment reversed"));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -264,7 +454,9 @@ public class StockAdjustmentsController : ControllerBase
 
     [HttpPost("{id}/cancel")]
     [Authorize(Policy = "stock_adjustments.edit")]
-    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Cancel(long id)
+    public async Task<ActionResult<ApiResponse<StockAdjustmentDto>>> Cancel(
+        long id,
+        CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var cancelledBy))
         {
@@ -273,9 +465,12 @@ public class StockAdjustmentsController : ControllerBase
 
         try
         {
-            var existing = await _adjustmentService.GetByIdAsync(id);
-            var adjustment = await _adjustmentService.CancelAsync(id, cancelledBy);
-            return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(adjustment, "Stock adjustment cancelled"));
+            var adjustment = StockAdjustmentDtoMapper.Map(await _sender.Send(
+                new CancelStockAdjustmentCommand(id, cancelledBy),
+                cancellationToken));
+            return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
+                adjustment,
+                "Stock adjustment cancelled"));
         }
         catch (UnauthorizedAccessException ex)
         {

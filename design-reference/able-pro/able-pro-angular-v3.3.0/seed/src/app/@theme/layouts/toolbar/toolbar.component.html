@@ -1,0 +1,11 @@
+<mat-toolbar
+  class="pc-header"
+  [ngClass]="{
+    'header-blur': HeaderBlur
+  }"
+>
+  <div class="header-wrapper">
+    <app-nav-left></app-nav-left>
+    <app-nav-right (HeaderBlur)="this.HeaderBlur = !this.HeaderBlur"></app-nav-right>
+  </div>
+</mat-toolbar>

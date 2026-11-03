@@ -1,0 +1,344 @@
+<div class="row justify-content-center p-t-25">
+  <div class="col-md-9">
+    <app-card cardTitle="Basic">
+      <mat-stepper #stepper>
+        <mat-step [stepControl]="firstFormGroup">
+          <form [formGroup]="firstFormGroup">
+            <ng-template matStepLabel>Shipping Address</ng-template>
+            <div class="f-w-600">Shipping Address</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>First Name</mat-label>
+                  <input type="text" matInput placeholder="Enter Your First Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Last Name</mat-label>
+                  <input type="text" matInput placeholder="Enter Your Last Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 1</mat-label>
+                  <input type="text" matInput placeholder="Address Line 1" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 2</mat-label>
+                  <input type="text" matInput placeholder="Address Line 2" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter City</mat-label>
+                  <input type="text" matInput placeholder="Enter Your City Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter state</mat-label>
+                  <input type="text" matInput placeholder="Enter Your State/Province/Region" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Zip Code</mat-label>
+                  <input type="number" matInput placeholder="Zip / Postal code" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter Country</mat-label>
+                  <input type="text" matInput placeholder="Enter Your Country" />
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox>Use this address for payment details</mat-checkbox></p>
+              <button class="float-end" mat-flat-button color="primary" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step [stepControl]="secondFormGroup">
+          <form [formGroup]="secondFormGroup">
+            <ng-template matStepLabel>Payment Details</ng-template>
+            <div class="f-w-600">Payment Details</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Name On card</mat-label>
+                  <input type="text" matInput placeholder="Enter Name on card" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Card Number</mat-label>
+                  <input type="number" matInput placeholder="Enter Card number" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Expiry Date</mat-label>
+                  <input type="text" matInput placeholder="Enter Expiry Date" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>CVV Number</mat-label>
+                  <input type="text" matInput placeholder="Enter CVV" />
+                  <mat-hint>Last Three Digits</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox class="m-t-10">Remember credit card details for next time</mat-checkbox></p>
+              <button mat-button color="primary" matStepperPrevious>Back</button>
+              <button mat-flat-button color="primary" class="float-end" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step>
+          <ng-template matStepLabel>Review your order</ng-template>
+          <div class="f-w-600">Thank you for your order.</div>
+          <div class="f-w-500 m-b-10">
+            Your order number is #2001539. We have emailed your order confirmation, and will send you an update when your order has shipped.
+          </div>
+          <div>
+            <button mat-button color="primary" matStepperPrevious>Back</button>
+            <button mat-flat-button color="primary" class="float-end" (click)="stepper.reset()">Place Order</button>
+          </div>
+        </mat-step>
+      </mat-stepper>
+    </app-card>
+    <app-card cardTitle="Horizontal Validation">
+      <mat-stepper linear #stepperValidation>
+        <mat-step [stepControl]="firstFormGroup" errorMessage="Error">
+          <form [formGroup]="firstFormGroup">
+            <ng-template matStepLabel>Shipping Address</ng-template>
+            <div class="f-w-600">Shipping Address</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>First Name</mat-label>
+                  <input type="text" formControlName="firstCtrl" matInput placeholder="Enter Your First Name" required />
+                  <mat-hint>First Name is Required</mat-hint>
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Last Name</mat-label>
+                  <input type="text" formControlName="firstCtrl" matInput placeholder="Enter Your LAst Name" required />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 1</mat-label>
+                  <input type="text" matInput placeholder="Address Line 1" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 2</mat-label>
+                  <input type="text" matInput placeholder="Address Line 2" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter City</mat-label>
+                  <input type="text" matInput placeholder="Enter Your City Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter state</mat-label>
+                  <input type="text" matInput placeholder="Enter Your State/Province/Region" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Zip Code</mat-label>
+                  <input type="number" matInput placeholder="Zip / Postal code" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter Country</mat-label>
+                  <input type="text" matInput placeholder="Enter Your Country" />
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox>Use this address for payment details</mat-checkbox></p>
+              <button class="float-end" mat-flat-button color="primary" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step [stepControl]="secondFormGroup" errorMessage="Error">
+          <form [formGroup]="secondFormGroup">
+            <ng-template matStepLabel>Payment Details</ng-template>
+            <div class="f-w-600">Payment Details</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Name On card</mat-label>
+                  <input type="text" matInput placeholder="Enter Name on card" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Card Number</mat-label>
+                  <input type="number" formControlName="secondCtrl" matInput placeholder="Enter Card number" required />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Expiry Date</mat-label>
+                  <input type="number" formControlName="secondCtrl" matInput placeholder="Enter Expiry Date" required />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>CVV Number</mat-label>
+                  <input type="number" formControlName="secondCtrl" matInput placeholder="Enter CVV" required />
+                  <mat-hint>Last Three Digits</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox>Remember credit card details for next time</mat-checkbox></p>
+              <button mat-button color="primary" matStepperPrevious>Back</button>
+              <button mat-flat-button color="primary" class="float-end" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step>
+          <ng-template matStepLabel>Review Your Order</ng-template>
+          <div class="f-w-600">Thank you for your order.</div>
+          <div class="f-w-500 m-b-10">
+            Your order number is #2001539. We have emailed your order confirmation, and will send you an update when your order has shipped.
+          </div>
+          <div>
+            <button mat-button color="primary" matStepperPrevious>Back</button>
+            <button mat-flat-button color="primary" class="float-end" (click)="stepperValidation.reset()">Place Order</button>
+          </div>
+        </mat-step>
+      </mat-stepper>
+    </app-card>
+    <app-card cardTitle="Vertical Validation">
+      <mat-stepper orientation="vertical" #stepperVertical>
+        <mat-step [stepControl]="firstFormGroup">
+          <form [formGroup]="firstFormGroup">
+            <ng-template matStepLabel>Shipping Address</ng-template>
+            <div class="f-w-600">Shipping Address</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>First Name</mat-label>
+                  <input type="text" matInput placeholder="Enter Your First Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Last Name</mat-label>
+                  <input type="text" matInput placeholder="Enter Your Last Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 1</mat-label>
+                  <input type="text" matInput placeholder="Address Line 1" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-12">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Address 2</mat-label>
+                  <input type="text" matInput placeholder="Address Line 2" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter City</mat-label>
+                  <input type="text" matInput placeholder="Enter Your City Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter state</mat-label>
+                  <input type="text" matInput placeholder="Enter Your State/Province/Region" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Zip Code</mat-label>
+                  <input type="number" matInput placeholder="Zip / Postal code" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Enter Country</mat-label>
+                  <input type="text" matInput placeholder="Enter Your Country" />
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox>Use this address for payment details</mat-checkbox></p>
+              <button class="float-end m-b-10" mat-flat-button color="primary" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step [stepControl]="secondFormGroup">
+          <form [formGroup]="secondFormGroup">
+            <ng-template matStepLabel>Payment details</ng-template>
+            <div class="f-w-600">Payment details</div>
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Name On card</mat-label>
+                  <input type="text" matInput placeholder="Enter Name on card" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Card Number</mat-label>
+                  <input type="number" matInput placeholder="Enter Card number" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Expiry Date</mat-label>
+                  <input type="text" matInput placeholder="Enter Expiry Date" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>CVV Number</mat-label>
+                  <input type="text" matInput placeholder="Enter CVV" />
+                  <mat-hint>Last Three Digits</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+            <div>
+              <p><mat-checkbox>Remember credit card details for next time</mat-checkbox></p>
+              <button mat-button color="primary" matStepperPrevious>Back</button>
+              <button mat-flat-button color="primary" class="float-end m-b-10" matStepperNext>Next</button>
+            </div>
+          </form>
+        </mat-step>
+        <mat-step>
+          <ng-template matStepLabel>Review your order</ng-template>
+          <div class="f-w-600">Thank you for your order.</div>
+          <div class="f-w-500 m-b-10">
+            Your order number is #2001539. We have emailed your order confirmation, and will send you an update when your order has shipped.
+          </div>
+          <div>
+            <button mat-button color="primary" matStepperPrevious>Back</button>
+            <button mat-flat-button color="primary" class="float-end" (click)="stepperVertical.reset()">Place Order</button>
+          </div>
+        </mat-step>
+      </mat-stepper>
+    </app-card>
+  </div>
+</div>

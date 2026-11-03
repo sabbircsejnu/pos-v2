@@ -128,11 +128,11 @@
       </div>
       <div>
         <label class="label">Date From</label>
-        <input type="date" class="input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" />
       </div>
       <div>
         <label class="label">Date To</label>
-        <input type="date" class="input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" />
       </div>
       <div class="col-span-2 flex items-end gap-2 flex-wrap">
         <button (click)="setToday()"      class="btn btn-outline text-xs">Today</button>

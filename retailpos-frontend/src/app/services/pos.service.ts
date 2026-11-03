@@ -10,37 +10,169 @@ import { environment } from '../../environments/environment';
 import {
   HeldSaleDto,
   HoldSaleDto,
+  PosBusinessSettingsDto,
   PosProductLookupDto,
   PosStockHintDto,
+  TaxClassification,
 } from '../models/sale.model';
 
 /** Batch item sent to POST /api/pos/cart-prices */
 export interface CartPriceRequestItem {
-  variantId: number;
+  productVariantId: number;
   quantity: number;
   outletId: number;
 }
 
-/** Per-item result from POST /api/pos/cart-prices */
+/** Per-item result from POST /api/pos/cart-prices (per-unit amounts). */
 export interface CartPriceResultItem {
-  variantId: number;
-  effectivePrice: number;
+  productVariantId: number;
+  basePrice?: number;
+  /** Manual-discount-free rule discount per unit; already reflected in `finalPrice`. */
   discountAmount: number;
+  /** Unit price after automatic price rules: the price the sale line is submitted with. */
+  finalPrice: number;
+  /** Effective tax rate in percent. */
+  taxRate: number;
+  taxClassification?: TaxClassification;
+  /** Tax per unit (informational); the sale tax comes from the checkout algorithm. */
+  taxAmount: number;
+  finalPriceWithTax: number;
+  pricesIncludeTax?: boolean;
   appliedRuleId?: number;
   appliedRuleName?: string;
+}
+
+export interface PosApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data: T;
 }
 
 export interface PosTerminalDto {
   id: number;
   name: string;
   code: string;
-  isDefault: boolean;
+  /** Meaningless since terminals must be chosen explicitly; never used for selection. */
+  isDefault?: boolean;
+}
+
+export interface EligibleSalespersonDto {
+  userId: number;
+  name: string;
+  /** True when this outlet is the user's primary outlet (listed first). */
+  primaryOutlet: boolean;
+}
+
+export interface SalespersonOptionsDto {
+  salespersons: EligibleSalespersonDto[];
+  defaultSalespersonUserId?: number | null;
+  /** session_opener | current_user | none */
+  defaultSource: string;
+}
+
+export interface PosDiscountAuditRequest {
+  action: string;
+  fromType?: string;
+  toType?: string;
+  outletId?: number | null;
+  terminalId?: number | null;
+  payload?: Record<string, unknown>;
+}
+
+export interface CashSessionDto {
+  id: number;
+  businessId?: number;
+  outletId: number;
+  terminalId: number;
+  businessDate: string;
+  openedAt: string;
+  closedAt?: string;
+  openingCashAmount: number;
+  expectedClosingCashAmount?: number;
+  actualClosingCashAmount?: number;
+  differenceAmount?: number;
+  status: string;
+  openedByUserId: number;
+  closedByUserId?: number;
+  openingNotes?: string;
+  closingNotes?: string;
+  isOverdue: boolean;
+  maxDurationHours: number;
+  elapsedSeconds: number;
+  timeZoneId?: string;
+  cutoffAtUtc?: string;
+  /** none | warning | urgent | overdue — derived by the server from the snapshotted duration. */
+  warningLevel?: 'none' | 'warning' | 'urgent' | 'overdue';
+  /** open | overdue | closed. Overdue is derived and never persisted. */
+  state?: 'open' | 'overdue' | 'closed';
+  /** Server clock at response time; elapsed time must never be computed from the browser clock. */
+  serverNowUtc?: string;
+  varianceReason?: string;
+}
+
+export interface OpenCashSessionDto {
+  outletId: number;
+  /** Required only when the outlet has several active terminals. */
+  terminalId?: number;
+  openingCashAmount: number;
+  openingNotes?: string;
+  idempotencyKey?: string;
+}
+
+export interface CashDenominationInput {
+  value: number;
+  count: number;
+}
+
+export interface CashHandoverInput {
+  method: 'cash_to_manager' | 'cash_to_owner' | 'bank_deposit';
+  amount: number;
+  recipientUserId?: number;
+  recipientName?: string;
+  bankName?: string;
+  bankAccountReference?: string;
+  depositReference?: string;
+  depositDate?: string;
+  notes?: string;
+}
+
+export interface CloseCashSessionDto {
+  actualClosingCashAmount: number;
+  closingNotes?: string;
+  varianceReason?: string;
+  denominations?: CashDenominationInput[];
+  handovers?: CashHandoverInput[];
+}
+
+export interface CashSessionCloseSummaryDto {
+  sessionId: number;
+  outletId: number;
+  terminalId: number;
+  businessDate: string;
+  openedAt: string;
+  closingAt: string;
+  openDurationSeconds: number;
+  openingCash: number;
+  /** Net cash retained in the drawer (D14) — never the tendered amount. */
+  cashSales: number;
+  cashTendered: number;
+  changeGiven: number;
+  cardSales: number;
+  mobileSales: number;
+  otherNonCashSales: number;
+  drawerExpenses: number;
+  cashRefunds: number;
+  corrections: number;
+  expectedClosingCash: number;
+  saleCount: number;
+  isOverdue: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class PosService {
   private posUrl       = `${environment.apiUrl}/pos`;
   private heldSalesUrl = `${environment.apiUrl}/held-sales`;
+  private posAuditUrl  = `${environment.apiUrl}/pos-audit`;
 
   /** Held sales list state — populated by loadHeldSales() */
   heldSales  = signal<HeldSaleDto[]>([]);
@@ -78,15 +210,46 @@ export class PosService {
 
   /**
    * Batch price calculation for all current cart lines.
-   * Returns effective prices + discount amounts + rule names in one round-trip.
+   * Returns the per-unit final price, effective tax rate/classification and rule names in one round-trip.
    */
-  cartPrices(items: CartPriceRequestItem[]): Observable<any> {
-    return this.http.post<any>(`${this.posUrl}/cart-prices`, { items });
+  cartPrices(items: CartPriceRequestItem[]): Observable<PosApiResponse<CartPriceResultItem[]>> {
+    return this.http.post<PosApiResponse<CartPriceResultItem[]>>(`${this.posUrl}/cart-prices`, { items });
+  }
+
+  /** Business POS settings (tax, discount limit, ...) plus the caller's discount permissions. */
+  getPosSettings(): Observable<PosApiResponse<PosBusinessSettingsDto>> {
+    return this.http.get<PosApiResponse<PosBusinessSettingsDto>>(`${environment.apiUrl}/settings/pos`);
+  }
+
+  /** Eligible salespersons for the outlet and the default for the terminal's open session (Phase 4). */
+  getSalespersons(outletId: number, terminalId?: number | null): Observable<{ data: SalespersonOptionsDto }> {
+    let params = new HttpParams().set('outletId', outletId.toString());
+    if (terminalId) params = params.set('terminalId', terminalId.toString());
+    return this.http.get<{ data: SalespersonOptionsDto }>(`${this.posUrl}/salespersons`, { params });
   }
 
   getTerminals(outletId: number): Observable<any> {
     const params = new HttpParams().set('outletId', outletId.toString());
     return this.http.get<any>(`${this.posUrl}/terminals`, { params });
+  }
+
+  getActiveCashSession(outletId: number, terminalId: number): Observable<any> {
+    const params = new HttpParams()
+      .set('outletId', outletId.toString())
+      .set('terminalId', terminalId.toString());
+    return this.http.get<any>(`${this.posUrl}/cash-sessions/active`, { params });
+  }
+
+  openCashSession(dto: OpenCashSessionDto): Observable<any> {
+    return this.http.post<any>(`${this.posUrl}/cash-sessions/open`, dto);
+  }
+
+  getCashSessionCloseSummary(sessionId: number): Observable<any> {
+    return this.http.get<any>(`${this.posUrl}/cash-sessions/${sessionId}/summary`);
+  }
+
+  closeCashSession(sessionId: number, dto: CloseCashSessionDto): Observable<any> {
+    return this.http.post<any>(`${this.posUrl}/cash-sessions/${sessionId}/close`, dto);
   }
 
   // ── Hold / Park ───────────────────────────────────────────────────────────
@@ -101,7 +264,9 @@ export class PosService {
     this.isLoadingHeld.set(true);
     this.http.get<any>(`${this.heldSalesUrl}/outlet/${outletId}`).subscribe({
       next: (res) => {
-        this.heldSales.set(res?.data ?? res ?? []);
+        // GET /held-sales/outlet/{id} returns { heldSales, totalCount }; keep accepting a bare array as well.
+        const data = res?.data ?? res;
+        this.heldSales.set(Array.isArray(data) ? data : Array.isArray(data?.heldSales) ? data.heldSales : []);
         this.isLoadingHeld.set(false);
       },
       error: () => this.isLoadingHeld.set(false)
@@ -116,5 +281,10 @@ export class PosService {
   /** Discard a held sale (after recall or manual delete). */
   discardHeldSale(id: number): Observable<any> {
     return this.http.delete<any>(`${this.heldSalesUrl}/${id}`);
+  }
+
+  /** Persist POS discount mode/amount changes for audit trail visibility. */
+  reportDiscountAudit(dto: PosDiscountAuditRequest): Observable<any> {
+    return this.http.post<any>(`${this.posAuditUrl}/discount-change`, dto);
   }
 }

@@ -1,0 +1,17 @@
+<div class="navbar-content sidenav-horizontal" id="layout-sidenav">
+  <a class="sidenav-horizontal-prev" [ngClass]="prevDisabled" (click)="scrollMinus()"></a>
+  <div #navbarWrapper class="sidenav-horizontal-wrapper">
+    <ul #navbarContent id="side-nav-horizontal" class="nav coded-inner-navbar sidenav-inner" (mouseleave)="fireLeave()">
+      @for (item of menus(); track item.id) {
+        @if (item.type === 'group') {
+          <app-menu-group-horizontal [item]="item"></app-menu-group-horizontal>
+        } @else if (item.type === 'item') {
+          <app-menu-item [item]="item"></app-menu-item>
+        } @else if (item.type === 'collapse') {
+          <app-menu-collapse [item]="item"></app-menu-collapse>
+        }
+      }
+    </ul>
+  </div>
+  <a class="sidenav-horizontal-next" [ngClass]="nextDisabled" (click)="scrollPlus()"></a>
+</div>

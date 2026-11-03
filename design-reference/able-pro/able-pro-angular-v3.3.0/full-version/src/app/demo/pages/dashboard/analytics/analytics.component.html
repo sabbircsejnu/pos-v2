@@ -1,0 +1,185 @@
+<div class="row p-t-25">
+  <div class="col-md-6 col-xxl-3">
+    <app-new-order-chart />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-new-user-chart />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-visitors-chart />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-card [showHeader]="false" cardClass="storage-card text-white">
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-w-600">Dropbox Storage</div>
+        <div class="f-16 f-w-600">150GB</div>
+      </div>
+      <div class="m-b-15 dropbox-card">
+        <div class="avatar avatar-s">
+          <i class="ti ti-cloud f-18"></i>
+        </div>
+      </div>
+      <div class="mat-caption f-w-500">134,2GB of 150GB Users</div>
+      <div class="m-t-10">
+        <mat-progress-bar mode="determinate" [value]="75" color="warn"></mat-progress-bar>
+      </div>
+    </app-card>
+    <app-card [showHeader]="false" cardClass="balance-card text-white" padding="16">
+      <div class="flex align-item-center justify-content-between">
+        <div>
+          <p class="m-b-0 text-white text-opacity-75">Available Balance</p>
+          <h4 class="m-b-0 f-20 f-w-600 text-white">$1,234.90</h4>
+        </div>
+        <div class="avatar">
+          <i class="ti ti-arrows-left-right f-18"></i>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-12 project-chart">
+    <mat-card class="tab-card">
+      <mat-card-header class="card-header pb-0">
+        <mat-nav-list class="flex align-item-center">
+          @for (tab of tabs; track $index) {
+            <mat-list-item [class.active]="tab.id === activeTab" [activated]="tab.id === activeTab" (click)="setActiveTab(tab.id)">
+              {{ tab.title }}
+            </mat-list-item>
+          }
+        </mat-nav-list>
+      </mat-card-header>
+      <mat-card-content class="p-0">
+        <div class="project-body p-20">
+          <div class="row">
+            <div class="col-lg-7 col-xl-8">
+              <ul class="list-inline m-b-15">
+                <li class="list-inline-item">
+                  <select class="select-item">
+                    <option>Today</option>
+                    <option>Weekly</option>
+                    <option selected>Monthly</option>
+                  </select>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s border">
+                    <i class="ti ti-external-link f-20"></i>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s border">
+                    <i class="ti ti-arrows-diagonal f-20"></i>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s border">
+                    <mat-menu #paymentInfo="matMenu">
+                      <a href="javascript:" mat-menu-item>Name</a>
+                      <a href="javascript:" mat-menu-item>Date</a>
+                      <a href="javascript:" mat-menu-item>Rating</a>
+                      <a href="javascript:" mat-menu-item>Unread</a>
+                    </mat-menu>
+                    <i class="ti ti-dots f-20"></i>
+                  </a>
+                </li>
+              </ul>
+              <app-monthly-overview-chart [currentSeries]="currentSeries" />
+            </div>
+            <div class="col-lg-5 col-xl-4">
+              <ul class="list-group project-report">
+                @for (list of project_report; track list) {
+                  <li class="list-group-item">
+                    <div class="flex align-item-center">
+                      <div class="flex-shrink-0">
+                        <div class="avatar avatar-s bg-accent-200">
+                          <i class="{{ list.icon }} f-20"></i>
+                        </div>
+                      </div>
+                      <div class="flex-grow-1 m-l-15">
+                        <div class="row">
+                          <div class="col-6 m-t-5">
+                            <div class="text-muted f-w-500">{{ list.title }}</div>
+                            <div class="f-w-600">{{ list.amount }}</div>
+                          </div>
+                          <div class="col-6 m-t-5 text-end">
+                            <div class="f-w-600">{{ list.number }}</div>
+                            <div class="{{ list.color }}  mat-caption f-w-500">
+                              <i class="{{ list.icon_2 }}"></i>
+                              {{ list.percentage }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  <div class="col-xxl-3 col-md-12">
+    <div class="row">
+      <div class="col-md-6 col-xxl-12">
+        <app-income-chart />
+      </div>
+      <div class="col-md-6 col-xxl-12">
+        <app-languages-support-chart />
+      </div>
+    </div>
+  </div>
+  <div class="col-xxl-6 col-md-12">
+    <app-overview-product-chart />
+  </div>
+  <div class="col-xxl-3 col-md-12">
+    <div class="row">
+      <div class="col-md-6 col-xxl-12">
+        <app-card cardTitle="Payment History" headerClass="transaction-card-header" padding="0" actionClass="card-action block">
+          <ng-template #headerOptionsTemplate>
+            <div class="avatar avatar-s hover">
+              <i class="ti ti-plus f-18"></i>
+            </div>
+          </ng-template>
+          <ul class="list-group list-group-flush">
+            @for (task of payment; track task) {
+              <li class="list-group-item">
+                <div class="flex align-item-center">
+                  <div class="flex-shrink-0 m-r-10">
+                    <div class="avatar avatar-s bg-accent-300">
+                      <img src="{{ task.img }}" alt="img" class="img-fluid" />
+                    </div>
+                  </div>
+                  <div class="flex-grow-1">
+                    <p class="m-b-5 f-w-500">{{ task.payment_name }}</p>
+                    <div class="m-b-0 f-w-600">
+                      {{ task.amount }}
+                      <span class="mat-caption f-w-500" class="{{ task.color }}">{{ task.percentage }}</span>
+                    </div>
+                  </div>
+                  <div class="flex-shrink-0 m-l-10">
+                    <a [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+                    <mat-menu #paymentInfo="matMenu">
+                      <a href="javascript:" mat-menu-item>Name</a>
+                      <a href="javascript:" mat-menu-item>Date</a>
+                      <a href="javascript:" mat-menu-item>Rating</a>
+                      <a href="javascript:" mat-menu-item>Unread</a>
+                    </mat-menu>
+                  </div>
+                </div>
+              </li>
+            }
+          </ul>
+          <ng-template #actionTemplate>
+            <div class="grid">
+              <button mat-stroked-button class="b-rad-20">View All</button>
+            </div>
+          </ng-template>
+        </app-card>
+      </div>
+      <div class="col-md-6 col-xxl-12">
+        <app-total-earning-chart [color]="['#4680FF']" valueColor="#4680FF" background="#4680FF50" />
+        <app-total-earning-chart [color]="['#DC2626']" valueColor="#DC2626" background="#DC262650" />
+      </div>
+    </div>
+  </div>
+</div>

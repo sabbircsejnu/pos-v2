@@ -1,0 +1,225 @@
+<app-card cardClass="user-account-card" [showHeader]="false" padding="16">
+  <div class="user-group">
+    <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+    <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+    <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+    <img src="assets/images/user/avatar-4.jpg" alt="user-image" class="avatar" />
+    <img src="assets/images/user/avatar-5.jpg" alt="user-image" class="avatar" />
+    <span class="avatar bg-primary-50 text-primary-500">+20</span>
+  </div>
+  <div class="user-followers f-20 f-w-600">
+    245.3k
+    <span class="text-muted f-16">Followers</span>
+  </div>
+  <div>People Stebin Ben Follows</div>
+</app-card>
+
+<app-card cardTitle="Bio">
+  <ng-template #headerOptionsTemplate>
+    <button mat-button [matMenuTriggerFor]="menu">
+      <i class="ti ti-dots-vertical f-18"></i>
+    </button>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item>Edit</button>
+      <button mat-menu-item>Delete</button>
+    </mat-menu>
+  </ng-template>
+  <p class="m-b-0">
+    It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout.
+  </p>
+  <mat-divider class="m-y-15"></mat-divider>
+  <ul class="list-unstyled m-b-0 p-l-0">
+    @for (task of bio; track task) {
+      <li>
+        <a href="javascript:" class="flex align-item-center text-muted text-hover-primary m-b-10">
+          <div class="avatar avatar-xs flex-shrink-0 m-r-10 bg-accent-300">
+            <i class="{{ task.icon }} f-18 text-muted"></i>
+          </div>
+          <span class="w-100">{{ task.text }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+  <mat-divider class="m-y-15"></mat-divider>
+  <div class="row g-3">
+    @for (task of follow; track task) {
+      <div class="col-6">
+        <div class="flex align-item-center">
+          <div class="avatar avatar-s flex-shrink-0 {{ task.bg_color }}">
+            <i class="material-icons-two-tone {{ task.color }}">{{ task.icon }}</i>
+          </div>
+          <div class="flex-grow-1 m-l-15">
+            <div class="f-16 f-w-600">{{ task.number }}</div>
+            <p class="m-b-0 text-muted mat-caption">{{ task.text }}</p>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</app-card>
+<app-card cardTitle="Gallery" padding="0">
+  <ng-template #headerOptionsTemplate>
+    <button mat-button [matMenuTriggerFor]="menu">
+      <i class="ti ti-dots-vertical f-18"></i>
+    </button>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item>Edit</button>
+      <button mat-menu-item>Delete</button>
+    </mat-menu>
+  </ng-template>
+  <div class="gallery-card">
+    <div class="row g-2">
+      @for (task of gallery; track task) {
+        <div class="col-md-6 col-xl-4">
+          <a href="javascript:" class="img-post social-card" (click)="openDialog(task.img)">
+            <img src="{{ task.img }}" alt="img" class="card-img" />
+            <div class="card-img-overlay">
+              <i class="ti ti-search"></i>
+            </div>
+          </a>
+        </div>
+      }
+    </div>
+  </div>
+</app-card>
+<app-card cardTitle="Contact" padding="0">
+  <ng-template #headerOptionsTemplate>
+    <button mat-button [matMenuTriggerFor]="menu">
+      <i class="ti ti-dots-vertical f-18"></i>
+    </button>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item>Edit</button>
+      <button mat-menu-item>Delete</button>
+    </mat-menu>
+  </ng-template>
+  <ul class="list-group list-group-flush">
+    @for (task of contact; track task) {
+      <li class="list-group-item">
+        <div class="flex align-item-center">
+          <img src="{{ task.img }}" alt="img" class="img-fluid wid-40 border-50" />
+          <div class="flex-grow-1 m-l-10">
+            <p class="m-b-0">{{ task.name }}</p>
+          </div>
+          <button mat-button [matMenuTriggerFor]="menu" class="m-l-10">
+            <i class="ti ti-dots f-18"></i>
+          </button>
+          <mat-menu #menu="matMenu" xPosition="before">
+            <button mat-menu-item>Edit</button>
+            <button mat-menu-item>Delete</button>
+          </mat-menu>
+        </div>
+      </li>
+    }
+  </ul>
+</app-card>
+<app-card cardTitle="Event">
+  <ng-template #headerOptionsTemplate>
+    <button mat-button color="primary">See All</button>
+  </ng-template>
+  <div class="drp-upgrade-card">
+    <div class="p-20">
+      <div class="carousel-slide">
+        <div class="carousel-indicator m-b-0">
+          <a (click)="owlCar.to('slide-1'); currentSlide = 'slide-1'" [class.active]="currentSlide === 'slide-1'">
+            <span class="wid-10 hei-10 m-r-5 block border-50 bg-white"></span>
+          </a>
+          <a (click)="owlCar.to('slide-2'); currentSlide = 'slide-2'" [class.active]="currentSlide === 'slide-2'">
+            <span class="wid-10 hei-10 m-r-5 block border-50 bg-white"></span>
+          </a>
+          <a (click)="owlCar.to('slide-3'); currentSlide = 'slide-3'" [class.active]="currentSlide === 'slide-3'">
+            <span class="wid-10 hei-10 block border-50 bg-white"></span>
+          </a>
+        </div>
+        <owl-carousel-o [options]="customOptions" #owlCar>
+          <ng-template carouselSlide id="slide-1">
+            <div class="slide-content text-white">New Year Celebration</div>
+            <p class="m-b-10 text-white">Today at 11pm</p>
+            <div class="user-group">
+              <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar wid-40" />
+              <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar wid-40" />
+              <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar wid-40" />
+              <span class="avatar avatar-xs bg-primary-50 text-primary-500 border-50">
+                <div class="mat-body">+20</div>
+              </span>
+            </div>
+          </ng-template>
+          <ng-template carouselSlide id="slide-2">
+            <div class="slide-content text-white">New Year Celebration</div>
+            <p class="m-b-10 text-white">Today at 11pm</p>
+            <div class="user-group">
+              <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar wid-40" />
+              <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar wid-40" />
+              <span class="avatar avatar-xs border-50 bg-primary-50 text-primary-500">
+                <div class="mat-body">+5</div>
+              </span>
+            </div>
+          </ng-template>
+          <ng-template carouselSlide id="slide-3">
+            <div class="slide-content text-white">New Year Celebration</div>
+            <p class="m-b-10 text-white">Today at 11pm</p>
+            <div class="user-group">
+              <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar wid-40" />
+              <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar wid-40" />
+              <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar wid-40" />
+              <span class="avatar avatar-xs border-50 bg-primary-50 text-primary-500">
+                <div class="mat-body">+16</div>
+              </span>
+            </div>
+          </ng-template>
+        </owl-carousel-o>
+      </div>
+    </div>
+  </div>
+</app-card>
+<app-card cardTitle="Who is Follow You" padding="0">
+  <ng-template #headerTitleTemplate>
+    <span class="avatar avatar-small bg-primary-500 vertical-align text-white">4</span>
+  </ng-template>
+  <ng-template #headerOptionsTemplate>
+    <button mat-button color="primary">See All</button>
+  </ng-template>
+  <ul class="list-group list-group-flush">
+    @for (task of follow_list; track task) {
+      <li class="list-group-item">
+        <div class="flex align-item-center">
+          <img src="{{ task.img }}" alt="img" class="wid-40 img-fluid border-50" />
+          <div class="flex-grow-1 m-l-10">
+            <div class="f-w-500">{{ task.name }}</div>
+            <p class="m-b-0">{{ task.email }}</p>
+          </div>
+          <button mat-stroked-button>Follow</button>
+        </div>
+      </li>
+    }
+  </ul>
+</app-card>
+<app-card cardTitle="Your page" padding="0">
+  <ng-template #headerTitleTemplate>
+    <span class="avatar avatar-small bg-accent-300 vertical-align">2</span>
+  </ng-template>
+  <ng-template #headerOptionsTemplate>
+    <button mat-button color="primary">See All</button>
+  </ng-template>
+  <ul class="list-group list-group-flush">
+    <li class="list-group-item">
+      <div class="flex align-item-center">
+        <div class="avatar avatar-s bg-primary-50 flex-shrink-0 border-50">
+          <i class="material-icons-two-tone text-primary-500">brush</i>
+        </div>
+        <div class="flex-grow-1 m-l-15">
+          <div class="f-16 f-w-400">UI Design Team</div>
+        </div>
+      </div>
+    </li>
+    <li class="list-group-item">
+      <div class="flex align-item-center">
+        <div class="avatar avatar-s bg-warning-50 flex-shrink-0 border-50">
+          <i class="material-icons-two-tone text-warning-500">color_lens</i>
+        </div>
+        <div class="flex-grow-1 m-l-15">
+          <div class="f-16 f-w-400">Creative Team</div>
+        </div>
+      </div>
+    </li>
+  </ul>
+</app-card>

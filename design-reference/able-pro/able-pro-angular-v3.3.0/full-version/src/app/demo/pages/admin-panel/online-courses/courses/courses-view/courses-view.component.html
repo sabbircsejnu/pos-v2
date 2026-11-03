@@ -1,0 +1,79 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Courses">
+      <ng-template #headerOptionsTemplate>
+        <button mat-flat-button color="primary" [routerLink]="['/online-course/courses/add']">
+          <div class="flex align-item-center">
+            <i class="ti ti-plus f-18 m-r-5"></i>
+            Add Course
+          </div>
+        </button>
+      </ng-template>
+      <div class="row">
+        @for (item of courseView; track item) {
+          <div class="col-sm-6 col-lg-4 col-xxl-3">
+            <app-card [showHeader]="false" cardClass="border courses-card" [padding]="10">
+              <div class="courses-image">
+                <img src="{{ item.img }}" alt="courses" class="img-fluid w-100" />
+                @if (item.type === 'free') {
+                  <div class="courses-type">
+                    <span>Free</span>
+                  </div>
+                }
+              </div>
+              <ul class="list-group">
+                <li class="list-group-item">
+                  <div class="flex align-item-center">
+                    <div class="flex-grow-1 m-r-10">
+                      <div class="f-w-600">{{ item.title }}</div>
+                      <p class="m-b-0 f-w-600">
+                        <i class="fas fa-star text-warning-500"></i>
+                        {{ item.rating }}
+                      </p>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                        <i class="ti ti-edit f-20"></i>
+                      </a>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="flex align-item-center">
+                    <div class="flex-grow-1 m-r-10">
+                      <p class="m-b-0">Duration</p>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <p class="text-muted m-b-0">{{ item.duration }}</p>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="flex align-item-center">
+                    <div class="flex-grow-1 m-r-10">
+                      <p class="m-b-0">Teacher</p>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <p class="text-muted m-b-0">{{ item.teacher }}</p>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="flex align-item-center">
+                    <div class="flex-grow-1 m-r-10">
+                      <p class="m-b-0">Students</p>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <p class="text-muted m-b-0">{{ item.students }}</p>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+              <button mat-stroked-button color="primary">Read More</button>
+            </app-card>
+          </div>
+        }
+      </div>
+    </app-card>
+  </div>
+</div>

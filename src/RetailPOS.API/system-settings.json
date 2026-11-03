@@ -1,6 +1,6 @@
 {
   "Company": {
-    "CompanyName": "IraniMart",
+    "CompanyName": "Irani Mart",
     "Address": "Dhaka, Bangladesh",
     "Phone": "\u002B8801711000000",
     "Email": "info@iranimartbd.com",
@@ -23,28 +23,37 @@
   },
   "Tax": {
     "TaxEnabled": true,
-    "DefaultTaxRate": 0,
+    "DefaultTaxRate": 7.5,
     "TaxName": "VAT",
-    "PricesIncludeTax": false
+    "PricesIncludeTax": true
   },
   "Receipt": {
     "Header": "Thank you for shopping!",
     "Footer": "Please come again",
     "ShowLogo": true,
     "ShowBarcode": false,
-    "PaperSize": "80mm"
+    "ShowQr": false,
+    "DefaultReceiptSize": "80mm",
+    "PaperSize": "80mm",
+    "AutoPrintAfterSale": true,
+    "ReceiptCopies": 1,
+    "ThankYouMessage": "Thank you for your purchase!",
+    "ReturnPolicy": "Items can be returned according to store policy."
   },
   "InvoiceNumber": {
     "Prefix": "INV",
     "IncludeDate": true,
-    "NextNumber": 5,
+    "NextNumber": 13,
     "Padding": 5,
     "Separator": "-"
   },
   "Inventory": {
-    "LowStockThreshold": 10,
+    "LowStockThreshold": 2,
     "EnableLowStockAlerts": true,
     "AllowNegativeStock": false,
     "AutoReorder": false
+  },
+  "Pos": {
+    "MaxCashSessionDurationHours": 15
   }
 }

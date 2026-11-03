@@ -1,0 +1,25 @@
+.horizontal-language {
+  padding: 5px 15px;
+}
+
+::ng-deep.sticky-header {
+  position: sticky;
+  top: 60px;
+  z-index: 9;
+}
+
+.details {
+  text-align: end;
+}
+
+@media (max-width: 767px) {
+  .details {
+    text-align: start;
+  }
+}
+
+@media (min-width: 576px) {
+  .sticky-button {
+    text-align: right;
+  }
+}

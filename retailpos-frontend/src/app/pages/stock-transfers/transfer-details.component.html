@@ -1,183 +1,242 @@
-<div class="container mx-auto px-4 py-4 max-w-4xl">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <div class="flex items-center gap-3">
-      <button (click)="goBack()" class="btn btn-ghost">
-        <i class="fas fa-arrow-left"></i>
-      </button>
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Stock Transfer Details</h1>
-        @if (transfer()) {
-          <p class="text-sm text-gray-600 mt-0.5">Transfer #{{ transfer()!.transferNo || transfer()!.id }}</p>
-        }
-      </div>
-    </div>
-
-    @if (transfer()) {
-      <div class="flex items-center gap-2">
-        <a
-          [routerLink]="['/barcode-labels']"
-          [queryParams]="{ query: transfer()!.id, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
-          class="btn btn-outline"
-          *ngIf="auth.hasPermission('barcode.view')">
-          <i class="fas fa-barcode"></i> Print Barcode
-        </a>
-        <span class="px-3 py-1 rounded-full text-sm font-semibold"
-              [ngClass]="getStatusColor(transfer()!.status)">
-          {{ getStatusLabel(transfer()!.status) }}
-        </span>
-        <span class="px-3 py-1 rounded-full text-sm font-semibold bg-indigo-100 text-indigo-700">
-          {{ getTypeLabel(transfer()!.transferType) }}
-        </span>
-        @if ((transfer()!.status === 'submitted' || transfer()!.status === 'pending') && auth.hasPermission('stock_transfers.approve')) {
-          <button (click)="approve()" class="btn btn-primary">
-            <i class="fas fa-check"></i> Approve
-          </button>
-        }
-        @if ((transfer()!.status === 'submitted' || transfer()!.status === 'approved' || transfer()!.status === 'in_transit') && auth.hasPermission('stock_transfers.reject_receive') && canReceiveOrRejectCurrentTransfer()) {
-          <button (click)="reject()" class="btn btn-outline text-red-600 border-red-300">
-            <i class="fas fa-times"></i> Reject
-          </button>
-        }
-        @if ((transfer()!.status === 'draft' || transfer()!.status === 'submitted' || transfer()!.status === 'pending' || transfer()!.status === 'approved') && auth.hasPermission('stock_transfers.cancel')) {
-          <button (click)="cancel()" class="btn btn-outline">
-            <i class="fas fa-ban"></i> Cancel
-          </button>
-        }
-        @if (transfer()!.status === 'approved' && auth.hasPermission('stock_transfers.dispatch')) {
-          <button (click)="send()" class="btn btn-primary">
-            <i class="fas fa-truck-moving"></i> Send
-          </button>
-        }
-        @if (transfer()!.status === 'in_transit' && auth.hasPermission('stock_transfers.receive') && canReceiveOrRejectCurrentTransfer()) {
-          <button (click)="receive()" class="btn btn-primary">
-            <i class="fas fa-box-open"></i> Receive
-          </button>
-        }
-      </div>
-    }
-  </div>
-
-  <!-- Loading -->
+<div class="mx-auto max-w-7xl px-4 py-4">
   @if (isLoading()) {
-    <div class="card p-8 text-center">
-      <i class="fas fa-spinner fa-spin text-3xl text-gray-900 mb-3"></i>
-      <p class="text-sm text-gray-600">Loading transfer...</p>
+    <div class="flex items-center justify-center py-16">
+      <div class="h-12 w-12 animate-spin rounded-full border-b-2 border-slate-900"></div>
     </div>
-  }
-
-  @else if (transfer()) {
-    <!-- Transfer Info -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <!-- From Location -->
-      <div class="card p-5">
-        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">From Location</h3>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-            <i class="fas fa-map-marker-alt text-gray-600"></i>
-          </div>
+  } @else if (transfer()) {
+    <div class="space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p class="font-semibold text-gray-900">{{ transfer()!.fromLocationName }}</p>
-            <p class="text-sm text-gray-500 capitalize">{{ transfer()!.fromLocationType }}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-xl font-semibold text-slate-900">{{ getTransferReference() }}</h1>
+              <span [class]="'rounded-full px-3 py-1 text-xs font-semibold ' + getStatusColor(transfer()!.status)">
+                {{ getStatusLabel(transfer()!.status) }}
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-slate-600">Created on {{ getHeaderCreatedDate() }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">Items {{ transfer()!.items.length }}</span>
+            <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">Qty {{ getTotalTransferQuantity() }}</span>
+            <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">{{ getTypeLabel(transfer()!.transferType) }}</span>
           </div>
         </div>
       </div>
 
-      <!-- To Location -->
-      <div class="card p-5">
-        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">To Location</h3>
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-            <i class="fas fa-map-marker-alt text-gray-600"></i>
-          </div>
-          <div>
-            <p class="font-semibold text-gray-900">{{ transfer()!.toLocationName }}</p>
-            <p class="text-sm text-gray-500 capitalize">{{ transfer()!.toLocationType }}</p>
-          </div>
+      <div class="sticky top-2 z-20 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <button (click)="goBack()" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i>
+            Back
+          </button>
+          @if (auth.hasPermission('barcode.view')) {
+            <a
+              [routerLink]="['/barcode-labels']"
+              [queryParams]="{ query: transfer()!.id, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
+              class="btn btn-outline">
+              <i class="fas fa-barcode"></i>
+              Print Barcode
+            </a>
+          }
+          @if (canApproveAction()) {
+            <button (click)="approve()" class="btn btn-primary">
+              <i class="fas fa-check"></i>
+              Approve
+            </button>
+          }
+          @if (canSendAction()) {
+            <button (click)="send()" class="btn btn-primary">
+              <i class="fas fa-truck-moving"></i>
+              Dispatch
+            </button>
+          }
+          @if (canReceiveAction()) {
+            <button (click)="receive()" class="btn btn-primary">
+              <i class="fas fa-box-open"></i>
+              Receive
+            </button>
+          }
+          @if (canRejectAction()) {
+            <button (click)="reject()" class="btn btn-outline text-red-600 border-red-300">
+              <i class="fas fa-times"></i>
+              Reject
+            </button>
+          }
+          @if (canCancelAction()) {
+            <button (click)="cancel()" class="btn btn-outline">
+              <i class="fas fa-ban"></i>
+              Cancel
+            </button>
+          }
         </div>
       </div>
-    </div>
 
-    <!-- Meta Info -->
-    <div class="card p-5 mb-6">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Transfer Date</p>
-          <p class="font-medium text-gray-900 mt-1">{{ formatDate(transfer()!.transferDate) }}</p>
-        </div>
-        @if (transfer()!.notes) {
-          <div class="md:col-span-2">
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Notes</p>
-            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.notes }}</p>
-          </div>
-        }
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Created At</p>
-          <p class="font-medium text-gray-900 mt-1">{{ formatDateTime(transfer()!.createdAt) }}</p>
-        </div>
-        @if (transfer()!.creatorName) {
-          <div>
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Created By</p>
-            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.creatorName }}</p>
-          </div>
-        }
-        @if (transfer()!.approverName) {
-          <div>
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Approved By</p>
-            <p class="font-medium text-gray-900 mt-1">{{ transfer()!.approverName }}</p>
-          </div>
-        }
-      </div>
-    </div>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-10">
+        <section class="space-y-4 lg:col-span-7">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-base font-semibold text-slate-900">Basic Information</h2>
+            <p class="mb-4 text-sm text-slate-600">Source, destination, schedule, and supporting reference information for this transfer.</p>
 
-    <!-- Items Table -->
-    <div class="card overflow-hidden">
-      <div class="px-5 py-4 border-b border-gray-200">
-        <h3 class="font-semibold text-gray-900">Transfer Items ({{ transfer()!.items.length || 0 }})</h3>
-      </div>
-      @if (transfer()!.items.length > 0) {
-        <div class="overflow-x-auto">
-          <table class="table">
-            <thead>
-              <tr>
-                <th class="px-4 py-2.5">#</th>
-                <th class="px-4 py-2.5">Product</th>
-                <th class="px-4 py-2.5">SKU</th>
-                <th class="px-4 py-2.5 text-right">Requested</th>
-                <th class="px-4 py-2.5 text-right">Transfer</th>
-                <th class="px-4 py-2.5 text-right">Accepted</th>
-                <th class="px-4 py-2.5 text-right">Rejected</th>
-                <th class="px-4 py-2.5 text-center">Barcode</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of transfer()!.items; track item.id; let i = $index) {
-                <tr>
-                  <td class="px-4 py-2.5 text-gray-500">{{ i + 1 }}</td>
-                  <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
-                  <td class="px-4 py-2.5 text-gray-600 font-mono text-sm">{{ item.variantSku }}</td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.requestedQuantity || getEffectiveTransferQty(item) }}</td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ getEffectiveTransferQty(item) }}</td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-green-700">{{ item.acceptedQuantity || 0 }}</td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-red-700">{{ item.rejectedQuantity || 0 }}</td>
-                  <td class="px-4 py-2.5 text-center">
-                    <a
-                      *ngIf="auth.hasPermission('barcode.view')"
-                      [routerLink]="['/barcode-labels']"
-                      [queryParams]="{ query: item.variantSku, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
-                      class="text-indigo-600 hover:text-indigo-900 text-sm"
-                    >
-                      Print
-                    </a>
-                  </td>
-                </tr>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              @for (field of getBasicInformationFields(); track field.label) {
+                <div>
+                  <p class="text-xs text-slate-500">{{ field.label }}</p>
+                  <p class="font-medium text-slate-900">{{ field.value }}</p>
+                </div>
               }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <div class="p-8 text-center text-gray-500">No items in this transfer</div>
-      }
+            </div>
+
+            @if (transfer()!.notes) {
+              <div class="mt-4 border-t border-slate-100 pt-4">
+                <p class="mb-1 text-xs text-slate-500">Notes</p>
+                <p class="whitespace-pre-line rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">{{ transfer()!.notes }}</p>
+              </div>
+            }
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h2 class="text-base font-semibold text-slate-900">Transfer Items ({{ transfer()!.items.length }})</h2>
+              <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">Transfer Qty {{ getTotalTransferQuantity() }}</span>
+            </div>
+
+            @if (transfer()!.items.length > 0) {
+              <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">#</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Product / Variant</th>
+                      @if (isRequisitionTransfer()) {
+                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Requested Qty</th>
+                      }
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Transfer Qty</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Accepted Qty</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Rejected Qty</th>
+                      <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Barcode</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white">
+                    @for (item of transfer()!.items; track item.id) {
+                      <tr>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-900">{{ $index + 1 }}</td>
+                        <td class="px-4 py-3 align-top text-sm text-slate-900">
+                          <app-product-variant-cell
+                            [productName]="item.productName"
+                            [productCode]="item.productCode"
+                            [variantAttributes]="item.variantAttributes"
+                            [variantDisplay]="item.variantDisplay"
+                            [primaryImageThumb]="item.primaryImageThumb"
+                            [showVariantDetails]="true"
+                          />
+                          <div class="mt-1 pl-[3.125rem] text-xs text-slate-500">SKU: {{ item.variantSku }}</div>
+                        </td>
+                        @if (isRequisitionTransfer()) {
+                          <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.requestedQuantity || getEffectiveTransferQty(item) }}</td>
+                        }
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-slate-900">{{ getEffectiveTransferQty(item) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-emerald-700">{{ item.acceptedQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-rose-700">{{ item.rejectedQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-center text-sm">
+                          @if (auth.hasPermission('barcode.view')) {
+                            <a
+                              [routerLink]="['/barcode-labels']"
+                              [queryParams]="{ query: item.variantSku, sourceModule: 'stock-transfer', sourceReferenceType: 'stock-transfer', sourceReferenceId: transfer()!.id }"
+                              class="font-medium text-indigo-600 hover:text-indigo-900">
+                              Print
+                            </a>
+                          } @else {
+                            <span class="text-slate-300">-</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+                No items are available for this transfer.
+              </div>
+            }
+          </div>
+
+        </section>
+
+        <aside class="space-y-4 lg:col-span-3">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-base font-semibold text-slate-900">Workflow Actions</h2>
+            <p class="mb-3 text-sm text-slate-600">Run the next valid transfer step for your current workflow location.</p>
+
+            @if (hasAnyWorkflowActions()) {
+              <div class="space-y-2">
+                @if (canApproveAction()) {
+                  <button (click)="approve()" class="btn-action btn-action-approve">Approve Transfer</button>
+                }
+                @if (canSendAction()) {
+                  <button (click)="send()" class="btn-action btn-action-dispatch">Dispatch / Mark In Transit</button>
+                }
+                @if (canReceiveAction()) {
+                  <button (click)="receive()" class="btn-action btn-action-receive">Receive or Partial Receive</button>
+                }
+                @if (canRejectAction()) {
+                  <button (click)="reject()" class="btn-action btn-action-reject">Reject Received Quantities</button>
+                }
+                @if (canCancelAction()) {
+                  <button (click)="cancel()" class="btn-action btn-action-cancel">Cancel Transfer</button>
+                }
+              </div>
+            } @else {
+              <p class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">No actions are available for the current transfer status.</p>
+            }
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-base font-semibold text-slate-900">Summary</h2>
+            <div class="mt-3 space-y-2 text-sm">
+              @for (field of getSummaryFields(); track field.label) {
+                <div class="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+                  <span [class]="field.emphasize ? 'font-semibold text-slate-700' : 'text-slate-600'">{{ field.label }}</span>
+                  <span [class]="field.emphasize ? 'text-base font-bold text-slate-900' : 'font-medium text-slate-900'">{{ field.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (hasRelatedRecords()) {
+            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+              <h2 class="text-base font-semibold text-indigo-900">Related Records</h2>
+              <p class="mt-1 text-sm text-indigo-800">This transfer is linked to an upstream requisition reference.</p>
+              <div class="mt-3 rounded-md border border-indigo-200 bg-white px-3 py-2">
+                <p class="text-sm font-medium text-indigo-900">Requisition Reference</p>
+                <p class="text-xs text-indigo-700">REQ #{{ transfer()!.relatedRequisitionId }}</p>
+              </div>
+            </div>
+          }
+
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-base font-semibold text-slate-900">Audit Information</h2>
+            @if (getAuditFields().length > 0) {
+              <div class="mt-3 space-y-3 text-sm">
+                @for (field of getAuditFields(); track field.label) {
+                  <div>
+                    <p class="text-xs text-slate-500">{{ field.label }}</p>
+                    @if (field.name) {
+                      <p class="font-medium text-slate-900">{{ field.name }}</p>
+                    }
+                    @if (field.at) {
+                      <p class="text-xs text-slate-500">{{ formatDateTime(field.at!) }}</p>
+                    }
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">Audit information will appear as the transfer moves through workflow steps.</p>
+            }
+          </div>
+        </aside>
+      </div>
     </div>
   }
 </div>
@@ -188,6 +247,27 @@
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
       <div class="p-6">
         <h2 class="text-lg font-bold text-gray-900 mb-4">{{ reasonModalTitle() }}</h2>
+        @if (reasonModalTitle() === 'Reject Transfer' && transfer()?.items?.length) {
+          <div class="mb-4 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+            @for (item of transfer()!.items; track item.id) {
+              <div class="grid grid-cols-12 gap-3 items-start rounded-md bg-white p-3 border border-slate-100">
+                <div class="col-span-7">
+                  <app-product-variant-cell
+                    [productName]="item.productName"
+                    [productCode]="item.productCode"
+                    [variantAttributes]="item.variantAttributes"
+                    [variantDisplay]="item.variantDisplay"
+                    [primaryImageThumb]="item.primaryImageThumb"
+                    [showVariantDetails]="true"
+                  />
+                </div>
+                <div class="col-span-5 text-xs text-slate-600">
+                  <div class="font-medium text-slate-700">SKU: {{ item.variantSku }}</div>
+                </div>
+              </div>
+            }
+          </div>
+        }
         <div class="mb-4">
           <label class="label">Reason <span class="text-red-500">*</span></label>
           <textarea [(ngModel)]="reasonText"
@@ -217,8 +297,17 @@
           @for (row of receiveItems(); track row.variantId; let i = $index) {
             <div class="grid grid-cols-12 gap-3 p-3 bg-gray-50 rounded-lg">
               <div class="col-span-4">
-                <div class="font-medium text-gray-900">{{ row.productName }}</div>
-                <div class="text-xs text-gray-500">{{ row.variantSku }}</div>
+                <app-product-variant-cell
+                  [productName]="row.productName"
+                  [productCode]="row.productCode"
+                  [variantAttributes]="row.variantAttributes"
+                  [variantDisplay]="row.variantDisplay"
+                  [primaryImageThumb]="row.primaryImageThumb"
+                  [showVariantDetails]="true"
+                />
+                <div class="mt-2 text-xs text-slate-500">
+                  <div class="font-medium text-slate-700">SKU: {{ row.variantSku }}</div>
+                </div>
               </div>
               <div class="col-span-2">
                 <label class="label">Transfer Qty</label>

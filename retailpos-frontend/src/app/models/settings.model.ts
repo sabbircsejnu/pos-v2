@@ -57,7 +57,13 @@ export interface ReceiptSettings {
   footer: string;
   showLogo: boolean;
   showBarcode: boolean;
+  showQr?: boolean;
+  defaultReceiptSize?: string;
   paperSize: string;
+  autoPrintAfterSale?: boolean;
+  receiptCopies?: number;
+  thankYouMessage?: string;
+  returnPolicy?: string;
 }
 
 export interface InvoiceNumberSettings {
@@ -75,6 +81,44 @@ export interface InventorySettings {
   autoReorder: boolean;
 }
 
+/** Result of GET/PUT /api/settings/pos: Business POS settings plus the caller's discount permissions. */
+export interface PosSettings {
+  /** 1–20; applied when the cash-session lifecycle is enabled. */
+  maxCashSessionDurationHours: number;
+  /** IANA time zone id (e.g. Asia/Dhaka) used by outlets that have no override. */
+  defaultTimeZoneId: string;
+  taxEnabled: boolean;
+  defaultTaxRate: number;
+  taxName: string;
+  pricesIncludeTax: boolean;
+  /** 0–100; 0 disables manual discounts. */
+  maxManualDiscountPercent: number;
+  version: number;
+  updatedAt: string | null;
+  isPersisted: boolean;
+  canApplyDiscount: boolean;
+  canOverrideDiscountLimit: boolean;
+}
+
+/** Partial update: omitted members stay unchanged. The discount limit needs sales.discount.configure, the rest settings.edit. */
+export type UpdatePosSettingsRequest = Partial<Pick<PosSettings,
+  'maxCashSessionDurationHours' | 'defaultTimeZoneId' | 'taxEnabled' | 'defaultTaxRate' | 'taxName'
+  | 'pricesIncludeTax' | 'maxManualDiscountPercent'>>;
+
+export interface PosSettingsResponse {
+  success?: boolean;
+  message?: string;
+  data: PosSettings;
+}
+
+/** Suggestions for IANA time zone inputs; any valid IANA id is accepted by the API. */
+export const COMMON_TIME_ZONES: string[] = [
+  'Asia/Dhaka', 'Asia/Kolkata', 'Asia/Karachi', 'Asia/Kathmandu', 'Asia/Colombo', 'Asia/Dubai', 'Asia/Riyadh',
+  'Asia/Singapore', 'Asia/Kuala_Lumpur', 'Asia/Bangkok', 'Asia/Jakarta', 'Asia/Hong_Kong', 'Asia/Tokyo',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Chicago', 'America/Los_Angeles',
+  'Australia/Sydney', 'UTC',
+];
+
 export interface SystemSettings {
   company: CompanySettings;
   currency: CurrencySettings;
@@ -82,4 +126,5 @@ export interface SystemSettings {
   receipt: ReceiptSettings;
   invoiceNumber: InvoiceNumberSettings;
   inventory: InventorySettings;
+  pos?: Pick<PosSettings, 'maxCashSessionDurationHours'>;
 }

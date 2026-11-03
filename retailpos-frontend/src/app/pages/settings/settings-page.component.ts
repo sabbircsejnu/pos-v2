@@ -1,49 +1,86 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
+import { AuthService } from '../../services/auth.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
 import { MenuService, SidebarDensity } from '../../services/menu.service';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
+import { normalizeDateFormat } from '../../services/company-date.service';
+import { UI_KIT } from '../../components/shared/ui';
 import {
   CompanySettings,
-  TaxSettings,
   ReceiptSettings,
   InventorySettings,
+  InvoiceNumberSettings,
   CurrencySettings,
+  PosSettings,
+  UpdatePosSettingsRequest,
+  COMMON_TIME_ZONES,
   DEFAULT_CURRENCY_SETTINGS,
   SUPPORTED_CURRENCIES,
 } from '../../models/settings.model';
 
-type SettingsTab = 'company' | 'currency' | 'tax' | 'receipt' | 'inventory' | 'appearance';
+type SettingsTab = 'company' | 'currency' | 'pos' | 'receipt' | 'inventory' | 'appearance';
+
+/** Editable copy of the Business POS settings; numbers are null while the field is blank. */
+export interface PosSettingsForm {
+  maxCashSessionDurationHours: number | null;
+  defaultTimeZoneId: string;
+  taxEnabled: boolean;
+  defaultTaxRate: number | null;
+  taxName: string;
+  pricesIncludeTax: boolean;
+}
+
+export type PosSettingsErrors = Partial<Record<keyof PosSettingsForm, string>>;
+
+const EMPTY_POS_FORM: PosSettingsForm = {
+  maxCashSessionDurationHours: 12,
+  defaultTimeZoneId: 'Asia/Dhaka',
+  taxEnabled: false,
+  defaultTaxRate: 0,
+  taxName: 'Tax',
+  pricesIncludeTax: false,
+};
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppCurrencyPipe],
+  imports: [CommonModule, FormsModule, RouterLink, AppCurrencyPipe, ...UI_KIT],
   templateUrl: './settings-page.component.html',
   styleUrls: ['./settings-page.component.css']
 })
 export class SettingsPageComponent implements OnInit {
+  private readonly auth = inject(AuthService);
+
   activeTab = signal<SettingsTab>('company');
   isLoading = signal(false);
   isSaving = signal(false);
 
   supportedCurrencies = SUPPORTED_CURRENCIES;
+  readonly timeZoneSuggestions = COMMON_TIME_ZONES;
   currencyPreviewAmount = 1234567.89;
 
   company = signal<CompanySettings>({
     companyName: '', address: '', phone: '', email: '', website: '',
-    taxNumber: '', currency: 'BDT', currencySymbol: '৳', dateFormat: 'dd/MM/yyyy', timeZone: 'Asia/Dhaka'
+    taxNumber: '', currency: 'BDT', currencySymbol: 'à§³', dateFormat: 'dd/MM/yyyy', timeZone: 'Asia/Dhaka'
   });
 
   currency = signal<CurrencySettings>({ ...DEFAULT_CURRENCY_SETTINGS });
 
-  tax = signal<TaxSettings>({
-    taxEnabled: false, defaultTaxRate: 0, taxName: 'Tax', pricesIncludeTax: false
-  });
+  /** Legacy invoice-number settings: shown read-only, they no longer drive sale numbering. */
+  invoiceNumber = signal<InvoiceNumberSettings | null>(null);
+
+  posBaseline = signal<PosSettings | null>(null);
+  posForm = signal<PosSettingsForm>({ ...EMPTY_POS_FORM });
+  posErrors = signal<PosSettingsErrors>({});
+  posLoading = signal(false);
+  posLoadError = signal<string | null>(null);
+  isSavingPos = signal(false);
 
   receipt = signal<ReceiptSettings>({
     header: '', footer: '', showLogo: false, showBarcode: false, paperSize: '80mm'
@@ -61,8 +98,18 @@ export class SettingsPageComponent implements OnInit {
     public menuService: MenuService,
   ) {}
 
+  /** Settings need settings.edit; the discount limit lives on its own screen gated by sales.discount.configure. */
+  get canEditPosSettings(): boolean {
+    return this.auth.hasPermission('settings.edit');
+  }
+
+  get canConfigureDiscount(): boolean {
+    return this.auth.hasPermission('sales.discount.configure');
+  }
+
   ngOnInit(): void {
     this.loadSettings();
+    this.loadPosSettings();
   }
 
   loadSettings(): void {
@@ -71,17 +118,119 @@ export class SettingsPageComponent implements OnInit {
       next: (res) => {
         const data = res.data;
         if (data) {
-          if (data.company) this.company.set(data.company);
+          if (data.company) this.company.set({ ...data.company, dateFormat: normalizeDateFormat(data.company.dateFormat) });
           if (data.currency) this.currency.set(data.currency);
-          if (data.tax) this.tax.set(data.tax);
           if (data.receipt) this.receipt.set(data.receipt);
           if (data.inventory) this.inventory.set(data.inventory);
+          if (data.invoiceNumber) this.invoiceNumber.set(data.invoiceNumber);
         }
         this.isLoading.set(false);
       },
       error: (err) => {
         this.isLoading.set(false);
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  loadPosSettings(): void {
+    this.posLoading.set(true);
+    this.posLoadError.set(null);
+    this.settingsService.getPosSettings().subscribe({
+      next: (res) => {
+        if (res?.data) this.applyPosSettings(res.data);
+        this.posLoading.set(false);
+      },
+      error: (err) => {
+        this.posLoading.set(false);
+        this.posLoadError.set(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  private applyPosSettings(settings: PosSettings): void {
+    this.posBaseline.set(settings);
+    this.posForm.set({
+      maxCashSessionDurationHours: settings.maxCashSessionDurationHours,
+      defaultTimeZoneId: settings.defaultTimeZoneId,
+      taxEnabled: settings.taxEnabled,
+      defaultTaxRate: settings.defaultTaxRate,
+      taxName: settings.taxName,
+      pricesIncludeTax: settings.pricesIncludeTax,
+    });
+    this.posErrors.set({});
+  }
+
+  updatePosField<K extends keyof PosSettingsForm>(field: K, value: PosSettingsForm[K] | string): void {
+    const isNumeric = field === 'maxCashSessionDurationHours' || field === 'defaultTaxRate';
+    const next = isNumeric ? (value === null || value === '' ? null : Number(value)) : value;
+    this.posForm.update(form => ({ ...form, [field]: next }));
+    this.posErrors.update(errors => ({ ...errors, [field]: undefined }));
+  }
+
+  validatePosSettings(): PosSettingsErrors {
+    const form = this.posForm();
+    const errors: PosSettingsErrors = {};
+    const hours = form.maxCashSessionDurationHours;
+    if (this.canEditPosSettings) {
+      if (hours === null || !Number.isInteger(hours) || hours < 1 || hours > 20) {
+        errors.maxCashSessionDurationHours = 'Enter a whole number of hours from 1 to 20.';
+      }
+      if (!form.defaultTimeZoneId.trim()) {
+        errors.defaultTimeZoneId = 'Enter an IANA time zone, for example Asia/Dhaka.';
+      }
+      if (!form.taxName.trim()) {
+        errors.taxName = 'Tax name is required.';
+      }
+      const rate = form.defaultTaxRate;
+      if (rate === null || Number.isNaN(rate) || rate < 0 || rate > 100) {
+        errors.defaultTaxRate = 'Enter a rate from 0 to 100.';
+      }
+    }
+    return errors;
+  }
+
+  /** Only the changed settings.edit fields; the discount limit is saved from its own screen. */
+  buildPosPayload(): UpdatePosSettingsRequest {
+    const form = this.posForm();
+    const baseline = this.posBaseline();
+    const payload: UpdatePosSettingsRequest = {};
+    const changed = <K extends keyof PosSettingsForm>(field: K) => !baseline || baseline[field] !== form[field];
+
+    if (this.canEditPosSettings) {
+      if (changed('maxCashSessionDurationHours')) payload.maxCashSessionDurationHours = form.maxCashSessionDurationHours!;
+      if (changed('defaultTimeZoneId')) payload.defaultTimeZoneId = form.defaultTimeZoneId.trim();
+      if (changed('taxEnabled')) payload.taxEnabled = form.taxEnabled;
+      if (changed('defaultTaxRate')) payload.defaultTaxRate = form.defaultTaxRate!;
+      if (changed('taxName')) payload.taxName = form.taxName.trim();
+      if (changed('pricesIncludeTax')) payload.pricesIncludeTax = form.pricesIncludeTax;
+    }
+    return payload;
+  }
+
+  savePosSettings(): void {
+    if (this.isSavingPos()) return;
+
+    const errors = this.validatePosSettings();
+    this.posErrors.set(errors);
+    if (Object.keys(errors).length) return;
+
+    const payload = this.buildPosPayload();
+    if (!Object.keys(payload).length) {
+      this.alertService.info('There are no POS setting changes to save.');
+      return;
+    }
+
+    this.isSavingPos.set(true);
+    this.settingsService.updatePosSettings(payload).subscribe({
+      next: (res) => {
+        if (res?.data) this.applyPosSettings(res.data);
+        this.alertService.success('POS settings saved successfully');
+        this.isSavingPos.set(false);
+      },
+      error: (err) => {
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.isSavingPos.set(false);
       }
     });
   }
@@ -169,20 +318,6 @@ export class SettingsPageComponent implements OnInit {
     return errors;
   }
 
-  saveTax(): void {
-    this.isSaving.set(true);
-    this.settingsService.updateTaxSettings(this.tax()).subscribe({
-      next: () => {
-        this.alertService.success('Tax settings saved successfully');
-        this.isSaving.set(false);
-      },
-      error: (err) => {
-        this.alertService.error(this.errorHandler.extractErrorMessage(err));
-        this.isSaving.set(false);
-      }
-    });
-  }
-
   saveReceipt(): void {
     this.isSaving.set(true);
     this.settingsService.updateReceiptSettings(this.receipt()).subscribe({
@@ -213,10 +348,6 @@ export class SettingsPageComponent implements OnInit {
 
   updateCompanyField(field: keyof CompanySettings, value: string): void {
     this.company.update(c => ({ ...c, [field]: value }));
-  }
-
-  updateTaxField(field: keyof TaxSettings, value: boolean | number | string): void {
-    this.tax.update(t => ({ ...t, [field]: value }));
   }
 
   updateReceiptField(field: keyof ReceiptSettings, value: boolean | string): void {

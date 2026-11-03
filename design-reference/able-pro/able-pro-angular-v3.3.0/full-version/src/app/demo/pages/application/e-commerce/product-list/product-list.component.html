@@ -1,0 +1,156 @@
+<div class="m-t-25">
+  <app-card [showHeader]="false" padding="0">
+    <div class="table-responsive product-list">
+      <table mat-table [dataSource]="dataSource" matSort multiTemplateDataRows class="mat-elevation-z8">
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox
+              color="primary"
+              (change)="$event ? toggleAllRows() : null"
+              [checked]="selection.hasValue() && isAllSelected()"
+              [indeterminate]="selection.hasValue() && !isAllSelected()"
+              [aria-label]="checkboxLabel()"
+            ></mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let row">
+            <mat-checkbox
+              color="primary"
+              (click)="$event.stopPropagation()"
+              (change)="$event ? selection.toggle(row) : null"
+              [checked]="selection.isSelected(row)"
+              [aria-label]="checkboxLabel(row)"
+            ></mat-checkbox>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>#</th>
+          <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+        </ng-container>
+        <ng-container matColumnDef="details">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>PRODUCT DETAILS</th>
+          <td mat-cell *matCellDef="let element">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <img src="assets/images/e-commerce/{{ element.image }}" alt="user-image" class="wid-55 hei-55 b-rad-10" />
+              </div>
+              <div class="flex-grow-1 m-l-15">
+                <div class="m-b-5">
+                  <span class="text-truncate w-100 f-w-500">{{ element.name }}</span>
+                </div>
+                <p class="text-muted f-12 m-b-0">
+                  <span class="text-truncate mat-caption w-100">{{ element.description }}</span>
+                </p>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="categories">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>CATEGORIES</th>
+          <td mat-cell *matCellDef="let element">{{ element.categories }}</td>
+        </ng-container>
+        <ng-container matColumnDef="price">
+          <th mat-header-cell *matHeaderCellDef>PRICE</th>
+          <td mat-cell *matCellDef="let element">${{ element.offerPrice }}</td>
+        </ng-container>
+        <ng-container matColumnDef="qty">
+          <th mat-header-cell *matHeaderCellDef>QTY</th>
+          <td mat-cell *matCellDef="let element">{{ element.quantity }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>STATUS</th>
+          <td mat-cell *matCellDef="let element">
+            @if (element.isStock === true) {
+              <div class="product-status in">In Stock</div>
+            } @else {
+              <div class="product-status out">Out Of Stock</div>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>ACTIONS</th>
+          <td mat-cell *matCellDef="let element">
+            <div class="flex align-item-center">
+              <a class="avatar avatar-s">
+                <svg class="pc-icon text-accent-500">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-eye"></use>
+                </svg>
+              </a>
+              <a class="avatar avatar-s">
+                <svg class="pc-icon text-primary-500">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-edit"></use>
+                </svg>
+              </a>
+              <a class="avatar avatar-s">
+                <svg class="pc-icon text-warn-500">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-trash"></use>
+                </svg>
+              </a>
+            </div>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="expandedDetail">
+          <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length" class="collapse_data">
+            <div class="block" [@detailExpand]="element === expandedElement ? 'expanded' : 'collapsed'">
+              <div class="product-list-diagram">
+                <div class="row">
+                  <div class="col-xl-3">
+                    <div class="product-images">
+                      <img src="assets/images/e-commerce/{{ element.image }}" alt="img" class="img-fluid" />
+                      @if (element.isStock === true) {
+                        <div class="status in">In Stock</div>
+                      } @else {
+                        <div class="status out">Out Of Stock</div>
+                      }
+                      <!-- <div class="status in" *ngIf="element.isStock === true"> In Stock </div>
+                      <div class="status out" *ngIf="element.isStock === false"> Out Of Stock </div> -->
+                    </div>
+                  </div>
+                  <div class="col-xl-9">
+                    <div class="f-16 f-w-600 m-b-10">
+                      {{ element.name }}
+                    </div>
+                    <p>{{ element.about }}</p>
+                    <app-star-rating [rating]="element.rating" [starCount]="5"></app-star-rating>
+                    <div class="row m-b-10">
+                      <div class="col-3">
+                        <div>Categories</div>
+                      </div>
+                      <div class="col-9">
+                        {{ element.categories }}
+                      </div>
+                    </div>
+                    <div class="row m-b-10">
+                      <div class="col-3">
+                        <div>QTY</div>
+                      </div>
+                      <div class="col-9">
+                        {{ element.quantity }}
+                      </div>
+                    </div>
+                    <div class="row m-b-10">
+                      <div class="col-3">
+                        <div>Price</div>
+                      </div>
+                      <div class="col-9">${{ element.offerPrice }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+        <tr
+          mat-row
+          *matRowDef="let element; columns: columnsToDisplayWithExpand"
+          class="product-row"
+          [class.example-expanded-row]="expandedElement === element"
+          (click)="expandedElement = expandedElement === element ? null : element"
+        ></tr>
+        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="product-detail-row"></tr>
+      </table>
+      <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons aria-label="Select page of periodic elements"></mat-paginator>
+    </div>
+  </app-card>
+</div>

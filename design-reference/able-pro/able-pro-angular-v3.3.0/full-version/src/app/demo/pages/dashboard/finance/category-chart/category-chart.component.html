@@ -1,0 +1,24 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between m-b-15">
+    <div class="f-16 f-w-600">Category</div>
+    <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover">
+      <i class="ti ti-dots-vertical f-18 text-accent-500"></i>
+    </a>
+    <mat-menu #menu="matMenu">
+      <a mat-menu-item>Today</a>
+      <a mat-menu-item>Weekly</a>
+      <a mat-menu-item>Monthly</a>
+    </mat-menu>
+  </div>
+  <div id="chart">
+    <apx-chart
+      [chart]="chartOptions.chart"
+      [dataLabels]="chartOptions.dataLabels"
+      [series]="chartOptions.series"
+      [colors]="chartOptions.colors"
+      [plotOptions]="chartOptions.plotOptions"
+      [labels]="chartOptions.labels"
+      [legend]="chartOptions.legend"
+    ></apx-chart>
+  </div>
+</app-card>

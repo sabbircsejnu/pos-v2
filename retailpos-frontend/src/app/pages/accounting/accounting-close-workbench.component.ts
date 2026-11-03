@@ -1,0 +1,38 @@
+import { AppDatePipe } from '../../pipes/app-date.pipe';
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AccountingService } from '../../services/accounting.service';
+import { AuthService } from '../../services/auth.service';
+import { AlertService } from '../../services/alert.service';
+import { ErrorHandlerService } from '../../services/error-handler.service';
+import { AccountingPeriodDto, FinancialYearDto, FinancialYearCloseRun, PeriodCloseRun } from '../../models/accounting.model';
+
+@Component({ selector: 'app-accounting-close-workbench', standalone: true, imports: [AppDatePipe, CommonModule, FormsModule], templateUrl: './accounting-close-workbench.component.html', styleUrls: ['./accounting-close-workbench.component.css'] })
+export class AccountingCloseWorkbenchComponent implements OnInit {
+  years = signal<FinancialYearDto[]>([]); periods = signal<AccountingPeriodDto[]>([]); periodRuns = signal<PeriodCloseRun[]>([]); yearRuns = signal<FinancialYearCloseRun[]>([]); selectedYear = signal<FinancialYearDto | null>(null); selectedPeriod = signal<AccountingPeriodDto | null>(null); selectedPeriodRun = signal<PeriodCloseRun | null>(null); selectedYearRun = signal<FinancialYearCloseRun | null>(null); loading = signal(false); error = signal<string | null>(null); notice = signal<string | null>(null);
+  constructor(private accounting: AccountingService, public auth: AuthService, private alerts: AlertService, private errors: ErrorHandlerService) {}
+  ngOnInit(): void { this.refreshYears(); }
+  refreshYears(): void { this.loading.set(true); this.accounting.getFinancialYears().subscribe({ next: response => { const years = response.data || []; this.years.set(years); this.selectYear(this.selectedYear()?.id || years[0]?.id); this.loading.set(false); }, error: error => this.fail(error) }); }
+  selectYear(id?: number): void { if (!id) return; const year = this.years().find(item => item.id === id); if (!year) return; this.selectedYear.set(year); this.selectedPeriod.set(null); this.selectedPeriodRun.set(null); this.accounting.getPeriods(id).subscribe({ next: response => { const periods = response.data || []; this.periods.set(periods); this.selectPeriod(periods[periods.length - 1]?.id); }, error: error => this.fail(error) }); this.accounting.getFinancialYearCloseRuns(id).subscribe({ next: response => { const runs = response.data || []; this.yearRuns.set(runs); this.selectedYearRun.set(runs[0] || null); }, error: error => this.fail(error) }); }
+  selectPeriod(id?: number): void { if (!id) return; const period = this.periods().find(item => item.id === id); if (!period) return; this.selectedPeriod.set(period); this.accounting.getPeriodCloseRuns(id).subscribe({ next: response => { const runs = response.data || []; this.periodRuns.set(runs); this.selectedPeriodRun.set(runs[0] || null); }, error: error => this.fail(error) }); }
+  refresh(): void { const year = this.selectedYear(); if (year) this.refreshYears(); }
+  preparePeriod(): void { const period = this.selectedPeriod(); if (!period || !this.can('accounting.close.prepare')) return; this.mutate(this.accounting.preparePeriodClose(period.id), 'Period close prepared.'); }
+  reevaluatePeriod(): void { const run = this.selectedPeriodRun(); if (!run || !this.can('accounting.close.prepare')) return; this.mutate(this.accounting.reevaluatePeriodClose(run.id), 'Gate evidence re-evaluated.'); }
+  approveException(gateId: number): void { const run = this.selectedPeriodRun(); if (!run || !this.can('accounting.close.override_exception')) return; const reason = prompt('Finance exception reason'); if (!reason) return; this.mutate(this.accounting.approveCloseException(run.id, gateId, reason), 'Historical/cutover exception approved.'); }
+  approvePeriod(): void { const run = this.selectedPeriodRun(); if (!run || !this.can('accounting.close.approve') || !confirm('Approve this period close run?')) return; this.mutate(this.accounting.approvePeriodClose(run.id), 'Period close run approved.'); }
+  executePeriod(): void { const run = this.selectedPeriodRun(); if (!run || !this.can('accounting.close.execute') || !confirm('Close this accounting period? Posting will remain blocked.')) return; this.mutate(this.accounting.executePeriodClose(run.id, 'Finance close'), 'Accounting period closed.'); }
+  reopenPeriod(): void { const run = this.selectedPeriodRun(); if (!run || !this.can('accounting.periods.reopen')) return; const reason = prompt('Reason for reopening this accounting period'); if (!reason) return; this.mutate(this.accounting.reopenPeriodClose(run.id, reason), 'Accounting period reopened.'); }
+  prepareYear(): void { const year = this.selectedYear(); if (!year || !this.can('accounting.close.prepare')) return; this.mutate(this.accounting.prepareFinancialYearClose(year.id), 'Financial Year close prepared.'); }
+  approveYear(): void { const run = this.selectedYearRun(); if (!run || !this.can('accounting.close.approve') || !confirm('Approve this Financial Year close run?')) return; this.mutate(this.accounting.approveFinancialYearClose(run.id), 'Financial Year close approved.'); }
+  executeYear(): void { const run = this.selectedYearRun(); if (!run || !this.can('accounting.close.execute') || !confirm('Execute Financial Year close and post the YearEndClosing journal?')) return; this.mutate(this.accounting.executeFinancialYearClose(run.id), 'Financial Year closed and YearEndClosing posted.'); }
+  reopenYear(): void { const run = this.selectedYearRun(); const year = this.selectedYear(); if (!run || !year || !this.can('accounting.financial_years.reopen')) return; const reason = prompt('Reason for Financial Year reopen'); if (!reason) return; this.mutate(this.accounting.reopenFinancialYearClose(run.id, reason, year.endDate.slice(0, 10)), 'Financial Year reopened with linked YearEndClosing reversal.'); }
+  downloadPeriodPackage(): void { const run = this.selectedPeriodRun(); if (run) this.download(this.accounting.downloadPeriodClosePackage(run.id), `period-close-run-${run.id}.json`); }
+  downloadYearPackage(): void { const run = this.selectedYearRun(); if (run) this.download(this.accounting.downloadFinancialYearClosePackage(run.id), `financial-year-close-run-${run.id}.json`); }
+  selectJournal(id?: number | null): void { if (id) window.location.assign(`/transactions?search=${id}`); }
+  can(permission: string): boolean { return this.auth.hasPermission(permission); }
+  gateClass(status: string): string { return status === 'blocking' ? 'blocking' : status === 'warning' ? 'warning' : status === 'exception_approved' ? 'exception' : 'passed'; }
+  private mutate(request: { subscribe: Function }, message: string): void { this.loading.set(true); request.subscribe({ next: () => { this.notice.set(message); this.refresh(); }, error: (error: unknown) => this.fail(error) }); }
+  private download(request: { subscribe: Function }, fileName: string): void { request.subscribe({ next: (blob: Blob) => { const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = fileName; anchor.click(); URL.revokeObjectURL(url); }, error: (error: unknown) => this.fail(error) }); }
+  private fail(error: unknown): void { this.loading.set(false); this.error.set(this.errors.extractErrorMessage(error)); this.alerts.error(this.error() || 'Close workbench request failed.'); }
+}

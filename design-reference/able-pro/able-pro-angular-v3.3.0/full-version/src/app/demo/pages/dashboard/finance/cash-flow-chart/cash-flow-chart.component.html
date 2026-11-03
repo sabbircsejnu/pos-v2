@@ -1,0 +1,30 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between m-b-15">
+    <div>
+      <div class="f-w-600 f-16 m-b-5">Cashflow</div>
+      <p class="m-b-0">
+        5.44%
+        <span class="user-status bg-success-500 text-white">5.44%</span>
+      </p>
+    </div>
+    <select class="form-select-sm" [(ngModel)]="selectType" (change)="onOptionSelected()">
+      <option value="today">Today</option>
+      <option value="week">Weekly</option>
+      <option value="month">Monthly</option>
+    </select>
+  </div>
+  <div id="courses">
+    <apx-chart
+      [chart]="chartOptions.chart"
+      [dataLabels]="chartOptions.dataLabels"
+      [series]="chartOptions.series"
+      [stroke]="chartOptions.stroke"
+      [tooltip]="chartOptions.tooltip"
+      [yaxis]="chartOptions.yaxis"
+      [colors]="chartOptions.colors"
+      [fill]="chartOptions.fill"
+      [legend]="chartOptions.legend"
+      [grid]="chartOptions.grid"
+    ></apx-chart>
+  </div>
+</app-card>

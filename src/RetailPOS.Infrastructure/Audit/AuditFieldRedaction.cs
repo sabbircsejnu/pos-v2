@@ -1,3 +1,5 @@
+using RetailPOS.Core.Audit;
+
 namespace RetailPOS.Infrastructure.Audit;
 
 public static class AuditFieldRedaction
@@ -28,11 +30,18 @@ public static class AuditFieldRedaction
     {
         "User.PasswordHash",
         "User.password_hash",
+        "IntegrationOutboxMessage.PayloadJson",
+        "IntegrationInboxMessage.EffectReference",
+        "FrozenSystemJournalOperation.CanonicalPayloadJson",
     };
 
     public static bool IsSensitive(string entityType, string fieldName)
     {
         if (string.IsNullOrEmpty(fieldName)) return false;
+
+        if ((ConfidentialAuditPolicy.IsHrEntity(entityType) || ConfidentialAuditPolicy.IsPayrollEntity(entityType))
+            && !ConfidentialAuditPolicy.IsSafeField(fieldName))
+            return true;
 
         if (EntityFieldOverrides.Contains($"{entityType}.{fieldName}"))
             return true;

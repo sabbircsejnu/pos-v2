@@ -1,0 +1,65 @@
+<div class="card-flex">
+  <app-card cardTitle="Slider with custom thumb label formatting" blockClass="slider">
+    <mat-slider min="0" max="100000" step="1000" class="w-100" showTickMarks discrete [displayWith]="formatLabel">
+      <input matSliderThumb />
+    </mat-slider>
+  </app-card>
+  <app-card cardTitle="Range slider" blockClass="slider">
+    <mat-slider min="200" max="500" class="w-100">
+      <input value="300" matSliderStartThumb />
+      <input value="400" matSliderEndThumb />
+    </mat-slider>
+  </app-card>
+  <app-card cardTitle="Configurable slider" blockClass="slider">
+    <div>
+      <section class="slider-section">
+        <mat-form-field class="m-10 example-width" appearance="fill">
+          <mat-label>Value</mat-label>
+          <input matInput type="number" [(ngModel)]="value" />
+        </mat-form-field>
+        <mat-form-field class="m-10 example-width" appearance="fill">
+          <mat-label>Min value</mat-label>
+          <input matInput type="number" [(ngModel)]="min" />
+        </mat-form-field>
+        <mat-form-field class="m-10 example-width" appearance="fill">
+          <mat-label>Max value</mat-label>
+          <input matInput type="number" [(ngModel)]="max" />
+        </mat-form-field>
+        <mat-form-field class="m-10 example-width" appearance="fill">
+          <mat-label>Step size</mat-label>
+          <input matInput type="number" [(ngModel)]="step" />
+        </mat-form-field>
+      </section>
+
+      <section class="flex align-item-center">
+        <mat-checkbox [(ngModel)]="showTicks">Show ticks</mat-checkbox>
+      </section>
+
+      <section class="flex align-item-center">
+        <mat-checkbox [(ngModel)]="thumbLabel">Show thumb label</mat-checkbox>
+      </section>
+
+      <section class="flex align-item-center">
+        <mat-checkbox [(ngModel)]="disabled">Disabled</mat-checkbox>
+      </section>
+      <h2 class="m-b-0">Result</h2>
+      <div class="slider-label flex justify-content-between">
+        <label id="example-name-label" class="example-name-label">Value</label>
+        <label class="f-w-600">{{ value }}</label>
+      </div>
+      <section class="flex align-item-center">
+        <mat-slider
+          class="m-10 w-100"
+          [disabled]="disabled"
+          [max]="max"
+          [min]="min"
+          [step]="step"
+          [discrete]="thumbLabel"
+          [showTickMarks]="showTicks"
+        >
+          <input matSliderThumb [(ngModel)]="value" />
+        </mat-slider>
+      </section>
+    </div>
+  </app-card>
+</div>

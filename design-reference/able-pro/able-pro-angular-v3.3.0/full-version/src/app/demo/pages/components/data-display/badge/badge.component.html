@@ -1,0 +1,23 @@
+<div class="row">
+  <div class="col-md-12">
+    <app-card cardTitle="Badge">
+      <div matBadge="4" class="component-badge" matBadgeOverlap="false">Text with a badge</div>
+
+      <div matBadge="1" matBadgeSize="small" class="m-y-15 component-badge">Text with small badge</div>
+      <div matBadge="1" class="component-badge" matBadgeSize="large">Text with large badge</div>
+
+      <div class="d m-t-15 m-b-5">
+        Button with a badge on the left
+        <button mat-raised-button class="m-l-10" color="primary" matBadge="8" matBadgePosition="before" matBadgeColor="accent">
+          Action
+        </button>
+      </div>
+
+      <div class="m-t-15 flex align-item-center">
+        Icon with a badge
+        <mat-icon matBadge="15" class="m-l-10" matBadgeColor="warn">home</mat-icon>
+        <span class="cdk-visually-hidden">Example with a home icon with overlaid badge showing the number 15</span>
+      </div>
+    </app-card>
+  </div>
+</div>

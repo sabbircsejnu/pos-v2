@@ -1,0 +1,44 @@
+<app-card [showHeader]="false">
+  <div class="row g-3 m-b-15">
+    @for (item of widgetData; track item; let i = $index) {
+      <div class="col-md-6 col-xxl-3">
+        <a href="javascript:" (click)="changeChart(i)">
+          <mat-card class="m-b-0 {{ i === activeIndex ? cardBackground : '' }}">
+            <mat-card-content class="p-15 text-accent-800">
+              <div class="flex align-item-center justify-content-between gap-1">
+                <h4 class="f-w-600">{{ item.title }}</h4>
+                <p class="m-b-0 text-muted flex align-item-center gap-1">
+                  <i class="f-14 ti ti-{{ item.isLoss === true ? 'caret-down-filled' : 'caret-up-filled' }} {{ item.color }}"></i>
+                  {{ item.percentage }}%
+                </p>
+              </div>
+              <div class="f-16 f-w-600 m-b-10 m-t-15">{{ item.count }}</div>
+              <div class="flex align-item-center gap-1">
+                <div class="f-16 f-w-600">{{ item.invoice }}</div>
+                <p class="m-b-0 text-muted flex align-item-center gap-2">invoices</p>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </a>
+      </div>
+    }
+  </div>
+  <div id="courses">
+    <apx-chart
+      [chart]="chartOptions.chart"
+      [series]="chartOptions.series"
+      [dataLabels]="chartOptions.dataLabels"
+      [stroke]="chartOptions.stroke"
+      [fill]="chartOptions.fill"
+      [markers]="chartOptions.markers"
+      [xaxis]="chartOptions.xaxis"
+      [yaxis]="chartOptions.yaxis"
+      [grid]="chartOptions.grid"
+      [tooltip]="chartOptions.tooltip"
+      [colors]="chartOptions.colors"
+      [legend]="chartOptions.legend"
+      [plotOptions]="chartOptions.plotOptions"
+      [tooltip]="chartOptions.tooltip"
+    ></apx-chart>
+  </div>
+</app-card>

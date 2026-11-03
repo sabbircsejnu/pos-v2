@@ -1,9 +1,51 @@
-<div class="pos-shell">
+<div class="pos-shell" [class.is-fullscreen]="isFullscreen()">
   <div class="cash-open-strip">
-    <p class="cash-open-line">Cash opening: {{ shiftStartedAt() | date:'dd MMM yyyy, hh:mm a' }}</p>
-    <p class="cash-open-line">Open for: {{ shiftDuration() }}</p>
-    <div class="header-clock">{{ now() | date:'HH:mm:ss' }}</div>
+    <div class="strip-group">
+      <p class="cash-open-line">Opened: {{ activeCashSession() ? (shiftStartedAt() | appDate:'dd MMM yyyy, hh:mm a') : '—' }}</p>
+      <p class="cash-open-line">Business Date: @if (headerBusinessDate(); as businessDate) { {{ businessDate | appDate:'dd MMM yyyy' }} } @else { — }</p>
+      <p class="cash-open-line">Open for: {{ activeCashSession() ? shiftDuration() : '—' }} <span class="strip-muted">/ {{ sessionMaxDurationHours() }} h limit</span></p>
+    </div>
+    <div class="strip-group">
+      <label class="strip-field">
+        <span class="metric-label">Salesperson</span>
+        <select
+          class="select"
+          aria-label="Salesperson credited with this sale"
+          [ngModel]="selectedSalespersonId()"
+          (ngModelChange)="onSalespersonChange($event)"
+          [disabled]="salespersons().length === 0"
+        >
+          @if (salespersons().length === 0) {
+            <option [ngValue]="null">No eligible salesperson</option>
+          } @else {
+            <option [ngValue]="null">Not recorded</option>
+            @for (person of salespersons(); track person.userId) {
+              <option [ngValue]="person.userId">{{ person.name }}</option>
+            }
+          }
+        </select>
+      </label>
+      <button class="btn btn-outline no-print" type="button" (click)="toggleFullscreen()" [attr.aria-pressed]="isFullscreen()"
+        [title]="isFullscreen() ? 'Exit fullscreen' : 'Enter fullscreen (the cart is kept)'">
+        <i class="fas" [class.fa-compress]="isFullscreen()" [class.fa-expand]="!isFullscreen()" aria-hidden="true"></i>
+        {{ isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen' }}
+      </button>
+      <button class="btn btn-outline btn-close-session no-print" type="button" (click)="requestCloseCashSession()" [disabled]="!activeCashSession() || isLoadingSession()"
+        title="Count the drawer and close this cash session">
+        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Close Cash Session
+      </button>
+      <div class="header-clock" aria-label="Current time">{{ now() | appDate:'HH:mm:ss' }}</div>
+    </div>
   </div>
+
+  @if (sessionWarningMessage()) {
+    <div class="alert" role="status" [class.alert-warning]="!sessionIsOverdue()" [class.alert-error]="sessionIsOverdue()">
+      <div>{{ sessionWarningMessage() }}</div>
+      @if (sessionIsOverdue()) {
+        <button class="btn btn-danger ml-auto no-print" type="button" (click)="requestCloseCashSession()">Close Cash Session</button>
+      }
+    </div>
+  }
 
   <div class="pos-header-card">
     <div class="header-metric">
@@ -15,13 +57,17 @@
       <span class="metric-label">Terminal</span>
       <select
         class="select"
+        aria-label="POS terminal"
         [ngModel]="selectedTerminalId()"
         (ngModelChange)="onTerminalChange($event)"
-        [disabled]="terminals().length === 0"
+        [disabled]="terminals().length <= 1"
       >
         @if (terminals().length === 0) {
-          <option [ngValue]="null">No terminals</option>
+          <option [ngValue]="null">No active terminals</option>
         } @else {
+          @if (terminals().length > 1) {
+            <option [ngValue]="null">Select terminal…</option>
+          }
           @for (terminal of terminals(); track terminal.id) {
             <option [ngValue]="terminal.id">{{ terminal.name }} ({{ terminal.code }})</option>
           }
@@ -43,57 +89,69 @@
       <div class="header-metric">
         <span class="metric-label">Sales Order Date</span>
         <input
-          type="date"
+          type="date" appCompanyDate
           class="input"
+          aria-label="Sales order date"
           [ngModel]="salesOrderDate()"
           (ngModelChange)="salesOrderDate.set($event)"
-          [max]="now() | date:'yyyy-MM-dd'"
+          [max]="todayForInput()"
         />
       </div>
     }
-
-    <div class="header-metric">
-      <span class="metric-label">Item Count</span>
-      <span class="metric-value">{{ itemCount() }}</span>
-    </div>
-
-    <div class="header-metric">
-      <span class="metric-label">Quantity Count</span>
-      <span class="metric-value">{{ quantityCount() }}</span>
-    </div>
   </div>
 
   <div class="pos-workflow">
-    <section class="cart-lane">
-      <div class="entry-headings">
-        <span>Item code / barcode</span>
-        <span>Customer</span>
-        <span>Name</span>
-      </div>
-
+    <section class="cart-lane" aria-label="Cart">
       <div class="smart-search-bar">
         <div class="relative search-column">
           <input
             id="smart-pos-search"
             type="text"
-            placeholder="Product code / description (F2)"
-            class="input"
+            placeholder="Scan barcode or search product, SKU, code or variant (F2)"
+            aria-label="Product search (F2)"
+            class="input search-input"
+            autocomplete="off"
             [ngModel]="smartSearchQuery()"
             (ngModelChange)="onSmartSearchChange($event)"
             (keydown.enter)="onSmartSearchSubmit()"
-            (focus)="showSmartSearchDropdown.set(!!smartSearchQuery().trim())"
+            (focus)="onSmartSearchFocus()"
             [disabled]="isBarcodeScanning()"
           />
+          <button class="search-browse" type="button" (click)="openProductBrowser()" title="Browse products (F4)" aria-label="Browse products (F4)">
+            @if (isBarcodeScanning()) {
+              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            } @else {
+              <i class="fas fa-th-large" aria-hidden="true"></i>
+            }
+          </button>
 
           @if (showSmartSearchDropdown() && smartSearchResults().length > 0) {
-            <div class="smart-search-dropdown">
+            <div class="smart-search-dropdown" role="listbox" aria-label="Matching products">
               @for (product of smartSearchResults(); track product.variantId) {
-                <button class="smart-option" (click)="selectSmartSearchResult(product)">
-                  <div class="smart-option-main">
-                    <span class="font-medium text-sm text-gray-900">{{ product.name }}</span>
-                    <span class="text-xs text-gray-500">{{ product.sku }}</span>
+                <button class="smart-option" type="button" role="option" (click)="selectSmartSearchResult(product)">
+                  <span class="thumb" aria-hidden="true">
+                    @if (product.primaryImageThumb) {
+                      <img [src]="resolveImage(product.primaryImageThumb)" alt="" loading="lazy" (error)="$any($event.target).remove()" />
+                    }
+                    <i class="fas fa-box"></i>
+                  </span>
+                  <div class="smart-option-main smart-option-detailed">
+                    <span class="font-semibold text-sm text-gray-900">{{ getPrimaryName(product) }}</span>
+                    <span class="text-xs text-gray-600">Variant: {{ getVariantDetails(product) }}</span>
+                    <div class="smart-meta-grid text-xs text-gray-500">
+                      <span>Main Code: {{ product.productCode || '-' }}</span>
+                      <span>SKU: {{ product.sku || '-' }}</span>
+                      <span>Barcode: {{ product.barcode || '-' }}</span>
+                    </div>
+                    <span class="smart-stock-pill" [ngClass]="getStockStatusClass(product)">
+                      @if (isStockLoading(product)) {
+                        Checking stock...
+                      } @else {
+                        {{ getStockStatusText(product) }}
+                      }
+                    </span>
                   </div>
-                  <span class="text-sm font-semibold text-gray-800">{{ product.price | appCurrency }}</span>
+                  <span class="text-sm font-semibold text-gray-800 smart-price">{{ product.price | appCurrency }}</span>
                 </button>
               }
             </div>
@@ -102,17 +160,20 @@
 
         <div class="relative customer-column">
           <input
+            id="pos-customer-search"
             type="text"
             class="input"
-            placeholder="Search customer (F6)"
+            placeholder="Customer name or phone (F3)"
+            aria-label="Customer search (F3)"
+            autocomplete="off"
             [ngModel]="customerSearchQuery()"
             (ngModelChange)="onCustomerSearch($event)"
             [disabled]="!canViewCustomers()"
           />
           @if (showCustomerDropdown() && customerResults().length > 0) {
-            <div class="customer-dropdown">
+            <div class="customer-dropdown" role="listbox" aria-label="Matching customers">
               @for (c of customerResults(); track c.id) {
-                <button class="customer-option" (click)="selectCustomer(c)">
+                <button class="customer-option" type="button" role="option" (click)="selectCustomer(c)">
                   <span class="font-medium text-sm">{{ c.name }}</span>
                   <span class="text-xs text-gray-500">{{ c.phone || c.email || '' }}</span>
                 </button>
@@ -121,108 +182,137 @@
           }
         </div>
 
-        <button class="btn btn-outline btn-icon" (click)="quickAddCustomer()" [disabled]="!canCreateCustomers()" title="Quick Add Customer">
-          <i class="fas fa-plus"></i>
+        <button class="btn btn-outline btn-icon" type="button" (click)="quickAddCustomer()" [disabled]="!canCreateCustomers()" title="Quick add customer" aria-label="Quick add customer">
+          <i class="fas fa-user-plus" aria-hidden="true"></i>
         </button>
 
         <div class="customer-name-pill">
-          {{ selectedCustomer()?.name || 'Walk-in Customer' }}
-        </div>
-
-        <button class="btn btn-outline" (click)="holdSale()" [disabled]="cartItems().length === 0">
-          Hold Invoice
-          <span class="shortcut-tag">F6</span>
-        </button>
-        <button class="btn btn-outline relative" (click)="toggleHeldSalesPanel()">
-          Recall Invoice
-          <span class="shortcut-tag">F7</span>
-          @if (heldSales().length > 0) {
-            <span class="held-count-badge">{{ heldSales().length }}</span>
+          <span class="truncate">{{ selectedCustomer()?.name || 'Walk-in Customer' }}</span>
+          @if ((selectedCustomer()?.id ?? 0) > 0) {
+            <button class="pill-clear" type="button" (click)="clearCustomer()" title="Use walk-in customer" aria-label="Remove customer and use walk-in">
+              <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
           }
-        </button>
-        <button class="btn btn-ghost" (click)="openProductBrowser()">
-          Browse
-          <span class="shortcut-tag">F4</span>
-        </button>
-        @if (isBarcodeScanning()) {
-          <i class="fas fa-spinner fa-spin text-gray-400"></i>
-        }
+        </div>
       </div>
 
       <div class="cart-table-wrap">
-        <div class="cart-table-header">
-          <span>SL</span>
-          <span>Barcode</span>
-          <span>Product Key</span>
-          <span>Description</span>
+        <div class="cart-table-header" aria-hidden="true">
+          <span>#</span>
+          <span>Item</span>
           <span class="text-right">Price</span>
           <span class="text-center">Qty</span>
-          <span class="text-center">Discount (%)</span>
+          <span class="text-center">Disc %</span>
+          <span class="text-center">VAT</span>
           <span class="text-right">Amount</span>
-          <span class="text-right">Action</span>
+          <span></span>
         </div>
 
         <div class="cart-rows">
           @if (cartItems().length === 0) {
-            <div class="cart-row cart-row-empty">
-              <span>1</span>
-              <span>-</span>
-              <span>-</span>
-              <span class="text-gray-400">Scan barcode or search product to begin sale</span>
-              <span class="text-right">0.00</span>
-              <span class="text-center">0</span>
-              <span class="text-center">0</span>
-              <span class="text-right">0.00</span>
-              <span class="text-right">-</span>
-            </div>
+            <div class="cart-empty">Scan a barcode or search for a product to begin the sale.</div>
           } @else {
             @for (item of cartItems(); track item.variantId; let i = $index) {
               <div class="cart-row" [class.duplicate-highlight]="duplicateCartVariantId() === item.variantId">
                 <span class="text-sm text-gray-600">{{ i + 1 }}</span>
-                <span class="text-sm text-gray-700">{{ item.variantSku }}</span>
-                <span class="text-sm text-gray-700">{{ item.variantSku }}</span>
-                <div class="cart-product min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">{{ item.productName }}</p>
+                <div class="cart-product">
+                  <span class="thumb" aria-hidden="true">
+                    @if (item.primaryImageThumb) {
+                      <img [src]="resolveImage(item.primaryImageThumb)" alt="" loading="lazy" (error)="$any($event.target).remove()" />
+                    }
+                    <i class="fas fa-box"></i>
+                  </span>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ item.productName }}</p>
+                    <p class="text-xs text-gray-500 truncate">
+                      @if (item.variantLabel) { {{ item.variantLabel }} · }SKU {{ item.variantSku || '-' }}@if (item.barcode) { · {{ item.barcode }} }
+                    </p>
+                  </div>
                 </div>
                 <span class="text-right text-sm text-gray-700">{{ item.unitPrice | appCurrency }}</span>
                 <div class="qty-controls">
-                  <button class="qty-btn" (click)="decreaseQty(i)"><i class="fas fa-minus text-xs"></i></button>
-                  <span class="qty-value">{{ item.quantity }}</span>
-                  <button class="qty-btn" (click)="increaseQty(i)"><i class="fas fa-plus text-xs"></i></button>
+                  <button class="qty-btn" type="button" (click)="decreaseQty(i)" [attr.aria-label]="'Decrease quantity of ' + item.productName"><i class="fas fa-minus text-xs" aria-hidden="true"></i></button>
+                  <input
+                    class="qty-input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    [value]="item.quantity"
+                    (change)="setQuantity(i, $any($event.target).value, $any($event.target))"
+                    (keydown.enter)="$any($event.target).blur()"
+                    [attr.aria-label]="'Quantity of ' + item.productName"
+                  />
+                  <button class="qty-btn" type="button" (click)="increaseQty(i)" [attr.aria-label]="'Increase quantity of ' + item.productName"><i class="fas fa-plus text-xs" aria-hidden="true"></i></button>
                 </div>
-                <span class="text-center text-sm text-gray-700">0</span>
+                <div class="text-center">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    class="input text-xs text-center px-1 py-1"
+                    [ngModel]="item.discountPercent || 0"
+                    (ngModelChange)="onItemDiscountChange(i, $event)"
+                    [disabled]="!canApplyDiscount()"
+                    [attr.aria-label]="'Manual discount percent for ' + item.productName"
+                    [title]="canApplyDiscount() ? (discountLimitText() || 'Product-wise discount %') : 'You do not have permission to apply manual discounts'"
+                  />
+                </div>
+                <span class="text-center text-xs text-gray-600">{{ item.taxRate === undefined ? '—' : (item.taxRate + '%') }}</span>
                 <span class="text-right text-sm font-semibold text-gray-900">{{ item.subtotal | appCurrency }}</span>
                 <div class="text-right">
-                  <button class="remove-btn" (click)="removeFromCart(i)">
-                    <i class="fas fa-trash-alt"></i>
+                  <button class="remove-btn" type="button" (click)="removeFromCart(i)" [attr.aria-label]="'Remove ' + item.productName" title="Remove line">
+                    <i class="fas fa-trash-alt" aria-hidden="true"></i>
                   </button>
                 </div>
               </div>
             }
           }
         </div>
+        @if (cartItems().length > 0) {
+          <p class="discount-limit-note">
+            @if (!canApplyDiscount()) {
+              Manual discounts require the discount permission.
+            } @else if (discountLimitText()) {
+              {{ discountLimitText() }}
+            }
+          </p>
+        }
+      </div>
+
+      <div class="cart-footer no-print">
+        <button class="btn btn-outline" type="button" (click)="holdSale()" [disabled]="cartItems().length === 0" title="Hold this invoice (F6)">
+          <i class="fas fa-pause-circle" aria-hidden="true"></i> Hold <span class="shortcut-tag">F6</span>
+        </button>
+        <button class="btn btn-outline relative" type="button" (click)="toggleHeldSalesPanel()" title="Recall a held invoice (F7)">
+          <i class="fas fa-history" aria-hidden="true"></i> Recall <span class="shortcut-tag">F7</span>
+          @if (heldSales().length > 0) {
+            <span class="held-count-badge" [attr.aria-label]="heldSales().length + ' held invoices'">{{ heldSales().length }}</span>
+          }
+        </button>
+        <span class="cart-footer-meta">{{ itemCount() }} item(s) · {{ quantityCount() }} qty</span>
+        <button class="btn btn-outline btn-clear-cart" type="button" (click)="requestClearCart()" [disabled]="cartItems().length === 0" title="Clear the whole cart">
+          <i class="fas fa-trash-alt" aria-hidden="true"></i> Clear Cart
+        </button>
       </div>
     </section>
 
-    <aside class="payment-lane">
+    <aside class="payment-lane" aria-label="Payment">
       <div class="payment-scroll">
         <section class="summary-card">
           <p class="section-title">Payment Summary</p>
 
           <div class="summary-row">
-            <span>Item Count</span>
-            <strong>{{ itemCount() }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Quantity</span>
-            <strong>{{ quantityCount() }}</strong>
+            <span>Items / Quantity</span>
+            <strong>{{ itemCount() }} / {{ quantityCount() }}</strong>
           </div>
           <div class="summary-row">
             <span>Subtotal</span>
             <strong>{{ subtotal() | appCurrency }}</strong>
           </div>
           <div class="summary-row with-inline-input">
-            <span>Discount</span>
+            <span>Invoice Discount</span>
             <div class="inline-edit">
               <input
                 type="number"
@@ -230,15 +320,20 @@
                 max="100"
                 step="0.1"
                 class="input discount-input"
+                aria-label="Invoice discount percent"
                 [ngModel]="discountPercent()"
                 (ngModelChange)="onDiscountChange($event)"
+                [disabled]="!canApplyDiscount()"
               />
               <span class="text-xs text-gray-500">%</span>
               <strong class="text-red-600">-{{ discountAmount() | appCurrency }}</strong>
             </div>
           </div>
+          @if (canApplyDiscount() && discountLimitText()) {
+            <p class="summary-hint">{{ discountLimitText() }}</p>
+          }
           <div class="summary-row">
-            <span>Tax</span>
+            <span>{{ taxLabel() }}</span>
             <strong>{{ taxAmount() | appCurrency }}</strong>
           </div>
           <div class="summary-row">
@@ -246,121 +341,119 @@
             <strong>{{ roundOff() | appCurrency }}</strong>
           </div>
           <div class="summary-row total-line">
-            <span>Grand Total</span>
-            <strong>{{ grandTotal() | appCurrency }}</strong>
+            <span>Payable</span>
+            <strong>{{ payableAmount() | appCurrency }}</strong>
           </div>
         </section>
 
         <section class="payment-method-card">
-          <p class="section-title">Tender Details</p>
-          <div class="summary-row">
-            <span>Payable</span>
-            <strong>{{ payableAmount() | appCurrency }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Round Off</span>
-            <strong>{{ roundOff() | appCurrency }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Cash (Ctrl+1)</span>
-            <strong>{{ cashBreakdown() | appCurrency }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Card (Ctrl+2)</span>
-            <strong>{{ cardBreakdown() | appCurrency }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Mobile (Ctrl+3)</span>
-            <strong>{{ mobileBreakdown() | appCurrency }}</strong>
-          </div>
-          <div class="summary-row">
-            <span>Change</span>
-            <strong>{{ change() | appCurrency }}</strong>
-          </div>
-
           <div class="section-title-row">
-            <p class="section-title">Payment Breakdown</p>
-            <button class="text-xs text-blue-600 hover:underline" (click)="toggleSplitPayment()">
+            <p class="section-title">Tender Details</p>
+            <button class="text-xs text-blue-600 hover:underline" type="button" (click)="toggleSplitPayment()">
               {{ useSplitPayment() ? 'Single Payment' : 'Split Payment' }}
             </button>
           </div>
 
           @if (!useSplitPayment()) {
-            <div class="pay-method-grid">
-              <button class="pay-method-btn" [class.active]="paymentMethod() === 'cash'" (click)="setPaymentMethod('cash')">
-                <i class="fas fa-money-bill-wave"></i>Cash
+            <div class="pay-method-grid" role="radiogroup" aria-label="Payment method">
+              <button class="pay-method-btn" type="button" role="radio" [attr.aria-checked]="paymentMethod() === 'cash'" [class.active]="paymentMethod() === 'cash'" (click)="setPaymentMethod('cash')" title="Cash (Ctrl+1)">
+                <i class="fas fa-money-bill-wave" aria-hidden="true"></i>Cash
               </button>
-              <button class="pay-method-btn" [class.active]="paymentMethod() === 'card'" (click)="setPaymentMethod('card')">
-                <i class="fas fa-credit-card"></i>Card
+              <button class="pay-method-btn" type="button" role="radio" [attr.aria-checked]="paymentMethod() === 'card'" [class.active]="paymentMethod() === 'card'" (click)="setPaymentMethod('card')" title="Card (Ctrl+2)">
+                <i class="fas fa-credit-card" aria-hidden="true"></i>Card
               </button>
-              <button class="pay-method-btn" [class.active]="paymentMethod() === 'mobile'" (click)="setPaymentMethod('mobile')">
-                <i class="fas fa-mobile-alt"></i>Mobile
+              <button class="pay-method-btn" type="button" role="radio" [attr.aria-checked]="paymentMethod() === 'mobile'" [class.active]="paymentMethod() === 'mobile'" (click)="setPaymentMethod('mobile')" title="Mobile banking (Ctrl+3)">
+                <i class="fas fa-mobile-alt" aria-hidden="true"></i>Mobile
               </button>
             </div>
+
+            @if (paymentMethod() === 'cash') {
+              <div class="cash-entry">
+                <label class="label" for="pos-cash-tendered">Cash Tendered</label>
+                <input
+                  id="pos-cash-tendered"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputmode="decimal"
+                  class="input tender-input"
+                  [ngModel]="cashTendered()"
+                  (ngModelChange)="onCashTenderedChange($event)"
+                  placeholder="0.00"
+                />
+                <div class="summary-row mt-2">
+                  <span>Due</span>
+                  <strong [class.text-red-600]="dueAmount() > 0">{{ dueAmount() | appCurrency }}</strong>
+                </div>
+              </div>
+            }
           } @else {
             <div class="split-payment-rows">
               @for (row of splitPayments(); track $index; let i = $index) {
                 <div class="split-row">
-                  <select class="select w-24" [ngModel]="row.method" (ngModelChange)="updateSplitMethod(i, $event)">
+                  <select class="select w-24" [ngModel]="row.method" (ngModelChange)="updateSplitMethod(i, $event)" [attr.aria-label]="'Method of payment line ' + (i + 1)">
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
                     <option value="mobile">Mobile</option>
                   </select>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Amount"
-                    class="input"
-                    [ngModel]="row.amount"
-                    (ngModelChange)="updateSplitAmount(i, $event)"
-                  />
+                  <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount" class="input"
+                    [ngModel]="row.amount" (ngModelChange)="updateSplitAmount(i, $event)" [attr.aria-label]="'Amount of payment line ' + (i + 1)" />
+                  @if (row.method === 'cash') {
+                    <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Tendered" class="input"
+                      [ngModel]="row.tendered" (ngModelChange)="updateSplitTendered(i, $event)" [attr.aria-label]="'Cash tendered on payment line ' + (i + 1)" />
+                  }
                   @if (splitPayments().length > 1) {
-                    <button class="text-red-500" (click)="removeSplitRow(i)">
-                      <i class="fas fa-times"></i>
+                    <button class="text-red-500" type="button" (click)="removeSplitRow(i)" [attr.aria-label]="'Remove payment line ' + (i + 1)">
+                      <i class="fas fa-times" aria-hidden="true"></i>
                     </button>
                   }
                 </div>
               }
               <div class="split-footer">
-                <button class="text-xs text-blue-600 hover:underline" (click)="addSplitRow()">+ Add Method</button>
+                <button class="text-xs text-blue-600 hover:underline" type="button" (click)="addSplitRow()">+ Add Method</button>
                 <span [class.text-red-600]="splitRemaining() > 0.01" [class.text-green-600]="splitRemaining() <= 0.01">
                   Remaining: {{ splitRemaining() | appCurrency }}
                 </span>
               </div>
+              @if (splitTenderError()) {
+                <p class="text-xs text-red-600" role="alert">{{ splitTenderError() }}</p>
+              }
             </div>
           }
 
-          @if (paymentMethod() === 'cash' && !useSplitPayment()) {
-            <div class="cash-entry">
-              <label class="label">Cash Tendered</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                class="input"
-                [ngModel]="cashTendered()"
-                (ngModelChange)="onCashTenderedChange($event)"
-                placeholder="0.00"
-              />
-              <div class="summary-row mt-2">
-                <span>Due</span>
-                <strong [class.text-red-600]="dueAmount() > 0">{{ dueAmount() | appCurrency }}</strong>
-              </div>
-            </div>
-          }
+          <div class="tender-breakdown">
+            <div class="summary-row"><span>Cash</span><strong>{{ cashBreakdown() | appCurrency }}</strong></div>
+            <div class="summary-row"><span>Card</span><strong>{{ cardBreakdown() | appCurrency }}</strong></div>
+            <div class="summary-row"><span>Mobile</span><strong>{{ mobileBreakdown() | appCurrency }}</strong></div>
+            @if (cashBreakdown() > 0) {
+              <div class="summary-row"><span>Cash tendered</span><strong>{{ cashTenderedTotal() | appCurrency }}</strong></div>
+              <div class="summary-row change-row"><span>Change to return</span><strong>{{ change() | appCurrency }}</strong></div>
+              <div class="summary-row"><span>Net cash retained in drawer</span><strong>{{ netCashRetained() | appCurrency }}</strong></div>
+            }
+          </div>
         </section>
       </div>
 
+      <div class="checkout-notices" aria-live="polite">
+        @if (terminalPrompt()) {
+          <app-ui-alert [variant]="terminalsState() === 'multiple' ? 'warning' : 'danger'" title="Terminal required">{{ terminalPrompt() }}</app-ui-alert>
+        }
+        @if (discountBlockMessage()) {
+          <app-ui-alert variant="danger" title="Manual discount not allowed">{{ discountBlockMessage() }}</app-ui-alert>
+        } @else if (discountOverrideNotice()) {
+          <app-ui-alert variant="info" title="Discount limit override">{{ discountOverrideNotice() }}</app-ui-alert>
+        }
+        @if (checkoutNotice(); as notice) {
+          @if (notice.text !== discountBlockMessage()) {
+            <app-ui-alert [variant]="notice.variant" [dismissible]="true" (dismissed)="checkoutNotice.set(null)">{{ notice.text }}</app-ui-alert>
+          }
+        }
+      </div>
+
       <div class="checkout-footer">
-        <button class="btn btn-outline" (click)="clearCart()" [disabled]="cartItems().length === 0">Clear</button>
-        <button class="btn btn-primary" (click)="holdSale()" [disabled]="cartItems().length === 0">
-          Hold
-          <span class="shortcut-tag">F6</span>
-        </button>
-        <button class="btn btn-primary checkout-btn" [disabled]="!canCompleteSale()" (click)="completeSale()">
+        <button class="btn btn-primary checkout-btn" type="button" [disabled]="!canCompleteSale()" (click)="completeSale()" [attr.aria-busy]="isProcessing()">
           @if (isProcessing()) {
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
             Processing...
           } @else {
             Complete Sale
@@ -375,87 +468,182 @@
 <!-- Receipt Modal -->
 @if (showReceiptModal() && completedSale()) {
   <div class="modal-overlay" (click)="$event.target === $event.currentTarget && startNewSale()">
-    <div class="receipt-modal" id="receipt-print">
-      <div class="receipt-header">
-        <div class="receipt-logo">
-          <i class="fas fa-store text-3xl text-gray-700"></i>
+    <div class="receipt-modal" id="receipt-print" role="dialog" aria-modal="true" aria-label="Sale completed — receipt" [class.thermal-mode]="receiptOutputMode() === '80mm'" [class.a4-mode]="receiptOutputMode() === 'A4'">
+      @if (receiptDocument(); as rd) {
+        <div class="receipt-header thermal-header">
+          @if (rd.header.showLogo && rd.header.logoBase64) {
+            <div class="receipt-logo-image-wrap">
+              <img [src]="'data:image/png;base64,' + rd.header.logoBase64" alt="Business Logo" class="receipt-logo-image" />
+            </div>
+          }
+          <h2 class="receipt-title">{{ rd.header.businessName || 'Business' }}</h2>
+          @if (rd.header.outletName) { <p class="receipt-sub">{{ rd.header.outletName }}</p> }
+          @if (rd.header.outletAddress) { <p class="receipt-sub">{{ rd.header.outletAddress }}</p> }
+          @if (rd.header.phone) { <p class="receipt-sub">Tel: {{ rd.header.phone }}</p> }
+          @if (rd.header.binOrVatNo) { <p class="receipt-sub">BIN/VAT: {{ rd.header.binOrVatNo }}</p> }
+          @if (rd.header.headerText) { <p class="receipt-sub">{{ rd.header.headerText }}</p> }
         </div>
-        <h2 class="text-xl font-bold text-gray-900 mt-2">Receipt</h2>
-        <p class="text-sm text-gray-500">{{ completedSale()?.saleNumber }}</p>
-        <p class="text-xs text-gray-400">{{ completedSale()?.saleDate | date:'medium' }}</p>
-      </div>
 
-      @if (completedSale()?.customerName) {
-        <div class="receipt-customer">
-          <i class="fas fa-user text-gray-400 mr-1"></i>
-          <span class="text-sm text-gray-700">{{ completedSale()?.customerName }}</span>
+        <div class="receipt-customer thermal-meta">
+          <div><strong>Invoice:</strong> {{ rd.saleInfo.invoiceNumber }}</div>
+          <div><strong>Date:</strong> {{ rd.saleInfo.salesDateTime | appDate:'yyyy-MM-dd HH:mm' }}</div>
+          @if (rd.saleInfo.businessDate) { <div><strong>Business date:</strong> {{ rd.saleInfo.businessDate | appDate:'yyyy-MM-dd' }}</div> }
+          <div><strong>Cashier:</strong> {{ rd.saleInfo.cashier }}</div>
+          @if (rd.saleInfo.salesperson) { <div><strong>Salesperson:</strong> {{ rd.saleInfo.salesperson }}</div> }
+          <div><strong>Terminal:</strong> {{ rd.saleInfo.terminal }}</div>
+          <div><strong>Customer:</strong> {{ rd.saleInfo.customerName }}</div>
+        </div>
+
+        <div class="receipt-items thermal-items">
+          <div class="receipt-items-header thermal-items-header">
+            <span>Product</span>
+            <span class="text-center">Qty</span>
+            <span class="text-right">Total</span>
+          </div>
+          @for (item of rd.items; track $index) {
+            <div class="receipt-item-row thermal-item-row">
+              <div>
+                <div class="text-sm font-semibold">{{ item.productName }}</div>
+                @if (item.variantLabel) {
+                  <div class="text-xs text-gray-500">{{ item.variantLabel }}</div>
+                }
+                <div class="text-xs text-gray-500">
+                  {{ item.quantity }} x {{ item.unitPrice | appCurrency }} · Disc {{ item.discount | appCurrency }}
+                  @if (item.vatRate) { · VAT {{ item.vatRate }}% {{ (item.vatAmount ?? 0) | appCurrency }} }
+                </div>
+              </div>
+              <div class="text-sm text-center">{{ item.quantity }}</div>
+              <div class="text-sm font-semibold text-right">{{ item.lineTotal | appCurrency }}</div>
+            </div>
+          }
+        </div>
+
+        <div class="receipt-totals thermal-totals">
+          <div class="receipt-total-row"><span>Item Count</span><span>{{ rd.summary.itemCount }}</span></div>
+          <div class="receipt-total-row"><span>Quantity</span><span>{{ rd.summary.quantity }}</span></div>
+          <div class="receipt-total-row"><span>Subtotal</span><span>{{ rd.summary.subtotal | appCurrency }}</span></div>
+          <div class="receipt-total-row"><span>Discount</span><span>-{{ rd.summary.discount | appCurrency }}</span></div>
+          <div class="receipt-total-row"><span>{{ rd.taxInclusive ? 'VAT (included)' : receiptTaxLabel() }}</span><span>{{ rd.summary.tax | appCurrency }}</span></div>
+          <div class="receipt-total-row"><span>Round Off</span><span>{{ rd.summary.roundOff | appCurrency }}</span></div>
+          <div class="receipt-total-row total-strong"><span>Grand Total</span><span>{{ rd.summary.grandTotal | appCurrency }}</span></div>
+          @if (rd.payments?.length) {
+            @for (payment of rd.payments; track $index) {
+              <div class="receipt-total-row"><span class="capitalize">{{ payment.method }}</span><span>{{ payment.amount | appCurrency }}</span></div>
+              @if (payment.tendered !== null && payment.tendered !== undefined) {
+                <div class="receipt-total-row receipt-sub-row"><span>Tendered / Change</span><span>{{ payment.tendered | appCurrency }} / {{ payment.change | appCurrency }}</span></div>
+              }
+            }
+          } @else {
+            <div class="receipt-total-row"><span>Payment</span><span class="capitalize">{{ rd.summary.paymentMethod }}</span></div>
+            <div class="receipt-total-row"><span>Paid</span><span>{{ rd.summary.paidAmount | appCurrency }}</span></div>
+          }
+          <div class="receipt-total-row"><span>Change</span><span>{{ rd.summary.change | appCurrency }}</span></div>
+        </div>
+
+        <div class="receipt-footer thermal-footer">
+          <p class="text-center">{{ rd.footer.thankYouMessage || 'Thank you for your purchase!' }}</p>
+          @if (rd.footer.returnPolicy) {
+            <p class="text-center text-xs text-gray-500">{{ rd.footer.returnPolicy }}</p>
+          }
+          @if (rd.footer.footerText) {
+            <p class="text-center text-xs text-gray-500">{{ rd.footer.footerText }}</p>
+          }
+          @if (rd.footer.showBarcode || rd.footer.showQr) {
+            <div class="receipt-code">{{ rd.footer.codeValue || rd.saleInfo.invoiceNumber }}</div>
+          }
+          <p class="text-center text-xs text-gray-400">Generated: {{ rd.footer.generatedAt | appDate:'yyyy-MM-dd HH:mm:ss' }}</p>
+        </div>
+      } @else {
+        <div class="receipt-header">
+          <div class="receipt-logo">
+            <i class="fas fa-store text-3xl text-gray-700" aria-hidden="true"></i>
+          </div>
+          <h2 class="text-xl font-bold text-gray-900 mt-2">Receipt</h2>
+          <p class="text-sm text-gray-500">{{ completedSale()?.saleNumber }}</p>
+          <p class="text-xs text-gray-400">{{ completedSale()?.saleDate | appDate:'medium' }}</p>
         </div>
       }
 
-      <div class="receipt-items">
-        <div class="receipt-items-header">
-          <span>Item</span>
-          <span>Qty</span>
-          <span class="text-right">Total</span>
-        </div>
-        @for (item of completedSale()?.items; track item.id) {
-          <div class="receipt-item-row">
-            <div>
-              <div class="text-sm font-medium">{{ item.productName }}</div>
-              <div class="text-xs text-gray-500">{{ item.variantSku }} @ {{ item.unitPrice | appCurrency }}</div>
-            </div>
-            <div class="text-sm text-center">{{ item.quantity }}</div>
-            <div class="text-sm font-medium text-right">{{ item.subtotal | appCurrency }}</div>
-          </div>
-        }
-      </div>
-
-      <div class="receipt-totals">
-        <div class="receipt-total-row">
-          <span class="text-sm text-gray-600">Subtotal</span>
-          <span class="text-sm">{{ completedSale()?.totalAmount | appCurrency }}</span>
-        </div>
-        @if (completedSale()?.discount > 0) {
-          <div class="receipt-total-row">
-            <span class="text-sm text-gray-600">Discount</span>
-            <span class="text-sm text-red-600">-{{ completedSale()?.discount | appCurrency }}</span>
-          </div>
-        }
-        <div class="receipt-total-row">
-          <span class="text-sm text-gray-600">Tax</span>
-          <span class="text-sm">{{ completedSale()?.tax | appCurrency }}</span>
-        </div>
-        <div class="receipt-total-row font-bold border-t border-gray-200 pt-2">
-          <span class="text-base">Total</span>
-          <span class="text-xl text-gray-900">{{ completedSale()?.netTotal | appCurrency }}</span>
-        </div>
-        <div class="receipt-total-row mt-2">
-          <span class="text-sm text-gray-600">Payment</span>
-          <span class="text-sm font-medium capitalize">{{ completedSale()?.paymentMethod }}</span>
-        </div>
-        @if (completedSale()?.paymentMethod === 'cash') {
-          <div class="receipt-total-row">
-            <span class="text-sm text-gray-600">Cash Tendered</span>
-            <span class="text-sm">{{ cashTendered() | appCurrency }}</span>
-          </div>
-          <div class="receipt-total-row">
-            <span class="text-sm text-gray-600">Change</span>
-            <span class="text-sm font-bold text-green-600">{{ change() | appCurrency }}</span>
-          </div>
-        }
-      </div>
-
-      <div class="receipt-footer">
-        <p class="text-xs text-gray-400 text-center">Thank you for your purchase!</p>
-        <p class="text-xs text-gray-400 text-center">{{ completedSale()?.cashierName }}</p>
-      </div>
-
       <div class="receipt-actions no-print">
-        <button class="btn btn-outline" (click)="printReceipt()">
-          <i class="fas fa-print mr-2"></i>Print
+        <div class="receipt-actions-left">
+          <label class="text-xs text-gray-600" for="pos-receipt-size">Size</label>
+          <select id="pos-receipt-size" class="select" [ngModel]="receiptOutputMode()" (ngModelChange)="onReceiptModeChange($event)">
+            <option value="80mm">80mm Thermal</option>
+            <option value="A4">A4 Invoice</option>
+          </select>
+          <span class="text-xs text-gray-500">Copies: {{ receiptCopies() }}</span>
+        </div>
+        <div class="receipt-actions-right">
+          <button class="btn btn-outline" type="button" (click)="printReceipt()">
+            <i class="fas fa-print mr-2" aria-hidden="true"></i>{{ receiptPrintCount() > 0 ? 'Reprint' : 'Print' }}
+          </button>
+          <button class="btn btn-outline" type="button" (click)="saveReceiptAsPdf()">
+            <i class="fas fa-file-pdf mr-2" aria-hidden="true"></i>Save PDF
+          </button>
+          <button class="btn btn-primary" type="button" (click)="startNewSale()">
+            <i class="fas fa-plus mr-2" aria-hidden="true"></i>New Sale
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showOpenCashModal()) {
+  <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeCashModals()">
+    <div class="quick-customer-modal" role="dialog" aria-modal="true" aria-labelledby="pos-open-cash-title">
+      <div class="quick-customer-head">
+        <h3 id="pos-open-cash-title">Open Cash Session</h3>
+        <button class="btn btn-ghost" type="button" (click)="closeCashModals()" aria-label="Close dialog">
+          <i class="fas fa-times" aria-hidden="true"></i>
         </button>
-        <button class="btn btn-primary" (click)="startNewSale()">
-          <i class="fas fa-plus mr-2"></i>New Sale
+      </div>
+
+      <div class="quick-customer-body">
+        @if (terminalPrompt()) {
+          <app-ui-alert [variant]="terminalsState() === 'multiple' ? 'warning' : 'danger'" title="Terminal required">{{ terminalPrompt() }}</app-ui-alert>
+        }
+        <div class="quick-grid two">
+          <div>
+            <label class="label" for="pos-open-outlet">Outlet</label>
+            <input id="pos-open-outlet" class="input" [ngModel]="headerOutlet()" disabled />
+          </div>
+          <div>
+            <label class="label" for="pos-open-terminal">Terminal</label>
+            <input id="pos-open-terminal" class="input" [ngModel]="headerTerminal()" disabled />
+          </div>
+        </div>
+
+        <div class="quick-grid two mt-2">
+          <div>
+            <label class="label" for="pos-open-business-date">Business Date</label>
+            <input id="pos-open-business-date" class="input" [ngModel]="openContextBusinessDate() ? (openContextBusinessDate() | appDate:'dd MMM yyyy') : 'Loading…'" disabled />
+          </div>
+          <div>
+            <label class="label" for="pos-open-limit">Session limit</label>
+            <input id="pos-open-limit" class="input" [ngModel]="(openContextMaxHours() ?? sessionMaxDurationHours()) + ' hours'" disabled />
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">The business date and opening time are recorded by the server from the outlet time zone. Sales stop when the Business-configured limit (at most 20 hours) is reached.</p>
+
+        <div class="mt-2">
+          <label class="label label-required" for="pos-opening-cash">Opening Cash</label>
+          <input id="pos-opening-cash" class="input" type="number" min="0" step="0.01" inputmode="decimal" [ngModel]="openingCashAmount()" (ngModelChange)="openingCashAmount.set(+$event || 0)" />
+        </div>
+
+        <div class="mt-2">
+          <label class="label" for="pos-opening-notes">Opening Notes</label>
+          <textarea id="pos-opening-notes" class="textarea" rows="2" [ngModel]="openingNotes()" (ngModelChange)="openingNotes.set($event)"></textarea>
+        </div>
+      </div>
+
+      <div class="quick-customer-actions">
+        <button class="btn btn-outline" type="button" (click)="closeCashModals()" [disabled]="isLoadingSession()">Cancel</button>
+        <button class="btn btn-primary" type="button" (click)="openCashSession()" [disabled]="isLoadingSession() || !selectedTerminalId()">
+          @if (isLoadingSession()) {
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+          }
+          Open Cash
         </button>
       </div>
     </div>
@@ -465,24 +653,24 @@
 <!-- Held Sales Panel -->
 @if (showHeldSalesPanel()) {
   <div class="modal-overlay" (click)="$event.target === $event.currentTarget && showHeldSalesPanel.set(false)">
-    <div class="held-sales-modal">
+    <div class="held-sales-modal" role="dialog" aria-modal="true" aria-labelledby="pos-held-title">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-900">
-          <i class="fas fa-layer-group mr-2"></i>Recall Invoice Queue
+        <h3 id="pos-held-title" class="text-lg font-bold text-gray-900">
+          <i class="fas fa-history mr-2" aria-hidden="true"></i>Recall Invoice Queue
         </h3>
-        <button class="text-gray-400 hover:text-gray-600" (click)="showHeldSalesPanel.set(false)">
-          <i class="fas fa-times"></i>
+        <button class="text-gray-400 hover:text-gray-600" type="button" (click)="showHeldSalesPanel.set(false)" aria-label="Close held invoices">
+          <i class="fas fa-times" aria-hidden="true"></i>
         </button>
       </div>
 
       @if (isLoadingHeld()) {
         <div class="text-center py-8 text-gray-400">
-          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <i class="fas fa-spinner fa-spin text-2xl mb-2" aria-hidden="true"></i>
           <p class="text-sm">Loading held invoices...</p>
         </div>
       } @else if (heldSales().length === 0) {
         <div class="text-center py-8 text-gray-400">
-          <i class="fas fa-layer-group text-4xl mb-3"></i>
+          <i class="fas fa-layer-group text-4xl mb-3" aria-hidden="true"></i>
           <p class="text-sm">No held invoices</p>
         </div>
       } @else {
@@ -499,25 +687,17 @@
                 <div class="text-xs text-gray-500">
                   {{ held.items.length }} item(s) · {{ held.subtotal | appCurrency }}
                 </div>
-                <div class="text-xs text-gray-400">{{ held.heldAt | date:'short' }}</div>
+                <div class="text-xs text-gray-400">{{ held.heldAt | appDate:'short' }}</div>
                 @if (held.note) {
                   <div class="text-xs text-yellow-700 italic">{{ held.note }}</div>
                 }
               </div>
               <div class="flex flex-col gap-1">
-                <button
-                  class="btn btn-sm btn-primary text-xs"
-                  (click)="recallHeldSale(held)"
-                  title="Recall invoice"
-                >
-                  <i class="fas fa-redo-alt mr-1"></i>Recall
+                <button class="btn btn-sm btn-primary text-xs" type="button" (click)="recallHeldSale(held)" title="Recall invoice">
+                  <i class="fas fa-redo-alt mr-1" aria-hidden="true"></i>Recall
                 </button>
-                <button
-                  class="btn btn-sm btn-outline text-xs text-red-600 border-red-300 hover:bg-red-50"
-                  (click)="discardHeldSale(held)"
-                  title="Discard held sale"
-                >
-                  <i class="fas fa-trash-alt mr-1"></i>Discard
+                <button class="btn btn-sm btn-outline text-xs text-red-600 border-red-300 hover:bg-red-50" type="button" (click)="discardHeldSale(held)" title="Discard held sale">
+                  <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Discard
                 </button>
               </div>
             </div>
@@ -528,31 +708,21 @@
   </div>
 }
 
-<!-- Product Browser Drawer -->
+<!-- Product Browser: browses the same catalogue as the search box, filtered by category. -->
 @if (showProductBrowser()) {
   <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeProductBrowser()">
-    <div class="product-browser-drawer">
+    <div class="product-browser-drawer" role="dialog" aria-modal="true" aria-labelledby="pos-browse-title">
       <div class="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
-        <h3 class="text-base font-semibold text-gray-900">Browse Products</h3>
-        <button class="btn btn-ghost" (click)="closeProductBrowser()">
-          <i class="fas fa-times"></i>
+        <h3 id="pos-browse-title" class="text-base font-semibold text-gray-900">Browse Products</h3>
+        <button class="btn btn-ghost" type="button" (click)="closeProductBrowser()" aria-label="Close product browser">
+          <i class="fas fa-times" aria-hidden="true"></i>
         </button>
       </div>
 
-      <div class="drawer-search mb-3">
-        <input
-          type="text"
-          class="input"
-          placeholder="Filter products in browser"
-          [ngModel]="searchQuery()"
-          (ngModelChange)="searchQuery.set($event)"
-        />
-      </div>
-
-      <div class="category-tabs mb-3">
-        <button class="cat-tab" [class.active]="selectedCategory() === null" (click)="selectCategory(null)">All</button>
+      <div class="category-tabs mb-3" role="tablist" aria-label="Categories">
+        <button class="cat-tab" type="button" role="tab" [attr.aria-selected]="selectedCategory() === null" [class.active]="selectedCategory() === null" (click)="selectCategory(null)">All</button>
         @for (cat of categories(); track cat.id) {
-          <button class="cat-tab" [class.active]="selectedCategory() === cat.id" (click)="selectCategory(cat.id)">
+          <button class="cat-tab" type="button" role="tab" [attr.aria-selected]="selectedCategory() === cat.id" [class.active]="selectedCategory() === cat.id" (click)="selectCategory(cat.id)">
             {{ cat.name }}
           </button>
         }
@@ -560,12 +730,12 @@
 
       @if (isLoadingProducts()) {
         <div class="text-center py-8 text-gray-500">
-          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <i class="fas fa-spinner fa-spin text-2xl mb-2" aria-hidden="true"></i>
           <p>Loading products...</p>
         </div>
       } @else if (filteredProducts().length === 0) {
         <div class="text-center py-8 text-gray-500">
-          <i class="fas fa-box-open text-3xl mb-2"></i>
+          <i class="fas fa-box-open text-3xl mb-2" aria-hidden="true"></i>
           <p>No products found.</p>
         </div>
       } @else {
@@ -573,6 +743,7 @@
           @for (product of filteredProducts(); track product.variantId) {
             <button
               class="product-card"
+              type="button"
               [class.out-of-stock]="product.stockQty <= 0"
               [class.in-cart]="isVariantInCart(product.variantId)"
               (click)="onProductCardClick(product)"
@@ -597,65 +768,39 @@
 
 @if (showQuickCustomerModal()) {
   <div class="modal-overlay" (click)="$event.target === $event.currentTarget && closeQuickCustomerModal()">
-    <div class="quick-customer-modal">
+    <div class="quick-customer-modal" role="dialog" aria-modal="true" aria-labelledby="pos-quick-customer-title">
       <div class="quick-customer-head">
-        <h3>Customers</h3>
-        <button class="btn btn-ghost" (click)="closeQuickCustomerModal()">
-          <i class="fas fa-times"></i>
+        <h3 id="pos-quick-customer-title">Quick Add Customer</h3>
+        <button class="btn btn-ghost" type="button" (click)="closeQuickCustomerModal()" aria-label="Close dialog">
+          <i class="fas fa-times" aria-hidden="true"></i>
         </button>
       </div>
 
       <div class="quick-customer-body">
-        <div class="quick-grid three">
-          <div>
-            <label class="label">Salutation</label>
-            <input class="input" [ngModel]="quickCustomerForm().salutation" (ngModelChange)="updateQuickCustomerField('salutation', $event)" />
-          </div>
-          <div>
-            <label class="label">First Name</label>
-            <input class="input" [ngModel]="quickCustomerForm().firstName" (ngModelChange)="updateQuickCustomerField('firstName', $event)" />
-          </div>
-          <div>
-            <label class="label">Last Name</label>
-            <input class="input" [ngModel]="quickCustomerForm().lastName" (ngModelChange)="updateQuickCustomerField('lastName', $event)" />
-          </div>
+        <div>
+          <label class="label label-required" for="pos-qc-name">Name</label>
+          <input id="pos-qc-name" class="input" [ngModel]="quickCustomerForm().displayName" (ngModelChange)="updateQuickCustomerField('displayName', $event)" />
         </div>
-
         <div class="quick-grid two mt-2">
           <div>
-            <label class="label label-required">Display Name</label>
-            <input class="input" [ngModel]="quickCustomerForm().displayName" (ngModelChange)="updateQuickCustomerField('displayName', $event)" />
+            <label class="label label-required" for="pos-qc-mobile">Mobile</label>
+            <input id="pos-qc-mobile" class="input" type="tel" inputmode="tel" [ngModel]="quickCustomerForm().mobile" (ngModelChange)="updateQuickCustomerField('mobile', $event)" />
           </div>
           <div>
-            <label class="label">Email</label>
-            <input class="input" [ngModel]="quickCustomerForm().email" (ngModelChange)="updateQuickCustomerField('email', $event)" />
+            <label class="label" for="pos-qc-email">Email</label>
+            <input id="pos-qc-email" class="input" type="email" [ngModel]="quickCustomerForm().email" (ngModelChange)="updateQuickCustomerField('email', $event)" />
           </div>
         </div>
-
-        <div class="quick-grid two mt-2">
-          <div>
-            <label class="label">Phone</label>
-            <input class="input" [ngModel]="quickCustomerForm().phone" (ngModelChange)="updateQuickCustomerField('phone', $event)" />
-          </div>
-          <div>
-            <label class="label label-required">Mobile</label>
-            <input class="input" [ngModel]="quickCustomerForm().mobile" (ngModelChange)="updateQuickCustomerField('mobile', $event)" />
-          </div>
-        </div>
-
-        <div class="mt-2">
-          <label class="label">Address</label>
-          <textarea class="textarea" rows="2" [ngModel]="quickCustomerForm().address" (ngModelChange)="updateQuickCustomerField('address', $event)"></textarea>
-        </div>
+        <p class="text-xs text-gray-500 mt-2">The customer is created in this Business only. An existing mobile number is rejected by the server.</p>
       </div>
 
       <div class="quick-customer-actions">
-        <button class="btn btn-outline" (click)="closeQuickCustomerModal()" [disabled]="isSavingCustomer()">Cancel</button>
-        <button class="btn btn-success" (click)="saveQuickCustomer()" [disabled]="isSavingCustomer()">
+        <button class="btn btn-outline" type="button" (click)="closeQuickCustomerModal()" [disabled]="isSavingCustomer()">Cancel</button>
+        <button class="btn btn-success" type="button" (click)="saveQuickCustomer()" [disabled]="isSavingCustomer()">
           @if (isSavingCustomer()) {
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
           }
-          Save & Select
+          Create &amp; Select
         </button>
       </div>
     </div>

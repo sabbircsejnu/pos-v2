@@ -1,0 +1,23 @@
+.address-details {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+
+  @media (max-width: 576px) {
+    display: block;
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  padding: 20px;
+}
+
+::ng-deep.input-group {
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+  }
+}

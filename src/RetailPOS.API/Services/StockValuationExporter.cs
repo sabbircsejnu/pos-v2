@@ -1,3 +1,4 @@
+using RetailPOS.Application.Common.Formatting;
 using ClosedXML.Excel;
 using RetailPOS.API.DTOs.Reports;
 
@@ -16,12 +17,12 @@ public static class StockValuationExporter
         "Quantity", "Unit Cost", "Inventory Value", "% of Total"
     ];
 
-    public static string ToCsv(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary)
+    public static string ToCsv(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("Stock Valuation Report");
-        sb.AppendLine($"Generated:,{DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC");
+        sb.AppendLine($"Generated:,{UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine($"Total Inventory Value:,{summary.TotalInventoryValue:F2}");
         sb.AppendLine();
 
@@ -65,7 +66,7 @@ public static class StockValuationExporter
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary)
+    public static byte[] ToExcel(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy")
     {
         using var wb = new XLWorkbook();
 
@@ -75,7 +76,7 @@ public static class StockValuationExporter
         ws.Cell(1, 1).Value = "Stock Valuation Report";
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
-        ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:dd/MM/yyyy HH:mm} UTC";
+        ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(2, 1).Style.Font.Italic = true;
         ws.Cell(3, 1).Value = $"Total Inventory Value: {summary.TotalInventoryValue:N2}";
         ws.Cell(3, 1).Style.Font.Bold = true;

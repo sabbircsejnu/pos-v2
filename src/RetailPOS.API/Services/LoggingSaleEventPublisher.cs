@@ -43,6 +43,49 @@ public sealed class LoggingSaleEventPublisher : ISaleEventPublisher
             }
         }
     }
+
+    public Task PublishCashSessionOpenedAsync(CashSessionOpenedEvent evt)
+    {
+        _logger.LogInformation(
+            "CashSessionOpened: Session={SessionId} Outlet={OutletId} Terminal={TerminalId} BusinessDate={BusinessDate}",
+            evt.CashSessionId,
+            evt.OutletId,
+            evt.TerminalId,
+            evt.BusinessDate);
+        return Task.CompletedTask;
+    }
+
+    public Task PublishCashSessionClosedAsync(CashSessionClosedEvent evt)
+    {
+        _logger.LogInformation(
+            "CashSessionClosed: Session={SessionId} Outlet={OutletId} Terminal={TerminalId} Difference={Difference}",
+            evt.CashSessionId,
+            evt.OutletId,
+            evt.TerminalId,
+            evt.DifferenceAmount);
+        return Task.CompletedTask;
+    }
+
+    public Task PublishCashSessionExpiredAsync(CashSessionExpiredEvent evt)
+    {
+        _logger.LogWarning(
+            "CashSessionExpired: Session={SessionId} Outlet={OutletId} Terminal={TerminalId} OpenedAt={OpenedAt}",
+            evt.CashSessionId,
+            evt.OutletId,
+            evt.TerminalId,
+            evt.OpenedAt);
+        return Task.CompletedTask;
+    }
+
+    public Task PublishSaleBlockedByExpiredSessionAsync(SaleBlockedByExpiredSessionEvent evt)
+    {
+        _logger.LogWarning(
+            "SaleBlockedByExpiredSession: Session={SessionId} Outlet={OutletId} Terminal={TerminalId}",
+            evt.CashSessionId,
+            evt.OutletId,
+            evt.TerminalId);
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>

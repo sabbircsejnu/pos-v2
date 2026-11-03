@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.Authorization;
 using RetailPOS.API.Documents.Pdf;
+using RetailPOS.API.Services;
+using RetailPOS.Application.Inventory.Queries;
+using MediatR;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,10 +14,17 @@ namespace RetailPOS.API.Controllers;
 public class DocumentsController : ControllerBase
 {
     private readonly IDocumentPdfDispatcher _pdfDispatcher;
+    private readonly IUserOutletAccessService _outletAccess;
+    private readonly ISender _sender;
 
-    public DocumentsController(IDocumentPdfDispatcher pdfDispatcher)
+    public DocumentsController(
+        IDocumentPdfDispatcher pdfDispatcher,
+        IUserOutletAccessService outletAccess,
+        ISender sender)
     {
         _pdfDispatcher = pdfDispatcher;
+        _outletAccess = outletAccess;
+        _sender = sender;
     }
 
     [HttpGet("{documentType}/{documentId:long}/pdf")]
@@ -23,6 +33,20 @@ public class DocumentsController : ControllerBase
         if (!CanViewDocumentType(documentType))
         {
             return Forbid();
+        }
+
+        if (IsStockTransferDocumentType(documentType))
+        {
+            var visibilityError = await GetStockTransferVisibilityErrorAsync(documentId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(visibilityError))
+            {
+                if (visibilityError.Equals("Your default inventory location is not configured.", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = visibilityError });
+                }
+
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = visibilityError });
+            }
         }
 
         try
@@ -34,6 +58,47 @@ public class DocumentsController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    private static bool IsStockTransferDocumentType(string documentType)
+    {
+        var normalized = documentType.Trim().ToLowerInvariant();
+        return normalized is "stock-transfer" or "stock_transfer";
+    }
+
+    private async Task<string?> GetStockTransferVisibilityErrorAsync(
+        long transferId,
+        CancellationToken cancellationToken)
+    {
+        var canViewAllLocations = User.HasPermission("stock_transfers.view_all_locations");
+        string? defaultLocationType = null;
+        long? defaultLocationId = null;
+
+        if (!canViewAllLocations)
+        {
+            var auth = await _outletAccess.GetAuthorizedOutletsAsync();
+            if (!auth.DefaultLocationId.HasValue || string.IsNullOrWhiteSpace(auth.DefaultLocationType))
+                return "Your default inventory location is not configured.";
+
+            defaultLocationType = auth.DefaultLocationType;
+            defaultLocationId = auth.DefaultLocationId;
+        }
+
+        var transfer = await _sender.Send(new GetStockTransferByIdQuery(transferId), cancellationToken);
+        if (transfer is null)
+            throw new KeyNotFoundException($"Stock transfer with ID {transferId} not found");
+
+        if (canViewAllLocations)
+            return null;
+
+        var matchesFrom = string.Equals(transfer.FromLocationType, defaultLocationType, StringComparison.OrdinalIgnoreCase)
+            && transfer.FromLocationId == defaultLocationId;
+        var matchesTo = string.Equals(transfer.ToLocationType, defaultLocationType, StringComparison.OrdinalIgnoreCase)
+            && transfer.ToLocationId == defaultLocationId;
+
+        return matchesFrom || matchesTo
+            ? null
+            : "You are not authorized to view this stock transfer.";
     }
 
     private bool CanViewDocumentType(string documentType)

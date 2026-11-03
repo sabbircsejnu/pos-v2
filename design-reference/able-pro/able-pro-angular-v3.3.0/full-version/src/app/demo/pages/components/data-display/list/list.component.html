@@ -1,0 +1,58 @@
+<div class="row">
+  <div class="col-md-12">
+    <app-card cardTitle="Basic List">
+      <mat-list role="list">
+        <mat-list-item role="listitem">Item 1</mat-list-item>
+        <mat-list-item role="listitem">Item 2</mat-list-item>
+        <mat-list-item role="listitem">Item 3</mat-list-item>
+      </mat-list>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="List with sections">
+      <mat-list>
+        <div mat-subheader>Folders</div>
+        @for (folder of folders; track folder) {
+          <mat-list-item>
+            <mat-icon matListItemIcon>folder</mat-icon>
+            <div matListItemTitle>{{ folder.name }}</div>
+            <div matListItemLine>{{ folder.updated | date }}</div>
+          </mat-list-item>
+        }
+        <mat-divider></mat-divider>
+        <div mat-subheader>Notes</div>
+        @for (note of notes; track note) {
+          <mat-list-item>
+            <mat-icon matListItemIcon>note</mat-icon>
+            <div matListItemTitle>{{ note.name }}</div>
+            <div matListItemLine>{{ note.updated | date }}</div>
+          </mat-list-item>
+        }
+      </mat-list>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="List With Section And Checkbox">
+      <mat-selection-list #shoes>
+        @for (shoe of typesOfShoes; track shoe) {
+          <mat-list-option>
+            {{ shoe }}
+          </mat-list-option>
+        }
+      </mat-selection-list>
+      <p>Options selected: {{ shoes.selectedOptions.selected.length }}</p>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="List With Section And Radio">
+      <mat-selection-list #flower [multiple]="false">
+        @for (flower of typesOfFlower; track flower) {
+          <mat-list-option [value]="flower">
+            {{ flower }}
+          </mat-list-option>
+        }
+      </mat-selection-list>
+      <p>Option selected: {{ flower.selectedOptions.hasValue() ? flower.selectedOptions.selected[0].value : 'None' }}</p>
+    </app-card>
+  </div>
+</div>

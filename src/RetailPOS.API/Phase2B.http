@@ -1,0 +1,45 @@
+@baseUrl = https://localhost:5006
+@token = replace-with-token
+
+### List
+GET {{baseUrl}}/api/hr/v1/rosters?from=2027-01-01&to=2027-01-31
+Authorization: Bearer {{token}}
+
+### Draft
+POST {{baseUrl}}/api/hr/v1/rosters
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"employeeId":1,"workDate":"2027-01-01","shiftId":1,"operationalLocationProjectionId":1,"source":"Manual","workKind":"Extended","dayClassification":"NormalWorkingDay"}
+
+### Edit draft
+PUT {{baseUrl}}/api/hr/v1/rosters/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":1,"data":{"employeeId":1,"workDate":"2027-01-01","shiftId":1,"operationalLocationProjectionId":1,"source":"Manual","workKind":"Extended","dayClassification":"NormalWorkingDay"}}
+
+### Bulk draft
+POST {{baseUrl}}/api/hr/v1/rosters/bulk
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"rows":[{"employeeId":1,"workDate":"2027-01-02","shiftId":1,"operationalLocationProjectionId":1}]}
+
+### Publish
+POST {{baseUrl}}/api/hr/v1/rosters/1/publish
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":2}
+
+### Cancel future
+POST {{baseUrl}}/api/hr/v1/rosters/1/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"expectedVersion":3}
+
+### Published employee day evidence (drafts excluded)
+GET {{baseUrl}}/api/hr/v1/rosters/classification?employeeId=1&workDate=2027-01-01
+Authorization: Bearer {{token}}

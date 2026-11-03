@@ -20,6 +20,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  permissions?: string[];
+  userPermissions?: string[];
   roleId: number | null;
   roleName?: string;
   outletId: number | null;
@@ -48,6 +50,7 @@ export interface CreateUserDto {
   defaultLocationType?: 'outlet' | 'warehouse';
   defaultLocationId?: number;
   inventoryLocationAccessScope: InventoryLocationAccessScope;
+  userPermissions?: string[];
   isActive: boolean;
 }
 
@@ -62,6 +65,7 @@ export interface UpdateUserDto {
   defaultLocationType?: 'outlet' | 'warehouse';
   defaultLocationId?: number;
   inventoryLocationAccessScope: InventoryLocationAccessScope;
+  userPermissions?: string[];
   isActive: boolean;
 }
 

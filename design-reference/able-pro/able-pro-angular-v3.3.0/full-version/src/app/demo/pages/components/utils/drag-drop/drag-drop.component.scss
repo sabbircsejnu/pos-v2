@@ -1,0 +1,107 @@
+.example-box {
+  width: 200px;
+  height: 200px;
+  border: solid 1px var(--accent-300);
+  color: var(--accent-900);
+  cursor: move;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: var(--accent-100);
+  border-radius: 4px;
+  position: relative;
+  z-index: 1;
+  transition: box-shadow 200ms cubic-bezier(0, 0, 0.2, 1);
+  box-shadow:
+    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+
+  &:active {
+    box-shadow:
+      0 5px 5px -3px rgba(0, 0, 0, 0.2),
+      0 8px 10px 1px rgba(0, 0, 0, 0.14),
+      0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  }
+}
+
+.drop-boundary {
+  width: 400px;
+  height: 400px;
+  max-width: 100%;
+  border: dotted var(--accent-400) 2px;
+}
+
+.drop-container {
+  width: 100%;
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.drop-list {
+  border: solid 1px var(--accent-300);
+  min-height: 60px;
+  background: var(--accent-100);
+  border-radius: 4px;
+  overflow: hidden;
+  display: block;
+}
+
+.drop-box {
+  padding: 20px 10px;
+  border-bottom: solid 1px var(--accent-300);
+  color: var(--accent-900);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  cursor: move;
+  background: var(--accent-100);
+  font-size: 14px;
+}
+
+.drop-box:last-child {
+  border: none;
+}
+
+.drop-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.drop-custom-placeholder {
+  background: var(--accent-300);
+  border: dotted 3px var(--accent-400);
+  min-height: 60px;
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.card-flex {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 576px) {
+  .drop-container {
+    width: 292px !important;
+  }
+}

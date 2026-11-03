@@ -1,0 +1,29 @@
+<div class="file-add-modal">
+  <div class="file-header">
+    <div class="f-16 f-w-600">Upload Files</div>
+    <a href="javascript:" class="text-muted" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </div>
+  <div class="file-body">
+    <form [formGroup]="demoForm">
+      <file-upload formControlName="files" style="min-height: 300px; outline: 2px dashed #adadad" class-="new-file"></file-upload>
+    </form>
+    <div class="m-t-15 row align-item-center">
+      <div class="col">
+        <mat-form-field appearance="outline" class="w-100 url-website">
+          <input matInput placeholder="Enter URL" value="https://www.figma.com/file/" />
+        </mat-form-field>
+      </div>
+      <div class="col-auto">
+        <button mat-flat-button color="primary">Copy Link</button>
+      </div>
+    </div>
+  </div>
+  <div class="file-footer">
+    <div class="text-end">
+      <button mat-flat-button color="accent" class="m-r-10" mat-dialog-close>Cancel</button>
+      <button mat-flat-button color="primary" mat-dialog-close>Add Files</button>
+    </div>
+  </div>
+</div>

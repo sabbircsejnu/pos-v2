@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,11 +13,12 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-transactions-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './transactions-list.component.html',
   styleUrls: ['./transactions-list.component.css']
 })
 export class TransactionsListComponent implements OnInit {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   // Filters
   filterAccountId = signal<number | undefined>(undefined);
   filterStartDate = signal('');
@@ -118,6 +122,6 @@ export class TransactionsListComponent implements OnInit {
   }
 
   formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return this.companyDates.format(dateStr, false);
   }
 }

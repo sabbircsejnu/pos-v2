@@ -1,0 +1,17 @@
+<section class="container">
+  <header class="flex align-item-center justify-content-center">
+    <ul class="justify-content-center course-wizard">
+      @for (step of steps; track step; let i = $index) {
+        <li class="wizard-list">
+          <a href="javascript:" class="wizard-link" [ngClass]="{ active: selectedIndex === i }" (click)="onClick(i)">
+            <div class="course-wizard-num">
+              <span>{{ i + 1 }}</span>
+            </div>
+            <span class="d-none d-sm-inline">{{ step.label }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  </header>
+  <div [ngTemplateOutlet]="selected?.content"></div>
+</section>

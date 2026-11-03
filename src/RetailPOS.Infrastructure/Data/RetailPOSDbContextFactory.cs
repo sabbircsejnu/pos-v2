@@ -8,12 +8,14 @@ public class RetailPOSDbContextFactory : IDesignTimeDbContextFactory<RetailPOSDb
     public RetailPOSDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<RetailPOSDbContext>();
-        
-        // Default connection string for migrations
-        // You can override this with environment variable or command line
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") 
-            ?? "Host=127.0.0.1;Database=retailpos_db;Username=admin;Password=589123Qwe;Port=5435";
-        
+
+        // Design-time tooling targets an explicitly chosen database via ConnectionStrings__DefaultConnection.
+        // The fallback is an inert placeholder (unresolvable host, no credentials) so model-only operations such as
+        // `migrations add` work offline while `database update` can never reach a Development database by accident.
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = "Host=design-time.invalid;Database=retailpos_design_time;Username=design_time";
+
         optionsBuilder.UseNpgsql(connectionString);
 
         return new RetailPOSDbContext(optionsBuilder.Options);

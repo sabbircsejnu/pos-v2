@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -39,11 +42,12 @@ interface LocationOption {
 @Component({
   selector: 'app-stock-transaction-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, RouterLink],
   templateUrl: './stock-transaction-report.component.html',
   styleUrls: ['./stock-transaction-report.component.css']
 })
 export class StockTransactionReportComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   // Filter state
   scopeQuery = signal('');
   scopeResults = signal<ScopeOption[]>([]);
@@ -355,10 +359,7 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
 
   formatDate(dateStr: string): string {
     const d = new Date(dateStr);
-    return d.toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    return this.companyDates.format(d, true);
   }
 
   formatAttributes(json?: string): string {

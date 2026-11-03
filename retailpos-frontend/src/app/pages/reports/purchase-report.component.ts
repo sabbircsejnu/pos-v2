@@ -1,3 +1,4 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-purchase-report',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './purchase-report.component.html',
   styleUrls: ['./purchase-report.component.css']
 })

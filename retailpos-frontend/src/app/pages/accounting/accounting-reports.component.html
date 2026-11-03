@@ -1,0 +1,69 @@
+<div class="container mx-auto p-6 space-y-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-900">Accounting Reports</h1>
+      <p class="text-sm text-slate-600">Review the general ledger, trial balance, and profit & loss data from the accounting API.</p>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" [class.bg-slate-900]="view() === 'general-ledger'" [class.text-white]="view() === 'general-ledger'" (click)="setView('general-ledger')">General Ledger</button>
+      <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" [class.bg-slate-900]="view() === 'trial-balance'" [class.text-white]="view() === 'trial-balance'" (click)="setView('trial-balance')">Trial Balance</button>
+      <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" [class.bg-slate-900]="view() === 'profit-loss'" [class.text-white]="view() === 'profit-loss'" (click)="setView('profit-loss')">Profit & Loss</button>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="grid gap-4 md:grid-cols-2">
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">From</label>
+        <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="fromDate" />
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">To</label>
+        <input type="date" appCompanyDate class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="toDate" />
+      </div>
+    </div>
+    <button type="button" class="mt-4 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="runReport()">Run report</button>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div *ngIf="isLoading()" class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">Loading report…</div>
+    <div *ngIf="!isLoading() && reportSummary()" class="mb-4 grid gap-3 md:grid-cols-3">
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Debit</p>
+        <p class="mt-1 text-lg font-semibold text-slate-900">{{ reportSummary()?.debitTotal || 0 }}</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Credit</p>
+        <p class="mt-1 text-lg font-semibold text-slate-900">{{ reportSummary()?.creditTotal || 0 }}</p>
+      </div>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <p class="text-sm font-medium text-slate-700">Net</p>
+        <p class="mt-1 text-lg font-semibold text-slate-900">{{ reportSummary()?.netAmount || 0 }}</p>
+      </div>
+    </div>
+
+    <div *ngIf="!isLoading() && ledger().length === 0" class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">No rows returned for the selected range.</div>
+    <div *ngIf="!isLoading() && ledger().length > 0" class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-600">
+            <th class="px-3 py-2">Account</th>
+            <th class="px-3 py-2">Description</th>
+            <th class="px-3 py-2">Debit</th>
+            <th class="px-3 py-2">Credit</th>
+            <th class="px-3 py-2">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of ledger()" class="border-b border-slate-100">
+            <td class="px-3 py-2">{{ row.accountName || row.accountCode || '—' }}</td>
+            <td class="px-3 py-2">{{ row.description || '—' }}</td>
+            <td class="px-3 py-2">{{ row.debitAmount || 0 }}</td>
+            <td class="px-3 py-2">{{ row.creditAmount || 0 }}</td>
+            <td class="px-3 py-2">{{ row.balance || 0 }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

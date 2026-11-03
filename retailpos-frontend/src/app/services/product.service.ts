@@ -76,11 +76,14 @@ export class ProductService {
   /**
    * Get product by ID
    */
-  getById(id: number): Observable<any> {
+  getById(id: number, outletId?: number, warehouseId?: number): Observable<any> {
     this.isLoading.set(true);
     this.error.set(null);
 
-    return this.http.get<any>(`${this.apiUrl}/${id}`).pipe(
+    let params = new HttpParams();
+    if (outletId !== undefined) params = params.set('outletId', outletId);
+    if (warehouseId !== undefined) params = params.set('warehouseId', warehouseId);
+    return this.http.get<any>(`${this.apiUrl}/${id}`, { params }).pipe(
       tap(response => {
         this.selectedProduct.set(response.data);
         this.isLoading.set(false);
@@ -220,6 +223,18 @@ export class ProductService {
     return this.http.post<any>(`${this.apiUrl}/generate-sku`, JSON.stringify(productName), {
       headers: { 'Content-Type': 'application/json' }
     });
+  }
+
+  /**
+   * Generate a unique EAN-13 barcode for a product
+   */
+  generateBarcode(categoryId?: number): Observable<any> {
+    let params = new HttpParams();
+    if (categoryId) {
+      params = params.set('categoryId', categoryId.toString());
+    }
+
+    return this.http.post<any>(`${this.apiUrl}/generate-barcode`, {}, { params });
   }
 
   /**

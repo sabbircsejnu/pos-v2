@@ -1,0 +1,117 @@
+<div class="row">
+  <div class="col-lg-9">
+    <app-invoice-chart />
+  </div>
+  <div class="col-lg-3">
+    <app-card [showHeader]="false">
+      <div class="row g-3 text-center">
+        @for (item of invoiceCard; track item) {
+          <div class="col-6">
+            <app-card [showHeader]="false" cardClass="m-b-0" [padding]="0">
+              <div class="p-y-25 p-x-10">
+                <div class="avatar {{ item.background }} border-50">
+                  <svg class="pc-icon text-white">
+                    <use attr.xlink:href="assets/fonts/custom-icon.svg{{ item.icon }}"></use>
+                  </svg>
+                </div>
+                <div class="m-b-0 f-w-600 m-t-15 text-muted">{{ item.title }}</div>
+              </div>
+            </app-card>
+          </div>
+        }
+      </div>
+    </app-card>
+  </div>
+  <div class="col-xl-4 col-md-6">
+    <app-card cardTitle="Recent Invoice" [padding]="0">
+      <ng-template #headerOptionsTemplate>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover text-accent-500">
+          <i class="ti ti-dots-vertical f-18"></i>
+        </a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </ng-template>
+      <ul class="list-group list-group-flush border-top-0">
+        @for (list of UserList; track list) {
+          <li class="list-group-item">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <img src="{{ list.avatar }}" alt="user-image" class="user-avatar border-50 wid-40 hie-40" />
+              </div>
+              <div class="flex-grow-1 m-x-10">
+                <div class="m-b-5 f-w-600">
+                  {{ list.name }}
+                  <span class="text-muted">- #790841</span>
+                </div>
+                <p class="m-b-0 text-primary-500">{{ list.value }}</p>
+              </div>
+              <div class="flex-shrink-0">
+                <p class="text-muted m-b-0">{{ list.time }}</p>
+              </div>
+            </div>
+          </li>
+        }
+        <li class="list-group-item border-0">
+          <div class="grid">
+            <button mat-stroked-button color="accent">View All</button>
+          </div>
+        </li>
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-xl-4 col-md-6">
+    <app-total-expenses-chart />
+  </div>
+  <div class="col-xl-4 col-md-6">
+    <app-card cardTitle="Notification" [padding]="0">
+      <ng-template #headerOptionsTemplate>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover text-accent-500">
+          <i class="ti ti-dots-vertical f-18"></i>
+        </a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </ng-template>
+      <ul class="list-group list-group-flush">
+        @for (item of notificationList; track $index) {
+          <li class="list-group-item">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <div class="avatar avatar-s {{ item.background }} border-50">
+                  @if (item.text === true) {
+                    <div class="f-16">C</div>
+                  } @else {
+                    <i class="f-22 ti ti-{{ item.icon }}"></i>
+                  }
+                </div>
+              </div>
+              <div class="flex-grow-1 m-l-15 m-r-10">
+                <div class="m-b-5 f-w-600">
+                  {{ item.title }}
+                  @if (item.link === true) {
+                    <a href="javascript:" class="text-primary-500">{{ item.linkValue }}</a>
+                    .
+                  }
+                </div>
+                <p class="m-b-0 text-muted mat-small">{{ item.date }}</p>
+              </div>
+              <div class="flex-shrink-0">
+                <a href="javascript:" class="avatar avatar-s text-accent-500"><i class="ti ti-link f-18"></i></a>
+              </div>
+            </div>
+          </li>
+        }
+        <li class="list-group-item">
+          <div class="grid">
+            <button mat-stroked-button color="accent">View All</button>
+          </div>
+        </li>
+      </ul>
+    </app-card>
+  </div>
+</div>

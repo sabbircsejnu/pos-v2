@@ -1,0 +1,93 @@
+// ==========================//
+//    coming-soon css start  //
+// ==========================//
+
+.soon-card {
+  display: flex;
+  flex-direction: column;
+  word-wrap: break-word;
+  text-align: center;
+  background: transparent;
+  overflow: hidden;
+
+  .soon-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .time-block {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .time-block__item {
+      margin: 5px 0px;
+      padding: 0px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--accent-300);
+
+      .time-block__label {
+        margin: 0px;
+      }
+
+      .time-block__value {
+        display: block;
+        position: relative;
+        padding: 14px 0px;
+        margin: 0px;
+        width: 100%;
+        border-radius: 8px 8px 0px 0px;
+      }
+    }
+  }
+
+  .email-subscribe {
+    width: 100%;
+
+    .email-box {
+      flex: 1 0 0%;
+      width: auto;
+
+      ::ng-deep {
+        .subscribe-email {
+          .mat-mdc-form-field-subscript-wrapper {
+            display: none;
+          }
+        }
+      }
+    }
+
+    .subscribe-button {
+      flex: 0 0 auto;
+      width: auto;
+    }
+  }
+
+  .social-subscribe {
+    a {
+      &:not(:hover) {
+        color: var(--accent-600);
+        opacity: 0.9;
+      }
+      &:hover {
+        color: var(--primary-500);
+      }
+
+      &:not(:last-child) {
+        padding-right: 24px;
+
+        ::ng-deep.able-pro-rtl & {
+          padding-left: 24px !important;
+          padding-right: 0px !important;
+        }
+      }
+    }
+  }
+}
+
+// ==========================//
+//    coming-soon css end  //
+// ==========================//

@@ -26,6 +26,9 @@ public class AuthorizedOutletsDto
     /// <summary>Primary default location used for assigned scope users.</summary>
     public long? DefaultLocationId { get; set; }
     public string? DefaultLocationType { get; set; }
+
+    /// <summary>The operation policy these locations were resolved for (InventoryStockView, StockCountOperation, ...).</summary>
+    public string Policy { get; set; } = "InventoryStockView";
 }
 
 public class AuthorizedLocationDto

@@ -61,7 +61,7 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("accounts");
                 });
 
-            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingConfiguration", b =>
+            modelBuilder.Entity("RetailPOS.Core.Entities.Accounting.FrozenSystemJournalOperation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -73,6 +73,191 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long>("BusinessId")
                         .HasColumnType("bigint")
                         .HasColumnName("business_id");
+
+                    b.Property<string>("CanonicalPayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("canonical_payload_json");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<long>("JournalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<long?>("OriginalJournalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_journal_id");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("PostingReference")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("posting_reference");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_accounting_frozen_system_journal_operations");
+
+                    b.HasIndex("JournalId")
+                        .HasDatabaseName("i_x_accounting_frozen_system_journal_operations_journal_id");
+
+                    b.HasIndex("OriginalJournalId")
+                        .HasDatabaseName("i_x_accounting_frozen_system_journal_operations_original_journa~");
+
+                    b.HasIndex("BusinessId", "PostingReference")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_accounting_frozen_system_journal_operations_business_id_pos~");
+
+                    b.ToTable("accounting_frozen_system_journal_operations", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingCloseExceptionApproval", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AccountingCloseGateSnapshotId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_close_gate_snapshot_id");
+
+                    b.Property<long>("AccountingPeriodCloseRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_period_close_run_id");
+
+                    b.Property<DateTime>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_accounting_close_exception_approvals");
+
+                    b.HasIndex("AccountingCloseGateSnapshotId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_accounting_close_exception_approvals_accounting_close_gate_~");
+
+                    b.HasIndex("AccountingPeriodCloseRunId")
+                        .HasDatabaseName("i_x_accounting_close_exception_approvals_accounting_period_clos~");
+
+                    b.ToTable("accounting_close_exception_approvals");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingCloseGateSnapshot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AccountingPeriodCloseRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_period_close_run_id");
+
+                    b.Property<decimal?>("ActualAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("actual_amount");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("details");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("evaluated_at");
+
+                    b.Property<int>("EvaluationSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("evaluation_sequence");
+
+                    b.Property<decimal?>("ExpectedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("expected_amount");
+
+                    b.Property<string>("GateCode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("gate_code");
+
+                    b.Property<bool>("IsHistoricalCutoverLimitation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_historical_cutover_limitation");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_accounting_close_gate_snapshots");
+
+                    b.HasIndex("AccountingPeriodCloseRunId", "EvaluationSequence", "GateCode")
+                        .IsUnique();
+
+                    b.ToTable("accounting_close_gate_snapshots");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingConfiguration", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("BankClearingActivationDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("bank_clearing_activation_date");
+
+                    b.Property<long?>("BankFeeExpenseAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_fee_expense_account_id");
+
+                    b.Property<long?>("BankInterestIncomeAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_interest_income_account_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long?>("CardClearingAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("card_clearing_account_id");
 
                     b.Property<long?>("CashAccountId")
                         .HasColumnType("bigint")
@@ -106,6 +291,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("default_bank_account_id");
 
+                    b.Property<int>("DefaultSupplierPaymentTermsDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30)
+                        .HasColumnName("default_supplier_payment_terms_days");
+
                     b.Property<long?>("InventoryAccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("inventory_account_id");
@@ -134,6 +325,23 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("journal_sequence_reset_policy");
 
+                    b.Property<bool>("ManualJournalAllowSelfApproval")
+                        .HasColumnType("boolean")
+                        .HasColumnName("manual_journal_allow_self_approval");
+
+                    b.Property<long>("ManualJournalAttachmentMaxBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("manual_journal_attachment_max_bytes");
+
+                    b.Property<string>("ManualJournalWorkflowMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("manual_journal_workflow_mode");
+
+                    b.Property<long?>("MobileMfsClearingAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("mobile_mfs_clearing_account_id");
+
                     b.Property<long?>("OtherIncomeAccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("other_income_account_id");
@@ -149,6 +357,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long?>("PettyCashAccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("petty_cash_account_id");
+
+                    b.Property<long?>("RetainedEarningsAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("retained_earnings_account_id");
 
                     b.Property<long?>("RoundingDifferenceAccountId")
                         .HasColumnType("bigint")
@@ -166,6 +378,14 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("sales_return_account_id");
 
+                    b.Property<long?>("SettlementFeeExpenseAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("settlement_fee_expense_account_id");
+
+                    b.Property<long?>("SupplierAdvanceAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_advance_account_id");
+
                     b.Property<long?>("SupplierPayableAccountId")
                         .HasColumnType("bigint")
                         .HasColumnName("supplier_payable_account_id");
@@ -178,12 +398,23 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("updated_by");
 
+                    b.Property<long?>("VatPayableAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("vat_payable_account_id");
+
+                    b.Property<long?>("VatReceivableAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("vat_receivable_account_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_accounting_configurations");
 
                     b.HasIndex("BusinessId")
                         .IsUnique()
                         .HasDatabaseName("i_x_accounting_configurations_business_id");
+
+                    b.HasIndex("CardClearingAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_card_clearing_account_id");
 
                     b.HasIndex("CashAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_cash_account_id");
@@ -212,6 +443,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("InventoryShortageAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_inventory_shortage_account_id");
 
+                    b.HasIndex("MobileMfsClearingAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_mobile_mfs_clearing_account_id");
+
                     b.HasIndex("OtherIncomeAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_other_income_account_id");
 
@@ -223,6 +457,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("PettyCashAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_petty_cash_account_id");
+
+                    b.HasIndex("RetainedEarningsAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_retained_earnings_account_id");
 
                     b.HasIndex("RoundingDifferenceAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_rounding_difference_account_id");
@@ -236,10 +473,135 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("SalesReturnAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_sales_return_account_id");
 
+                    b.HasIndex("SupplierAdvanceAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_supplier_advance_account_id");
+
                     b.HasIndex("SupplierPayableAccountId")
                         .HasDatabaseName("i_x_accounting_configurations_supplier_payable_account_id");
 
+                    b.HasIndex("VatPayableAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_vat_payable_account_id");
+
+                    b.HasIndex("VatReceivableAccountId")
+                        .HasDatabaseName("i_x_accounting_configurations_vat_receivable_account_id");
+
                     b.ToTable("accounting_configurations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingFinancialYearCloseRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("executed_at");
+
+                    b.Property<long?>("ExecutedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("executed_by");
+
+                    b.Property<long>("FinalAccountingPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_accounting_period_id");
+
+                    b.Property<long>("FinalPeriodCloseRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_period_close_run_id");
+
+                    b.Property<long>("FinancialYearId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("financial_year_id");
+
+                    b.Property<DateTime>("PreparedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prepared_at");
+
+                    b.Property<long>("PreparedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("prepared_by");
+
+                    b.Property<string>("ReopenReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reopen_reason");
+
+                    b.Property<DateTime?>("ReopenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reopened_at");
+
+                    b.Property<long?>("ReopenedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reopened_by");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<int>("RunNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("YearEndJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("year_end_journal_entry_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_accounting_financial_year_close_runs");
+
+                    b.HasIndex("FinalAccountingPeriodId")
+                        .HasDatabaseName("i_x_accounting_financial_year_close_runs_final_accounting_perio~");
+
+                    b.HasIndex("FinalPeriodCloseRunId")
+                        .HasDatabaseName("i_x_accounting_financial_year_close_runs_final_period_close_run~");
+
+                    b.HasIndex("FinancialYearId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_accounting_financial_year_close_runs_financial_year_id")
+                        .HasFilter("status IN ('prepared', 'approved', 'executed')");
+
+                    b.HasIndex("ReversalJournalEntryId")
+                        .HasDatabaseName("i_x_accounting_financial_year_close_runs_reversal_journal_entry~");
+
+                    b.HasIndex("YearEndJournalEntryId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_accounting_financial_year_close_runs_year_end_journal_entry~")
+                        .HasFilter("year_end_journal_entry_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "FinancialYearId", "RunNumber")
+                        .IsUnique();
+
+                    b.ToTable("accounting_financial_year_close_runs");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.AccountingNumberSequence", b =>
@@ -476,6 +838,104 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("FinancialYearId", "Status");
 
                     b.ToTable("accounting_periods");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingPeriodCloseRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AccountingPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_period_id");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("EvaluationSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("evaluation_sequence");
+
+                    b.Property<DateTime?>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("executed_at");
+
+                    b.Property<long?>("ExecutedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("executed_by");
+
+                    b.Property<string>("ExecutionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("execution_reason");
+
+                    b.Property<DateTime>("PreparedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prepared_at");
+
+                    b.Property<long>("PreparedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("prepared_by");
+
+                    b.Property<string>("ReopenReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reopen_reason");
+
+                    b.Property<DateTime?>("ReopenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reopened_at");
+
+                    b.Property<long?>("ReopenedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reopened_by");
+
+                    b.Property<int>("RunNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_accounting_period_close_runs");
+
+                    b.HasIndex("AccountingPeriodId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_accounting_period_close_runs_period_active")
+                        .HasFilter("status IN ('prepared', 'approved', 'executed')");
+
+                    b.HasIndex("BusinessId", "AccountingPeriodId", "RunNumber")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "AccountingPeriodId", "Status")
+                        .HasDatabaseName("IX_accounting_period_close_runs_business_id_accounting_period~1");
+
+                    b.ToTable("accounting_period_close_runs");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEvent", b =>
@@ -809,6 +1269,701 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_audit_logs_user_id");
 
                     b.ToTable("audit_logs");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankAccount", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("account_reference");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("ChartAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("chart_account_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("display_name");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<decimal?>("OpeningStatementBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("opening_statement_balance");
+
+                    b.Property<long?>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime?>("ReconciliationStartDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reconciliation_start_date");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_accounts");
+
+                    b.HasIndex("ChartAccountId")
+                        .HasDatabaseName("i_x_bank_accounts_chart_account_id");
+
+                    b.HasIndex("OutletId")
+                        .HasDatabaseName("i_x_bank_accounts_outlet_id");
+
+                    b.HasIndex("BusinessId", "ChartAccountId")
+                        .IsUnique();
+
+                    b.ToTable("bank_accounts");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationMatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BankReconciliationSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_reconciliation_session_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal>("GlTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gl_total");
+
+                    b.Property<decimal>("StatementTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("statement_total");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("UnmatchReason")
+                        .HasColumnType("text")
+                        .HasColumnName("unmatch_reason");
+
+                    b.Property<DateTime?>("UnmatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unmatched_at");
+
+                    b.Property<long?>("UnmatchedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unmatched_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_reconciliation_matches");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_reconciliation_matches_bank_account_id");
+
+                    b.HasIndex("BankReconciliationSessionId")
+                        .HasDatabaseName("i_x_bank_reconciliation_matches_bank_reconciliation_session_id");
+
+                    b.HasIndex("BusinessId", "BankAccountId", "Status");
+
+                    b.ToTable("bank_reconciliation_matches");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationMatchLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankReconciliationMatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_reconciliation_match_id");
+
+                    b.Property<long?>("BankStatementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_statement_line_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<long?>("JournalEntryLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_line_id");
+
+                    b.Property<decimal>("SignedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("signed_amount");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_reconciliation_match_lines");
+
+                    b.HasIndex("BankReconciliationMatchId")
+                        .HasDatabaseName("i_x_bank_reconciliation_match_lines_bank_reconciliation_match_id");
+
+                    b.HasIndex("BankStatementLineId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_bank_reconciliation_match_lines_bank_statement_line_id")
+                        .HasFilter("bank_statement_line_id IS NOT NULL AND is_active = true");
+
+                    b.HasIndex("JournalEntryLineId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_bank_reconciliation_match_lines_journal_entry_line_id")
+                        .HasFilter("journal_entry_line_id IS NOT NULL AND is_active = true");
+
+                    b.ToTable("bank_reconciliation_match_lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CloseResultReference")
+                        .HasColumnType("text")
+                        .HasColumnName("close_result_reference");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<long?>("ClosedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("closed_by");
+
+                    b.Property<decimal?>("ClosedDifference")
+                        .HasColumnType("numeric")
+                        .HasColumnName("closed_difference");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal?>("GlOpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gl_opening_balance");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<DateTime?>("PreparedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prepared_at");
+
+                    b.Property<long?>("PreparedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("prepared_by");
+
+                    b.Property<DateTime?>("ReconciledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reconciled_at");
+
+                    b.Property<long?>("ReconciledBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reconciled_by");
+
+                    b.Property<string>("ReopenReason")
+                        .HasColumnType("text")
+                        .HasColumnName("reopen_reason");
+
+                    b.Property<DateTime?>("ReopenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reopened_at");
+
+                    b.Property<long?>("ReopenedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reopened_by");
+
+                    b.Property<decimal?>("StatementClosingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("statement_closing_balance");
+
+                    b.Property<decimal?>("StatementOpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("statement_opening_balance");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_reconciliation_sessions");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_reconciliation_sessions_bank_account_id");
+
+                    b.HasIndex("BusinessId", "BankAccountId", "PeriodStart", "PeriodEnd")
+                        .IsUnique()
+                        .HasFilter("status IN ('open','in_progress','ready_for_close')");
+
+                    b.ToTable("bank_reconciliation_sessions");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementAdjustment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AdjustmentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("adjustment_type");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BankStatementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_statement_line_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<DateTime>("ProposedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proposed_at");
+
+                    b.Property<long>("ProposedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("proposed_by");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
+
+                    b.Property<long?>("ReversedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_statement_adjustments");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_statement_adjustments_bank_account_id");
+
+                    b.HasIndex("BankStatementLineId")
+                        .HasDatabaseName("i_x_bank_statement_adjustments_bank_statement_line_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_bank_statement_adjustments_journal_entry_id");
+
+                    b.HasIndex("ReversalJournalEntryId")
+                        .HasDatabaseName("i_x_bank_statement_adjustments_reversal_journal_entry_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("bank_statement_adjustments");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementException", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BankStatementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_statement_line_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("classification");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("resolution_notes");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<long?>("ResolvedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("resolved_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_statement_exceptions");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_statement_exceptions_bank_account_id");
+
+                    b.HasIndex("BankStatementLineId")
+                        .HasDatabaseName("i_x_bank_statement_exceptions_bank_statement_line_id");
+
+                    b.HasIndex("BusinessId", "BankAccountId", "Status");
+
+                    b.ToTable("bank_statement_exceptions");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementImport", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AcceptedRowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("accepted_row_count");
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal?>("ClosingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("closing_balance");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("ErrorSummary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_summary");
+
+                    b.Property<DateTime>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
+
+                    b.Property<int>("ImportedRowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("imported_row_count");
+
+                    b.Property<decimal?>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("opening_balance");
+
+                    b.Property<int>("RejectedRowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejected_row_count");
+
+                    b.Property<string>("SourceFileChecksum")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_file_checksum");
+
+                    b.Property<string>("SourceFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("source_file_name");
+
+                    b.Property<string>("SourceFormat")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_format");
+
+                    b.Property<DateTime?>("StatementPeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("statement_period_end");
+
+                    b.Property<DateTime?>("StatementPeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("statement_period_start");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_statement_imports");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_statement_imports_bank_account_id");
+
+                    b.HasIndex("BusinessId", "BankAccountId", "SourceFileChecksum")
+                        .IsUnique();
+
+                    b.ToTable("bank_statement_imports");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BankStatementImportId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_statement_import_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<decimal>("CreditAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_amount");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("currency");
+
+                    b.Property<decimal>("DebitAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("debit_amount");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ExternalTransactionReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("external_transaction_reference");
+
+                    b.Property<string>("NormalizedSearchText")
+                        .HasMaxLength(2200)
+                        .HasColumnType("character varying(2200)")
+                        .HasColumnName("normalized_search_text");
+
+                    b.Property<string>("RawReferenceText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("raw_reference_text");
+
+                    b.Property<decimal?>("RunningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("running_balance");
+
+                    b.Property<decimal>("SignedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("signed_amount");
+
+                    b.Property<int>("SourceRowNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_row_number");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("transaction_date");
+
+                    b.Property<DateTime?>("ValueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("value_date");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_bank_statement_lines");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_bank_statement_lines_bank_account_id");
+
+                    b.HasIndex("BankStatementImportId", "SourceRowNumber")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "BankAccountId", "TransactionDate");
+
+                    b.ToTable("bank_statement_lines");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.BarcodePrintHistory", b =>
@@ -1266,6 +2421,77 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("business_feature_settings");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.BusinessPosSettings", b =>
+                {
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<bool>("AllowOwnerExpenseSelfApproval")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_owner_expense_self_approval");
+
+                    b.Property<decimal>("DefaultTaxRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("default_tax_rate");
+
+                    b.Property<string>("DefaultTimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("default_time_zone_id");
+
+                    b.Property<int>("MaxCashSessionDurationHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_cash_session_duration_hours");
+
+                    b.Property<decimal>("MaxManualDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("max_manual_discount_percent");
+
+                    b.Property<bool>("PricesIncludeTax")
+                        .HasColumnType("boolean")
+                        .HasColumnName("prices_include_tax");
+
+                    b.Property<bool>("TaxEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_enabled");
+
+                    b.Property<string>("TaxName")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("tax_name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("version");
+
+                    b.HasKey("BusinessId");
+
+                    b.ToTable("business_pos_settings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_business_pos_settings_discount", "CAST(max_manual_discount_percent AS NUMERIC) BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("ck_business_pos_settings_duration", "max_cash_session_duration_hours BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("ck_business_pos_settings_tax_rate", "CAST(default_tax_rate AS NUMERIC) BETWEEN 0 AND 100");
+                        });
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.BusinessReminderNotification", b =>
                 {
                     b.Property<long>("Id")
@@ -1311,6 +2537,123 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("business_reminder_notifications");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashDifferenceApproval", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<int>("DecisionVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("decision_version");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("LastPostingError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_posting_error");
+
+                    b.Property<DateTime?>("NextPostingAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_posting_attempt_at_utc");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime?>("PostedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at_utc");
+
+                    b.Property<int>("PostingAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("posting_attempts");
+
+                    b.Property<string>("PostingStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("posting_status");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("review_notes");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at_utc");
+
+                    b.Property<long?>("ReviewedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("VarianceAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("variance_amount");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_cash_difference_approvals");
+
+                    b.HasIndex("CashSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_cash_difference_approvals_cash_session_id");
+
+                    b.HasIndex("BusinessId", "Status")
+                        .HasDatabaseName("i_x_cash_difference_approvals_business_id_status");
+
+                    b.HasIndex("PostingStatus", "NextPostingAttemptAtUtc")
+                        .HasDatabaseName("i_x_cash_difference_approvals_posting_status_next_posting_attem~");
+
+                    b.ToTable("cash_difference_approvals", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_difference_approvals_nonzero", "variance_amount <> 0");
+
+                            t.HasCheckConstraint("ck_cash_difference_approvals_posted_journal", "posting_status <> 'posted' OR journal_entry_id IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_cash_difference_approvals_posting", "posting_status IN ('not_required','pending','posted','failed')");
+
+                            t.HasCheckConstraint("ck_cash_difference_approvals_posting_requires_approval", "status = 'approved' OR posting_status = 'not_required'");
+
+                            t.HasCheckConstraint("ck_cash_difference_approvals_status", "status IN ('pending','approved','rejected')");
+                        });
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.CashSession", b =>
                 {
                     b.Property<long>("Id")
@@ -1326,7 +2669,7 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("actual_closing_cash_amount");
 
                     b.Property<DateTime>("BusinessDate")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("date")
                         .HasColumnName("business_date");
 
                     b.Property<long?>("BusinessId")
@@ -1355,10 +2698,21 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("difference_amount");
 
+                    b.Property<int>("DurationSnapshotHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(20)
+                        .HasColumnName("duration_snapshot_hours");
+
                     b.Property<decimal?>("ExpectedClosingCashAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("expected_closing_cash_amount");
+
+                    b.Property<string>("OpenIdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("open_idempotency_key");
 
                     b.Property<DateTime>("OpenedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1392,9 +2746,22 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("terminal_id");
 
+                    b.Property<string>("TimeZoneIdSnapshot")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("UTC")
+                        .HasColumnName("time_zone_id_snapshot");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("VarianceReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("variance_reason");
 
                     b.HasKey("Id")
                         .HasName("p_k_cash_sessions");
@@ -1413,9 +2780,427 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("OutletId", "BusinessDate");
 
+                    b.HasIndex("OutletId", "OpenIdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cash_sessions_open_idempotency")
+                        .HasFilter("open_idempotency_key IS NOT NULL");
+
+                    b.HasIndex("OutletId", "TerminalId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cash_sessions_one_open_per_terminal")
+                        .HasFilter("status = 'open'");
+
                     b.HasIndex("OutletId", "TerminalId", "Status");
 
-                    b.ToTable("cash_sessions");
+                    b.ToTable("cash_sessions", t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_sessions_duration", "duration_snapshot_hours BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("ck_cash_sessions_opening_cash", "opening_cash_amount >= 0");
+
+                            t.HasCheckConstraint("ck_cash_sessions_status", "status IN ('open','closed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionAttachment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long?>("HandoverId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("handover_id");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_path");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at_utc");
+
+                    b.Property<long>("UploadedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_cash_session_attachments");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_cash_session_attachments_cash_session_id");
+
+                    b.ToTable("cash_session_attachments", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionCloseSnapshot", b =>
+                {
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CardTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("card_total");
+
+                    b.Property<decimal>("CashRefunds")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cash_refunds");
+
+                    b.Property<decimal>("CashSalesRetained")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cash_sales_retained");
+
+                    b.Property<decimal>("CashTendered")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cash_tendered");
+
+                    b.Property<decimal>("ChangeGiven")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("change_given");
+
+                    b.Property<DateTime>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at_utc");
+
+                    b.Property<long>("ClosedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("closed_by_user_id");
+
+                    b.Property<decimal>("Corrections")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("corrections");
+
+                    b.Property<decimal>("CountedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("counted_cash");
+
+                    b.Property<string>("DenominationsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("denominations_json");
+
+                    b.Property<decimal>("DrawerExpenses")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("drawer_expenses");
+
+                    b.Property<int>("DurationSnapshotHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_snapshot_hours");
+
+                    b.Property<decimal>("ExpectedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("expected_cash");
+
+                    b.Property<decimal>("HandedOverTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("handed_over_total");
+
+                    b.Property<decimal>("MobileTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("mobile_total");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("OpeningCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("opening_cash");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<decimal>("RetainedAtOutlet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("retained_at_outlet");
+
+                    b.Property<string>("SnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("snapshot_hash");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone_id");
+
+                    b.Property<decimal>("Variance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("variance");
+
+                    b.Property<string>("VarianceReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("variance_reason");
+
+                    b.Property<bool>("WasOverdueAtClose")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_overdue_at_close");
+
+                    b.HasKey("CashSessionId")
+                        .HasName("p_k_cash_session_close_snapshots");
+
+                    b.HasIndex("BusinessId", "ClosedAtUtc")
+                        .HasDatabaseName("i_x_cash_session_close_snapshots_business_id_closed_at_utc");
+
+                    b.ToTable("cash_session_close_snapshots", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_session_close_snapshots_retained", "retained_at_outlet >= 0 AND handed_over_total >= 0 AND counted_cash >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionHandover", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BankAccountReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bank_account_reference");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<DateTime?>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at_utc");
+
+                    b.Property<long?>("ConfirmedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("confirmed_by_user_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime?>("DepositDate")
+                        .HasColumnType("date")
+                        .HasColumnName("deposit_date");
+
+                    b.Property<string>("DepositReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("deposit_reference");
+
+                    b.Property<long>("GivenByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("given_by_user_id");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("recipient_name");
+
+                    b.Property<long?>("RecipientUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_cash_session_handovers");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_cash_session_handovers_cash_session_id");
+
+                    b.ToTable("cash_session_handovers", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_session_handovers_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_cash_session_handovers_method", "method IN ('cash_to_manager','cash_to_owner','bank_deposit')");
+
+                            t.HasCheckConstraint("ck_cash_session_handovers_status", "status IN ('handed','pending_bank_verification','confirmed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CashEffect")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cash_effect");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("movement_type");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<long?>("OriginalCashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_cash_session_id");
+
+                    b.Property<long?>("OriginalSaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_sale_id");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at_utc");
+
+                    b.Property<long>("RecordedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<long?>("SourceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("source_key");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_type");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_cash_session_movements");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_cash_session_movements_cash_session_id");
+
+                    b.HasIndex("OriginalSaleId")
+                        .HasDatabaseName("i_x_cash_session_movements_original_sale_id");
+
+                    b.HasIndex("BusinessId", "SourceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cash_session_movements_source_key");
+
+                    b.ToTable("cash_session_movements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_session_movements_effect", "(movement_type IN ('cash_refund','drawer_expense') AND cash_effect < 0) OR (movement_type = 'drawer_expense_reversal' AND cash_effect > 0) OR (movement_type = 'correction' AND cash_effect <> 0)");
+
+                            t.HasCheckConstraint("ck_cash_session_movements_type", "movement_type IN ('cash_refund','drawer_expense','drawer_expense_reversal','correction')");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Category", b =>
@@ -1426,6 +3211,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1466,8 +3255,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_categories");
 
-                    b.HasIndex("ParentCategoryId")
-                        .HasDatabaseName("i_x_categories_parent_category_id");
+                    b.HasIndex("BusinessId");
+
+                    b.HasIndex("ParentCategoryId", "BusinessId");
 
                     b.ToTable("categories");
                 });
@@ -1552,6 +3342,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_chart_accounts");
 
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_chart_accounts_business_id_id");
+
                     b.HasIndex("ParentAccountId")
                         .HasDatabaseName("i_x_chart_accounts_parent_account_id");
 
@@ -1573,6 +3366,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1614,12 +3411,23 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("phone");
 
+                    b.Property<string>("PhoneNormalized")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone_normalized");
+
                     b.HasKey("Id")
                         .HasName("p_k_customers");
 
-                    b.HasIndex("CustomerCode")
+                    b.HasAlternateKey("Id", "BusinessId");
+
+                    b.HasIndex("BusinessId", "CustomerCode")
                         .IsUnique()
                         .HasFilter("customer_code IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "PhoneNormalized")
+                        .IsUnique()
+                        .HasFilter("phone_normalized IS NOT NULL");
 
                     b.ToTable("customers");
                 });
@@ -1638,31 +3446,335 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("amount");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("AttachmentPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("attachment_path");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<long?>("CancelledBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cancelled_by");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("category");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
                     b.Property<string>("Description")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("description");
+
+                    b.Property<DateTime?>("DisbursedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("disbursed_at_utc");
+
+                    b.Property<long?>("DisbursedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("disbursed_by_user_id");
+
+                    b.Property<long?>("DisbursedCashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("disbursed_cash_session_id");
+
+                    b.Property<long?>("ExpenseAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("expense_account_id");
+
+                    b.Property<long?>("ExpenseCategoryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("expense_category_id");
 
                     b.Property<DateTime>("ExpenseDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expense_date");
 
+                    b.Property<string>("ExpenseNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("expense_number");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
                     b.Property<long?>("OutletId")
                         .HasColumnType("bigint")
                         .HasColumnName("outlet_id");
 
+                    b.Property<long?>("PaymentAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_account_id");
+
+                    b.Property<string>("PaymentMethodId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_method_id");
+
+                    b.Property<string>("PaymentSource")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payment_source");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("reference_number");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<long?>("RejectedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rejected_by");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<bool>("SelfApprovedUnderOwnerException")
+                        .HasColumnType("boolean")
+                        .HasColumnName("self_approved_under_owner_exception");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<long?>("SubmittedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool?>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
+
+                    b.Property<decimal?>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal?>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_rate");
+
                     b.HasKey("Id")
                         .HasName("p_k_expenses");
+
+                    b.HasIndex("DisbursedCashSessionId");
+
+                    b.HasIndex("ExpenseAccountId")
+                        .HasDatabaseName("i_x_expenses_expense_account_id");
+
+                    b.HasIndex("ExpenseCategoryId")
+                        .HasDatabaseName("i_x_expenses_expense_category_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_expenses_journal_entry_id");
 
                     b.HasIndex("OutletId")
                         .HasDatabaseName("i_x_expenses_outlet_id");
 
-                    b.ToTable("expenses");
+                    b.HasIndex("PaymentAccountId")
+                        .HasDatabaseName("i_x_expenses_payment_account_id");
+
+                    b.HasIndex("BusinessId", "ExpenseDate");
+
+                    b.HasIndex("BusinessId", "ExpenseNumber")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "Status");
+
+                    b.ToTable("expenses", t =>
+                        {
+                            t.HasCheckConstraint("ck_expenses_maker_checker", "payment_source IS NULL OR payment_source = 'bank' OR approved_by IS NULL OR self_approved_under_owner_exception OR (approved_by IS DISTINCT FROM created_by AND approved_by IS DISTINCT FROM submitted_by)");
+
+                            t.HasCheckConstraint("ck_expenses_payment_source", "payment_source IS NULL OR payment_source IN ('bank','petty_cash','pos_drawer')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<long>("ExpenseAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("expense_account_id");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_expense_categories");
+
+                    b.HasIndex("ExpenseAccountId")
+                        .HasDatabaseName("i_x_expense_categories_expense_account_id");
+
+                    b.HasIndex("BusinessId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("expense_categories");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.FinancialPostingWorkerHeartbeat", b =>
+                {
+                    b.Property<string>("WorkerName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("worker_name");
+
+                    b.Property<string>("InstanceId")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("instance_id");
+
+                    b.Property<int>("ConsecutiveRunFailures")
+                        .HasColumnType("integer")
+                        .HasColumnName("consecutive_run_failures");
+
+                    b.Property<string>("HostName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("host_name");
+
+                    b.Property<string>("HostRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("host_role");
+
+                    b.Property<int>("LastBatchDue")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_batch_due");
+
+                    b.Property<int>("LastBatchFailures")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_batch_failures");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LastRunCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_run_completed_at_utc");
+
+                    b.Property<DateTime?>("LastRunStartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_run_started_at_utc");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at_utc");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("WorkerName", "InstanceId")
+                        .HasName("p_k_financial_posting_worker_heartbeats");
+
+                    b.HasIndex("UpdatedAtUtc")
+                        .HasDatabaseName("ix_financial_posting_worker_heartbeats_updated");
+
+                    b.ToTable("financial_posting_worker_heartbeats", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_financial_posting_worker_heartbeats_role", "host_role IN ('Api','Worker')");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.FinancialYear", b =>
@@ -1785,6 +3897,14 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
+                    b.Property<DateTime?>("SupplierInvoiceDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("supplier_invoice_date");
+
+                    b.Property<string>("SupplierInvoiceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_invoice_number");
+
                     b.HasKey("Id")
                         .HasName("p_k_grns");
 
@@ -1821,10 +3941,34 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("received_qty");
 
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool?>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
+
+                    b.Property<decimal?>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
                     b.Property<decimal>("UnitCost")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("unit_cost");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal?>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_rate");
 
                     b.HasKey("Id")
                         .HasName("p_k_grn_items");
@@ -1835,6 +3979,9246 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("PoItemId");
 
                     b.ToTable("grn_items");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalDecision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActingRoleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("acting_role_id");
+
+                    b.Property<long>("ActorRealUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_real_user_id");
+
+                    b.Property<long>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("ApprovalInstanceStepId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_step_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<int?>("CurrentStepSequenceAfterDecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_step_sequence_after_decision");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("decision");
+
+                    b.Property<string>("DecisionKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("decision_key");
+
+                    b.Property<long?>("DelegatedForUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("delegated_for_user_id");
+
+                    b.Property<string>("InstanceStatusAfterDecision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("instance_status_after_decision");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_approval_decisions");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .HasDatabaseName("i_x_hr_approval_decisions_approval_instance_id");
+
+                    b.HasIndex("ApprovalInstanceStepId", "ActorRealUserId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_decisions_approval_instance_step_id_actor_real_~")
+                        .HasFilter("decision IN ('Approve', 'Reject')");
+
+                    b.HasIndex("BusinessId", "DecisionKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_decisions_business_id_decision_key");
+
+                    b.ToTable("hr_approval_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowSelfApprovalSnapshot")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_self_approval_snapshot");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<int?>("CurrentStepSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_step_sequence");
+
+                    b.Property<string>("PolicyCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("policy_code_snapshot");
+
+                    b.Property<long>("PolicyId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_id");
+
+                    b.Property<int>("PolicyVersionSnapshot")
+                        .HasColumnType("integer")
+                        .HasColumnName("policy_version_snapshot");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("process_type");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("ScopeReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("target_type");
+
+                    b.Property<long>("TargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("target_version");
+
+                    b.Property<uint>("XMin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_approval_instances");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_approval_instances_business_id_id");
+
+                    b.HasIndex("PolicyId")
+                        .HasDatabaseName("i_x_hr_approval_instances_policy_id");
+
+                    b.HasIndex("BusinessId", "Status", "ProcessType", "TargetType", "TargetId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_instances_business_id_status_process_type_targe~")
+                        .HasFilter("status = 'Pending'");
+
+                    b.ToTable("hr_approval_instances", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstanceStep", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<bool>("CanCancelSnapshot")
+                        .HasColumnType("boolean")
+                        .HasColumnName("can_cancel_snapshot");
+
+                    b.Property<bool>("CanRejectSnapshot")
+                        .HasColumnType("boolean")
+                        .HasColumnName("can_reject_snapshot");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("decision");
+
+                    b.Property<DateTime?>("DecisionAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decision_at_utc");
+
+                    b.Property<long?>("DecisionByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decision_by_user_id");
+
+                    b.Property<int>("PolicyStepVersionSnapshot")
+                        .HasColumnType("integer")
+                        .HasColumnName("policy_step_version_snapshot");
+
+                    b.Property<int>("RequiredApprovalsSnapshot")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_approvals_snapshot");
+
+                    b.Property<string>("ResolvedApproverCandidatesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("resolved_approver_candidates_json");
+
+                    b.Property<string>("ResolvedApproverReference")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("resolved_approver_reference");
+
+                    b.Property<string>("ResolvedApproverType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("resolved_approver_type");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_approval_instance_steps");
+
+                    b.HasIndex("ApprovalInstanceId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_instance_steps_approval_instance_id_sequence");
+
+                    b.ToTable("hr_approval_instance_steps", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicy", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowSelfApproval")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_self_approval");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("process_type");
+
+                    b.Property<string>("ScopeReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_approval_policies");
+
+                    b.HasIndex("BusinessId", "Code", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_policies_business_id_code_version_no");
+
+                    b.HasIndex("BusinessId", "ProcessType", "ScopeType", "ScopeReference", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("i_x_hr_approval_policies_business_id_process_type_scope_type_sc~");
+
+                    b.ToTable("hr_approval_policies", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicyStep", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ApprovalPolicyId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_policy_id");
+
+                    b.Property<string>("ApproverReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("approver_reference");
+
+                    b.Property<string>("ApproverType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("approver_type");
+
+                    b.Property<bool>("CanCancel")
+                        .HasColumnType("boolean")
+                        .HasColumnName("can_cancel");
+
+                    b.Property<bool>("CanReject")
+                        .HasColumnType("boolean")
+                        .HasColumnName("can_reject");
+
+                    b.Property<int>("RequiredApprovals")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_approvals");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_approval_policy_steps");
+
+                    b.HasIndex("ApprovalPolicyId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_approval_policy_steps_approval_policy_id_sequence");
+
+                    b.ToTable("hr_approval_policy_steps", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceCorrectionRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AppliedAfterEvidenceJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("applied_after_evidence_json");
+
+                    b.Property<long>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<string>("BeforeEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("before_evidence_json");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CorrectionSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("correction_sequence");
+
+                    b.Property<long>("DailyAttendanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("daily_attendance_id");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<int>("ExpectedProcessingVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("expected_processing_version");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("ProposedEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("proposed_evidence_json");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date")
+                        .HasColumnName("work_date");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_attendance_correction_requests");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_att_corr_approval_instance");
+
+                    b.HasIndex("BusinessId", "DailyAttendanceId", "CorrectionSequence")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_att_corr_business_daily_sequence");
+
+                    b.HasIndex("BusinessId", "DailyAttendanceId", "Status")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_att_corr_pending_per_daily")
+                        .HasFilter("status = 'PendingApproval'");
+
+                    b.ToTable("hr_attendance_correction_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_attendance_correction_sequence", "correction_sequence > 0 AND expected_processing_version > 0 AND version > 0");
+
+                            t.HasCheckConstraint("ck_hr_attendance_correction_status", "status IN ('PendingApproval','Approved','Rejected','Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceDevice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ConnectionHost")
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)")
+                        .HasColumnName("connection_host");
+
+                    b.Property<int?>("ConnectionPort")
+                        .HasColumnType("integer")
+                        .HasColumnName("connection_port");
+
+                    b.Property<string>("CredentialSecretReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("credential_secret_reference");
+
+                    b.Property<string>("DeviceCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("device_code");
+
+                    b.Property<string>("DeviceTimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("device_time_zone_id");
+
+                    b.Property<string>("FirmwareVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("firmware_version");
+
+                    b.Property<DateTime?>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at_utc");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("model");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("ProtocolType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("protocol_type");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("serial_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("VendorCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("vendor_code");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_attendance_devices");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_attendance_devices_business_id_id");
+
+                    b.HasIndex("BusinessId", "DeviceCode")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_attendance_devices_business_id_device_code");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_attendance_devices_business_id_operational_location_proj~");
+
+                    b.HasIndex("VendorCode", "SerialNumber")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_attendance_devices_vendor_code_serial_number");
+
+                    b.ToTable("hr_attendance_devices", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_device_port", "connection_port IS NULL OR connection_port BETWEEN 1 AND 65535");
+
+                            t.HasCheckConstraint("ck_hr_device_status", "status IN ('Active','Offline','Disabled','Error')");
+
+                            t.HasCheckConstraint("ck_hr_device_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrDailyAttendance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_minutes");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CalculationFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_fingerprint");
+
+                    b.Property<string>("CalendarEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calendar_evidence_json");
+
+                    b.Property<string>("DayClassification")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("day_classification");
+
+                    b.Property<int>("EarlyLeaveMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("early_leave_minutes");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateTime?>("FirstInAtLocal")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("first_in_at_local");
+
+                    b.Property<bool>("IsManuallyAdjusted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_manually_adjusted");
+
+                    b.Property<DateTime?>("LastOutAtLocal")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("last_out_at_local");
+
+                    b.Property<DateTime>("LastProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_processed_at_utc");
+
+                    b.Property<int>("LateMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("late_minutes");
+
+                    b.Property<string>("LocationSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("location_snapshot_json");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<int>("OvertimeMinutesCalculated")
+                        .HasColumnType("integer")
+                        .HasColumnName("overtime_minutes_calculated");
+
+                    b.Property<int>("ProcessingVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("processing_version");
+
+                    b.Property<string>("PunchIdsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("punch_ids_json");
+
+                    b.Property<long>("RosterAssignmentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("roster_assignment_id");
+
+                    b.Property<long>("ShiftId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shift_id");
+
+                    b.Property<string>("ShiftSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("shift_snapshot_json");
+
+                    b.Property<string>("SourceLocationTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_location_type_snapshot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TimeZoneIdSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("time_zone_id_snapshot");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date")
+                        .HasColumnName("work_date");
+
+                    b.Property<int>("WorkedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("worked_minutes");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_daily_attendance");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_daily_attendance_business_id_id");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_daily_attendance_business_id_operational_location_projec~");
+
+                    b.HasIndex("BusinessId", "RosterAssignmentId")
+                        .HasDatabaseName("i_x_hr_daily_attendance_business_id_roster_assignment_id");
+
+                    b.HasIndex("BusinessId", "ShiftId")
+                        .HasDatabaseName("i_x_hr_daily_attendance_business_id_shift_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "WorkDate")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_daily_attendance_business_id_employee_id_work_date");
+
+                    b.HasIndex("BusinessId", "WorkDate", "Status")
+                        .HasDatabaseName("i_x_hr_daily_attendance_business_id_work_date_status");
+
+                    b.ToTable("hr_daily_attendance", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_daily_attendance_minutes", "worked_minutes >= 0 AND break_minutes >= 0 AND late_minutes >= 0 AND early_leave_minutes >= 0 AND overtime_minutes_calculated >= 0");
+
+                            t.HasCheckConstraint("ck_hr_daily_attendance_status", "status IN ('Present','Absent','Late','HalfDay','Leave','Holiday','WeeklyOff','MissingPunch')");
+
+                            t.HasCheckConstraint("ck_hr_daily_attendance_version", "processing_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrDeviceUserMapping", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("DeviceUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("device_user_id");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<DateTime?>("EffectiveToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_to_utc");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_device_user_mappings");
+
+                    b.HasIndex("BusinessId", "DeviceId")
+                        .HasDatabaseName("i_x_hr_device_user_mappings_business_id_device_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_hr_device_user_mappings_business_id_employee_id");
+
+                    b.HasIndex("DeviceId", "DeviceUserId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_device_user_mappings_device_id_device_user_id")
+                        .HasFilter("is_active");
+
+                    b.HasIndex("EmployeeId", "IsActive")
+                        .HasDatabaseName("i_x_hr_device_user_mappings_employee_id_is_active");
+
+                    b.ToTable("hr_device_user_mappings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_mapping_interval", "effective_to_utc IS NULL OR effective_to_utc > effective_from_utc");
+
+                            t.HasCheckConstraint("ck_hr_mapping_open", "is_active = (effective_to_utc IS NULL)");
+
+                            t.HasCheckConstraint("ck_hr_mapping_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrRawAttendancePunch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long?>("DeviceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("DeviceSerialSnapshot")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("device_serial_snapshot");
+
+                    b.Property<string>("DeviceUserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("device_user_id");
+
+                    b.Property<string>("DirectionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("direction_code");
+
+                    b.Property<long?>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("IdempotencyFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_fingerprint");
+
+                    b.Property<string>("ProcessingError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("processing_error");
+
+                    b.Property<string>("ProcessingStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("processing_status");
+
+                    b.Property<int>("ProcessingVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("processing_version");
+
+                    b.Property<DateTime>("PunchTimeLocal")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("punch_time_local");
+
+                    b.Property<DateTime?>("PunchTimeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("punch_time_utc");
+
+                    b.Property<string>("RawPayload")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("raw_payload");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at_utc");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("time_zone_id");
+
+                    b.Property<string>("VerificationMethod")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("verification_method");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_raw_attendance_punches");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_raw_attendance_punches_business_id_id");
+
+                    b.HasIndex("IdempotencyFingerprint")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_raw_attendance_punches_idempotency_fingerprint");
+
+                    b.HasIndex("BusinessId", "DeviceId")
+                        .HasDatabaseName("i_x_hr_raw_attendance_punches_business_id_device_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "PunchTimeLocal")
+                        .HasDatabaseName("i_x_hr_raw_attendance_punches_business_id_employee_id_punch_tim~");
+
+                    b.HasIndex("BusinessId", "ProcessingStatus", "ReceivedAtUtc")
+                        .HasDatabaseName("i_x_hr_raw_attendance_punches_business_id_processing_status_rec~");
+
+                    b.ToTable("hr_raw_attendance_punches", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_raw_punch_source", "source_type IN ('Manual','Device','Import')");
+
+                            t.HasCheckConstraint("ck_hr_raw_punch_status", "processing_status IN ('Pending','Unmapped','Processed','Failed')");
+
+                            t.HasCheckConstraint("ck_hr_raw_punch_version", "processing_version >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrRosterAssignment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CalendarEvidenceJson")
+                        .HasColumnType("text")
+                        .HasColumnName("calendar_evidence_json");
+
+                    b.Property<string>("DayClassification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("day_classification");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("LocationSnapshotJson")
+                        .HasColumnType("text")
+                        .HasColumnName("location_snapshot_json");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at_utc");
+
+                    b.Property<long?>("PublishedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("published_by_user_id");
+
+                    b.Property<long>("ShiftId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shift_id");
+
+                    b.Property<string>("ShiftSnapshotJson")
+                        .HasColumnType("text")
+                        .HasColumnName("shift_snapshot_json");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date")
+                        .HasColumnName("work_date");
+
+                    b.Property<string>("WorkKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("work_kind");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_roster_assignments");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_roster_assignments_business_id_id");
+
+                    b.HasIndex("ShiftId")
+                        .HasDatabaseName("i_x_hr_roster_assignments_shift_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_hr_roster_assignments_business_id_employee_id");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_roster_assignments_business_id_operational_location_proj~");
+
+                    b.HasIndex("EmployeeId", "WorkDate")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_roster_assignments_employee_id_work_date")
+                        .HasFilter("status <> 'Cancelled'");
+
+                    b.ToTable("hr_roster_assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_roster_day", "day_classification IN ('NormalWorkingDay','Holiday','WeeklyOff')");
+
+                            t.HasCheckConstraint("ck_hr_roster_kind", "work_kind IN ('Normal','Extended','Special')");
+
+                            t.HasCheckConstraint("ck_hr_roster_publication", "status <> 'Published' OR (published_at_utc IS NOT NULL AND published_by_user_id IS NOT NULL AND shift_snapshot_json IS NOT NULL AND location_snapshot_json IS NOT NULL AND calendar_evidence_json IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_roster_status", "status IN ('Draft','Published','Cancelled')");
+
+                            t.HasCheckConstraint("ck_hr_roster_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrHoliday", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CalendarId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("calendar_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateOnly>("HolidayDate")
+                        .HasColumnType("date")
+                        .HasColumnName("holiday_date");
+
+                    b.Property<string>("HolidayType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("holiday_type");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_paid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_holidays");
+
+                    b.HasIndex("BusinessId", "CalendarId")
+                        .HasDatabaseName("i_x_hr_holidays_business_id_calendar_id");
+
+                    b.HasIndex("CalendarId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_holidays_calendar_id_code");
+
+                    b.ToTable("hr_holidays", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_holiday_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrHolidayCalendar", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LocationType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<long?>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_holiday_calendars");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_holiday_calendars_business_id_id");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_holiday_calendars_business_id_operational_location_proje~");
+
+                    b.ToTable("hr_holiday_calendars", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_calendar_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_calendar_scope", "(scope_type = 'Company' AND location_type IS NULL AND operational_location_projection_id IS NULL) OR (scope_type = 'LocationType' AND location_type IS NOT NULL AND location_type IN ('Outlet', 'Warehouse', 'Factory') AND operational_location_projection_id IS NULL) OR (scope_type = 'Location' AND location_type IS NULL AND operational_location_projection_id IS NOT NULL AND operational_location_projection_id > 0)");
+
+                            t.HasCheckConstraint("ck_hr_calendar_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrShift", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AllowedEarlyPunchMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("allowed_early_punch_minutes");
+
+                    b.Property<int>("AllowedLatePunchMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("allowed_late_punch_minutes");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("CrossesMidnight")
+                        .HasColumnType("boolean")
+                        .HasColumnName("crosses_midnight");
+
+                    b.Property<TimeOnly>("EndTimeLocal")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("end_time_local");
+
+                    b.Property<int>("GraceInMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("grace_in_minutes");
+
+                    b.Property<int>("GraceOutMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("grace_out_minutes");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int?>("MaximumAllowedWorkMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("maximum_allowed_work_minutes");
+
+                    b.Property<int?>("MinimumRestBeforeNextShiftMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minimum_rest_before_next_shift_minutes");
+
+                    b.Property<int>("MinimumWorkMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minimum_work_minutes");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("OvertimeEligible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("overtime_eligible");
+
+                    b.Property<TimeOnly>("StartTimeLocal")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("start_time_local");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_shifts");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_shifts_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_shifts_business_id_code");
+
+                    b.ToTable("hr_shifts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_shift_version", "version > 0");
+
+                            t.HasCheckConstraint("ck_hr_shift_work", "minimum_work_minutes > 0 AND (maximum_allowed_work_minutes IS NULL OR maximum_allowed_work_minutes >= minimum_work_minutes)");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrShiftBreak", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_paid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("ShiftId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("shift_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_shift_breaks");
+
+                    b.HasIndex("ShiftId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_shift_breaks_shift_id_sequence");
+
+                    b.ToTable("hr_shift_breaks", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_shift_break", "sequence > 0 AND duration_minutes > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyDay", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_week");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_weekly_off_policy_days");
+
+                    b.HasIndex("PolicyVersionId", "DayOfWeek")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_weekly_off_policy_days_policy_version_id_day_of_week");
+
+                    b.ToTable("hr_weekly_off_policy_days", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_weekly_day", "day_of_week >= 0 AND day_of_week <= 6");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LocationType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<long?>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("ScopeKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("scope_key");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_weekly_off_policy_versions");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_weekly_off_policy_versions_business_id_operational_locat~");
+
+                    b.HasIndex("BusinessId", "ScopeKey", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_weekly_off_policy_versions_business_id_scope_key_version~");
+
+                    b.ToTable("hr_weekly_off_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_weekly_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_weekly_scope", "(scope_type = 'Company' AND location_type IS NULL AND operational_location_projection_id IS NULL) OR (scope_type = 'LocationType' AND location_type IS NOT NULL AND location_type IN ('Outlet', 'Warehouse', 'Factory') AND operational_location_projection_id IS NULL) OR (scope_type = 'Location' AND location_type IS NULL AND operational_location_projection_id IS NOT NULL AND operational_location_projection_id > 0)");
+
+                            t.HasCheckConstraint("ck_hr_weekly_version", "version > 0 AND version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrDocumentType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("classification");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("RequiresExpiryDate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_expiry_date");
+
+                    b.Property<bool>("RequiresLegalHoldReview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_legal_hold_review");
+
+                    b.Property<int?>("RetentionPeriodDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_period_days");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_document_types");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_document_types_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_document_types_business_id_code");
+
+                    b.ToTable("hr_document_types", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_document_type_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_document_type_classification", "classification IN ('Internal', 'Confidential', 'Restricted')");
+
+                            t.HasCheckConstraint("ck_hr_document_type_retention_days", "retention_period_days IS NULL OR retention_period_days > 0");
+
+                            t.HasCheckConstraint("ck_hr_document_type_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployee", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly?>("ConfirmationDate")
+                        .HasColumnType("date")
+                        .HasColumnName("confirmation_date");
+
+                    b.Property<string>("CurrentEmploymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("current_employment_status");
+
+                    b.Property<long>("CurrentEmploymentTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("current_employment_type_id");
+
+                    b.Property<long?>("CurrentOrgUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("current_org_unit_id");
+
+                    b.Property<long?>("CurrentPositionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("current_position_id");
+
+                    b.Property<long?>("CurrentPrimaryLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("current_primary_location_projection_id");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("date_of_birth");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("emergency_contact_name");
+
+                    b.Property<string>("EmergencyContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("emergency_contact_phone");
+
+                    b.Property<string>("EmployeeCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("employee_code");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("first_name");
+
+                    b.Property<string>("GenderCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("gender_code");
+
+                    b.Property<DateOnly>("JoiningDate")
+                        .HasColumnType("date")
+                        .HasColumnName("joining_date");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_name");
+
+                    b.Property<DateOnly?>("LastWorkingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("last_working_date");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("middle_name");
+
+                    b.Property<string>("Mobile")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mobile");
+
+                    b.Property<string>("NationalId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("national_id");
+
+                    b.Property<string>("PassportNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("passport_no");
+
+                    b.Property<string>("PermanentAddress")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("permanent_address");
+
+                    b.Property<string>("PersonalEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("personal_email");
+
+                    b.Property<string>("PresentAddress")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("present_address");
+
+                    b.Property<string>("SuspendedFromStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("suspended_from_status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<string>("WorkEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("work_email");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employees");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_employees_business_id_id");
+
+                    b.HasIndex("BusinessId", "CurrentEmploymentTypeId")
+                        .HasDatabaseName("i_x_hr_employees_business_id_current_employment_type_id");
+
+                    b.HasIndex("BusinessId", "CurrentOrgUnitId")
+                        .HasDatabaseName("i_x_hr_employees_business_id_current_org_unit_id");
+
+                    b.HasIndex("BusinessId", "CurrentPrimaryLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_employees_business_id_current_primary_location_projectio~");
+
+                    b.HasIndex("BusinessId", "EmployeeCode")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employees_business_id_employee_code");
+
+                    b.HasIndex("BusinessId", "CurrentEmploymentStatus", "CurrentEmploymentTypeId")
+                        .HasDatabaseName("i_x_hr_employees_business_id_current_employment_status_current_~");
+
+                    b.HasIndex("BusinessId", "CurrentPositionId", "CurrentOrgUnitId")
+                        .HasDatabaseName("i_x_hr_employees_business_id_current_position_id_current_org_un~");
+
+                    b.ToTable("hr_employees", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_confirmation_date", "confirmation_date IS NULL OR confirmation_date >= joining_date");
+
+                            t.HasCheckConstraint("ck_hr_employee_current_position_org_unit", "(current_position_id IS NULL AND current_org_unit_id IS NULL) OR (current_position_id IS NOT NULL AND current_org_unit_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_employee_suspended_status", "suspended_from_status IS NULL OR suspended_from_status IN ('Active', 'Probation')");
+
+                            t.HasCheckConstraint("ck_hr_employee_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid?>("CurrentVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("current_version_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_number");
+
+                    b.Property<long>("DocumentTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_type_id");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<bool>("IsLegalHold")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_legal_hold");
+
+                    b.Property<DateOnly?>("IssueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("issue_date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_documents");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_employee_documents_business_id_id");
+
+                    b.HasIndex("BusinessId", "DocumentTypeId")
+                        .HasDatabaseName("i_x_hr_employee_documents_business_id_document_type_id");
+
+                    b.HasIndex("BusinessId", "Id", "CurrentVersionId")
+                        .HasDatabaseName("i_x_hr_employee_documents_business_id_id_current_version_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "Status", "ExpiryDate")
+                        .HasDatabaseName("i_x_hr_employee_documents_business_id_employee_id_status_expiry~");
+
+                    b.ToTable("hr_employee_documents", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_document_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_dates", "expiry_date IS NULL OR issue_date IS NULL OR expiry_date >= issue_date");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_status", "status IN ('Active', 'Expired', 'Replaced', 'Archived')");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocumentVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<long>("EmployeeDocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_document_id");
+
+                    b.Property<string>("EncryptionKeyReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("encryption_key_reference");
+
+                    b.Property<bool>("IsLegalHold")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_legal_hold");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<Guid?>("ReplacesVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaces_version_id");
+
+                    b.Property<DateTime?>("RetainUntilUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retain_until_utc");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at_utc");
+
+                    b.Property<string>("ScanStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scan_status");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at_utc");
+
+                    b.Property<long>("UploadedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_document_versions");
+
+                    b.HasAlternateKey("BusinessId", "EmployeeDocumentId", "Id")
+                        .HasName("a_k_hr_employee_document_versions_business_id_employee_document~");
+
+                    b.HasIndex("BusinessId", "StorageKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employee_document_versions_business_id_storage_key");
+
+                    b.HasIndex("EmployeeDocumentId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employee_document_versions_employee_document_id_version_~");
+
+                    b.HasIndex("BusinessId", "EmployeeDocumentId", "ReplacesVersionId")
+                        .HasDatabaseName("i_x_hr_employee_document_versions_business_id_employee_document~");
+
+                    b.ToTable("hr_employee_document_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_document_version_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version_hash", "length(content_hash) = 64");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version_no", "version_no > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version_scan_status", "scan_status IN ('Pending', 'Clean', 'Rejected', 'Error')");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version_size", "size_bytes > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_document_version_storage_key", "scan_status <> 'Clean' OR storage_key IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLifecycleEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_date");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("EmploymentPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employment_period_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("NewStateJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("new_state_json");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<string>("PreviousStateJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("previous_state_json");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_lifecycle_events");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EmploymentPeriodId")
+                        .HasDatabaseName("i_x_hr_employee_lifecycle_events_business_id_employee_id_employ~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveDate", "Id")
+                        .HasDatabaseName("i_x_hr_employee_lifecycle_events_business_id_employee_id_effect~");
+
+                    b.ToTable("hr_employee_lifecycle_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_lifecycle_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_lifecycle_effective_date", "effective_date IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLocationAssignment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at_utc");
+
+                    b.Property<long?>("ApprovedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<string>("AssignmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("assignment_type");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_temporary");
+
+                    b.Property<string>("LocationNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("location_name_snapshot");
+
+                    b.Property<long>("LocationSourceVersionSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_source_version_snapshot");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("SourceEntityIdSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("source_entity_id_snapshot");
+
+                    b.Property<string>("SourceEntityTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_entity_type_snapshot");
+
+                    b.Property<string>("SourceSystemSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_system_snapshot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_location_assignments");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_hr_employee_location_assignments_business_id_approval_insta~");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_emp_loc_assign_active_primary")
+                        .HasFilter("assignment_type = 'Primary' AND status = 'Effective'");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_employee_location_assignments_business_id_operational_lo~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("ix_hr_emp_loc_assign_emp_dates");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "OperationalLocationProjectionId", "Status", "EffectiveFrom")
+                        .HasDatabaseName("ix_hr_emp_loc_assign_emp_location_status");
+
+                    b.ToTable("hr_employee_location_assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_approval", "(approved_by_user_id IS NULL AND approved_at_utc IS NULL AND approval_instance_id IS NULL) OR (approved_by_user_id IS NOT NULL AND approved_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_status", "status IN ('Effective', 'Closed')");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_type", "assignment_type IN ('Primary', 'Additional', 'Temporary')");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_assignment_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLocationTransferRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("ExpectedEmployeeVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("expected_employee_version");
+
+                    b.Property<string>("LocationNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("location_name_snapshot");
+
+                    b.Property<long>("LocationSourceVersionSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_source_version_snapshot");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("SourceEntityIdSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("source_entity_id_snapshot");
+
+                    b.Property<string>("SourceEntityTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_entity_type_snapshot");
+
+                    b.Property<string>("SourceSystemSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_system_snapshot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("TargetLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("target_location_projection_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_location_transfer_requests");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_employee_location_transfer_requests_business_id_id");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_emp_loc_transfer_approval")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_emp_loc_transfer_pending_emp")
+                        .HasFilter("status IN ('PendingApproval', 'ApprovedPendingEffective')");
+
+                    b.HasIndex("BusinessId", "TargetLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_employee_location_transfer_requests_business_id_target_l~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "RequestedAtUtc")
+                        .HasDatabaseName("ix_hr_emp_loc_transfer_emp_requested");
+
+                    b.ToTable("hr_employee_location_transfer_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_location_transfer_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_transfer_status", "status IN ('PendingApproval', 'Approved', 'ApprovedPendingEffective', 'Effective', 'Rejected', 'Cancelled', 'Superseded')");
+
+                            t.HasCheckConstraint("ck_hr_employee_location_transfer_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeePositionAssignment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<string>("AssignmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("assignment_type");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_current");
+
+                    b.Property<long>("OrgUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<long>("PositionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("position_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long?>("ReportsToEmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reports_to_employee_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_position_assignments");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_employee_id")
+                        .HasFilter("is_current = true AND assignment_type = 'Primary'");
+
+                    b.HasIndex("BusinessId", "OrgUnitId")
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_org_unit_id");
+
+                    b.HasIndex("BusinessId", "ReportsToEmployeeId")
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_reports_to_emp~");
+
+                    b.HasIndex("BusinessId", "PositionId", "EffectiveFrom")
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_position_id_ef~");
+
+                    b.HasIndex("BusinessId", "PositionId", "OrgUnitId")
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_position_id_or~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("i_x_hr_employee_position_assignments_business_id_employee_id_ef~");
+
+                    b.ToTable("hr_employee_position_assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_position_assignment_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_position_assignment_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_employee_position_assignment_not_self_manager", "reports_to_employee_id IS NULL OR reports_to_employee_id <> employee_id");
+
+                            t.HasCheckConstraint("ck_hr_employee_position_assignment_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeUserLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("IdentityUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("identity_user_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LinkReason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("link_reason");
+
+                    b.Property<DateTime>("LinkedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("linked_at_utc");
+
+                    b.Property<long>("LinkedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("linked_by_user_id");
+
+                    b.Property<string>("UnlinkReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("unlink_reason");
+
+                    b.Property<DateTime?>("UnlinkedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unlinked_at_utc");
+
+                    b.Property<long?>("UnlinkedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unlinked_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employee_user_links");
+
+                    b.HasIndex("IdentityUserId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employee_user_links_identity_user_id")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employee_user_links_business_id_employee_id")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "LinkedAtUtc", "Id")
+                        .HasDatabaseName("i_x_hr_employee_user_links_business_id_employee_id_linked_at_ut~");
+
+                    b.ToTable("hr_employee_user_links", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employee_user_link_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_user_link_identity_user_id", "identity_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_user_link_linked_by_user_id", "linked_by_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_employee_user_link_state", "(is_active = true AND unlinked_at_utc IS NULL AND unlinked_by_user_id IS NULL AND unlink_reason IS NULL) OR (is_active = false AND unlinked_at_utc IS NOT NULL AND unlinked_by_user_id IS NOT NULL AND unlink_reason IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_employee_user_link_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmploymentPeriod", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("EmploymentTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employment_type_id");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("end_reason");
+
+                    b.Property<string>("SourceEventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_event_type");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("StartReason")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("start_reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employment_periods");
+
+                    b.HasAlternateKey("BusinessId", "EmployeeId", "Id")
+                        .HasName("a_k_hr_employment_periods_business_id_employee_id_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employment_periods_business_id_employee_id")
+                        .HasFilter("status = 'Active'");
+
+                    b.HasIndex("BusinessId", "EmploymentTypeId")
+                        .HasDatabaseName("i_x_hr_employment_periods_business_id_employment_type_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "StartDate")
+                        .HasDatabaseName("i_x_hr_employment_periods_business_id_employee_id_start_date");
+
+                    b.ToTable("hr_employment_periods", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employment_period_dates", "end_date IS NULL OR end_date >= start_date");
+
+                            t.HasCheckConstraint("ck_hr_employment_period_status", "status IN ('Active', 'Closed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmploymentType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_employment_types");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_employment_types_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_employment_types_business_id_code");
+
+                    b.ToTable("hr_employment_types", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_employment_type_business_id", "business_id > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrImportBatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EncryptionKeyReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("encryption_key_reference");
+
+                    b.Property<DateTime?>("ExecutedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("executed_at_utc");
+
+                    b.Property<long?>("ExecutedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("executed_by");
+
+                    b.Property<string>("FileStorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("file_storage_key");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("ImportType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("import_type");
+
+                    b.Property<int>("InvalidRows")
+                        .HasColumnType("integer")
+                        .HasColumnName("invalid_rows");
+
+                    b.Property<bool>("IsDryRun")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_dry_run");
+
+                    b.Property<DateTime>("RetainUntilUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retain_until_utc");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TemplateVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("template_version");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_rows");
+
+                    b.Property<int>("ValidRows")
+                        .HasColumnType("integer")
+                        .HasColumnName("valid_rows");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_import_batches");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_import_batches_business_id_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_import_batches_business_id_idempotency_key");
+
+                    b.ToTable("hr_import_batches", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_import_batch_counts", "total_rows >= 0 AND valid_rows >= 0 AND invalid_rows >= 0 AND total_rows = valid_rows + invalid_rows");
+
+                            t.HasCheckConstraint("ck_hr_import_batch_status", "status IN ('Uploaded', 'Ready', 'ValidationFailed', 'Processing', 'Completed', 'Failed')");
+
+                            t.HasCheckConstraint("ck_hr_import_batch_type", "import_type IN ('Employee', 'Assignment', 'Salary', 'LoanOpening')");
+
+                            t.HasCheckConstraint("ck_hr_import_batch_version", "version > 0 AND revision >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrImportRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long?>("CreatedEntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_entity_id");
+
+                    b.Property<string>("CreatedEntityType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_entity_type");
+
+                    b.Property<string>("ErrorJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("error_json");
+
+                    b.Property<string>("ExternalKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_key");
+
+                    b.Property<long>("ImportBatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_batch_id");
+
+                    b.Property<string>("RawJson")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("raw_json");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision");
+
+                    b.Property<int>("RowNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_no");
+
+                    b.Property<string>("ValidationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("validation_status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_import_rows");
+
+                    b.HasIndex("BusinessId", "ImportBatchId", "Revision", "RowNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_import_rows_business_id_import_batch_id_revision_row_no");
+
+                    b.ToTable("hr_import_rows", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_import_row_number", "row_no > 0 AND revision > 0");
+
+                            t.HasCheckConstraint("ck_hr_import_row_status", "validation_status IN ('Valid', 'Invalid', 'Completed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("ClearedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cleared_at_utc");
+
+                    b.Property<long?>("ClearedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cleared_by_user_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("EvidenceReference")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<long>("ExitCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_case_id");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ResponsibleReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("responsible_reference");
+
+                    b.Property<string>("ResponsibleRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("responsible_role");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("TemplateItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("template_item_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_clearance_items");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_clearance_items_business_id_id");
+
+                    b.HasIndex("ExitCaseId")
+                        .HasDatabaseName("i_x_hr_clearance_items_exit_case_id");
+
+                    b.HasIndex("BusinessId", "TemplateItemId")
+                        .HasDatabaseName("i_x_hr_clearance_items_business_id_template_item_id");
+
+                    b.HasIndex("BusinessId", "ExitCaseId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_clearance_items_business_id_exit_case_id_sequence");
+
+                    b.ToTable("hr_clearance_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_clearance_item_clear_fields", "(status = 'Cleared' AND cleared_by_user_id IS NOT NULL AND cleared_at_utc IS NOT NULL) OR (status <> 'Cleared' AND cleared_by_user_id IS NULL AND cleared_at_utc IS NULL)");
+
+                            t.HasCheckConstraint("ck_hr_clearance_item_sequence", "sequence > 0");
+
+                            t.HasCheckConstraint("ck_hr_clearance_item_status", "status IN ('Pending', 'Cleared', 'Exception', 'NotApplicable')");
+
+                            t.HasCheckConstraint("ck_hr_clearance_item_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ScopeReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_clearance_templates");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_clearance_templates_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_clearance_templates_business_id_code_version_no");
+
+                    b.HasIndex("BusinessId", "ScopeType", "ScopeReference", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("i_x_hr_clearance_templates_business_id_scope_type_scope_referen~");
+
+                    b.ToTable("hr_clearance_templates", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_clearance_template_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_clearance_template_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_clearance_template_scope", "(scope_type = 'Business' AND scope_reference IS NULL) OR (scope_type <> 'Business' AND scope_reference IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_clearance_template_version", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplateItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_mandatory");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ResponsibleReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("responsible_reference");
+
+                    b.Property<string>("ResponsibleRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("responsible_role");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<long>("TemplateId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("template_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_clearance_template_items");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_clearance_template_items_business_id_id");
+
+                    b.HasIndex("BusinessId", "TemplateId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_clearance_template_items_business_id_template_id_code");
+
+                    b.HasIndex("BusinessId", "TemplateId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_clearance_template_items_business_id_template_id_sequence");
+
+                    b.ToTable("hr_clearance_template_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_clearance_template_item_sequence", "sequence > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly?>("ActualLastWorkingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("actual_last_working_date");
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("ClearanceTemplateId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("clearance_template_id");
+
+                    b.Property<string>("ClearanceTemplateSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("clearance_template_snapshot_json");
+
+                    b.Property<int>("ClearanceTemplateVersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("clearance_template_version_no");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("ExitType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("exit_type");
+
+                    b.Property<DateTime>("InitiatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("initiated_at_utc");
+
+                    b.Property<long>("InitiatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("initiated_by_user_id");
+
+                    b.Property<DateOnly>("InitiatedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("initiated_date");
+
+                    b.Property<string>("LocationTypeSnapshot")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("location_type_snapshot");
+
+                    b.Property<long?>("PrimaryLocationProjectionIdSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("primary_location_projection_id_snapshot");
+
+                    b.Property<DateOnly>("ProposedLastWorkingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("proposed_last_working_date");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_exit_cases");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_exit_cases_business_id_id");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .HasDatabaseName("i_x_hr_exit_cases_approval_instance_id");
+
+                    b.HasIndex("BusinessId", "ClearanceTemplateId")
+                        .HasDatabaseName("i_x_hr_exit_cases_business_id_clearance_template_id");
+
+                    b.HasIndex("BusinessId", "PrimaryLocationProjectionIdSnapshot")
+                        .HasDatabaseName("i_x_hr_exit_cases_business_id_primary_location_projection_id_sn~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "Status")
+                        .HasDatabaseName("i_x_hr_exit_cases_business_id_employee_id_status");
+
+                    b.HasIndex("BusinessId", "InitiatedDate", "Status")
+                        .HasDatabaseName("i_x_hr_exit_cases_business_id_initiated_date_status");
+
+                    b.ToTable("hr_exit_cases", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_exit_case_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_exit_case_dates", "proposed_last_working_date >= initiated_date AND (actual_last_working_date IS NULL OR actual_last_working_date >= initiated_date)");
+
+                            t.HasCheckConstraint("ck_hr_exit_case_template_version", "clearance_template_version_no > 0");
+
+                            t.HasCheckConstraint("ck_hr_exit_case_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCaseEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateOnly?>("ActualLastWorkingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("actual_last_working_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("event_type");
+
+                    b.Property<long>("ExitCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_case_id");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("new_status");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<string>("PreviousStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("previous_status");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_exit_case_events");
+
+                    b.HasIndex("BusinessId", "ExitCaseId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_exit_case_events_business_id_exit_case_id_sequence");
+
+                    b.ToTable("hr_exit_case_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_exit_event_actor", "actor_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_exit_event_sequence", "sequence > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCompletionEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<long>("CompletedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("completed_by_user_id");
+
+                    b.Property<string>("CompletionMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("completion_mode");
+
+                    b.Property<string>("CurrencyCode")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<string>("EvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("evidence_hash");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("evidence_json");
+
+                    b.Property<long>("ExitCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_case_id");
+
+                    b.Property<long>("ExitVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_version");
+
+                    b.Property<string>("FinalSettlementEvidenceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("final_settlement_evidence_hash");
+
+                    b.Property<long?>("FinalSettlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_id");
+
+                    b.Property<long?>("FinalSettlementRevisionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_revision_id");
+
+                    b.Property<int?>("FinalSettlementRevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("final_settlement_revision_no");
+
+                    b.Property<string>("FinalSettlementStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("final_settlement_status");
+
+                    b.Property<decimal?>("NetSettlement")
+                        .HasColumnType("numeric")
+                        .HasColumnName("net_settlement");
+
+                    b.Property<bool>("PayrollEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("payroll_enabled");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_exit_completion_evidence");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_exit_completion_evidence_business_id_id");
+
+                    b.HasIndex("BusinessId", "ExitCaseId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_exit_completion_exit");
+
+                    b.ToTable("hr_exit_completion_evidence", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_exit_completion_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_exit_completion_financial", "(payroll_enabled = FALSE AND final_settlement_id IS NULL AND final_settlement_revision_id IS NULL AND final_settlement_revision_no IS NULL AND final_settlement_status IS NULL AND final_settlement_evidence_hash IS NULL AND net_settlement IS NULL AND currency_code IS NULL) OR (payroll_enabled = TRUE AND final_settlement_id IS NOT NULL AND final_settlement_revision_id IS NOT NULL AND final_settlement_revision_no IS NOT NULL AND final_settlement_status IS NOT NULL AND final_settlement_evidence_hash IS NOT NULL AND net_settlement IS NOT NULL AND currency_code IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_exit_completion_hashes", "length(evidence_hash) = 64");
+
+                            t.HasCheckConstraint("ck_hr_exit_completion_mode", "completion_mode IN ('HrOnly', 'PositiveSettlement', 'ZeroSettlement', 'NegativeSettlement')");
+
+                            t.HasCheckConstraint("ck_hr_exit_completion_version", "exit_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveEntitlement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CloseVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("close_version");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateOnly>("JoiningDateSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("joining_date_snapshot");
+
+                    b.Property<long>("LeaveTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<DateOnly>("LeaveYearEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("leave_year_end");
+
+                    b.Property<DateOnly>("LeaveYearStart")
+                        .HasColumnType("date")
+                        .HasColumnName("leave_year_start");
+
+                    b.Property<string>("LocationTypeSnapshot")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("location_type_snapshot");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<long?>("PrimaryLocationProjectionIdSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("primary_location_projection_id_snapshot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Open")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_entitlements");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_entitlements_business_id_id");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId")
+                        .HasDatabaseName("i_x_hr_leave_entitlements_business_id_leave_type_id");
+
+                    b.HasIndex("BusinessId", "PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_leave_entitlements_business_id_policy_version_id");
+
+                    b.HasIndex("BusinessId", "PrimaryLocationProjectionIdSnapshot")
+                        .HasDatabaseName("i_x_hr_leave_entitlements_business_id_primary_location_projecti~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "LeaveTypeId", "LeaveYearStart")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_leave_entitlements_business_id_employee_id_leave_type_id~");
+
+                    b.ToTable("hr_leave_entitlements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_entitlement_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_entitlement_close_version", "close_version >= 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_entitlement_dates", "leave_year_end >= leave_year_start");
+
+                            t.HasCheckConstraint("ck_hr_leave_entitlement_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveLedgerEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorRealUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_real_user_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_date");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("EntitlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entitlement_id");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_on");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long>("LeaveTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("transaction_type");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_ledger");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_ledger_business_id_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_hr_leave_ledger_business_id_employee_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_leave_ledger_business_id_idempotency_key");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId")
+                        .HasDatabaseName("i_x_hr_leave_ledger_business_id_leave_type_id");
+
+                    b.HasIndex("BusinessId", "PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_leave_ledger_business_id_policy_version_id");
+
+                    b.HasIndex("BusinessId", "EntitlementId", "EffectiveDate")
+                        .HasDatabaseName("i_x_hr_leave_ledger_business_id_entitlement_id_effective_date");
+
+                    b.ToTable("hr_leave_ledger", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_ledger_actor", "actor_real_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_ledger_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_ledger_idempotency_key", "length(idempotency_key) BETWEEN 1 AND 150");
+
+                            t.HasCheckConstraint("ck_hr_leave_ledger_quantity", "quantity <> 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_ledger_source", "length(source_type) > 0 AND length(source_id) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeavePolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccrualMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("accrual_method");
+
+                    b.Property<decimal>("AnnualEntitlement")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("annual_entitlement");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<bool>("CarryForwardAllowed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("carry_forward_allowed");
+
+                    b.Property<decimal?>("CarryForwardCap")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("carry_forward_cap");
+
+                    b.Property<int?>("CarryForwardExpiryMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("carry_forward_expiry_months");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<long>("LeaveTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<int>("LeaveYearStartDay")
+                        .HasColumnType("integer")
+                        .HasColumnName("leave_year_start_day");
+
+                    b.Property<int>("LeaveYearStartMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("leave_year_start_month");
+
+                    b.Property<decimal?>("MaximumBalance")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("maximum_balance");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("NegativeBalanceAllowed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("negative_balance_allowed");
+
+                    b.Property<string>("PayrollImpactCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payroll_impact_code");
+
+                    b.Property<string>("ScopeReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_policy_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_policy_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId", "Code", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_leave_policy_versions_business_id_leave_type_id_code_ver~");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId", "ScopeType", "ScopeReference", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("i_x_hr_leave_policy_versions_business_id_leave_type_id_scope_ty~");
+
+                    b.ToTable("hr_leave_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_policy_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_carry_forward", "carry_forward_allowed OR (carry_forward_cap IS NULL AND carry_forward_expiry_months IS NULL)");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_carry_forward_cap", "carry_forward_cap IS NULL OR carry_forward_cap >= 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_entitlement", "annual_entitlement >= 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_expiry_months", "carry_forward_expiry_months IS NULL OR carry_forward_expiry_months > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_maximum_balance", "maximum_balance IS NULL OR maximum_balance >= 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_scope", "(scope_type = 'Business' AND scope_reference IS NULL) OR (scope_type <> 'Business' AND scope_reference IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_leave_policy_version", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid?>("CurrentAttachmentVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("current_attachment_version_id");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<long>("LeaveTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<decimal>("RequestedUnits")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("requested_units");
+
+                    b.Property<long>("ScopeLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("scope_location_projection_id");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("SubmittedTargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_target_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_requests");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_requests_business_id_id");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_leave_request_approval_instance")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId")
+                        .HasDatabaseName("i_x_hr_leave_requests_business_id_leave_type_id");
+
+                    b.HasIndex("BusinessId", "ScopeLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_leave_requests_business_id_scope_location_projection_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "StartDate", "Status")
+                        .HasDatabaseName("ix_hr_leave_request_employee_dates_status");
+
+                    b.ToTable("hr_leave_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_request_actor", "requested_by_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_dates", "end_date >= start_date");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_decision", "(decided_by_user_id IS NULL AND decided_at_utc IS NULL) OR (decided_by_user_id IS NOT NULL AND decided_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_status", "status IN ('Draft', 'PendingApproval', 'Approved', 'Rejected', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_submitted_version", "submitted_target_version IS NULL OR submitted_target_version > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_units", "requested_units > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequestAttachmentVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("EncryptionKeyReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("encryption_key_reference");
+
+                    b.Property<long>("LeaveRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_request_id");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at_utc");
+
+                    b.Property<string>("ScanStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scan_status");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageKey")
+                        .HasColumnType("text")
+                        .HasColumnName("storage_key");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at_utc");
+
+                    b.Property<long>("UploadedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_request_attachment_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_request_attachment_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "LeaveRequestId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_leave_request_attachment_version");
+
+                    b.ToTable("hr_leave_request_attachment_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_request_attachment_actor", "uploaded_by_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_attachment_size", "size_bytes > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_attachment_status", "scan_status IN ('Pending', 'Clean', 'Rejected', 'Error')");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_attachment_version_no", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequestDay", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CalendarEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("calendar_evidence_json");
+
+                    b.Property<string>("DayClassification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("day_classification");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("LeaveRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_request_id");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<long?>("RosterId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("roster_id");
+
+                    b.Property<string>("ShiftSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("shift_snapshot_json");
+
+                    b.Property<decimal>("Units")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("units");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date")
+                        .HasColumnName("work_date");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_request_days");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_hr_leave_request_days_business_id_employee_id");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_leave_request_days_business_id_operational_location_proj~");
+
+                    b.HasIndex("BusinessId", "PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_leave_request_days_business_id_policy_version_id");
+
+                    b.HasIndex("BusinessId", "LeaveRequestId", "WorkDate")
+                        .IsUnique()
+                        .HasDatabaseName("ux_hr_leave_request_day_date");
+
+                    b.ToTable("hr_leave_request_days", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_request_day_classification", "day_classification IN ('NormalWorkingDay', 'Holiday', 'WeeklyOff')");
+
+                            t.HasCheckConstraint("ck_hr_leave_request_day_units", "units >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_paid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("RequiresDocument")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_document");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_types");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_types_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_leave_types_business_id_code");
+
+                    b.ToTable("hr_leave_types", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_type_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_type_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveYearLifecycleEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("action");
+
+                    b.Property<long>("ActorRealUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_real_user_id");
+
+                    b.Property<decimal>("BalanceBeforeClose")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("balance_before_close");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CarryForwardAmount")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("carry_forward_amount");
+
+                    b.Property<DateOnly?>("CarryForwardExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("carry_forward_expires_on");
+
+                    b.Property<int>("CloseVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("close_version");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("EntitlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entitlement_id");
+
+                    b.Property<decimal>("ExpiredAmount")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("expired_amount");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long>("LeaveTypeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<DateOnly>("LeaveYearStart")
+                        .HasColumnType("date")
+                        .HasColumnName("leave_year_start");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<long?>("SourceLedgerEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_ledger_entry_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_leave_year_lifecycle_events");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_leave_year_lifecycle_events_business_id_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("ix_hr_leave_year_event_employee");
+
+                    b.HasIndex("BusinessId", "LeaveTypeId")
+                        .HasDatabaseName("ix_hr_leave_year_event_leave_type");
+
+                    b.HasIndex("BusinessId", "SourceLedgerEntryId")
+                        .HasDatabaseName("ix_hr_leave_year_event_source_ledger")
+                        .HasFilter("source_ledger_entry_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "EntitlementId", "Id")
+                        .HasDatabaseName("ix_hr_leave_year_event_entitlement_id");
+
+                    b.HasIndex("BusinessId", "EntitlementId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_leave_year_event_idempotency");
+
+                    b.ToTable("hr_leave_year_lifecycle_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_leave_year_event_actor", "actor_real_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_year_event_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_year_event_close_version", "close_version >= 0");
+
+                            t.HasCheckConstraint("ck_hr_leave_year_event_key", "length(idempotency_key) BETWEEN 1 AND 150");
+
+                            t.HasCheckConstraint("ck_hr_leave_year_event_quantities", "balance_before_close >= -1000000 AND carry_forward_amount >= 0 AND expired_amount >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<long?>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long?>("ParentOrgUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("parent_org_unit_id");
+
+                    b.Property<string>("UnitType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("unit_type");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<long>("UpdatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_org_units");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_org_units_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_org_units_business_id_code");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_org_units_business_id_operational_location_projection_id");
+
+                    b.HasIndex("BusinessId", "ParentOrgUnitId")
+                        .HasDatabaseName("i_x_hr_org_units_business_id_parent_org_unit_id");
+
+                    b.ToTable("hr_org_units", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_org_unit_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_org_unit_effective_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_org_unit_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.HrPosition", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateOnly?>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<long?>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long>("OrgUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<long?>("ReportsToPositionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reports_to_position_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_positions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_positions_business_id_id");
+
+                    b.HasAlternateKey("BusinessId", "Id", "OrgUnitId")
+                        .HasName("a_k_hr_positions_business_id_id_org_unit_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_positions_business_id_code");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_positions_business_id_operational_location_projection_id");
+
+                    b.HasIndex("BusinessId", "OrgUnitId")
+                        .HasDatabaseName("i_x_hr_positions_business_id_org_unit_id");
+
+                    b.HasIndex("BusinessId", "ReportsToPositionId")
+                        .HasDatabaseName("i_x_hr_positions_business_id_reports_to_position_id");
+
+                    b.ToTable("hr_positions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_position_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_position_effective_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_position_not_self_reporting", "reports_to_position_id IS NULL OR reports_to_position_id <> id");
+
+                            t.HasCheckConstraint("ck_hr_position_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("contact_number");
+
+                    b.Property<bool>("IsSourceActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_source_active");
+
+                    b.Property<bool>("IsSourceDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_source_deleted");
+
+                    b.Property<DateTime>("LastSyncedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at_utc");
+
+                    b.Property<string>("ManagerExternalUserId")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("manager_external_user_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("SourceEntityId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("source_entity_id");
+
+                    b.Property<string>("SourceEntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_entity_type");
+
+                    b.Property<string>("SourcePayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_payload_hash");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_system");
+
+                    b.Property<DateTime>("SourceUpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("source_updated_at_utc");
+
+                    b.Property<long>("SourceVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_version");
+
+                    b.Property<string>("SyncStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("sync_status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_operational_location_projections");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_operational_location_projections_business_id_id");
+
+                    b.HasIndex("BusinessId", "Name")
+                        .HasDatabaseName("i_x_hr_operational_location_projections_business_id_name");
+
+                    b.HasIndex("BusinessId", "SourceEntityType")
+                        .HasDatabaseName("i_x_hr_operational_location_projections_business_id_source_enti~");
+
+                    b.HasIndex("BusinessId", "SourceSystem", "SourceEntityType", "SourceEntityId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_operational_location_projections_business_id_source_syst~");
+
+                    b.ToTable("hr_operational_location_projections", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_location_business_id", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_location_source_type", "source_entity_type IN ('Outlet', 'Warehouse')");
+
+                            t.HasCheckConstraint("ck_hr_location_source_version", "source_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeCalculationEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttendanceProcessingVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("attendance_processing_version");
+
+                    b.Property<string>("AttendanceSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("attendance_snapshot_json");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CalculatedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculated_minutes");
+
+                    b.Property<string>("CalculationFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_fingerprint");
+
+                    b.Property<string>("CalculationInputsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calculation_inputs_json");
+
+                    b.Property<int>("CalculationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_version");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("DayCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("day_category");
+
+                    b.Property<int>("EligibleMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("eligible_minutes");
+
+                    b.Property<long>("OvertimeEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("overtime_entry_id");
+
+                    b.Property<string>("PolicySnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("policy_snapshot_json");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_overtime_calculation_evidence");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_overtime_calculation_evidence_business_id_id");
+
+                    b.HasIndex("BusinessId", "PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_overtime_calculation_evidence_business_id_policy_version~");
+
+                    b.HasIndex("BusinessId", "OvertimeEntryId", "CalculationVersion")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_overtime_calculation_evidence_business_id_overtime_entry~");
+
+                    b.ToTable("hr_overtime_calculation_evidence", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_overtime_evidence_actor", "created_by_user_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_evidence_minutes", "eligible_minutes >= 0 AND calculated_minutes >= 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_evidence_version", "calculation_version > 0 AND attendance_processing_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<int?>("ApprovedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("approved_minutes");
+
+                    b.Property<int>("AttendanceProcessingVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("attendance_processing_version");
+
+                    b.Property<string>("AttendanceSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("attendance_snapshot_json");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CalculatedMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculated_minutes");
+
+                    b.Property<string>("CalculationFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_fingerprint");
+
+                    b.Property<string>("CalculationInputsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calculation_inputs_json");
+
+                    b.Property<int>("CalculationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_version");
+
+                    b.Property<long>("DailyAttendanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("daily_attendance_id");
+
+                    b.Property<string>("DayCategory")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("day_category");
+
+                    b.Property<int>("EligibleMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("eligible_minutes");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("PolicySnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("policy_snapshot_json");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<int>("PolicyVersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("policy_version_no");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date")
+                        .HasColumnName("work_date");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_overtime_entries");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_overtime_entries_business_id_id");
+
+                    b.HasIndex("PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_overtime_entries_policy_version_id");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_approval_instance_id");
+
+                    b.HasIndex("BusinessId", "DailyAttendanceId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_daily_attendance_id");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_operational_location_projec~");
+
+                    b.HasIndex("BusinessId", "PolicyVersionId")
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_policy_version_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "WorkDate")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_employee_id_work_date");
+
+                    b.HasIndex("BusinessId", "WorkDate", "Status")
+                        .HasDatabaseName("i_x_hr_overtime_entries_business_id_work_date_status");
+
+                    b.ToTable("hr_overtime_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_overtime_approved", "approved_minutes IS NULL OR approved_minutes <= calculated_minutes");
+
+                            t.HasCheckConstraint("ck_hr_overtime_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_minutes", "eligible_minutes >= 0 AND calculated_minutes >= 0 AND (approved_minutes IS NULL OR approved_minutes >= 0)");
+
+                            t.HasCheckConstraint("ck_hr_overtime_status", "status IN ('Calculated','PendingApproval','PayrollEligible','Rejected','Cancelled','Superseded')");
+
+                            t.HasCheckConstraint("ck_hr_overtime_version", "attendance_processing_version > 0 AND calculation_version > 0 AND version > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_work_date", "work_date <> '0001-01-01'");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimePolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowHoliday")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_holiday");
+
+                    b.Property<bool>("AllowNormalWorkingDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_normal_working_day");
+
+                    b.Property<bool>("AllowSpecialDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_special_day");
+
+                    b.Property<bool>("AllowWeeklyOff")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_weekly_off");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<decimal>("HolidayRate")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("holiday_rate");
+
+                    b.Property<bool>("IncludePostShift")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_post_shift");
+
+                    b.Property<bool>("IncludePreShift")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_pre_shift");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int?>("MaximumEligibleMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("maximum_eligible_minutes");
+
+                    b.Property<int>("MinimumEligibleMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minimum_eligible_minutes");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("NormalDayRate")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("normal_day_rate");
+
+                    b.Property<string>("RateType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rate_type");
+
+                    b.Property<string>("RoundingMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rounding_method");
+
+                    b.Property<int>("RoundingUnitMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("rounding_unit_minutes");
+
+                    b.Property<string>("ScopeReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<decimal>("SpecialDayRate")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("special_day_rate");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.Property<decimal>("WeeklyOffRate")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)")
+                        .HasColumnName("weekly_off_rate");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_hr_overtime_policy_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_hr_overtime_policy_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_hr_overtime_policy_versions_business_id_code_version_no");
+
+                    b.HasIndex("BusinessId", "ScopeType", "ScopeReference", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("i_x_hr_overtime_policy_versions_business_id_scope_type_scope_re~");
+
+                    b.ToTable("hr_overtime_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_overtime_policy_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_maximum", "maximum_eligible_minutes IS NULL OR maximum_eligible_minutes >= minimum_eligible_minutes");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_minimum", "minimum_eligible_minutes >= 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_rates", "normal_day_rate >= 0 AND weekly_off_rate >= 0 AND holiday_rate >= 0 AND special_day_rate >= 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_rounding", "rounding_unit_minutes > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_row_version", "version > 0");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_scope", "(scope_type = 'Business' AND scope_reference IS NULL) OR (scope_type <> 'Business' AND scope_reference IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_hr_overtime_policy_version", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollAccountingComponentMapping", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("account_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ComponentCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("component_code");
+
+                    b.Property<string>("ComponentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("component_type");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<long>("UpdatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_accounting_component_mappings");
+
+                    b.HasIndex("BusinessId", "AccountId")
+                        .HasDatabaseName("i_x_payroll_accounting_component_mappings_business_id_account_id");
+
+                    b.HasIndex("BusinessId", "ComponentType", "ComponentCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_accounting_component_mapping");
+
+                    b.ToTable("payroll_accounting_component_mappings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_accounting_mapping_code", "(component_type = 'NetPayable' AND component_code = 'NET_PAYABLE') OR (component_type = 'FinalSettlementReceivable' AND component_code = 'FINAL_SETTLEMENT_RECEIVABLE') OR (component_type IN ('Earning', 'Deduction') AND length(component_code) > 0)");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_mapping_component_type", "component_type IN ('Earning', 'Deduction', 'NetPayable', 'FinalSettlementReceivable')");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_mapping_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollAccountingPosting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AccountingJournalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_journal_id");
+
+                    b.Property<string>("AccountingReference")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("accounting_reference");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ConflictPayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("conflict_payload_hash");
+
+                    b.Property<string>("CorrectionPolicyVersion")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("correction_policy_version");
+
+                    b.Property<string>("CorrectionReference")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("correction_reference");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("OriginalPostingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_posting_id");
+
+                    b.Property<long?>("PaymentBatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_batch_id");
+
+                    b.Property<long?>("PayrollPaymentAllocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_allocation_id");
+
+                    b.Property<long?>("PayrollPaymentEvidenceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_evidence_id");
+
+                    b.Property<long?>("PayrollPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_id");
+
+                    b.Property<long?>("PayrollPaymentReconciliationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_reconciliation_id");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<long>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<DateTime?>("PostedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at_utc");
+
+                    b.Property<string>("PostingReference")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("posting_reference");
+
+                    b.Property<string>("PostingType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("posting_type");
+
+                    b.Property<string>("RequestPayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_payload_hash");
+
+                    b.Property<string>("RequestPayloadJson")
+                        .HasColumnType("text")
+                        .HasColumnName("request_payload_json");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<long?>("ReversalJournalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_id");
+
+                    b.Property<int>("RunRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_revision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_accounting_postings");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_accounting_postings_business_id_id");
+
+                    b.HasIndex("ReversalJournalId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_reversal_journal_id");
+
+                    b.HasIndex("BusinessId", "OriginalPostingId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_accounting_correction_original_posting")
+                        .HasFilter("posting_type = 'PayrollCorrection'");
+
+                    b.HasIndex("BusinessId", "PaymentBatchId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_business_id_payment_batch_id");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentAllocationId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_business_id_payroll_payment_all~");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_business_id_payroll_payment_id");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentReconciliationId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_business_id_payroll_payment_rec~");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId")
+                        .HasDatabaseName("i_x_payroll_accounting_postings_business_id_payroll_period_id");
+
+                    b.HasIndex("BusinessId", "PostingReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_accounting_posting_reference");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentEvidenceId", "PayrollPaymentAllocationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_accounting_settlement_identity")
+                        .HasFilter("posting_type = 'SalaryPayment'");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "RunRevision", "PostingType")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_accounting_posting_run_revision")
+                        .HasFilter("posting_type IN ('PayrollExpense', 'PayrollCorrection')");
+
+                    b.ToTable("payroll_accounting_postings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_attempts", "attempt_count >= 0");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_revision", "run_revision > 0");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_settlement_identity", "(posting_type = 'PayrollExpense' AND payroll_payment_id IS NULL AND payroll_payment_allocation_id IS NULL AND payroll_payment_evidence_id IS NULL AND payroll_payment_reconciliation_id IS NULL) OR (posting_type = 'SalaryPayment' AND payroll_payment_id IS NOT NULL AND payroll_payment_allocation_id IS NOT NULL AND payroll_payment_evidence_id IS NOT NULL AND (status <> 'Posted' OR payroll_payment_reconciliation_id IS NOT NULL)) OR (posting_type = 'PayrollCorrection' AND payroll_payment_id IS NULL AND payroll_payment_allocation_id IS NULL AND payroll_payment_evidence_id IS NULL AND payroll_payment_reconciliation_id IS NULL AND correction_reference IS NOT NULL AND original_posting_id IS NOT NULL AND correction_policy_version IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_status", "status IN ('Pending', 'Processing', 'Posted', 'Failed', 'Conflict')");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_type", "posting_type IN ('PayrollExpense', 'SalaryPayment', 'PayrollCorrection')");
+
+                            t.HasCheckConstraint("ck_payroll_accounting_posting_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollArtifactVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ArtifactType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("artifact_type");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("ByteLength")
+                        .HasColumnType("bigint")
+                        .HasColumnName("byte_length");
+
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("classification");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("EncryptionKeyReference")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("encryption_key_reference");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("format");
+
+                    b.Property<string>("PaymentInfoSnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payment_info_snapshot_hash");
+
+                    b.Property<long>("PayrollEmployeeResultId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_employee_result_id");
+
+                    b.Property<long>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<string>("PayrollSnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payroll_snapshot_hash");
+
+                    b.Property<Guid?>("ReplacesVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaces_version_id");
+
+                    b.Property<DateTime?>("RetainUntilUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retain_until_utc");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at_utc");
+
+                    b.Property<int>("RunRevision")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_revision");
+
+                    b.Property<string>("ScanStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("scan_status");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("TemplateVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("template_version");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_artifact_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_artifact_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "PayrollEmployeeResultId")
+                        .HasDatabaseName("i_x_payroll_artifact_versions_business_id_payroll_employee_resu~");
+
+                    b.HasIndex("BusinessId", "ReplacesVersionId")
+                        .HasDatabaseName("i_x_payroll_artifact_versions_business_id_replaces_version_id");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "PayrollEmployeeResultId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_artifact_version_no");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "RunRevision", "PayrollEmployeeResultId", "ArtifactType", "PayrollSnapshotHash", "PaymentInfoSnapshotHash", "TemplateVersion")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_artifact_generation_identity");
+
+                    b.ToTable("payroll_artifact_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_artifact_pdf", "artifact_type = 'Payslip' AND format = 'PDF' AND content_type = 'application/pdf'");
+
+                            t.HasCheckConstraint("ck_payroll_artifact_scan_status", "scan_status IN ('Clean', 'Rejected', 'Error')");
+
+                            t.HasCheckConstraint("ck_payroll_artifact_sha256", "length(payroll_snapshot_hash) = 64 AND length(payment_info_snapshot_hash) = 64 AND length(content_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_artifact_version_values", "version_no > 0 AND run_revision > 0 AND byte_length > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollCalculationPolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AbsenceComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("absence_component_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ConfigurationSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("configuration_snapshot_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<bool>("DeductAbsence")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deduct_absence");
+
+                    b.Property<bool>("DeductUnpaidLeave")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deduct_unpaid_leave");
+
+                    b.Property<long?>("EarlyLeaveComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("early_leave_component_id");
+
+                    b.Property<decimal?>("EarlyLeavePerMinuteRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("early_leave_per_minute_rate");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<decimal?>("HolidayOvertimeRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("holiday_overtime_rate");
+
+                    b.Property<long?>("LateComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("late_component_id");
+
+                    b.Property<decimal?>("LatePerMinuteRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("late_per_minute_rate");
+
+                    b.Property<decimal?>("NormalDayOvertimeRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("normal_day_overtime_rate");
+
+                    b.Property<long?>("OvertimeComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("overtime_component_id");
+
+                    b.Property<int>("OvertimeDivisorDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("overtime_divisor_days");
+
+                    b.Property<string>("OvertimeMode")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("overtime_mode");
+
+                    b.Property<string>("PartialMonthBasis")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("partial_month_basis");
+
+                    b.Property<string>("SalaryBaseComponentIdsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("salary_base_component_ids_json");
+
+                    b.Property<decimal?>("SpecialDayOvertimeRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("special_day_overtime_rate");
+
+                    b.Property<int>("StandardPaidMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("standard_paid_minutes");
+
+                    b.Property<long?>("TaxStatutoryComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("tax_statutory_component_id");
+
+                    b.Property<long?>("UnpaidLeaveComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unpaid_leave_component_id");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.Property<decimal?>("WeeklyOffOvertimeRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("weekly_off_overtime_rate");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_calculation_policy_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_calculation_policy_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "AbsenceComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_absence_com~");
+
+                    b.HasIndex("BusinessId", "EarlyLeaveComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_early_leave~");
+
+                    b.HasIndex("BusinessId", "EffectiveFrom")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_effective_f~");
+
+                    b.HasIndex("BusinessId", "LateComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_late_compon~");
+
+                    b.HasIndex("BusinessId", "OvertimeComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_overtime_co~");
+
+                    b.HasIndex("BusinessId", "TaxStatutoryComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_tax_statuto~");
+
+                    b.HasIndex("BusinessId", "UnpaidLeaveComponentId")
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_unpaid_leav~");
+
+                    b.HasIndex("BusinessId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_calculation_policy_versions_business_id_version_no");
+
+                    b.ToTable("payroll_calculation_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_calculation_policy_basis", "partial_month_basis IN ('CalendarDays', 'Fixed30', 'WorkingDays')");
+
+                            t.HasCheckConstraint("ck_payroll_calculation_policy_effective_period", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_payroll_calculation_policy_overtime_mode", "overtime_mode IS NULL OR overtime_mode IN ('FixedHourlyRate', 'SalaryBaseMultiplier')");
+
+                            t.HasCheckConstraint("ck_payroll_calculation_policy_rates", "(late_per_minute_rate IS NULL OR late_per_minute_rate >= 0) AND (early_leave_per_minute_rate IS NULL OR early_leave_per_minute_rate >= 0) AND (normal_day_overtime_rate IS NULL OR normal_day_overtime_rate >= 0) AND (weekly_off_overtime_rate IS NULL OR weekly_off_overtime_rate >= 0) AND (holiday_overtime_rate IS NULL OR holiday_overtime_rate >= 0) AND (special_day_overtime_rate IS NULL OR special_day_overtime_rate >= 0)");
+
+                            t.HasCheckConstraint("ck_payroll_calculation_policy_version", "version_no > 0 AND overtime_divisor_days > 0 AND standard_paid_minutes >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeAdjustmentVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("AdjustmentIdentity")
+                        .HasColumnType("uuid")
+                        .HasColumnName("adjustment_identity");
+
+                    b.Property<string>("AdjustmentKind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("adjustment_kind");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Classification")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("classification");
+
+                    b.Property<string>("ComponentCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("component_code_snapshot");
+
+                    b.Property<string>("ComponentNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("component_name_snapshot");
+
+                    b.Property<string>("ComponentTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("component_type_snapshot");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_to");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long?>("PredecessorVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("predecessor_version_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("reference");
+
+                    b.Property<long>("SalaryComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_component_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("ValueTypeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("value_type_snapshot");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_adjustment_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_employee_adjustment_versions_business_id_id");
+
+                    b.HasIndex("PredecessorVersionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_adj_predecessor")
+                        .HasFilter("predecessor_version_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "OperationalLocationProjectionId")
+                        .HasDatabaseName("i_x_payroll_employee_adjustment_versions_business_id_operationa~");
+
+                    b.HasIndex("BusinessId", "PredecessorVersionId")
+                        .HasDatabaseName("i_x_payroll_employee_adjustment_versions_business_id_predecesso~");
+
+                    b.HasIndex("BusinessId", "SalaryComponentId")
+                        .HasDatabaseName("i_x_payroll_employee_adjustment_versions_business_id_salary_com~");
+
+                    b.HasIndex("BusinessId", "CreatedByUserId", "EmployeeId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_adj_idempotency");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "AdjustmentIdentity", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_adj_identity_version");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom", "AdjustmentKind")
+                        .HasDatabaseName("ix_payroll_adj_effective");
+
+                    b.ToTable("payroll_employee_adjustment_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_classification", "classification IN ('Manual', 'Statutory', 'Incentive', 'Bonus')");
+
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_component_type", "component_type_snapshot IN ('Earning', 'Deduction')");
+
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_dates", "effective_to IS NULL OR effective_to >= effective_from");
+
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_kind", "adjustment_kind IN ('RecurringAllowance', 'RecurringDeduction', 'OneTimeEarning', 'OneTimeDeduction')");
+
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_status", "status IN ('Active', 'Inactive')");
+
+                            t.HasCheckConstraint("ck_payroll_employee_adjustment_version", "version > 0 AND amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeLoan", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<decimal?>("ApprovedAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("approved_amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<int?>("CurrentScheduleVersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_schedule_version_no");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateOnly?>("DisbursedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("disbursed_date");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<decimal?>("FixedInstallment")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("fixed_installment");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<bool>("IsOpeningBalance")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_opening_balance");
+
+                    b.Property<string>("LoanType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("loan_type");
+
+                    b.Property<decimal?>("OpeningBalanceAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("opening_balance_amount");
+
+                    b.Property<DateOnly?>("OpeningDisbursedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("opening_disbursed_date");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<decimal>("OutstandingAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("outstanding_amount");
+
+                    b.Property<decimal>("PrincipalAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("principal_amount");
+
+                    b.Property<string>("ProposedScheduleJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("proposed_schedule_json");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RecoveryMode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("recovery_mode");
+
+                    b.Property<DateOnly>("RecoveryStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("recovery_start_date");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long?>("SubmittedTargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_target_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_loans");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_employee_loans_business_id_id");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_employee_loans_approval_instance_id")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_payroll_employee_loans_business_id_approval_instance_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_payroll_employee_loans_business_id_employee_id_created_at_u~");
+
+                    b.HasIndex("BusinessId", "CreatedByUserId", "EmployeeId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_employee_loans_business_id_created_by_user_id_emplo~");
+
+                    b.ToTable("payroll_employee_loans", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_employee_loan_amounts", "CAST(principal_amount AS NUMERIC) > 0 AND CAST(principal_amount AS NUMERIC) <= 99999999999999.9999 AND (approved_amount IS NULL OR (CAST(approved_amount AS NUMERIC) > 0 AND CAST(approved_amount AS NUMERIC) <= CAST(principal_amount AS NUMERIC))) AND CAST(outstanding_amount AS NUMERIC) >= 0 AND CAST(outstanding_amount AS NUMERIC) <= COALESCE(CAST(approved_amount AS NUMERIC), CAST(principal_amount AS NUMERIC)) AND version > 0");
+
+                            t.HasCheckConstraint("ck_payroll_employee_loan_opening_balance", "(is_opening_balance = FALSE AND opening_disbursed_date IS NULL AND opening_balance_amount IS NULL) OR (is_opening_balance = TRUE AND opening_disbursed_date IS NOT NULL AND CAST(opening_balance_amount AS NUMERIC) >= 0 AND CAST(opening_balance_amount AS NUMERIC) <= CAST(principal_amount AS NUMERIC))");
+
+                            t.HasCheckConstraint("ck_payroll_employee_loan_recovery_mode", "recovery_mode IN ('FixedMonthly', 'Manual', 'CustomSchedule')");
+
+                            t.HasCheckConstraint("ck_payroll_employee_loan_status", "status IN ('Draft', 'PendingApproval', 'Active', 'Rejected', 'Cancelled', 'Settled')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeePaymentDestination", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("account_name");
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("account_number");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("bank_name");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("MobileAccountName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("mobile_account_name");
+
+                    b.Property<string>("MobileAccountNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mobile_account_number");
+
+                    b.Property<string>("MobileProvider")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mobile_provider");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_payment_destinations");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_employee_payment_destinations_business_id_id");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_destination_effective_from");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_destination_version");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "IsPrimary", "IsActive", "EffectiveFrom")
+                        .HasDatabaseName("ix_payroll_payment_destination_effective");
+
+                    b.ToTable("payroll_employee_payment_destinations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_destination_effective_date", "effective_from > '0001-01-01'");
+
+                            t.HasCheckConstraint("ck_payroll_payment_destination_method", "method IN ('Cash', 'Bank', 'Mobile')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_destination_method_fields", "(method = 'Cash' AND bank_name IS NULL AND account_name IS NULL AND account_number IS NULL AND mobile_provider IS NULL AND mobile_account_name IS NULL AND mobile_account_number IS NULL) OR (method = 'Bank' AND bank_name IS NOT NULL AND length(trim(bank_name)) > 0 AND account_name IS NOT NULL AND length(trim(account_name)) > 0 AND account_number IS NOT NULL AND length(trim(account_number)) > 0 AND mobile_provider IS NULL AND mobile_account_name IS NULL AND mobile_account_number IS NULL) OR (method = 'Mobile' AND mobile_provider IS NOT NULL AND length(trim(mobile_provider)) > 0 AND mobile_account_name IS NOT NULL AND length(trim(mobile_account_name)) > 0 AND mobile_account_number IS NOT NULL AND length(trim(mobile_account_number)) > 0 AND bank_name IS NULL AND account_name IS NULL AND account_number IS NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_payment_destination_primary", "is_primary");
+
+                            t.HasCheckConstraint("ck_payroll_payment_destination_version", "version_no > 0 AND version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CalculatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculated_at_utc");
+
+                    b.Property<string>("CalculationInputHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_input_hash");
+
+                    b.Property<string>("CalculationPolicySnapshotJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calculation_policy_snapshot_json");
+
+                    b.Property<long?>("CalculationPolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("calculation_policy_version_id");
+
+                    b.Property<string>("CalculationSnapshotHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_snapshot_hash");
+
+                    b.Property<string>("CalculationSnapshotJson")
+                        .HasColumnType("text")
+                        .HasColumnName("calculation_snapshot_json");
+
+                    b.Property<int>("CalculationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_version");
+
+                    b.Property<string>("EmployeeCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("employee_code_snapshot");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("EmployeeNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("employee_name_snapshot");
+
+                    b.Property<string>("ExceptionCode")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("exception_code");
+
+                    b.Property<decimal?>("GrossEarnings")
+                        .HasColumnType("numeric")
+                        .HasColumnName("gross_earnings");
+
+                    b.Property<long?>("LocationIdSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id_snapshot");
+
+                    b.Property<decimal?>("NetPay")
+                        .HasColumnType("numeric")
+                        .HasColumnName("net_pay");
+
+                    b.Property<long>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<DateOnly>("SalaryEffectiveFromSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("salary_effective_from_snapshot");
+
+                    b.Property<long>("SalaryVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_version_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal?>("TotalDeductions")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total_deductions");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_results");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_employee_results_business_id_id");
+
+                    b.HasIndex("BusinessId", "CalculationPolicyVersionId")
+                        .HasDatabaseName("i_x_payroll_employee_results_business_id_calculation_policy_ver~");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_payroll_employee_results_business_id_employee_id");
+
+                    b.HasIndex("BusinessId", "SalaryVersionId")
+                        .HasDatabaseName("i_x_payroll_employee_results_business_id_salary_version_id");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "EmployeeCodeSnapshot")
+                        .HasDatabaseName("ix_payroll_employee_result_page");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "CalculationVersion", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_employee_result_run_version_employee");
+
+                    b.ToTable("payroll_employee_results", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_employee_result_amounts", "(status = 'Exception' AND gross_earnings IS NULL AND total_deductions IS NULL AND net_pay IS NULL AND exception_code IS NOT NULL) OR (status = 'Calculated' AND gross_earnings IS NOT NULL AND total_deductions IS NOT NULL AND net_pay IS NOT NULL AND exception_code IS NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_employee_result_calculation_version", "calculation_version > 0");
+
+                            t.HasCheckConstraint("ck_payroll_employee_result_status", "status IN ('Calculated', 'Exception')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResultLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CalculationOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_order");
+
+                    b.Property<string>("ComponentCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("component_code_snapshot");
+
+                    b.Property<string>("ComponentNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("component_name_snapshot");
+
+                    b.Property<string>("EvidenceCode")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("evidence_code");
+
+                    b.Property<decimal?>("InputAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("input_amount");
+
+                    b.Property<decimal?>("InputQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("input_quantity");
+
+                    b.Property<decimal?>("InputRate")
+                        .HasColumnType("numeric")
+                        .HasColumnName("input_rate");
+
+                    b.Property<string>("LineType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("line_type");
+
+                    b.Property<long>("PayrollEmployeeResultId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_employee_result_id");
+
+                    b.Property<long?>("SalaryComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_component_id");
+
+                    b.Property<string>("SourceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_type");
+
+                    b.Property<long?>("SourceVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_result_lines");
+
+                    b.HasIndex("BusinessId", "SalaryComponentId")
+                        .HasDatabaseName("i_x_payroll_employee_result_lines_business_id_salary_component_~");
+
+                    b.HasIndex("BusinessId", "PayrollEmployeeResultId", "CalculationOrder")
+                        .HasDatabaseName("ix_payroll_employee_result_line_order");
+
+                    b.ToTable("payroll_employee_result_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_employee_result_line_amount", "amount >= 0");
+
+                            t.HasCheckConstraint("ck_payroll_employee_result_line_order", "calculation_order >= 0");
+
+                            t.HasCheckConstraint("ck_payroll_employee_result_line_type", "line_type IN ('Earning', 'Deduction')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<DateTime>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at_utc");
+
+                    b.Property<long>("ApprovedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ComponentSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("component_snapshot_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<long?>("PredecessorSalaryVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("predecessor_salary_version_id");
+
+                    b.Property<long?>("SalaryRevisionRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_revision_request_id");
+
+                    b.Property<long>("SalarySetupRequestId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_setup_request_id");
+
+                    b.Property<long>("SalaryStructureId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_structure_id");
+
+                    b.Property<long>("SalaryStructureVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_structure_version");
+
+                    b.Property<string>("StructureSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("structure_snapshot_json");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_employee_salary_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_employee_salary_versions_business_id_id");
+
+                    b.HasIndex("PredecessorSalaryVersionId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_predecessor_salary_version~")
+                        .HasFilter("predecessor_salary_version_id IS NOT NULL");
+
+                    b.HasIndex("SalaryRevisionRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_salary_revision_request_id")
+                        .HasFilter("salary_revision_request_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_approval_insta~");
+
+                    b.HasIndex("BusinessId", "PredecessorSalaryVersionId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_predecessor_sa~");
+
+                    b.HasIndex("BusinessId", "SalaryRevisionRequestId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_salary_revisio~");
+
+                    b.HasIndex("BusinessId", "SalarySetupRequestId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_salary_setup_r~");
+
+                    b.HasIndex("BusinessId", "SalaryStructureId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_salary_structu~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_employee_id_ef~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "SalarySetupRequestId")
+                        .HasDatabaseName("i_x_payroll_employee_salary_versions_business_id_employee_id_sa~");
+
+                    b.ToTable("payroll_employee_salary_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_employee_salary_structure_version", "salary_structure_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<int>("CurrentRevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_revision_no");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("ExitCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_case_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_final_settlements");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_final_settlements_business_id_id");
+
+                    b.HasIndex("BusinessId", "ExitCaseId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_exit");
+
+                    b.ToTable("payroll_final_settlements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_final_settlement_business", "business_id > 0");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_revision", "current_revision_no > 0");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementAccountingPosting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AccountingJournalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accounting_journal_id");
+
+                    b.Property<string>("AccountingReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("accounting_reference");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ConflictPayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("conflict_payload_hash");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<long>("FinalSettlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("PaymentEvidenceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_evidence_id");
+
+                    b.Property<long?>("PaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_id");
+
+                    b.Property<DateTime?>("PostedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at_utc");
+
+                    b.Property<string>("PostingReference")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("posting_reference");
+
+                    b.Property<string>("PostingType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("posting_type");
+
+                    b.Property<string>("RequestPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_payload_hash");
+
+                    b.Property<string>("RequestPayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("request_payload_json");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<long>("RevisionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision_id");
+
+                    b.Property<int>("RevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision_no");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_final_settlement_accounting_postings");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_final_settlement_accounting_postings_business_id_id");
+
+                    b.HasIndex("BusinessId", "FinalSettlementId")
+                        .HasDatabaseName("ix_final_settlement_posting_settlement");
+
+                    b.HasIndex("BusinessId", "PaymentEvidenceId")
+                        .HasDatabaseName("ix_final_settlement_posting_evidence");
+
+                    b.HasIndex("BusinessId", "PaymentId")
+                        .HasDatabaseName("ix_final_settlement_posting_payment");
+
+                    b.HasIndex("BusinessId", "PostingReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_final_settlement_accounting_posting_reference");
+
+                    b.HasIndex("BusinessId", "RevisionId")
+                        .HasDatabaseName("ix_final_settlement_posting_revision");
+
+                    b.HasIndex("BusinessId", "FinalSettlementId", "RevisionNo", "PostingType", "PaymentId", "PaymentEvidenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_final_settlement_accounting_posting_identity");
+
+                    b.ToTable("payroll_final_settlement_accounting_postings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_final_settlement_posting_hashes", "length(request_payload_hash) = 64 AND (conflict_payload_hash IS NULL OR length(conflict_payload_hash) = 64)");
+
+                            t.HasCheckConstraint("ck_final_settlement_posting_revision", "revision_no > 0");
+
+                            t.HasCheckConstraint("ck_final_settlement_posting_status", "status IN ('Pending', 'Processing', 'Posted', 'Failed', 'Conflict')");
+
+                            t.HasCheckConstraint("ck_final_settlement_posting_type", "posting_type IN ('FinalSettlementExpense', 'FinalSettlementReceivable', 'FinalSettlementPayment')");
+
+                            t.HasCheckConstraint("ck_final_settlement_posting_version", "attempt_count >= 0 AND version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementApprovalSubmission", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("CalculationPolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("calculation_policy_version");
+
+                    b.Property<string>("CalculationSnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_snapshot_hash");
+
+                    b.Property<string>("ClearanceReferencesHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("clearance_references_hash");
+
+                    b.Property<string>("ClearanceReferencesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("clearance_references_json");
+
+                    b.Property<string>("ComponentLinesHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("component_lines_hash");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<long>("ExitCaseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exit_case_id");
+
+                    b.Property<long>("FinalSettlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_id");
+
+                    b.Property<decimal>("GrossPayable")
+                        .HasColumnType("numeric")
+                        .HasColumnName("gross_payable");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<decimal>("NetSettlement")
+                        .HasColumnType("numeric")
+                        .HasColumnName("net_settlement");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long>("RevisionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision_id");
+
+                    b.Property<int>("RevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision_no");
+
+                    b.Property<string>("SourceEvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_evidence_hash");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<string>("SubmittedEvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("submitted_evidence_hash");
+
+                    b.Property<string>("SubmittedEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("submitted_evidence_json");
+
+                    b.Property<long>("SubmitterUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitter_user_id");
+
+                    b.Property<decimal>("TotalRecovery")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total_recovery");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_final_settlement_approval_submissions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_final_settlement_approval_submissions_business_id_id");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_submission_approval")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "FinalSettlementId")
+                        .HasDatabaseName("i_x_payroll_final_settlement_approval_submissions_business_id_f~");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_submission_idempotency");
+
+                    b.HasIndex("BusinessId", "RevisionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_submission_revision");
+
+                    b.ToTable("payroll_final_settlement_approval_submissions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_final_settlement_submission_amounts", "gross_payable >= 0 AND total_recovery >= 0 AND net_settlement = gross_payable - total_recovery");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_submission_hashes", "length(calculation_snapshot_hash) = 64 AND length(component_lines_hash) = 64 AND length(source_evidence_hash) = 64 AND length(clearance_references_hash) = 64 AND length(payload_hash) = 64 AND length(submitted_evidence_hash) = 64");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ComponentCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("component_code");
+
+                    b.Property<string>("ComponentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("component_name");
+
+                    b.Property<string>("EvidenceSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("evidence_snapshot_json");
+
+                    b.Property<bool>("IsApplicable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_applicable");
+
+                    b.Property<int>("LineNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_no");
+
+                    b.Property<string>("LineType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("line_type");
+
+                    b.Property<string>("NotApplicableReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("not_applicable_reason");
+
+                    b.Property<long>("RevisionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision_id");
+
+                    b.Property<string>("SourceId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_final_settlement_lines");
+
+                    b.HasIndex("BusinessId", "RevisionId", "LineNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_line_number");
+
+                    b.ToTable("payroll_final_settlement_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_final_settlement_line_amount", "amount >= 0 AND (is_applicable OR (amount = 0 AND line_type = 'NotApplicable'))");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_line_number", "line_no > 0");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_line_reason", "(is_applicable AND not_applicable_reason IS NULL) OR (NOT is_applicable AND not_applicable_reason IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_line_type", "line_type IN ('Earning', 'Deduction', 'NotApplicable')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CalculatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculated_at_utc");
+
+                    b.Property<long>("CalculatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("calculated_by_user_id");
+
+                    b.Property<string>("CalculationInputHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_input_hash");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<int>("DecimalPrecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("decimal_precision");
+
+                    b.Property<long>("FinalSettlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_id");
+
+                    b.Property<decimal>("GrossDue")
+                        .HasColumnType("numeric")
+                        .HasColumnName("gross_due");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<decimal>("NetSettlement")
+                        .HasColumnType("numeric")
+                        .HasColumnName("net_settlement");
+
+                    b.Property<int>("RevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision_no");
+
+                    b.Property<string>("RoundingMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("rounding_mode");
+
+                    b.Property<DateOnly>("SettlementDate")
+                        .HasColumnType("date")
+                        .HasColumnName("settlement_date");
+
+                    b.Property<string>("SnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("snapshot_hash");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("snapshot_json");
+
+                    b.Property<decimal>("TotalDeductions")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total_deductions");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_final_settlement_revisions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_final_settlement_revisions_business_id_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_idempotency");
+
+                    b.HasIndex("BusinessId", "FinalSettlementId", "RevisionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_final_settlement_revision_number");
+
+                    b.ToTable("payroll_final_settlement_revisions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_final_settlement_revision_amounts", "gross_due >= 0 AND total_deductions >= 0 AND net_settlement = gross_due - total_deductions");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_revision_hashes", "length(calculation_input_hash) = 64 AND length(snapshot_hash) = 64 AND length(idempotency_payload_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_revision_number", "revision_no > 0");
+
+                            t.HasCheckConstraint("ck_payroll_final_settlement_revision_precision", "decimal_precision BETWEEN 0 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long>("LoanId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("loan_id");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at_utc");
+
+                    b.Property<long>("RecordedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("reference");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_loan_repayments");
+
+                    b.HasAlternateKey("BusinessId", "LoanId", "Id")
+                        .HasName("a_k_payroll_loan_repayments_business_id_loan_id_id");
+
+                    b.HasIndex("BusinessId", "LoanId", "RecordedByUserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_loan_repayments_business_id_loan_id_recorded_by_use~");
+
+                    b.ToTable("payroll_loan_repayments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_loan_repayment_amount", "amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepaymentAllocation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("InstallmentNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("installment_no");
+
+                    b.Property<long>("LoanId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("loan_id");
+
+                    b.Property<long>("RepaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("repayment_id");
+
+                    b.Property<long>("ScheduleVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("schedule_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_loan_repayment_allocations");
+
+                    b.HasIndex("BusinessId", "LoanId", "ScheduleVersionId", "InstallmentNo")
+                        .HasDatabaseName("i_x_payroll_loan_repayment_allocations_business_id_loan_id_sche~");
+
+                    b.HasIndex("BusinessId", "LoanId", "RepaymentId", "ScheduleVersionId", "InstallmentNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_loan_repayment_allocations_business_id_loan_id_repa~");
+
+                    b.ToTable("payroll_loan_repayment_allocations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_loan_repayment_allocation_amount", "amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<int>("InstallmentNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("installment_no");
+
+                    b.Property<long>("LoanId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("loan_id");
+
+                    b.Property<decimal>("PlannedAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("planned_amount");
+
+                    b.Property<long>("ScheduleVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("schedule_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_loan_schedule_lines");
+
+                    b.HasAlternateKey("BusinessId", "LoanId", "ScheduleVersionId", "InstallmentNo")
+                        .HasName("a_k_payroll_loan_schedule_lines_business_id_loan_id_schedule_ve~");
+
+                    b.HasIndex("BusinessId", "LoanId", "ScheduleVersionId", "DueDate")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_loan_schedule_lines_business_id_loan_id_schedule_ve~");
+
+                    b.ToTable("payroll_loan_schedule_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_loan_schedule_line_values", "installment_no > 0 AND planned_amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<decimal?>("FixedInstallment")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("fixed_installment");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long>("LoanId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("loan_id");
+
+                    b.Property<string>("RecoveryMode")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("recovery_mode");
+
+                    b.Property<DateOnly>("RecoveryStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("recovery_start_date");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_loan_schedule_versions");
+
+                    b.HasAlternateKey("BusinessId", "LoanId", "Id")
+                        .HasName("a_k_payroll_loan_schedule_versions_business_id_loan_id_id");
+
+                    b.HasIndex("BusinessId", "LoanId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_loan_schedule_versions_business_id_loan_id_version_~");
+
+                    b.HasIndex("BusinessId", "LoanId", "CreatedByUserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_loan_schedule_versions_business_id_loan_id_created_~");
+
+                    b.ToTable("payroll_loan_schedule_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_loan_schedule_version_number", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollMonetaryConfigurationVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<int>("DecimalPrecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("decimal_precision");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<string>("RoundingMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("rounding_mode");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_monetary_configuration_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_monetary_configuration_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_monetary_configuration_effective_from");
+
+                    b.HasIndex("BusinessId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_monetary_configuration_version");
+
+                    b.ToTable("payroll_monetary_configuration_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_monetary_configuration_currency", "length(currency_code) = 3 AND currency_code = upper(currency_code)");
+
+                            t.HasCheckConstraint("ck_payroll_monetary_configuration_precision", "decimal_precision BETWEEN 0 AND 6");
+
+                            t.HasCheckConstraint("ck_payroll_monetary_configuration_rounding", "rounding_mode IN ('ToEven', 'AwayFromZero', 'ToZero', 'ToNegativeInfinity', 'ToPositiveInfinity')");
+
+                            t.HasCheckConstraint("ck_payroll_monetary_configuration_version", "version_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<int>("AttemptNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_no");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<int?>("DecimalPrecisionSnapshot")
+                        .HasColumnType("integer")
+                        .HasColumnName("decimal_precision_snapshot");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<string>("FailureReturnReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("failure_return_reason");
+
+                    b.Property<string>("FinalSettlementEvidenceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("final_settlement_evidence_hash");
+
+                    b.Property<long?>("FinalSettlementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_id");
+
+                    b.Property<long?>("FinalSettlementRevisionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("final_settlement_revision_id");
+
+                    b.Property<int?>("FinalSettlementRevisionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("final_settlement_revision_no");
+
+                    b.Property<DateTime?>("HeldAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("held_at_utc");
+
+                    b.Property<long?>("HeldByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("held_by_user_id");
+
+                    b.Property<long?>("HistoricalLocationIdSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("historical_location_id_snapshot");
+
+                    b.Property<string>("HoldReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("hold_reason");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<long?>("OriginalPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_payment_id");
+
+                    b.Property<decimal>("OutstandingAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("outstanding_amount");
+
+                    b.Property<decimal>("PaidAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("paid_amount");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at_utc");
+
+                    b.Property<decimal>("PayableAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("payable_amount");
+
+                    b.Property<long?>("PaymentBatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_batch_id");
+
+                    b.Property<long?>("PayrollEmployeeResultId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_employee_result_id");
+
+                    b.Property<long?>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<long?>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<string>("ReleaseReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("release_reason");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at_utc");
+
+                    b.Property<long?>("ReleasedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("released_by_user_id");
+
+                    b.Property<string>("ResolutionEvidenceReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("resolution_evidence_reference");
+
+                    b.Property<string>("ResolutionStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("None")
+                        .HasColumnName("resolution_status");
+
+                    b.Property<string>("RoundingModeSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("rounding_mode_snapshot");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payments");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payments_business_id_id");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_payroll_payments_business_id_approval_instance_id");
+
+                    b.HasIndex("BusinessId", "FinalSettlementRevisionId")
+                        .HasDatabaseName("i_x_payroll_payments_business_id_final_settlement_revision_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_idempotency");
+
+                    b.HasIndex("BusinessId", "OriginalPaymentId")
+                        .HasDatabaseName("i_x_payroll_payments_business_id_original_payment_id");
+
+                    b.HasIndex("BusinessId", "PaymentBatchId")
+                        .HasDatabaseName("i_x_payroll_payments_business_id_payment_batch_id");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId")
+                        .HasDatabaseName("i_x_payroll_payments_business_id_payroll_period_id");
+
+                    b.HasIndex("BusinessId", "PayrollEmployeeResultId", "AttemptNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_result_attempt")
+                        .HasFilter("payroll_employee_result_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "FinalSettlementId", "FinalSettlementRevisionNo", "AttemptNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_final_settlement_attempt")
+                        .HasFilter("final_settlement_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "EmployeeId", "Status")
+                        .HasDatabaseName("ix_payroll_payment_run_employee_status");
+
+                    b.ToTable("payroll_payments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_amounts", "payable_amount > 0 AND paid_amount >= 0 AND outstanding_amount >= 0 AND paid_amount + outstanding_amount = payable_amount");
+
+                            t.HasCheckConstraint("ck_payroll_payment_hash", "length(idempotency_payload_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_payment_method", "method IN ('Cash', 'Bank', 'Mobile', 'Mixed')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_resolution_status", "resolution_status IN ('None', 'PendingInvestigation', 'ResolvedNonSettlement', 'ResolvedReturn', 'ResolvedReissue')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_source", "(payroll_period_id IS NOT NULL AND payroll_run_id IS NOT NULL AND payroll_employee_result_id IS NOT NULL AND final_settlement_id IS NULL AND final_settlement_revision_id IS NULL AND final_settlement_revision_no IS NULL) OR (payroll_period_id IS NULL AND payroll_run_id IS NULL AND payroll_employee_result_id IS NULL AND final_settlement_id IS NOT NULL AND final_settlement_revision_id IS NOT NULL AND final_settlement_revision_no > 0 AND approval_instance_id IS NOT NULL AND historical_location_id_snapshot > 0 AND decimal_precision_snapshot BETWEEN 0 AND 6 AND rounding_mode_snapshot IS NOT NULL AND length(final_settlement_evidence_hash) = 64)");
+
+                            t.HasCheckConstraint("ck_payroll_payment_status", "status IN ('Pending', 'Ready', 'Processing', 'PartiallyPaid', 'Paid', 'Held', 'Failed', 'Returned', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_version_attempt", "version > 0 AND attempt_no > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentAllocation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountNameSnapshot")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("account_name_snapshot");
+
+                    b.Property<string>("AccountNumberSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("account_number_snapshot");
+
+                    b.Property<int>("AllocationNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("allocation_no");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("BankNameSnapshot")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("bank_name_snapshot");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("MobileAccountNameSnapshot")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("mobile_account_name_snapshot");
+
+                    b.Property<string>("MobileAccountNumberSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mobile_account_number_snapshot");
+
+                    b.Property<string>("MobileProviderSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mobile_provider_snapshot");
+
+                    b.Property<long?>("PaymentDestinationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_destination_id");
+
+                    b.Property<int?>("PaymentDestinationVersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_destination_version_no");
+
+                    b.Property<long>("PayrollPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_id");
+
+                    b.Property<decimal>("SettledAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("settled_amount");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payment_allocations");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payment_allocations_business_id_id");
+
+                    b.HasIndex("BusinessId", "PaymentDestinationId")
+                        .HasDatabaseName("i_x_payroll_payment_allocations_business_id_payment_destination~");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId", "AllocationNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_allocation_identity");
+
+                    b.ToTable("payroll_payment_allocations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_allocation_amount", "allocation_no > 0 AND amount > 0 AND settled_amount >= 0 AND settled_amount <= amount");
+
+                            t.HasCheckConstraint("ck_payroll_payment_allocation_destination", "(method = 'Cash' AND payment_destination_id IS NULL AND payment_destination_version_no IS NULL AND bank_name_snapshot IS NULL AND account_name_snapshot IS NULL AND account_number_snapshot IS NULL AND mobile_provider_snapshot IS NULL AND mobile_account_name_snapshot IS NULL AND mobile_account_number_snapshot IS NULL) OR (method = 'Bank' AND payment_destination_id IS NOT NULL AND payment_destination_version_no IS NOT NULL AND bank_name_snapshot IS NOT NULL AND account_name_snapshot IS NOT NULL AND account_number_snapshot IS NOT NULL AND mobile_provider_snapshot IS NULL AND mobile_account_name_snapshot IS NULL AND mobile_account_number_snapshot IS NULL) OR (method = 'Mobile' AND payment_destination_id IS NOT NULL AND payment_destination_version_no IS NOT NULL AND mobile_provider_snapshot IS NOT NULL AND mobile_account_name_snapshot IS NOT NULL AND mobile_account_number_snapshot IS NOT NULL AND bank_name_snapshot IS NULL AND account_name_snapshot IS NULL AND account_number_snapshot IS NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_payment_allocation_method", "method IN ('Cash', 'Bank', 'Mobile')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_allocation_state", "state IN ('Pending', 'PartiallySettled', 'Settled')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBankFileVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<decimal>("ExpectedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("expected_amount");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("file_name");
+
+                    b.Property<DateTime>("GeneratedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at_utc");
+
+                    b.Property<long>("GeneratedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("generated_by_user_id");
+
+                    b.Property<string>("GenerationReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("generation_reason");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long>("PaymentBatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_batch_id");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_count");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payment_bank_file_versions");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payment_bank_file_versions_business_id_id");
+
+                    b.HasIndex("BusinessId", "PaymentBatchId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_bank_file_idempotency");
+
+                    b.HasIndex("BusinessId", "PaymentBatchId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_bank_file_version");
+
+                    b.ToTable("payroll_payment_bank_file_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_bank_file_hashes", "length(payload_hash) = 64 AND length(content_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_payment_bank_file_version_values", "version_no > 0 AND row_count > 0 AND expected_amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BankFileVersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("bank_file_version_no");
+
+                    b.Property<string>("BatchReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("batch_reference");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<decimal>("ExpectedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("expected_amount");
+
+                    b.Property<DateTime?>("GeneratedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at_utc");
+
+                    b.Property<long?>("GeneratedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("generated_by_user_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<long>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SubmissionExternalReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("submission_external_reference");
+
+                    b.Property<string>("SubmissionIdempotencyKey")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("submission_idempotency_key");
+
+                    b.Property<string>("SubmissionPayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("submission_payload_hash");
+
+                    b.Property<string>("SubmissionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("submission_reason");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payment_batches");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payment_batches_business_id_id");
+
+                    b.HasIndex("BusinessId", "BatchReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_batch_reference");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_batch_idempotency");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId")
+                        .HasDatabaseName("i_x_payroll_payment_batches_business_id_payroll_period_id");
+
+                    b.HasIndex("BusinessId", "SubmissionIdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_batch_submission_idempotency");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_payroll_payment_batch_run_created");
+
+                    b.ToTable("payroll_payment_batches", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_batch_amount_version", "expected_amount > 0 AND version > 0 AND bank_file_version_no >= 0");
+
+                            t.HasCheckConstraint("ck_payroll_payment_batch_hash", "length(idempotency_payload_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_payment_batch_method", "method IN ('Cash', 'Bank', 'Mobile', 'Mixed')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_batch_status", "status IN ('Draft', 'Ready', 'Processing', 'Completed', 'PartiallyFailed', 'Failed')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_batch_submission_hash", "(submission_idempotency_key IS NULL AND submission_payload_hash IS NULL) OR (submission_idempotency_key IS NOT NULL AND length(submission_payload_hash) = 64)");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AllocationEvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("allocation_evidence_json");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EvidenceDate")
+                        .HasColumnType("date")
+                        .HasColumnName("evidence_date");
+
+                    b.Property<string>("EvidenceReference")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("evidence_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long>("PayrollPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("VerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at_utc");
+
+                    b.Property<long>("VerifiedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("verified_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payment_evidence");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payment_evidence_business_id_id");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_evidence_idempotency");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId", "Type", "EvidenceReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_evidence_reference");
+
+                    b.ToTable("payroll_payment_evidence", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_evidence_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_payroll_payment_evidence_hash", "length(payload_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_payment_evidence_type", "type IN ('Settlement', 'Return')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentReconciliation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("Difference")
+                        .HasColumnType("numeric")
+                        .HasColumnName("difference");
+
+                    b.Property<string>("EvidenceSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("evidence_source");
+
+                    b.Property<decimal>("ExpectedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("expected_amount");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long?>("PaymentBatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_batch_id");
+
+                    b.Property<long>("PaymentVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_version");
+
+                    b.Property<long>("PayrollPaymentAllocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_allocation_id");
+
+                    b.Property<long>("PayrollPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_payment_id");
+
+                    b.Property<DateTime>("ReconciledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reconciled_at_utc");
+
+                    b.Property<long>("ReconciledByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reconciled_by_user_id");
+
+                    b.Property<decimal>("SettledAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("settled_amount");
+
+                    b.Property<DateOnly?>("SettlementDate")
+                        .HasColumnType("date")
+                        .HasColumnName("settlement_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payment_reconciliations");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_payment_reconciliations_business_id_id");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentAllocationId")
+                        .HasDatabaseName("i_x_payroll_payment_reconciliations_business_id_payroll_payment~");
+
+                    b.HasIndex("BusinessId", "PaymentBatchId", "ReconciledAtUtc")
+                        .HasDatabaseName("ix_payroll_payment_reconciliation_batch");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey", "PayrollPaymentId", "PayrollPaymentAllocationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_reconciliation_idempotency");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId", "PayrollPaymentAllocationId", "ExternalReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_reconciliation_reference")
+                        .HasFilter("external_reference IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "PayrollPaymentId", "PayrollPaymentAllocationId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payment_reconciliation_version");
+
+                    b.ToTable("payroll_payment_reconciliations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payment_reconciliation_amounts", "version > 0 AND payment_version > 0 AND expected_amount > 0 AND settled_amount >= 0 AND settled_amount <= expected_amount AND difference = expected_amount - settled_amount");
+
+                            t.HasCheckConstraint("ck_payroll_payment_reconciliation_hash", "length(payload_hash) = 64");
+
+                            t.HasCheckConstraint("ck_payroll_payment_reconciliation_source", "evidence_source IN ('Cash', 'Bank', 'Mobile')");
+
+                            t.HasCheckConstraint("ck_payroll_payment_reconciliation_status", "status IN ('Unreconciled', 'PartiallyReconciled', 'Reconciled', 'Exception')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPayslipDelivery", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("ArtifactVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("artifact_version_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("provider_reference");
+
+                    b.Property<string>("RecipientSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("recipient_snapshot");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_payslip_deliveries");
+
+                    b.HasIndex("BusinessId", "ArtifactVersionId", "RequestedAtUtc")
+                        .HasDatabaseName("ix_payroll_payslip_delivery_artifact");
+
+                    b.HasIndex("BusinessId", "RequestedByUserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_payslip_delivery_idempotency");
+
+                    b.ToTable("payroll_payslip_deliveries", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_payslip_delivery_status", "status IN ('Pending', 'Sent', 'Failed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at_utc");
+
+                    b.Property<long?>("ApprovedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at_utc");
+
+                    b.Property<long?>("ClosedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("closed_by_user_id");
+
+                    b.Property<string>("ClosedReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("closed_reason");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTime?>("LockedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_at_utc");
+
+                    b.Property<long?>("LockedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("locked_by_user_id");
+
+                    b.Property<DateTime>("OpenedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at_utc");
+
+                    b.Property<long>("OpenedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("opened_by_user_id");
+
+                    b.Property<DateOnly?>("PayDate")
+                        .HasColumnType("date")
+                        .HasColumnName("pay_date");
+
+                    b.Property<string>("PeriodCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("period_code");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date")
+                        .HasColumnName("period_start");
+
+                    b.Property<DateTime?>("PostedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at_utc");
+
+                    b.Property<long?>("PostedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("posted_by_user_id");
+
+                    b.Property<DateTime?>("ProcessingAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processing_at_utc");
+
+                    b.Property<long?>("ProcessingByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("processing_by_user_id");
+
+                    b.Property<string>("ReopenReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reopen_reason");
+
+                    b.Property<DateTime?>("ReopenedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reopened_at_utc");
+
+                    b.Property<long?>("ReopenedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reopened_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_periods");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_periods_business_id_id");
+
+                    b.HasIndex("BusinessId", "PeriodCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_period_business_code");
+
+                    b.HasIndex("BusinessId", "PeriodStart", "PeriodEnd")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_period_business_dates");
+
+                    b.HasIndex("BusinessId", "Status", "PeriodStart")
+                        .HasDatabaseName("ix_payroll_period_business_status_start");
+
+                    b.ToTable("payroll_periods", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_period_dates", "period_start <= period_end");
+
+                            t.HasCheckConstraint("ck_payroll_period_status", "status IN ('Open', 'Processing', 'Locked', 'Approved', 'Posted', 'Closed')");
+
+                            t.HasCheckConstraint("ck_payroll_period_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriodCloseAssessment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTime>("AssessedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assessed_at_utc");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at_utc");
+
+                    b.Property<string>("ExceptionsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("exceptions_json");
+
+                    b.Property<string>("GateResultsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("gate_results_json");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("PaymentStateVersionsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_state_versions_json");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<long>("PeriodVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("period_version");
+
+                    b.Property<int>("PolicyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("policy_version");
+
+                    b.Property<string>("PostingStateVersionsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("posting_state_versions_json");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<long>("ResultPeriodVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("result_period_version");
+
+                    b.Property<string>("RunRevisionRefsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("run_revision_refs_json");
+
+                    b.Property<string>("StatusSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status_snapshot");
+
+                    b.Property<bool>("WasClosed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_closed");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_period_close_assessments");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_period_close_assessments_business_id_id");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_period_close_assessment_idempotency");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId", "PeriodVersion")
+                        .HasDatabaseName("ix_payroll_period_close_assessment_history");
+
+                    b.ToTable("payroll_period_close_assessments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_period_close_assessment_policy", "policy_version > 0");
+
+                            t.HasCheckConstraint("ck_payroll_period_close_assessment_version", "period_version > 0 AND result_period_version >= period_version");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriodReopenEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long?>("CorrectionPayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("correction_payroll_run_id");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<long?>("OriginalPayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_payroll_run_id");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<long>("PreviousPeriodVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("previous_period_version");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("previous_status");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("purpose");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("ResultPeriodVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("result_period_version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_period_reopen_events");
+
+                    b.HasIndex("BusinessId", "CorrectionPayrollRunId")
+                        .HasDatabaseName("i_x_payroll_period_reopen_events_business_id_correction_payroll~");
+
+                    b.HasIndex("BusinessId", "OriginalPayrollRunId")
+                        .HasDatabaseName("i_x_payroll_period_reopen_events_business_id_original_payroll_r~");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId", "ResultPeriodVersion")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_period_reopen_event_version");
+
+                    b.ToTable("payroll_period_reopen_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_period_reopen_event_purpose", "purpose = 'Correction' AND original_payroll_run_id IS NOT NULL AND correction_payroll_run_id IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_payroll_period_reopen_event_versions", "previous_period_version > 0 AND result_period_version = previous_period_version + 1");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AccountingCorrectionRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("accounting_correction_required");
+
+                    b.Property<string>("AffectedEmployeeIdsSnapshotJson")
+                        .HasColumnType("text")
+                        .HasColumnName("affected_employee_ids_snapshot_json");
+
+                    b.Property<string>("ApprovalEvidenceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("approval_evidence_hash");
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("CalculatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculated_at_utc");
+
+                    b.Property<string>("CalculationInputHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("calculation_input_hash");
+
+                    b.Property<int>("CalculationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_version");
+
+                    b.Property<string>("CorrectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("correction_reason");
+
+                    b.Property<string>("CorrectionReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("correction_reference");
+
+                    b.Property<string>("CorrectionType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("correction_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CurrencyCode")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency_code");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<int?>("DecimalPrecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("decimal_precision");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<bool>("DownstreamReversalRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("downstream_reversal_required");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long?>("MonetaryConfigurationVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("monetary_configuration_version_id");
+
+                    b.Property<int?>("OriginalCalculationVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("original_calculation_version");
+
+                    b.Property<string>("OriginalEvidenceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("original_evidence_hash");
+
+                    b.Property<long?>("OriginalPayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_payroll_run_id");
+
+                    b.Property<bool>("PaymentCorrectionRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("payment_correction_required");
+
+                    b.Property<long>("PayrollPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_period_id");
+
+                    b.Property<string>("RoundingMode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("rounding_mode");
+
+                    b.Property<int>("RunNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("run_no");
+
+                    b.Property<string>("RunReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("run_reference");
+
+                    b.Property<string>("RunType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("run_type");
+
+                    b.Property<long?>("ScopeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("scope_id");
+
+                    b.Property<string>("ScopeKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("scope_key");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("scope_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long?>("SubmittedTargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_target_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_runs");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_runs_business_id_id");
+
+                    b.HasIndex("BusinessId", "CorrectionReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_business_correction_reference")
+                        .HasFilter("correction_reference IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "MonetaryConfigurationVersionId")
+                        .HasDatabaseName("i_x_payroll_runs_business_id_monetary_configuration_version_id");
+
+                    b.HasIndex("BusinessId", "OriginalPayrollRunId")
+                        .HasDatabaseName("i_x_payroll_runs_business_id_original_payroll_run_id");
+
+                    b.HasIndex("BusinessId", "RunReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_business_offcycle_reference")
+                        .HasFilter("run_type = 'OffCycle' AND run_reference IS NOT NULL");
+
+                    b.HasIndex("PayrollPeriodId", "RunNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_period_no");
+
+                    b.HasIndex("BusinessId", "PayrollPeriodId", "Status")
+                        .HasDatabaseName("ix_payroll_run_business_period_status");
+
+                    b.HasIndex("PayrollPeriodId", "RunType", "ScopeKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_period_type_scope")
+                        .HasFilter("run_type = 'Regular'");
+
+                    b.HasIndex("BusinessId", "CreatedByUserId", "PayrollPeriodId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_idempotency");
+
+                    b.ToTable("payroll_runs", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_run_calculation_version", "calculation_version >= 0");
+
+                            t.HasCheckConstraint("ck_payroll_run_no", "run_no > 0");
+
+                            t.HasCheckConstraint("ck_payroll_run_precision", "decimal_precision IS NULL OR decimal_precision BETWEEN 0 AND 6");
+
+                            t.HasCheckConstraint("ck_payroll_run_scope", "(scope_type = 'Business' AND scope_id IS NULL AND scope_key = 'BUSINESS') OR (scope_type = 'Location' AND scope_id IS NOT NULL AND scope_id > 0)");
+
+                            t.HasCheckConstraint("ck_payroll_run_status", "status IN ('Draft', 'PendingApproval', 'Approved', 'Rejected', 'PaymentInProgress', 'Paid', 'Completed', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_payroll_run_type", "run_type IN ('Regular', 'Correction', 'OffCycle')");
+
+                            t.HasCheckConstraint("ck_payroll_run_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollRunEmployeeSelection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateOnly>("EligibilityDate")
+                        .HasColumnType("date")
+                        .HasColumnName("eligibility_date");
+
+                    b.Property<string>("EmployeeCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("employee_code_snapshot");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("EmployeeNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("employee_name_snapshot");
+
+                    b.Property<DateOnly?>("EmploymentEndDateSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("employment_end_date_snapshot");
+
+                    b.Property<long?>("EmploymentPeriodId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employment_period_id");
+
+                    b.Property<DateOnly?>("EmploymentStartDateSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("employment_start_date_snapshot");
+
+                    b.Property<string>("EmploymentStatusSnapshot")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("employment_status_snapshot");
+
+                    b.Property<string>("ExclusionReasonCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("exclusion_reason_code");
+
+                    b.Property<bool>("IsIncluded")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_included");
+
+                    b.Property<long?>("LocationIdSnapshot")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id_snapshot");
+
+                    b.Property<long>("PayrollRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payroll_run_id");
+
+                    b.Property<DateOnly?>("SalaryEffectiveFromSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("salary_effective_from_snapshot");
+
+                    b.Property<long?>("SalaryVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_version_id");
+
+                    b.Property<DateTime>("SelectedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("selected_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_run_employee_selections");
+
+                    b.HasIndex("BusinessId", "EmployeeId")
+                        .HasDatabaseName("i_x_payroll_run_employee_selections_business_id_employee_id");
+
+                    b.HasIndex("BusinessId", "SalaryVersionId")
+                        .HasDatabaseName("i_x_payroll_run_employee_selections_business_id_salary_version_~");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_payroll_run_employee_selection");
+
+                    b.HasIndex("BusinessId", "PayrollRunId", "IsIncluded", "EmployeeCodeSnapshot")
+                        .HasDatabaseName("ix_payroll_run_employee_selection_page");
+
+                    b.ToTable("payroll_run_employee_selections", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_run_employee_selection_outcome", "(is_included AND exclusion_reason_code IS NULL AND salary_version_id IS NOT NULL) OR ((NOT is_included) AND exclusion_reason_code IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CalculationOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_order");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ComponentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("component_type");
+
+                    b.Property<string>("FormulaExpression")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("formula_expression");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsRecurring")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_recurring");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("TaxTreatmentCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_treatment_code");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("value_type");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_salary_components");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_salary_components_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_components_business_id_code");
+
+                    b.ToTable("payroll_salary_components", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_salary_component_formula", "(value_type = 'Formula' AND formula_expression IS NOT NULL) OR (value_type <> 'Formula' AND formula_expression IS NULL)");
+
+                            t.HasCheckConstraint("ck_payroll_salary_component_order", "calculation_order >= 0 AND version > 0");
+
+                            t.HasCheckConstraint("ck_payroll_salary_component_type", "component_type IN ('Earning', 'Deduction')");
+
+                            t.HasCheckConstraint("ck_payroll_salary_component_value_type", "value_type IN ('Fixed', 'Percentage', 'Formula', 'Calculated')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryRevisionRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("CurrentComponentSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("current_component_snapshot_json");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("ProposedComponentSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("proposed_component_snapshot_json");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<long>("SourceSalaryVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_salary_version_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StructureSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("structure_snapshot_json");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long?>("SubmittedTargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_target_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_salary_revision_requests");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_salary_revision_requests_business_id_id");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_revision_requests_approval_instance_id")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_payroll_salary_revision_requests_business_id_approval_insta~");
+
+                    b.HasIndex("BusinessId", "SourceSalaryVersionId")
+                        .HasDatabaseName("i_x_payroll_salary_revision_requests_business_id_source_salary_~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "Status")
+                        .HasDatabaseName("i_x_payroll_salary_revision_requests_business_id_employee_id_st~");
+
+                    b.HasIndex("BusinessId", "CreatedByUserId", "EmployeeId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_revision_requests_business_id_created_by_use~");
+
+                    b.ToTable("payroll_salary_revision_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_salary_revision_request_status", "status IN ('Draft', 'PendingApproval', 'Approved', 'Rejected', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_payroll_salary_revision_request_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalarySetupRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ApprovalInstanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approval_instance_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ComponentSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("component_snapshot_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<long?>("DecidedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("decided_by_user_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<long>("EmployeeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("IdempotencyPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_payload_hash");
+
+                    b.Property<long>("OperationalLocationProjectionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("operational_location_projection_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<long>("SalaryStructureId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_structure_id");
+
+                    b.Property<long>("SalaryStructureVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_structure_version");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StructureSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("structure_snapshot_json");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<long?>("SubmittedTargetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_target_version");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_salary_setup_requests");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_salary_setup_requests_business_id_id");
+
+                    b.HasIndex("ApprovalInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_setup_requests_approval_instance_id")
+                        .HasFilter("approval_instance_id IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "ApprovalInstanceId")
+                        .HasDatabaseName("i_x_payroll_salary_setup_requests_business_id_approval_instance~");
+
+                    b.HasIndex("BusinessId", "SalaryStructureId")
+                        .HasDatabaseName("i_x_payroll_salary_setup_requests_business_id_salary_structure_~");
+
+                    b.HasIndex("BusinessId", "CreatedByUserId", "EmployeeId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_setup_requests_business_id_created_by_user_i~");
+
+                    b.HasIndex("BusinessId", "EmployeeId", "EffectiveFrom", "Status")
+                        .HasDatabaseName("i_x_payroll_salary_setup_requests_business_id_employee_id_effec~");
+
+                    b.ToTable("payroll_salary_setup_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_salary_setup_request_status", "status IN ('Draft', 'PendingApproval', 'Approved', 'Rejected', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_payroll_salary_setup_request_version", "version > 0 AND salary_structure_version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_salary_structures");
+
+                    b.HasAlternateKey("BusinessId", "Id")
+                        .HasName("a_k_payroll_salary_structures_business_id_id");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_structures_business_id_code");
+
+                    b.ToTable("payroll_salary_structures", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_salary_structure_version", "version > 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructureLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<int>("CalculationOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("calculation_order");
+
+                    b.Property<decimal?>("DefaultValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("default_value");
+
+                    b.Property<string>("FormulaOverride")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("formula_override");
+
+                    b.Property<long>("SalaryComponentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salary_component_id");
+
+                    b.Property<long>("StructureId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("structure_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_payroll_salary_structure_lines");
+
+                    b.HasIndex("BusinessId", "SalaryComponentId")
+                        .HasDatabaseName("i_x_payroll_salary_structure_lines_business_id_salary_component~");
+
+                    b.HasIndex("BusinessId", "StructureId", "SalaryComponentId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_payroll_salary_structure_lines_business_id_structure_id_sal~");
+
+                    b.ToTable("payroll_salary_structure_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payroll_salary_structure_line_value", "calculation_order >= 0 AND (default_value IS NULL OR default_value >= 0)");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.HeldSale", b =>
@@ -1898,6 +13282,185 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_held_sales_outlet_id");
 
                     b.ToTable("held_sales");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Integration.IntegrationInboxMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("ConsumerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("consumer_name");
+
+                    b.Property<string>("EffectReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("effect_reference");
+
+                    b.Property<string>("EnvelopeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("envelope_hash");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("message_type");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<DateTime>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at_utc");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schema_version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_integration_inbox_messages");
+
+                    b.HasIndex("BusinessId", "ConsumerName", "MessageId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_integration_inbox_messages_business_id_consumer_name_messag~");
+
+                    b.ToTable("integration_inbox_messages", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Integration.IntegrationOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AggregateId")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("aggregate_id");
+
+                    b.Property<string>("AggregateType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("aggregate_type");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<Guid?>("CausationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("causation_id");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<string>("EnvelopeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("envelope_hash");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_error_code");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at_utc");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lease_owner");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("message_type");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<string>("Producer")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("producer");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at_utc");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("schema_version");
+
+                    b.Property<long>("SourceVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_version");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_integration_outbox_messages");
+
+                    b.HasIndex("BusinessId", "AggregateType", "AggregateId")
+                        .HasDatabaseName("i_x_integration_outbox_messages_business_id_aggregate_type_aggr~");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseExpiresAtUtc")
+                        .HasDatabaseName("i_x_integration_outbox_messages_status_next_attempt_at_utc_leas~");
+
+                    b.ToTable("integration_outbox_messages", (string)null);
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Inventory", b =>
@@ -1968,6 +13531,14 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("accounting_period_id");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
                     b.Property<DateTime?>("BusinessDate")
                         .HasColumnType("date")
                         .HasColumnName("business_date");
@@ -1975,6 +13546,19 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long>("BusinessId")
                         .HasColumnType("bigint")
                         .HasColumnName("business_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<long?>("CancelledBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cancelled_by");
 
                     b.Property<long?>("CashSessionId")
                         .HasColumnType("bigint")
@@ -2045,6 +13629,19 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("reference_type");
 
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<long?>("RejectedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rejected_by");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
                     b.Property<long?>("ReversalOfJournalEntryId")
                         .HasColumnType("bigint")
                         .HasColumnName("reversal_of_journal_entry_id");
@@ -2066,6 +13663,14 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<long?>("SubmittedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by");
 
                     b.Property<long?>("TerminalId")
                         .HasColumnType("bigint")
@@ -2125,9 +13730,75 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("BusinessId", "JournalType", "ReferenceType", "ReferenceId")
                         .IsUnique()
-                        .HasFilter("is_system_generated = true");
+                        .HasFilter("is_system_generated = true AND status <> 'Reversed'");
 
                     b.ToTable("journal_entries");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.JournalEntryAttachment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<long>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("relative_path");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("stored_file_name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_journal_entry_attachments");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_journal_entry_attachments_journal_entry_id");
+
+                    b.ToTable("journal_entry_attachments");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.JournalEntryLine", b =>
@@ -2225,6 +13896,130 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.LiquidityTransfer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<long>("DestinationAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("destination_account_id");
+
+                    b.Property<long?>("DestinationBankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("destination_bank_account_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<DateTime>("PostingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posting_date");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("reference");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<string>("ReversalReason")
+                        .HasColumnType("text")
+                        .HasColumnName("reversal_reason");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
+
+                    b.Property<long?>("ReversedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversed_by");
+
+                    b.Property<long>("SourceAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_account_id");
+
+                    b.Property<long?>("SourceBankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_bank_account_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TransferType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("transfer_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_liquidity_transfers");
+
+                    b.HasIndex("DestinationAccountId")
+                        .HasDatabaseName("i_x_liquidity_transfers_destination_account_id");
+
+                    b.HasIndex("DestinationBankAccountId")
+                        .HasDatabaseName("i_x_liquidity_transfers_destination_bank_account_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_liquidity_transfers_journal_entry_id");
+
+                    b.HasIndex("ReversalJournalEntryId")
+                        .HasDatabaseName("i_x_liquidity_transfers_reversal_journal_entry_id");
+
+                    b.HasIndex("SourceAccountId")
+                        .HasDatabaseName("i_x_liquidity_transfers_source_account_id");
+
+                    b.HasIndex("SourceBankAccountId")
+                        .HasDatabaseName("i_x_liquidity_transfers_source_bank_account_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("liquidity_transfers");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.OtherIncomeEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -2255,6 +14050,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long>("BusinessId")
                         .HasColumnType("bigint")
                         .HasColumnName("business_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancellation_reason");
 
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
@@ -2291,6 +14091,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("income_date");
 
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
                     b.Property<long?>("OutletId")
                         .HasColumnType("bigint")
                         .HasColumnName("outlet_id");
@@ -2309,10 +14113,25 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(80)")
                         .HasColumnName("reference_number");
 
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<long?>("RejectedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rejected_by");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Draft")
                         .HasColumnName("status");
 
                     b.Property<DateTime?>("SubmittedAt")
@@ -2323,11 +14142,46 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("submitted_by");
 
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool?>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
+
+                    b.Property<decimal?>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal?>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_rate");
+
                     b.HasKey("Id")
                         .HasName("p_k_other_income_entries");
 
                     b.HasIndex("IncomeAccountId")
                         .HasDatabaseName("i_x_other_income_entries_income_account_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_other_income_entries_journal_entry_id");
 
                     b.HasIndex("OutletId")
                         .HasDatabaseName("i_x_other_income_entries_outlet_id");
@@ -2371,6 +14225,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("InvoicePrefix")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("invoice_prefix");
+
                     b.Property<long?>("ManagerId")
                         .HasColumnType("bigint")
                         .HasColumnName("manager_id");
@@ -2381,6 +14240,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<long>("SourceVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("source_version");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone_id");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -2388,10 +14259,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_outlets");
 
-                    b.HasIndex("BusinessId")
-                        .HasDatabaseName("i_x_outlets_business_id");
-
                     b.HasIndex("ManagerId");
+
+                    b.HasIndex("BusinessId", "InvoicePrefix")
+                        .IsUnique()
+                        .HasFilter("invoice_prefix IS NOT NULL");
 
                     b.ToTable("outlets");
                 });
@@ -2404,6 +14276,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2438,6 +14314,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_outlet_price_overrides");
+
+                    b.HasIndex("BusinessId");
 
                     b.HasIndex("ProductVariantId")
                         .HasDatabaseName("i_x_outlet_price_overrides_product_variant_id");
@@ -2514,6 +14392,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2579,7 +14461,7 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("ValidFrom", "ValidTo");
 
-                    b.HasIndex("IsActive", "RuleType", "TargetId");
+                    b.HasIndex("BusinessId", "IsActive", "RuleType", "TargetId");
 
                     b.ToTable("price_rules");
                 });
@@ -2602,6 +14484,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("base_price");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
 
                     b.Property<long>("CategoryId")
                         .HasColumnType("bigint")
@@ -2645,7 +14531,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
-                    b.Property<decimal>("TaxRate")
+                    b.Property<string>("TaxClassification")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_classification");
+
+                    b.Property<decimal?>("TaxRate")
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("tax_rate");
@@ -2657,17 +14548,23 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_products");
 
-                    b.HasIndex("Barcode")
+                    b.HasIndex("BusinessId");
+
+                    b.HasIndex("BusinessId", "Barcode")
                         .IsUnique();
 
-                    b.HasIndex("CategoryId")
-                        .HasDatabaseName("i_x_products_category_id");
-
-                    b.HasIndex("ProductCode")
+                    b.HasIndex("BusinessId", "ProductCode")
                         .IsUnique()
                         .HasFilter("product_code IS NOT NULL");
 
-                    b.ToTable("products");
+                    b.HasIndex("CategoryId", "BusinessId");
+
+                    b.ToTable("products", t =>
+                        {
+                            t.HasCheckConstraint("ck_products_tax_classification", "tax_classification IS NULL OR tax_classification IN ('standard','zero_rated','exempt')");
+
+                            t.HasCheckConstraint("ck_products_tax_rate_range", "tax_rate IS NULL OR (CAST(tax_rate AS NUMERIC) >= 0 AND CAST(tax_rate AS NUMERIC) <= 100)");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.ProductImage", b =>
@@ -2773,6 +14670,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("barcode");
 
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
                     b.Property<decimal>("CostAdjustment")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -2809,14 +14710,15 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_product_variants");
 
-                    b.HasIndex("Barcode")
+                    b.HasIndex("BusinessId");
+
+                    b.HasIndex("BusinessId", "Barcode")
                         .IsUnique();
 
-                    b.HasIndex("ProductId")
-                        .HasDatabaseName("i_x_product_variants_product_id");
-
-                    b.HasIndex("Sku")
+                    b.HasIndex("BusinessId", "Sku")
                         .IsUnique();
+
+                    b.HasIndex("ProductId", "BusinessId");
 
                     b.ToTable("product_variants");
                 });
@@ -2966,6 +14868,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("order_date");
 
+                    b.Property<long?>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
                     b.Property<string>("PoNumber")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -2996,7 +14902,7 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<long>("WarehouseId")
+                    b.Property<long?>("WarehouseId")
                         .HasColumnType("bigint")
                         .HasColumnName("warehouse_id");
 
@@ -3011,11 +14917,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("SupplierId")
                         .HasDatabaseName("i_x_purchase_orders_supplier_id");
 
+                    b.HasIndex("OutletId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("idempotency_key IS NOT NULL AND outlet_id IS NOT NULL");
+
                     b.HasIndex("WarehouseId", "IdempotencyKey")
                         .IsUnique()
                         .HasFilter("idempotency_key IS NOT NULL");
 
-                    b.ToTable("purchase_orders");
+                    b.ToTable("purchase_orders", t =>
+                        {
+                            t.HasCheckConstraint("ck_purchase_orders_single_destination", "(warehouse_id IS NOT NULL AND outlet_id IS NULL) OR (warehouse_id IS NULL AND outlet_id IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.PurchaseOrderItem", b =>
@@ -3044,6 +14957,15 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("tax");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool?>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
 
                     b.Property<string>("Unit")
                         .HasMaxLength(30)
@@ -3168,6 +15090,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("business_date");
 
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
                     b.Property<long?>("CashSessionId")
                         .HasColumnType("bigint")
                         .HasColumnName("cash_session_id");
@@ -3189,10 +15115,32 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount");
 
+                    b.Property<string>("IdempotencyFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("idempotency_fingerprint");
+
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("idempotency_key");
+
+                    b.Property<DateTime?>("InvoiceIssuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invoice_issued_at_utc");
+
+                    b.Property<string>("InvoicePrefix")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("invoice_prefix");
+
+                    b.Property<long?>("InvoiceSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("invoice_sequence");
+
+                    b.Property<long?>("OriginalSaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_sale_id");
 
                     b.Property<long>("OutletId")
                         .HasColumnType("bigint")
@@ -3203,6 +15151,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("payment_method");
+
+                    b.Property<long?>("ReplacementSaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("replacement_sale_id");
 
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("timestamp with time zone")
@@ -3217,6 +15169,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("sale_number");
+
+                    b.Property<long?>("SalespersonUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salesperson_user_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -3257,14 +15213,193 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("SaleDate");
 
+                    b.HasIndex("SalespersonUserId")
+                        .HasDatabaseName("i_x_sales_salesperson_user_id");
+
                     b.HasIndex("TerminalId")
                         .HasDatabaseName("i_x_sales_terminal_id");
+
+                    b.HasIndex("BusinessId", "SaleNumber")
+                        .IsUnique()
+                        .HasFilter("business_id IS NOT NULL AND sale_number <> ''");
 
                     b.HasIndex("OutletId", "IdempotencyKey")
                         .IsUnique()
                         .HasFilter("idempotency_key IS NOT NULL");
 
+                    b.HasIndex("BusinessId", "OutletId", "BusinessDate", "InvoiceSequence")
+                        .IsUnique()
+                        .HasFilter("invoice_sequence IS NOT NULL");
+
                     b.ToTable("sales");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleFinancialPosting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long?>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTime?>("LastAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_attempt_at_utc");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("last_error_code");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime?>("PostedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at_utc");
+
+                    b.Property<string>("ReversalType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("reversal_type");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<string>("SnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("snapshot_hash");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("snapshot_json");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("source_key");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_financial_postings");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("ix_sale_financial_postings_journal_entry_id");
+
+                    b.HasIndex("BusinessId", "SourceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sale_financial_postings_source_key");
+
+                    b.HasIndex("BusinessId", "Status")
+                        .HasDatabaseName("ix_sale_financial_postings_business_status");
+
+                    b.HasIndex("SaleId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sale_financial_postings_sale_kind");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc")
+                        .HasDatabaseName("ix_sale_financial_postings_due");
+
+                    b.ToTable("sale_financial_postings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_sale_financial_postings_attempts", "attempts >= 0");
+
+                            t.HasCheckConstraint("ck_sale_financial_postings_kind", "kind IN ('sale','reversal')");
+
+                            t.HasCheckConstraint("ck_sale_financial_postings_posted_journal", "(status = 'posted') = (journal_entry_id IS NOT NULL AND posted_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_sale_financial_postings_reversal_type", "(kind = 'sale' AND reversal_type IS NULL) OR (kind = 'reversal' AND reversal_type IN ('void','refund'))");
+
+                            t.HasCheckConstraint("ck_sale_financial_postings_status", "status IN ('pending','posted','failed')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleInvoiceCounter", b =>
+                {
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("LastSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_sequence");
+
+                    b.HasKey("BusinessId", "OutletId", "BusinessDate");
+
+                    b.HasIndex("OutletId");
+
+                    b.ToTable("sale_invoice_counters", (string)null);
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.SaleItem", b =>
@@ -3290,6 +15425,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<decimal?>("HistoricalUnitCost")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("numeric(10,4)")
+                        .HasColumnName("historical_unit_cost");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
@@ -3303,6 +15443,25 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("subtotal");
 
+                    b.Property<string>("TaxClassification")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_classification");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool?>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
+
+                    b.Property<decimal?>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -3311,6 +15470,16 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long>("VariantId")
                         .HasColumnType("bigint")
                         .HasColumnName("variant_id");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal?>("VatRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("vat_rate");
 
                     b.HasKey("Id")
                         .HasName("p_k_sale_items");
@@ -3338,11 +15507,25 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("amount");
 
+                    b.Property<decimal?>("ChangeGiven")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("change_given");
+
                     b.Property<string>("Method")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("method");
+
+                    b.Property<decimal?>("NetCashRetained")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("net_cash_retained");
+
+                    b.Property<long?>("PaymentAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_account_id");
 
                     b.Property<long>("SaleId")
                         .HasColumnType("bigint")
@@ -3355,6 +15538,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_sale_payments");
+
+                    b.HasIndex("PaymentAccountId");
 
                     b.HasIndex("SaleId")
                         .HasDatabaseName("i_x_sale_payments_sale_id");
@@ -3408,6 +15593,130 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_sale_voids_voided_by_user_id");
 
                     b.ToTable("sale_voids");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SettlementBatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BankAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bank_account_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("ClearingAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("clearing_account_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<decimal>("GrossClearingAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gross_clearing_amount");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<decimal>("NetBankAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_bank_amount");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<string>("ReversalReason")
+                        .HasColumnType("text")
+                        .HasColumnName("reversal_reason");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
+
+                    b.Property<long?>("ReversedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversed_by");
+
+                    b.Property<DateTime>("SettlementDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("settlement_date");
+
+                    b.Property<decimal>("SettlementFeeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("settlement_fee_amount");
+
+                    b.Property<string>("SettlementType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("settlement_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_settlement_batches");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("i_x_settlement_batches_bank_account_id");
+
+                    b.HasIndex("ClearingAccountId")
+                        .HasDatabaseName("i_x_settlement_batches_clearing_account_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_settlement_batches_journal_entry_id");
+
+                    b.HasIndex("ReversalJournalEntryId")
+                        .HasDatabaseName("i_x_settlement_batches_reversal_journal_entry_id");
+
+                    b.HasIndex("BusinessId", "ExternalReference")
+                        .IsUnique()
+                        .HasFilter("external_reference IS NOT NULL");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("settlement_batches");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
@@ -3557,6 +15866,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("stock_adjustment_id");
 
+                    b.Property<decimal?>("UnitCostSnapshot")
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_cost_snapshot");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -3594,9 +15907,31 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("approved_by");
 
+                    b.Property<string>("BaselineConsistencyStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("Unverified")
+                        .HasColumnName("baseline_consistency_status");
+
+                    b.Property<DateTime?>("BaselineInventoryReadCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("baseline_inventory_read_completed_at_utc");
+
+                    b.Property<DateTime?>("BaselineInventoryReadStartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("baseline_inventory_read_started_at_utc");
+
                     b.Property<long>("BusinessId")
                         .HasColumnType("bigint")
                         .HasColumnName("business_id");
+
+                    b.Property<long>("CountRevision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("count_revision");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3615,6 +15950,14 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("location_type");
+
+                    b.Property<string>("MovementReconciliationStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("NotStarted")
+                        .HasColumnName("movement_reconciliation_status");
 
                     b.Property<DateTime?>("RejectedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3691,6 +16034,143 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("BusinessId", "LocationType", "LocationId", "CreatedAt");
 
                     b.ToTable("stock_counts");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountAdjustmentJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("ApprovedCountRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_count_revision");
+
+                    b.Property<string>("ApproverRoleName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("approver_role_name");
+
+                    b.Property<long>("ApproverUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approver_user_id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<Guid>("AuditCorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("audit_correlation_id");
+
+                    b.Property<string>("BlockedReasonCodes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("blocked_reason_codes");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("EvidenceStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("evidence_status");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at_utc");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lease_owner");
+
+                    b.Property<long>("LocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("LocationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<Guid>("OutboxMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("outbox_message_id");
+
+                    b.Property<string>("RequestCorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("request_correlation_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("StockAdjustmentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stock_adjustment_id");
+
+                    b.Property<long>("StockCountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stock_count_id");
+
+                    b.Property<long?>("SubmittedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by_user_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_count_adjustment_jobs");
+
+                    b.HasIndex("OutboxMessageId")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "CreatedAtUtc");
+
+                    b.HasIndex("StockCountId", "ApprovedCountRevision")
+                        .IsUnique()
+                        .HasDatabaseName("ux_stock_count_adjustment_jobs_count_revision");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseExpiresAtUtc");
+
+                    b.ToTable("stock_count_adjustment_jobs", t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_count_adjustment_jobs_revision", "approved_count_revision >= 0 AND attempt_count >= 0");
+
+                            t.HasCheckConstraint("ck_stock_count_adjustment_jobs_status", "status IN ('Pending','Processing','RetryScheduled','Completed','Blocked','Failed')");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockCountLine", b =>
@@ -3770,6 +16250,251 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("stock_count_lines");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountOperationReceipt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AcceptedRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accepted_revision");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("ClientObservedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("client_observed_at_utc");
+
+                    b.Property<Guid>("ClientOperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_operation_id");
+
+                    b.Property<long>("ClientSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("client_sequence");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<decimal>("CountedQuantity")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)")
+                        .HasColumnName("counted_quantity");
+
+                    b.Property<DateTime>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<string>("DeviceSessionId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("device_session_id");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("outcome");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<long>("ProductVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_variant_id");
+
+                    b.Property<string>("RawBarcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("raw_barcode");
+
+                    b.Property<string>("RejectionCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("rejection_code");
+
+                    b.Property<DateTime>("ServerReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("server_received_at_utc");
+
+                    b.Property<long>("SessionRevisionAtDecision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("session_revision_at_decision");
+
+                    b.Property<long>("StockCountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stock_count_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_count_operation_receipts");
+
+                    b.HasIndex("StockCountId", "AcceptedRevision");
+
+                    b.HasIndex("StockCountId", "ClientOperationId")
+                        .IsUnique();
+
+                    b.HasIndex("StockCountId", "DeviceSessionId", "ClientSequence")
+                        .IsUnique();
+
+                    b.ToTable("stock_count_operation_receipts");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountSubmissionJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("AcceptedCountRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accepted_count_revision");
+
+                    b.Property<string>("ActorRoleName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("actor_role_name");
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<Guid>("AuditCorrelationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("audit_correlation_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at_utc");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lease_owner");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<Guid>("OutboxMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("outbox_message_id");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<string>("RequestCorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("request_correlation_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("StockCountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stock_count_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_count_submission_jobs");
+
+                    b.HasIndex("OutboxMessageId")
+                        .IsUnique();
+
+                    b.HasIndex("StockCountId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_stock_count_submission_jobs_active_session")
+                        .HasFilter("status IN ('Accepted','Processing','RetryScheduled')");
+
+                    b.HasIndex("StockCountId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "OutletId", "CreatedAtUtc");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseExpiresAtUtc");
+
+                    b.ToTable("stock_count_submission_jobs", t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_count_submission_jobs_revision", "accepted_count_revision > 0 AND attempt_count >= 0");
+
+                            t.HasCheckConstraint("ck_stock_count_submission_jobs_status", "status IN ('Accepted','Processing','RetryScheduled','ErpSubmitted','Failed')");
+                        });
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.StockLedger", b =>
                 {
                     b.Property<long>("Id")
@@ -3783,6 +16508,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("balance_after");
 
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -3790,6 +16519,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<long?>("CreatedBy")
                         .HasColumnType("bigint")
                         .HasColumnName("created_by");
+
+                    b.Property<bool>("IsCostValuationReliable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_cost_valuation_reliable");
 
                     b.Property<long>("LocationId")
                         .HasColumnType("bigint")
@@ -3800,6 +16535,15 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("location_type");
+
+                    b.Property<long>("MovementSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("movement_sequence");
+
+                    b.Property<decimal>("MovementValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("movement_value");
 
                     b.Property<int>("QtyIn")
                         .HasColumnType("integer")
@@ -3824,11 +16568,20 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("remarks");
 
+                    b.Property<long?>("ReversalOfMovementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_of_movement_id");
+
                     b.Property<string>("TransactionType")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("transaction_type");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
 
                     b.Property<long>("VariantId")
                         .HasColumnType("bigint")
@@ -3844,6 +16597,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("ReferenceType", "ReferenceId");
 
                     b.HasIndex("VariantId", "LocationId", "LocationType", "CreatedAt");
+
+                    b.HasIndex("VariantId", "LocationId", "LocationType", "MovementSequence");
 
                     b.ToTable("stock_ledgers");
                 });
@@ -4253,6 +17008,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("address");
 
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
                     b.Property<string>("Contact")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -4273,6 +17032,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<int?>("PaymentTermsDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_terms_days");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -4280,7 +17043,582 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_suppliers");
 
+                    b.HasIndex("BusinessId", "Name")
+                        .IsUnique()
+                        .HasFilter("business_id is not null");
+
                     b.ToTable("suppliers");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierAdvance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<decimal>("AppliedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("applied_amount");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTime?>("BusinessDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("text")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<long?>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<long>("PaymentAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_account_id");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_method");
+
+                    b.Property<DateTime?>("PostedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at");
+
+                    b.Property<long?>("PostedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("posted_by");
+
+                    b.Property<DateTime?>("PostingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posting_date");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("reference_number");
+
+                    b.Property<long?>("RelatedPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("related_payment_id");
+
+                    b.Property<decimal>("RemainingAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("remaining_amount");
+
+                    b.Property<long?>("ReversalOfAdvanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_of_advance_id");
+
+                    b.Property<long?>("SourcePaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_payment_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<long?>("SubmittedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<long>("SupplierId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_supplier_advances");
+
+                    b.HasIndex("SourcePaymentId")
+                        .HasDatabaseName("i_x_supplier_advances_source_payment_id");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("i_x_supplier_advances_supplier_id");
+
+                    b.ToTable("supplier_advances");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierAdvanceUtilization", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_date");
+
+                    b.Property<long>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long?>("ReversalOfUtilizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_of_utilization_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("SupplierAdvanceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_advance_id");
+
+                    b.Property<long>("SupplierPayableDocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_payable_document_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_supplier_advance_utilizations");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_supplier_advance_utilizations_journal_entry_id");
+
+                    b.HasIndex("SupplierAdvanceId")
+                        .HasDatabaseName("i_x_supplier_advance_utilizations_supplier_advance_id");
+
+                    b.HasIndex("SupplierPayableDocumentId")
+                        .HasDatabaseName("i_x_supplier_advance_utilizations_supplier_payable_document_id");
+
+                    b.HasIndex("BusinessId", "SupplierAdvanceId", "SupplierPayableDocumentId", "JournalEntryId")
+                        .IsUnique();
+
+                    b.ToTable("supplier_advance_utilizations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayableDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DisputeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("dispute_reason");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<bool>("IsDisputed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_disputed");
+
+                    b.Property<decimal>("OriginalPayableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("original_payable_amount");
+
+                    b.Property<int>("PaymentTermsDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_terms_days");
+
+                    b.Property<DateTime>("RecognitionDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recognition_date");
+
+                    b.Property<long>("SourceDocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_document_id");
+
+                    b.Property<string>("SourceDocumentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_document_type");
+
+                    b.Property<long>("SourceJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_journal_entry_id");
+
+                    b.Property<string>("SourceReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("source_reference");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("SupplierId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<DateTime?>("SupplierInvoiceDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("supplier_invoice_date");
+
+                    b.Property<string>("SupplierInvoiceNumber")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("supplier_invoice_number");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long?>("WarehouseId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_supplier_payable_documents");
+
+                    b.HasIndex("SourceJournalEntryId")
+                        .HasDatabaseName("i_x_supplier_payable_documents_source_journal_entry_id");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("i_x_supplier_payable_documents_supplier_id");
+
+                    b.HasIndex("WarehouseId")
+                        .HasDatabaseName("i_x_supplier_payable_documents_warehouse_id");
+
+                    b.HasIndex("BusinessId", "SourceJournalEntryId")
+                        .IsUnique();
+
+                    b.HasIndex("BusinessId", "SupplierId", "DueDate");
+
+                    b.ToTable("supplier_payable_documents");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("AdvanceAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("advance_amount");
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("allocated_amount");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTime?>("BusinessDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("text")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<long?>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<long>("PaymentAccountId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payment_account_id");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_method");
+
+                    b.Property<DateTime?>("PostedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posted_at");
+
+                    b.Property<long?>("PostedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("posted_by");
+
+                    b.Property<DateTime?>("PostingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("posting_date");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("reference_number");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<long?>("ReversalOfPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_of_payment_id");
+
+                    b.Property<string>("ReversalReason")
+                        .HasColumnType("text")
+                        .HasColumnName("reversal_reason");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
+
+                    b.Property<long?>("ReversedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<long?>("SubmittedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<long>("SupplierId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_supplier_payments");
+
+                    b.HasIndex("SupplierId")
+                        .HasDatabaseName("i_x_supplier_payments_supplier_id");
+
+                    b.ToTable("supplier_payments");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPaymentAllocation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("allocated_amount");
+
+                    b.Property<DateTime>("AllocationDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("allocation_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_date");
+
+                    b.Property<bool>("IsReversed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_reversed");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<decimal>("OutstandingAfterAllocation")
+                        .HasColumnType("numeric")
+                        .HasColumnName("outstanding_after_allocation");
+
+                    b.Property<decimal>("OutstandingBeforeAllocation")
+                        .HasColumnType("numeric")
+                        .HasColumnName("outstanding_before_allocation");
+
+                    b.Property<long>("PayableDocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("payable_document_id");
+
+                    b.Property<string>("PayableDocumentType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payable_document_type");
+
+                    b.Property<long?>("ReversalJournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_journal_entry_id");
+
+                    b.Property<long?>("ReversalOfAllocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_of_allocation_id");
+
+                    b.Property<DateTime?>("ReversedEffectiveDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_effective_date");
+
+                    b.Property<string>("SourceReference")
+                        .HasColumnType("text")
+                        .HasColumnName("source_reference");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("SupplierPayableDocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_payable_document_id");
+
+                    b.Property<long>("SupplierPaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supplier_payment_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_supplier_payment_allocations");
+
+                    b.HasIndex("SupplierPayableDocumentId")
+                        .HasDatabaseName("i_x_supplier_payment_allocations_supplier_payable_document_id");
+
+                    b.HasIndex("SupplierPaymentId")
+                        .HasDatabaseName("i_x_supplier_payment_allocations_supplier_payment_id");
+
+                    b.ToTable("supplier_payment_allocations");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Transaction", b =>
@@ -4756,6 +18094,13 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<long>("SourceVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L)
+                        .HasColumnName("source_version");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -4783,6 +18128,55 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Business");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Accounting.FrozenSystemJournalOperation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("JournalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_frozen_journal_result");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalJournalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_frozen_journal_original");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingCloseExceptionApproval", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.AccountingCloseGateSnapshot", "GateSnapshot")
+                        .WithMany("ExceptionApprovals")
+                        .HasForeignKey("AccountingCloseGateSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_close_exception_approvals__accounting_close_gate_sna~");
+
+                    b.HasOne("RetailPOS.Core.Entities.AccountingPeriodCloseRun", "CloseRun")
+                        .WithMany("ExceptionApprovals")
+                        .HasForeignKey("AccountingPeriodCloseRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_close_exception_approvals__accounting_period_close_r~");
+
+                    b.Navigation("CloseRun");
+
+                    b.Navigation("GateSnapshot");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingCloseGateSnapshot", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.AccountingPeriodCloseRun", "CloseRun")
+                        .WithMany("GateSnapshots")
+                        .HasForeignKey("AccountingPeriodCloseRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_close_gate_snapshots__accounting_period_close_runs_a~");
+
+                    b.Navigation("CloseRun");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.AccountingConfiguration", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Business", "Business")
@@ -4791,6 +18185,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_accounting_configurations__businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "CardClearingAccount")
+                        .WithMany()
+                        .HasForeignKey("CardClearingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_card_clearing_accou~");
 
                     b.HasOne("RetailPOS.Core.Entities.ChartAccount", "CashAccount")
                         .WithMany()
@@ -4846,6 +18246,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_accounting_configurations__chart_accounts_inventory_shortage_~");
 
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "MobileMfsClearingAccount")
+                        .WithMany()
+                        .HasForeignKey("MobileMfsClearingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_mobile_mfs_clearing~");
+
                     b.HasOne("RetailPOS.Core.Entities.ChartAccount", "OtherIncomeAccount")
                         .WithMany()
                         .HasForeignKey("OtherIncomeAccountId")
@@ -4869,6 +18275,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasForeignKey("PettyCashAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_accounting_configurations__chart_accounts_petty_cash_account_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "RetainedEarningsAccount")
+                        .WithMany()
+                        .HasForeignKey("RetainedEarningsAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_retained_earnings_a~");
 
                     b.HasOne("RetailPOS.Core.Entities.ChartAccount", "RoundingDifferenceAccount")
                         .WithMany()
@@ -4894,13 +18306,33 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_accounting_configurations__chart_accounts_sales_return_accoun~");
 
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "SupplierAdvanceAccount")
+                        .WithMany()
+                        .HasForeignKey("SupplierAdvanceAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_supplier_advance_ac~");
+
                     b.HasOne("RetailPOS.Core.Entities.ChartAccount", "SupplierPayableAccount")
                         .WithMany()
                         .HasForeignKey("SupplierPayableAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_accounting_configurations__chart_accounts_supplier_payable_ac~");
 
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "VatPayableAccount")
+                        .WithMany()
+                        .HasForeignKey("VatPayableAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_vat_payable_account~");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "VatReceivableAccount")
+                        .WithMany()
+                        .HasForeignKey("VatReceivableAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_configurations__chart_accounts_vat_receivable_acco~");
+
                     b.Navigation("Business");
+
+                    b.Navigation("CardClearingAccount");
 
                     b.Navigation("CashAccount");
 
@@ -4920,6 +18352,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.Navigation("InventoryShortageAccount");
 
+                    b.Navigation("MobileMfsClearingAccount");
+
                     b.Navigation("OtherIncomeAccount");
 
                     b.Navigation("OwnerCapitalAccount");
@@ -4927,6 +18361,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("OwnerDrawingsAccount");
 
                     b.Navigation("PettyCashAccount");
+
+                    b.Navigation("RetainedEarningsAccount");
 
                     b.Navigation("RoundingDifferenceAccount");
 
@@ -4936,7 +18372,68 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.Navigation("SalesReturnAccount");
 
+                    b.Navigation("SupplierAdvanceAccount");
+
                     b.Navigation("SupplierPayableAccount");
+
+                    b.Navigation("VatPayableAccount");
+
+                    b.Navigation("VatReceivableAccount");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingFinancialYearCloseRun", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.AccountingPeriod", "FinalAccountingPeriod")
+                        .WithMany()
+                        .HasForeignKey("FinalAccountingPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__accounting_periods_fina~");
+
+                    b.HasOne("RetailPOS.Core.Entities.AccountingPeriodCloseRun", "FinalPeriodCloseRun")
+                        .WithMany()
+                        .HasForeignKey("FinalPeriodCloseRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__accounting_period_close_r~");
+
+                    b.HasOne("RetailPOS.Core.Entities.FinancialYear", "FinancialYear")
+                        .WithMany()
+                        .HasForeignKey("FinancialYearId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__financial_years_financi~");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "ReversalJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("ReversalJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__journal_entries_reversa~");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "YearEndJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("YearEndJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_accounting_financial_year_close_runs__journal_entries_year_en~");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("FinalAccountingPeriod");
+
+                    b.Navigation("FinalPeriodCloseRun");
+
+                    b.Navigation("FinancialYear");
+
+                    b.Navigation("ReversalJournalEntry");
+
+                    b.Navigation("YearEndJournalEntry");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.AccountingNumberSequence", b =>
@@ -5016,6 +18513,27 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("FinancialYear");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingPeriodCloseRun", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.AccountingPeriod", "AccountingPeriod")
+                        .WithMany()
+                        .HasForeignKey("AccountingPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_period_close_runs_accounting_periods_accounting_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_accounting_period_close_runs__businesses_business_id");
+
+                    b.Navigation("AccountingPeriod");
+
+                    b.Navigation("Business");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Audit.AuditEvent", "AuditEvent")
@@ -5049,6 +18567,241 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasConstraintName("f_k_audit_logs__users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankAccount", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_accounts__businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "ChartAccount")
+                        .WithMany()
+                        .HasForeignKey("ChartAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_accounts__chart_accounts_chart_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
+                        .WithMany()
+                        .HasForeignKey("OutletId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_bank_accounts__outlets_outlet_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("ChartAccount");
+
+                    b.Navigation("Outlet");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationMatch", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_matches_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankReconciliationSession", "Session")
+                        .WithMany("Matches")
+                        .HasForeignKey("BankReconciliationSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_matches__bank_reconciliation_sessions_bank~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_matches__businesses_business_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationMatchLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankReconciliationMatch", "Match")
+                        .WithMany("Lines")
+                        .HasForeignKey("BankReconciliationMatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_match_lines_bank_reconciliation_matches~");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankStatementLine", "StatementLine")
+                        .WithMany()
+                        .HasForeignKey("BankStatementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_bank_reconciliation_match_lines__bank_statement_lines_bank_sta~");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntryLine", "JournalEntryLine")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_bank_reconciliation_match_lines__journal_entry_lines_journal_e~");
+
+                    b.Navigation("JournalEntryLine");
+
+                    b.Navigation("Match");
+
+                    b.Navigation("StatementLine");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationSession", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_sessions_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_reconciliation_sessions__businesses_business_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementAdjustment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_adjustments_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankStatementLine", "StatementLine")
+                        .WithMany()
+                        .HasForeignKey("BankStatementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_adjustments__bank_statement_lines_bank_statemen~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_adjustments__businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_bank_statement_adjustments__journal_entries_journal_entry_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "ReversalJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("ReversalJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_bank_statement_adjustments__journal_entries_reversal_journal_~");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("JournalEntry");
+
+                    b.Navigation("ReversalJournalEntry");
+
+                    b.Navigation("StatementLine");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementException", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_exceptions_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankStatementLine", "StatementLine")
+                        .WithMany()
+                        .HasForeignKey("BankStatementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_exceptions__bank_statement_lines_bank_statement~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_exceptions__businesses_business_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("StatementLine");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementImport", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_imports_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_imports__businesses_business_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_lines_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankStatementImport", "Import")
+                        .WithMany("Lines")
+                        .HasForeignKey("BankStatementImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_lines_bank_statement_imports_bank_statement_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_bank_statement_lines__businesses_business_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("Import");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.BarcodePrintHistory", b =>
@@ -5164,6 +18917,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Business");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.BusinessPosSettings", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_business_pos_settings_businesses_business_id");
+
+                    b.Navigation("Business");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.BusinessReminderNotification", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Business", "Business")
@@ -5174,6 +18939,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasConstraintName("f_k_business_reminder_notifications_businesses_business_id");
 
                     b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashDifferenceApproval", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_difference_approvals__cash_sessions_cash_session_id");
+
+                    b.Navigation("CashSession");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.CashSession", b =>
@@ -5220,11 +18997,66 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Terminal");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionAttachment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_session_attachments_cash_sessions_cash_session_id");
+
+                    b.Navigation("CashSession");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionCloseSnapshot", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
+                        .WithOne()
+                        .HasForeignKey("RetailPOS.Core.Entities.CashSessionCloseSnapshot", "CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_session_close_snapshots_cash_sessions_cash_session_id");
+
+                    b.Navigation("CashSession");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionHandover", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_session_handovers_cash_sessions_cash_session_id");
+
+                    b.Navigation("CashSession");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.CashSessionMovement", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_session_movements_cash_sessions_cash_session_id");
+
+                    b.Navigation("CashSession");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Category", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RetailPOS.Core.Entities.Category", "ParentCategory")
                         .WithMany("ChildCategories")
-                        .HasForeignKey("ParentCategoryId")
+                        .HasForeignKey("ParentCategoryId", "BusinessId")
+                        .HasPrincipalKey("Id", "BusinessId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_categories_categories_parent_category_id");
 
@@ -5251,15 +19083,91 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("ParentAccount");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Customer", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Expense", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany("Expenses")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_expenses_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", null)
+                        .WithMany()
+                        .HasForeignKey("DisbursedCashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "ExpenseAccount")
+                        .WithMany()
+                        .HasForeignKey("ExpenseAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_expenses_chart_accounts_expense_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ExpenseCategory", "ExpenseCategory")
+                        .WithMany("Expenses")
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_expenses__expense_categories_expense_category_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_expenses__journal_entries_journal_entry_id");
+
                     b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
                         .WithMany("Expenses")
                         .HasForeignKey("OutletId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_expenses__outlets_outlet_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "PaymentAccount")
+                        .WithMany()
+                        .HasForeignKey("PaymentAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_expenses_chart_accounts_payment_account_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("ExpenseAccount");
+
+                    b.Navigation("ExpenseCategory");
+
+                    b.Navigation("JournalEntry");
+
                     b.Navigation("Outlet");
+
+                    b.Navigation("PaymentAccount");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ExpenseCategory", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany("ExpenseCategories")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_expense_categories_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "ExpenseAccount")
+                        .WithMany("ExpenseCategories")
+                        .HasForeignKey("ExpenseAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_expense_categories_chart_accounts_expense_account_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("ExpenseAccount");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.FinancialYear", b =>
@@ -5313,6 +19221,2057 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Grn");
 
                     b.Navigation("PurchaseOrderItem");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalDecision", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovalInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_approval_decisions_hr_approval_instances_approval_instan~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstanceStep", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovalInstanceStepId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_approval_decisions_hr_approval_instance_steps_approval_i~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicy", null)
+                        .WithMany()
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_approval_instances_hr_approval_policies_policy_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstanceStep", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "Instance")
+                        .WithMany("Steps")
+                        .HasForeignKey("ApprovalInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_approval_instance_steps_hr_approval_instances_approval_i~");
+
+                    b.Navigation("Instance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicyStep", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicy", "Policy")
+                        .WithMany("Steps")
+                        .HasForeignKey("ApprovalPolicyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_approval_policy_steps_hr_approval_policies_approval_poli~");
+
+                    b.Navigation("Policy");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceCorrectionRequest", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("ApprovalInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_attendance_correction_requests_hr_approval_instances_app~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_attendance_correction_requests_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Attendance.HrDailyAttendance", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "DailyAttendanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_attendance_correction_requests_hr_daily_attendance_busin~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceDevice", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_attendance_devices_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_attendance_devices_hr_operational_location_projections_b~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrDailyAttendance", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_daily_attendance_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_daily_attendance_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_daily_attendance_hr_operational_location_projections_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Attendance.HrRosterAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "RosterAssignmentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_daily_attendance_hr_roster_assignments_business_id_roste~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Calendars.HrShift", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ShiftId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_daily_attendance_hr_shifts_business_id_shift_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrDeviceUserMapping", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceDevice", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "DeviceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_device_user_mappings_hr_attendance_devices_business_id_d~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_device_user_mappings_hr_employees_business_id_employee_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrRawAttendancePunch", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_raw_attendance_punches_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Attendance.HrAttendanceDevice", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "DeviceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_raw_attendance_punches_hr_attendance_devices_business_id~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_raw_attendance_punches_hr_employees_business_id_employee~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Attendance.HrRosterAssignment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_roster_assignments_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Calendars.HrShift", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_roster_assignments_hr_shifts_shift_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_roster_assignments_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_roster_assignments_hr_operational_location_projections_b~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrHoliday", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Calendars.HrHolidayCalendar", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CalendarId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_holidays_hr_holiday_calendars_business_id_calendar_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrHolidayCalendar", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_holiday_calendars_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_holiday_calendars_hr_operational_location_projections_bu~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrShift", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_shifts_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrShiftBreak", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Calendars.HrShift", null)
+                        .WithMany("Breaks")
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_shift_breaks_hr_shifts_shift_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyDay", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyVersion", null)
+                        .WithMany("Days")
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_weekly_off_policy_days_hr_weekly_off_policy_versions_pol~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_weekly_off_policy_versions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_weekly_off_policy_versions_hr_operational_location_proje~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrDocumentType", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_document_types_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployee", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employees_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmploymentType", "CurrentEmploymentType")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CurrentEmploymentTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employees_hr_employment_types_business_id_current_employ~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CurrentOrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employees_hr_org_units_business_id_current_org_unit_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CurrentPrimaryLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employees_hr_operational_location_projections_business_i~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrPosition", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CurrentPositionId", "CurrentOrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id", "OrgUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employees_hr_positions_business_id_current_position_id_c~");
+
+                    b.Navigation("CurrentEmploymentType");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocument", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_documents_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrDocumentType", "DocumentType")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "DocumentTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_documents_hr_document_types_business_id_documen~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_documents_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocumentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "Id", "CurrentVersionId")
+                        .HasPrincipalKey("BusinessId", "EmployeeDocumentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employee_documents_hr_employee_document_versions_busines~");
+
+                    b.Navigation("DocumentType");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocumentVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocument", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeDocumentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_document_versions_hr_employee_documents_busines~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployeeDocumentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeDocumentId", "ReplacesVersionId")
+                        .HasPrincipalKey("BusinessId", "EmployeeDocumentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employee_document_versions_hr_employee_document_versions~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLifecycleEvent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_lifecycle_events_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_lifecycle_events_hr_employees_business_id_emplo~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmploymentPeriod", "EmploymentPeriod")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId", "EmploymentPeriodId")
+                        .HasPrincipalKey("BusinessId", "EmployeeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_lifecycle_events_hr_employment_periods_business~");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("EmploymentPeriod");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLocationAssignment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_assignments_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_employee_location_assignment_approval_instance");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_assignments_hr_employees_business_id_e~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_assignments_hr_operational_location_pr~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeLocationTransferRequest", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_transfer_requests_businesses_business_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_employee_location_transfer_approval_instance");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_transfer_requests_hr_employees_busines~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "TargetLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_location_transfer_requests_hr_operational_locat~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeePositionAssignment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_position_assignments_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_position_assignments_hr_employees_business_id_e~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_position_assignments_hr_org_units_business_id_o~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ReportsToEmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_employee_position_assignments_hr_employees_business_id_r~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrPosition", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PositionId", "OrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id", "OrgUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_position_assignments_hr_positions_business_id_p~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmployeeUserLink", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_user_links_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employee_user_links_hr_employees_business_id_employee_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmploymentPeriod", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employment_periods_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmploymentType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmploymentTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employment_periods_hr_employment_types_business_id_emplo~");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrEmploymentType", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_employment_types_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrImportBatch", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_import_batches_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Employees.HrImportRow", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrImportBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ImportBatchId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_import_rows_hr_import_batches_business_id_import_batch_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceItem", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrExitCase", "ExitCase")
+                        .WithMany()
+                        .HasForeignKey("ExitCaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_clearance_items_hr_exit_cases_exit_case_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrExitCase", null)
+                        .WithMany("ClearanceItems")
+                        .HasForeignKey("BusinessId", "ExitCaseId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_clearance_items_hr_exit_cases_business_id_exit_case_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplateItem", "TemplateItem")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "TemplateItemId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_clearance_items_hr_clearance_template_items_business_id_~");
+
+                    b.Navigation("ExitCase");
+
+                    b.Navigation("TemplateItem");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplate", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_clearance_templates_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplateItem", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplate", null)
+                        .WithMany("Items")
+                        .HasForeignKey("BusinessId", "TemplateId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_clearance_template_items_hr_clearance_templates_business~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCase", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("ApprovalInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_exit_cases_hr_approval_instances_approval_instance_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_exit_cases_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ClearanceTemplateId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_exit_cases_hr_clearance_templates_business_id_clearance_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_exit_cases_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PrimaryLocationProjectionIdSnapshot")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_exit_cases_hr_operational_location_projections_business_~");
+
+                    b.Navigation("ApprovalInstance");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCaseEvent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrExitCase", null)
+                        .WithMany("Events")
+                        .HasForeignKey("BusinessId", "ExitCaseId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_exit_case_events_hr_exit_cases_business_id_exit_case_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCompletionEvidence", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrExitCase", "ExitCase")
+                        .WithOne("CompletionEvidence")
+                        .HasForeignKey("RetailPOS.Core.Entities.HR.Exit.HrExitCompletionEvidence", "BusinessId", "ExitCaseId")
+                        .HasPrincipalKey("RetailPOS.Core.Entities.HR.Exit.HrExitCase", "BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_exit_completion_evidence_hr_exit_cases_business_id_exit_~");
+
+                    b.Navigation("ExitCase");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveEntitlement", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_entitlements_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_entitlements_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_entitlements_hr_leave_types_business_id_leave_type~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeavePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_entitlements_hr_leave_policy_versions_business_id_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PrimaryLocationProjectionIdSnapshot")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_leave_entitlements_hr_operational_location_projections_b~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveLedgerEntry", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_ledger_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_ledger_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveEntitlement", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EntitlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_ledger_hr_leave_entitlements_business_id_entitleme~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_ledger_hr_leave_types_business_id_leave_type_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeavePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_ledger_hr_leave_policy_versions_business_id_policy~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeavePolicyVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_policy_versions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_policy_versions_hr_leave_types_business_id_leave_t~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequest", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_requests_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_leave_request_approval_instance");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_requests_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_requests_hr_leave_types_business_id_leave_type_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ScopeLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_requests_hr_operational_location_projections_busin~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequestAttachmentVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequest", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveRequestId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_request_attachment_versions_hr_leave_requests_busi~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequestDay", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_request_days_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequest", null)
+                        .WithMany("Days")
+                        .HasForeignKey("BusinessId", "LeaveRequestId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_request_days_hr_leave_requests_business_id_leave_r~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_request_days_hr_operational_location_projections_b~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeavePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_request_days_hr_leave_policy_versions_business_id_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_types_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveYearLifecycleEvent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_year_lifecycle_events_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_year_lifecycle_events_hr_employees_business_id_emp~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveEntitlement", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EntitlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_year_lifecycle_events_hr_leave_entitlements_busine~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LeaveTypeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_leave_year_lifecycle_events_hr_leave_types_business_id_l~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Leave.HrLeaveLedgerEntry", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SourceLedgerEntryId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_leave_year_lifecycle_events_hr_leave_ledger_business_id_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_org_units_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_org_units_hr_operational_location_projections_business_i~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ParentOrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_org_units_hr_org_units_business_id_parent_org_unit_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.HrPosition", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_positions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_positions_hr_operational_location_projections_business_i~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrOrgUnit", "OrgUnit")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OrgUnitId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_positions_hr_org_units_business_id_org_unit_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.HrPosition", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ReportsToPositionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_positions_hr_positions_business_id_reports_to_position_id");
+
+                    b.Navigation("OrgUnit");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_operational_location_projections_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeCalculationEvidence", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_calculation_evidence_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeEntry", null)
+                        .WithMany("CalculationEvidence")
+                        .HasForeignKey("BusinessId", "OvertimeEntryId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_calculation_evidence_hr_overtime_entries_busine~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Overtime.HrOvertimePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_calculation_evidence_hr_overtime_policy_version~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeEntry", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Overtime.HrOvertimePolicyVersion", "PolicyVersion")
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_overtime_policy_versions_policy_vers~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_approval_instances_business_id_appro~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Attendance.HrDailyAttendance", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "DailyAttendanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_daily_attendance_business_id_daily_a~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_employees_business_id_employee_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_operational_location_projections_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Overtime.HrOvertimePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_entries_hr_overtime_policy_versions_business_id~");
+
+                    b.Navigation("ApprovalInstance");
+
+                    b.Navigation("PolicyVersion");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimePolicyVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_hr_overtime_policy_versions_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollAccountingComponentMapping", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_accounting_component_mappings_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "AccountId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_accounting_component_mappings_chart_accounts_busine~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollAccountingPosting", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_accounting_postings_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("ReversalJournalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings__journal_entries_reversal_journal~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollAccountingPosting", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OriginalPostingId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_accounting_postings_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PaymentBatchId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_payment_batches_busines~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentAllocation", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentAllocationId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_payment_allocations_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentEvidence", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentEvidenceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_payment_evidence_busine~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_payments_business_id_pa~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentReconciliation", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentReconciliationId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_payment_reconciliations~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_periods_business_id_pay~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_accounting_postings_payroll_runs_business_id_payrol~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollArtifactVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollEmployeeResultId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_artifact_versions_payroll_employee_results_business~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_artifact_versions_payroll_runs_business_id_payroll_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollArtifactVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ReplacesVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_artifact_versions_payroll_artifact_versions_busines~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollCalculationPolicyVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_calculation_policy_versions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "AbsenceComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_absencecomponentid");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EarlyLeaveComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_earlyleavecomponentid");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LateComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_latecomponentid");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OvertimeComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_overtimecomponentid");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "TaxStatutoryComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_taxstatutorycomponentid");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "UnpaidLeaveComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_calculation_policy_unpaidleavecomponentid");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeAdjustmentVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_adjustment_versions_hr_employees_business_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Organisation.OperationalLocationProjection", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OperationalLocationProjectionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_adjustment_versions_hr_operational_locatio~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeAdjustmentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PredecessorVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_adjustment_versions_payroll_employee_adjus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_adjustment_versions_payroll_salary_compone~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeLoan", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_loans_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_loans_hr_approval_instances_business_id_ap~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_loans_hr_employees_business_id_employee_id");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeePaymentDestination", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_payment_destinations_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_payment_destinations_hr_employees_business~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollCalculationPolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CalculationPolicyVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_results_payroll_calculation_policy_version~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_results_hr_employees_business_id_employee_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_results_payroll_runs_business_id_payroll_r~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_results_payroll_employee_salary_versions_b~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResultLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", "PayrollEmployeeResult")
+                        .WithMany("Lines")
+                        .HasForeignKey("BusinessId", "PayrollEmployeeResultId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_result_lines_payroll_employee_results_busi~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_result_lines_payroll_salary_components_bus~");
+
+                    b.Navigation("PayrollEmployeeResult");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_hr_approval_instances_busi~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_hr_employees_business_id_e~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PredecessorSalaryVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_payroll_employee_salary_ve~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryRevisionRequest", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryRevisionRequestId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_payroll_salary_revision_re~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalarySetupRequest", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalarySetupRequestId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_payroll_salary_setup_reque~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryStructureId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_employee_salary_versions_payroll_salary_structures_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_final_settlements_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Exit.HrExitCase", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ExitCaseId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_final_settlements_hr_exit_cases_business_id_exit_ca~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementAccountingPosting", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_final_settlement_accounting_postings_businesses_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "FinalSettlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_final_settlement_posting_settlement");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentEvidence", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PaymentEvidenceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_final_settlement_posting_payment_evidence");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_final_settlement_posting_payment");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "RevisionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_final_settlement_posting_revision");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementApprovalSubmission", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payroll_final_settlement_submission_business");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_payroll_final_settlement_submission_approval");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "FinalSettlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payroll_final_settlement_submission_settlement");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "RevisionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payroll_final_settlement_submission_revision");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("BusinessId", "RevisionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_final_settlement_lines_payroll_final_settlement_rev~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", null)
+                        .WithMany("Revisions")
+                        .HasForeignKey("BusinessId", "FinalSettlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_final_settlement_revisions_payroll_final_settlement~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepayment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeLoan", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LoanId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_loan_repayments_payroll_employee_loans_business_id_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepaymentAllocation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepayment", null)
+                        .WithMany("Allocations")
+                        .HasForeignKey("BusinessId", "LoanId", "RepaymentId")
+                        .HasPrincipalKey("BusinessId", "LoanId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_loan_repayment_allocations_payroll_loan_repayments_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleLine", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LoanId", "ScheduleVersionId", "InstallmentNo")
+                        .HasPrincipalKey("BusinessId", "LoanId", "ScheduleVersionId", "InstallmentNo")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_loan_repayment_allocations_payroll_loan_schedule_li~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleVersion", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("BusinessId", "LoanId", "ScheduleVersionId")
+                        .HasPrincipalKey("BusinessId", "LoanId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_loan_schedule_lines_payroll_loan_schedule_versions_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeLoan", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "LoanId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_loan_schedule_versions_payroll_employee_loans_busin~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollMonetaryConfigurationVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_monetary_configuration_versions_businesses_business~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payments_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_hr_approval_instances_business_id_approval~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "FinalSettlementId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_final_settlements_business_id_fina~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "FinalSettlementRevisionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_final_settlement_revisions_busines~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OriginalPaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_payments_business_id_original_paym~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", "PaymentBatch")
+                        .WithMany("Payments")
+                        .HasForeignKey("BusinessId", "PaymentBatchId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_payment_batches_business_id_paymen~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollEmployeeResultId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_employee_results_business_id_payro~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_periods_business_id_payroll_period~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payments_payroll_runs_business_id_payroll_run_id");
+
+                    b.Navigation("PaymentBatch");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentAllocation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeePaymentDestination", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PaymentDestinationId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payment_allocations_payroll_employee_payment_destin~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany("Allocations")
+                        .HasForeignKey("BusinessId", "PayrollPaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_allocations_payroll_payments_business_id_pa~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBankFileVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", null)
+                        .WithMany("BankFileVersions")
+                        .HasForeignKey("BusinessId", "PaymentBatchId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_bank_file_versions_payroll_payment_batches_~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_batches_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_batches_payroll_periods_business_id_payroll~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_batches_payroll_runs_business_id_payroll_ru~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentEvidence", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany("Evidence")
+                        .HasForeignKey("BusinessId", "PayrollPaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_evidence_payroll_payments_business_id_payro~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentReconciliation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PaymentBatchId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_payment_reconciliations_payroll_payment_batches_bus~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentAllocation", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentAllocationId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_reconciliations_payroll_payment_allocations~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPaymentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payment_reconciliations_payroll_payments_business_i~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPayslipDelivery", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollArtifactVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ArtifactVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_payslip_deliveries_payroll_artifact_versions_busine~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_periods_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriodCloseAssessment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_period_close_assessments_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_period_close_assessments_payroll_periods_business_i~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriodReopenEvent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "CorrectionPayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_period_reopen_events_payroll_runs_business_id_corre~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OriginalPayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_period_reopen_events_payroll_runs_business_id_origi~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_period_reopen_events_payroll_periods_business_id_pa~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_runs_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollMonetaryConfigurationVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "MonetaryConfigurationVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_runs_payroll_monetary_configuration_versions_busine~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "OriginalPayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_runs_payroll_runs_business_id_original_payroll_run_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollPeriodId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_runs_payroll_periods_business_id_payroll_period_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollRunEmployeeSelection", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_run_employee_selections_hr_employees_business_id_em~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollRun", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "PayrollRunId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_run_employee_selections_payroll_runs_business_id_pa~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_run_employee_selections_payroll_employee_salary_ver~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_components_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryRevisionRequest", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_revision_requests_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_salary_revision_requests_hr_approval_instances_busi~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_revision_requests_hr_employees_business_id_e~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeSalaryVersion", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SourceSalaryVersionId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_revision_requests_payroll_employee_salary_ve~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalarySetupRequest", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_setup_requests_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", "ApprovalInstance")
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "ApprovalInstanceId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_payroll_salary_setup_requests_hr_approval_instances_busines~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Employees.HrEmployee", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "EmployeeId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_setup_requests_hr_employees_business_id_empl~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryStructureId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_setup_requests_payroll_salary_structures_bus~");
+
+                    b.Navigation("ApprovalInstance");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_structures_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructureLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryComponent", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId", "SalaryComponentId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_structure_lines_payroll_salary_components_bu~");
+
+                    b.HasOne("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("BusinessId", "StructureId")
+                        .HasPrincipalKey("BusinessId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_payroll_salary_structure_lines_payroll_salary_structures_bu~");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.HeldSale", b =>
@@ -5432,6 +21391,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.JournalEntryAttachment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany("Attachments")
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_journal_entry_attachments_journal_entries_journal_entry_id");
+
+                    b.Navigation("JournalEntry");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.JournalEntryLine", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.ChartAccount", "Account")
@@ -5485,6 +21456,68 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.LiquidityTransfer", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_liquidity_transfers_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "DestinationAccount")
+                        .WithMany()
+                        .HasForeignKey("DestinationAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_liquidity_transfers_chart_accounts_destination_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "DestinationBankAccount")
+                        .WithMany()
+                        .HasForeignKey("DestinationBankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_liquidity_transfers_bank_accounts_destination_bank_account_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_liquidity_transfers_journal_entries_journal_entry_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "ReversalJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("ReversalJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_liquidity_transfers_journal_entries_reversal_journal_entry_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "SourceAccount")
+                        .WithMany()
+                        .HasForeignKey("SourceAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_liquidity_transfers_chart_accounts_source_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "SourceBankAccount")
+                        .WithMany()
+                        .HasForeignKey("SourceBankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_liquidity_transfers_bank_accounts_source_bank_account_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("DestinationAccount");
+
+                    b.Navigation("DestinationBankAccount");
+
+                    b.Navigation("JournalEntry");
+
+                    b.Navigation("ReversalJournalEntry");
+
+                    b.Navigation("SourceAccount");
+
+                    b.Navigation("SourceBankAccount");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.OtherIncomeEntry", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Business", "Business")
@@ -5499,6 +21532,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasForeignKey("IncomeAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("f_k_other_income_entries_chart_accounts_income_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_other_income_entries_journal_entries_journal_entry_id");
 
                     b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
                         .WithMany()
@@ -5515,6 +21554,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Business");
 
                     b.Navigation("IncomeAccount");
+
+                    b.Navigation("JournalEntry");
 
                     b.Navigation("Outlet");
 
@@ -5541,6 +21582,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RetailPOS.Core.Entities.OutletPriceOverride", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
                         .WithMany()
                         .HasForeignKey("OutletId")
@@ -5572,11 +21619,27 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Outlet");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.PriceRule", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Product", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RetailPOS.Core.Entities.Category", "Category")
                         .WithMany("Products")
-                        .HasForeignKey("CategoryId")
+                        .HasForeignKey("CategoryId", "BusinessId")
+                        .HasPrincipalKey("Id", "BusinessId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("f_k_products_categories_category_id");
@@ -5598,9 +21661,16 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RetailPOS.Core.Entities.ProductVariant", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RetailPOS.Core.Entities.Product", "Product")
                         .WithMany("ProductVariants")
-                        .HasForeignKey("ProductId")
+                        .HasForeignKey("ProductId", "BusinessId")
+                        .HasPrincipalKey("Id", "BusinessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_product_variants_products_product_id");
@@ -5688,6 +21758,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_purchase_orders__users_creator_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", "Outlet")
+                        .WithMany()
+                        .HasForeignKey("OutletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_purchase_orders_outlets_outlet_id");
+
                     b.HasOne("RetailPOS.Core.Entities.Supplier", "Supplier")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("SupplierId")
@@ -5699,10 +21775,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("f_k_purchase_orders__warehouses_warehouse_id");
 
                     b.Navigation("Creator");
+
+                    b.Navigation("Outlet");
 
                     b.Navigation("Supplier");
 
@@ -5760,6 +21837,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Sale", b =>
                 {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("RetailPOS.Core.Entities.CashSession", "CashSession")
                         .WithMany("Sales")
                         .HasForeignKey("CashSessionId")
@@ -5786,6 +21868,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("f_k_sales_outlets_outlet_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.User", "Salesperson")
+                        .WithMany()
+                        .HasForeignKey("SalespersonUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_sales__users_salesperson_user_id");
+
                     b.HasOne("RetailPOS.Core.Entities.PosTerminal", "Terminal")
                         .WithMany("Sales")
                         .HasForeignKey("TerminalId")
@@ -5800,7 +21888,49 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.Navigation("Outlet");
 
+                    b.Navigation("Salesperson");
+
                     b.Navigation("Terminal");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleFinancialPosting", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_financial_postings_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_sale_financial_postings_journal_entries_journal_entry_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Sale", "Sale")
+                        .WithMany()
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_financial_postings_sales_sale_id");
+
+                    b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleInvoiceCounter", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", null)
+                        .WithMany()
+                        .HasForeignKey("OutletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.SaleItem", b =>
@@ -5854,6 +21984,52 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Sale");
 
                     b.Navigation("VoidedByUser");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SettlementBatch", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_settlement_batches_bank_accounts_bank_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_settlement_batches_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ChartAccount", "ClearingAccount")
+                        .WithMany()
+                        .HasForeignKey("ClearingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_settlement_batches_chart_accounts_clearing_account_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_settlement_batches_journal_entries_journal_entry_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "ReversalJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("ReversalJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_settlement_batches_journal_entries_reversal_journal_entry_id");
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("ClearingAccount");
+
+                    b.Navigation("JournalEntry");
+
+                    b.Navigation("ReversalJournalEntry");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
@@ -5945,6 +22121,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Submitter");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountAdjustmentJob", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.StockCount", "StockCount")
+                        .WithMany()
+                        .HasForeignKey("StockCountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_count_adjustment_jobs_stock_counts_stock_count_id");
+
+                    b.Navigation("StockCount");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.StockCountLine", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Product", "Product")
@@ -5973,6 +22161,30 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("StockCount");
 
                     b.Navigation("Variant");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountOperationReceipt", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.StockCount", "StockCount")
+                        .WithMany()
+                        .HasForeignKey("StockCountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_count_operation_receipts_stock_counts_stock_count_id");
+
+                    b.Navigation("StockCount");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountSubmissionJob", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.StockCount", "StockCount")
+                        .WithMany()
+                        .HasForeignKey("StockCountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_count_submission_jobs_stock_counts_stock_count_id");
+
+                    b.Navigation("StockCount");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockLedger", b =>
@@ -6156,6 +22368,126 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Variant");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Supplier", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_suppliers_businesses_business_id");
+
+                    b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierAdvance", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.SupplierPayment", "SourcePayment")
+                        .WithMany("Advances")
+                        .HasForeignKey("SourcePaymentId")
+                        .HasConstraintName("f_k_supplier_advances__supplier_payments_source_payment_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_advances_suppliers_supplier_id");
+
+                    b.Navigation("SourcePayment");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierAdvanceUtilization", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_advance_utilizations_journal_entries_journal_entry~");
+
+                    b.HasOne("RetailPOS.Core.Entities.SupplierAdvance", "SupplierAdvance")
+                        .WithMany()
+                        .HasForeignKey("SupplierAdvanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_advance_utilizations_supplier_advances_supplier_ad~");
+
+                    b.HasOne("RetailPOS.Core.Entities.SupplierPayableDocument", "SupplierPayableDocument")
+                        .WithMany("AdvanceUtilizations")
+                        .HasForeignKey("SupplierPayableDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_advance_utilizations__supplier_payable_documents_supp~");
+
+                    b.Navigation("JournalEntry");
+
+                    b.Navigation("SupplierAdvance");
+
+                    b.Navigation("SupplierPayableDocument");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayableDocument", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", "SourceJournalEntry")
+                        .WithMany()
+                        .HasForeignKey("SourceJournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_payable_documents_journal_entries_source_journal_e~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_payable_documents_suppliers_supplier_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_supplier_payable_documents__warehouses_warehouse_id");
+
+                    b.Navigation("SourceJournalEntry");
+
+                    b.Navigation("Supplier");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_payments_suppliers_supplier_id");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPaymentAllocation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.SupplierPayableDocument", "SupplierPayableDocument")
+                        .WithMany("PaymentAllocations")
+                        .HasForeignKey("SupplierPayableDocumentId")
+                        .HasConstraintName("f_k_supplier_payment_allocations_supplier_payable_documents_sup~");
+
+                    b.HasOne("RetailPOS.Core.Entities.SupplierPayment", "SupplierPayment")
+                        .WithMany("Allocations")
+                        .HasForeignKey("SupplierPaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_supplier_payment_allocations_supplier_payments_supplier_pay~");
+
+                    b.Navigation("SupplierPayableDocument");
+
+                    b.Navigation("SupplierPayment");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Transaction", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Account", "Account")
@@ -6314,9 +22646,21 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Transactions");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingCloseGateSnapshot", b =>
+                {
+                    b.Navigation("ExceptionApprovals");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.AccountingPeriod", b =>
                 {
                     b.Navigation("JournalEntries");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.AccountingPeriodCloseRun", b =>
+                {
+                    b.Navigation("ExceptionApprovals");
+
+                    b.Navigation("GateSnapshots");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEvent", b =>
@@ -6327,6 +22671,21 @@ namespace RetailPOS.Infrastructure.Data.Migrations
             modelBuilder.Entity("RetailPOS.Core.Entities.Audit.AuditEventEntity", b =>
                 {
                     b.Navigation("FieldChanges");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationMatch", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankReconciliationSession", b =>
+                {
+                    b.Navigation("Matches");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.BankStatementImport", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.BarcodePrintHistory", b =>
@@ -6350,6 +22709,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Accounts");
 
                     b.Navigation("ChartAccounts");
+
+                    b.Navigation("ExpenseCategories");
+
+                    b.Navigation("Expenses");
 
                     b.Navigation("FeatureSettings");
 
@@ -6384,12 +22747,19 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                 {
                     b.Navigation("ChildAccounts");
 
+                    b.Navigation("ExpenseCategories");
+
                     b.Navigation("JournalEntryLines");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Customer", b =>
                 {
                     b.Navigation("Sales");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.ExpenseCategory", b =>
+                {
+                    b.Navigation("Expenses");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.FinancialYear", b =>
@@ -6406,8 +22776,98 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Items");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalInstance", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Approvals.ApprovalPolicy", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrShift", b =>
+                {
+                    b.Navigation("Breaks");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Calendars.HrWeeklyOffPolicyVersion", b =>
+                {
+                    b.Navigation("Days");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrClearanceTemplate", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Exit.HrExitCase", b =>
+                {
+                    b.Navigation("ClearanceItems");
+
+                    b.Navigation("CompletionEvidence");
+
+                    b.Navigation("Events");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Leave.HrLeaveRequest", b =>
+                {
+                    b.Navigation("Days");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Overtime.HrOvertimeEntry", b =>
+                {
+                    b.Navigation("CalculationEvidence");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollEmployeeResult", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlement", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollFinalSettlementRevision", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanRepayment", b =>
+                {
+                    b.Navigation("Allocations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollLoanScheduleVersion", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPayment", b =>
+                {
+                    b.Navigation("Allocations");
+
+                    b.Navigation("Evidence");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollPaymentBatch", b =>
+                {
+                    b.Navigation("BankFileVersions");
+
+                    b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.HR.Payroll.PayrollSalaryStructure", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.JournalEntry", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Lines");
 
                     b.Navigation("ReversalEntries");
@@ -6516,6 +22976,20 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Bills");
 
                     b.Navigation("PurchaseOrders");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayableDocument", b =>
+                {
+                    b.Navigation("AdvanceUtilizations");
+
+                    b.Navigation("PaymentAllocations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.SupplierPayment", b =>
+                {
+                    b.Navigation("Advances");
+
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.User", b =>

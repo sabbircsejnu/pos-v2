@@ -1,12 +1,14 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
+import { Observable, catchError, map, of, shareReplay, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { SUPPRESS_ERROR_NOTICE } from '../interceptors/error.interceptor';
 import {
   CustomerDto,
   CreateCustomerDto,
   UpdateCustomerDto,
-  CustomerListResponse
+  CustomerListResponse,
+  LoyaltyCapabilitiesDto
 } from '../models/customer.model';
 
 @Injectable({
@@ -14,6 +16,10 @@ import {
 })
 export class CustomerService {
   private apiUrl = `${environment.apiUrl}/customers`;
+  private loyaltyCapabilities$?: Observable<LoyaltyCapabilitiesDto>;
+
+  /** False until the capabilities call confirms the legacy points endpoints are enabled (and on failure). */
+  readonly legacyPointsMutationEnabled = signal(false);
 
   customers = signal<CustomerDto[]>([]);
   totalCount = signal<number>(0);
@@ -128,5 +134,28 @@ export class CustomerService {
   redeemPoints(id: number, points: number): Observable<any> {
     const params = new HttpParams().set('points', points.toString());
     return this.http.post<any>(`${this.apiUrl}/${id}/redeem-points`, {}, { params });
+  }
+
+  /**
+   * Whether the legacy points mutation endpoints are enabled. The result is cached for the session;
+   * a failed lookup yields "disabled" (actions stay hidden) and is retried on the next call.
+   */
+  getLoyaltyCapabilities(): Observable<LoyaltyCapabilitiesDto> {
+    if (!this.loyaltyCapabilities$) {
+      this.loyaltyCapabilities$ = this.http
+        .get<{ data?: Partial<LoyaltyCapabilitiesDto> }>(`${this.apiUrl}/loyalty-capabilities`, {
+          context: new HttpContext().set(SUPPRESS_ERROR_NOTICE, true)
+        })
+        .pipe(
+          map(response => ({ legacyPointsMutationEnabled: response?.data?.legacyPointsMutationEnabled === true })),
+          catchError(() => {
+            this.loyaltyCapabilities$ = undefined;
+            return of({ legacyPointsMutationEnabled: false });
+          }),
+          tap(capabilities => this.legacyPointsMutationEnabled.set(capabilities.legacyPointsMutationEnabled)),
+          shareReplay(1)
+        );
+    }
+    return this.loyaltyCapabilities$;
   }
 }

@@ -31,11 +31,21 @@ public class GrnDto
     public string PoOrderNumber { get; set; } = string.Empty;
     public long SupplierId { get; set; }
     public string SupplierName { get; set; } = string.Empty;
-    public long WarehouseId { get; set; }
+    /// <summary>Destination warehouse; null when goods are received into an outlet.</summary>
+    public long? WarehouseId { get; set; }
     public string WarehouseName { get; set; } = string.Empty;
+    /// <summary>Destination outlet; null when goods are received into a warehouse.</summary>
+    public long? OutletId { get; set; }
+    public string? OutletName { get; set; }
+    /// <summary>outlet | warehouse</summary>
+    public string LocationType { get; set; } = "warehouse";
+    public long LocationId { get; set; }
+    public string LocationName { get; set; } = string.Empty;
     public DateTime ReceivedDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }                  // NEW — receipt-level notes
+    public string? SupplierInvoiceNumber { get; set; }
+    public DateTime? SupplierInvoiceDate { get; set; }
     public long? CreatedBy { get; set; }
     public string? CreatedByName { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -65,6 +75,8 @@ public class CreateGrnDto
     public long PoId { get; set; }
     public DateTime ReceivedDate { get; set; } = DateTime.UtcNow;
     public string? Notes { get; set; }                  // NEW — receipt-level notes
+    public string? SupplierInvoiceNumber { get; set; }
+    public DateTime? SupplierInvoiceDate { get; set; }
     public List<CreateGrnItemDto> Items { get; set; } = new();
 }
 
@@ -174,8 +186,16 @@ public class PurchaseOrderForGrnDto
     public string OrderNumber { get; set; } = string.Empty;
     public long SupplierId { get; set; }
     public string SupplierName { get; set; } = string.Empty;
-    public long WarehouseId { get; set; }
+    /// <summary>Destination warehouse; null when goods are received into an outlet.</summary>
+    public long? WarehouseId { get; set; }
     public string WarehouseName { get; set; } = string.Empty;
+    /// <summary>Destination outlet; null when goods are received into a warehouse.</summary>
+    public long? OutletId { get; set; }
+    public string? OutletName { get; set; }
+    /// <summary>outlet | warehouse</summary>
+    public string LocationType { get; set; } = "warehouse";
+    public long LocationId { get; set; }
+    public string LocationName { get; set; } = string.Empty;
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;

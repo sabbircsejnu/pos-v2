@@ -51,10 +51,16 @@ public class PriceCalculationResultDto
     /// <summary>OutletPrice − DiscountAmount. The register line-item price.</summary>
     public decimal FinalPrice { get; set; }
 
-    /// <summary>Product.TaxRate (percentage, e.g. 10 = 10%). Tax is NOT included in FinalPrice.</summary>
+    /// <summary>Effective tax rate (percent) resolved from the product, its classification and the Business policy. Not added to FinalPrice when <see cref="PricesIncludeTax"/>.</summary>
     public decimal TaxRate { get; set; }
 
-    /// <summary>FinalPrice × TaxRate / 100. Informational — add to FinalPrice when displaying tax-inclusive totals.</summary>
+    /// <summary>standard | zero_rated | exempt | none (Business tax switched off).</summary>
+    public string TaxClassification { get; set; } = "standard";
+
+    /// <summary>True when selling prices already include tax (FinalPriceWithTax equals FinalPrice).</summary>
+    public bool PricesIncludeTax { get; set; }
+
+    /// <summary>Per-unit tax: FinalPrice x rate / 100 (exclusive) or extracted from FinalPrice (inclusive).</summary>
     public decimal TaxAmount { get; set; }
 
     /// <summary>FinalPrice + TaxAmount for convenience.</summary>

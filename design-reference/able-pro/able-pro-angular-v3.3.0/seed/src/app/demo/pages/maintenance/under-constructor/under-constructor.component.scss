@@ -1,0 +1,33 @@
+// ==========================//
+//    error css start        //
+// ==========================//
+
+.error-card {
+  display: flex;
+  flex-direction: column;
+  word-wrap: break-word;
+  text-align: center;
+  background: transparent;
+  overflow: hidden;
+
+  .error-card-content {
+    padding: 20px;
+  }
+
+  .error-image-block {
+    position: relative;
+    text-align: center;
+    display: inline-flex;
+  }
+
+  .error-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+// ==========================//
+//    error css end          //
+// ==========================//

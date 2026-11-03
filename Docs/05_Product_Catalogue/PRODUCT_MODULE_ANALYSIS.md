@@ -285,7 +285,23 @@ Every inventory balance change is recorded in `stock_ledgers`:
 
 The `ProductDto` returned by the API includes:
 - `VariantCount` — number of variants
-- `TotalStock` — sum of all inventory quantities across all locations for all variants of the product
+- `TotalStock` - on Product List (`POST /products/search`) and Product Detail (`GET /products/{id}`),
+  the sum of variant `Inventory.Quantity` within the caller's authorized Business/outlet/warehouse scope.
+  Optional `outletId` or `warehouseId` selects one authorized location (not both); no selection aggregates
+  authorized locations only. The frontend preserves these location query parameters on list/detail navigation.
+- `StockStatus` - `in_stock`, `partially_in_stock`, `out_of_stock`, `not_initialized`, or `unavailable`.
+  For variant products, availability is evaluated per variant after summing its location balances:
+  all positive = In Stock; some positive = Partially In Stock; all initialized and non-positive = Out of Stock.
+  Missing inventory records are not confirmed zero: without any positive balance, a missing variant balance
+  produces Stock Not Initialized. An unenriched response is Stock Unavailable, never implicitly Out of Stock.
+  Single-SKU products retain their inventory quantity display when stocked and Out of Stock for an initialized
+  non-positive balance. The current variant model has no independent active flag or stock-tracking opt-out,
+  so all persisted variants participate. Product publication status remains separate and unchanged.
+
+List/detail stock enrichment uses one grouped inventory query for the returned page, not one per product
+or variant. Existing catalog filtering, sorting and pagination run before enrichment; the stock column is
+not sortable and there is no stock-status filter. No inventory balances, movements, transactions or write
+use cases are changed by this read-only enrichment.
 
 ---
 

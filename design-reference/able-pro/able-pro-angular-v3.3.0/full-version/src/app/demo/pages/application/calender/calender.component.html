@@ -1,0 +1,202 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="Calender">
+      <div class="row text-center">
+        <div class="col-md-4">
+          <div class="flex justify-content-center m-b-5">
+            <button
+              mat-flat-button
+              color="primary"
+              class="m-r-10"
+              mwlCalendarPreviousView
+              [view]="view"
+              [(viewDate)]="viewDate"
+              (viewDateChange)="closeOpenMonthViewDay()"
+            >
+              Previous
+            </button>
+            <button mat-flat-button color="accent" class="m-r-5" mwlCalendarToday [(viewDate)]="viewDate">Today</button>
+            <button
+              mat-flat-button
+              color="primary"
+              class="m-r-5"
+              mwlCalendarNextView
+              [view]="view"
+              [(viewDate)]="viewDate"
+              (viewDateChange)="closeOpenMonthViewDay()"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <h3>{{ viewDate | calendarDate: view + 'ViewTitle' : 'en' }}</h3>
+        </div>
+        <div class="col-md-4">
+          <div class="flex justify-content-center m-b-10">
+            <button
+              mat-flat-button
+              class="m-r-5"
+              color="primary"
+              (click)="setView(calendarView.Month)"
+              [class.active]="view === calendarView.Month"
+            >
+              Month
+            </button>
+            <button
+              mat-flat-button
+              class="m-r-5"
+              color="accent"
+              (click)="setView(calendarView.Week)"
+              [class.active]="view === calendarView.Week"
+            >
+              Week
+            </button>
+            <button
+              mat-flat-button
+              class="m-r-5"
+              color="primary"
+              (click)="setView(calendarView.Day)"
+              [class.active]="view === calendarView.Day"
+            >
+              Day
+            </button>
+          </div>
+        </div>
+      </div>
+      <br />
+      <div class="m-b-30">
+        @switch (view) {
+          @case (calendarView.Month) {
+            <mwl-calendar-month-view
+              [viewDate]="viewDate"
+              [events]="events"
+              [refresh]="refresh"
+              [activeDayIsOpen]="activeDayIsOpen"
+              (dayClicked)="dayClicked($event.day)"
+              (eventTimesChanged)="eventTimesChanged($event)"
+            ></mwl-calendar-month-view>
+          }
+          @case (calendarView.Week) {
+            <mwl-calendar-week-view
+              [viewDate]="viewDate"
+              [events]="events"
+              [refresh]="refresh"
+              (eventTimesChanged)="eventTimesChanged($event)"
+            ></mwl-calendar-week-view>
+          }
+          @case (calendarView.Day) {
+            <mwl-calendar-day-view
+              [viewDate]="viewDate"
+              [events]="events"
+              [refresh]="refresh"
+              (eventTimesChanged)="eventTimesChanged($event)"
+            ></mwl-calendar-day-view>
+          }
+        }
+      </div>
+      <div class="m-b-20 f-20 f-w-600">
+        Edit events
+        <button class="float-end f-14" mat-flat-button color="primary" (click)="addEvent()">Add New</button>
+        <div class="clearfix"></div>
+      </div>
+      <div class="table-responsive calender-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Primary color</th>
+              <th>Secondary + text color</th>
+              <th>Starts at</th>
+              <th>Ends at</th>
+              <th>Remove</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (event of events; track event) {
+              <tr>
+                <td>
+                  <mat-form-field appearance="outline" class="w-100 input-date">
+                    <input matInput type="text" [(ngModel)]="event.title" (keyup)="refresh.next()" />
+                  </mat-form-field>
+                </td>
+                <td class="text-center">
+                  <mat-form-field appearance="outline" class="wid-75 select-color">
+                    <input
+                      matInput
+                      type="color"
+                      class="hei-75"
+                      [ngModel]="event.color.primary"
+                      (ngModelChange)="event.color.primary = $event"
+                      (change)="refresh.next()"
+                    />
+                  </mat-form-field>
+                </td>
+                <td class="text-center">
+                  <mat-form-field appearance="outline" class="wid-75 select-color">
+                    <input
+                      matInput
+                      type="color"
+                      class="text-color-pick"
+                      [ngModel]="event?.color.secondary"
+                      (ngModelChange)="event.color.primary = $event"
+                      (change)="refresh.next()"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="wid-75 select-color">
+                    <input
+                      matInput
+                      type="color"
+                      class="text-color-pick"
+                      [ngModel]="event?.color.secondaryText ?? '#1e90ff'"
+                      (ngModelChange)="event?.color.secondaryText = $event"
+                      (change)="refresh.next()"
+                    />
+                  </mat-form-field>
+                </td>
+                <td>
+                  <mat-form-field appearance="outline" class="w-100">
+                    <input
+                      matInput
+                      type="text"
+                      mwlFlatpickr
+                      [(ngModel)]="event.start"
+                      (ngModelChange)="refresh.next()"
+                      [altInput]="true"
+                      [convertModelValue]="true"
+                      [enableTime]="true"
+                      dateFormat="Y-m-dTH:i"
+                      altFormat="F j, Y H:i"
+                      placeholder="Not set"
+                    />
+                  </mat-form-field>
+                </td>
+                <td>
+                  <mat-form-field appearance="outline" class="w-100">
+                    <input
+                      matInput
+                      type="text"
+                      mwlFlatpickr
+                      [(ngModel)]="event.end"
+                      (ngModelChange)="refresh.next()"
+                      [altInput]="true"
+                      [convertModelValue]="true"
+                      [enableTime]="true"
+                      dateFormat="Y-m-dTH:i"
+                      altFormat="F j, Y H:i"
+                      placeholder="Not set"
+                    />
+                  </mat-form-field>
+                </td>
+                <td class="text-center">
+                  <button mat-flat-button color="warn" (click)="deleteEvent(event)">Delete</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-card>
+  </div>
+</div>

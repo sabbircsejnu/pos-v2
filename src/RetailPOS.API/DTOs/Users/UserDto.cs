@@ -14,6 +14,7 @@ public class UserDto
     public string InventoryLocationAccessScope { get; set; } = CreateUserDto.ScopeAssignedOnly;
     public string? DefaultLocationType { get; set; }
     public long? DefaultLocationId { get; set; }
+    public IEnumerable<string> UserPermissions { get; set; } = Enumerable.Empty<string>();
 
     /// <summary>
     /// Outlet assignments used when inventory access scope is specific locations.

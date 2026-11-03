@@ -1,7 +1,4 @@
-using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
-using RetailPOS.API.DTOs.Pos;
-using RetailPOS.API.DTOs.Pricing;
 
 namespace RetailPOS.API.Services;
 
@@ -19,50 +16,10 @@ public sealed class PosCacheService : IPosCacheService
     private readonly IDistributedCache          _cache;
     private readonly ILogger<PosCacheService>   _logger;
 
-    // TTLs — short enough to keep stock display useful, long enough to cut DB load
-    private static readonly TimeSpan LookupTtl = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan PriceTtl  = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan StockTtl  = TimeSpan.FromSeconds(30);
-
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     public PosCacheService(IDistributedCache cache, ILogger<PosCacheService> logger)
     {
         _cache  = cache;
         _logger = logger;
-    }
-
-    // ── Product lookup ────────────────────────────────────────────────────────
-
-    public async Task<PosProductLookupDto?> GetLookupAsync(string cacheKey)
-    {
-        try
-        {
-            var raw = await _cache.GetStringAsync(cacheKey);
-            return raw is null ? null : JsonSerializer.Deserialize<PosProductLookupDto>(raw, JsonOpts);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS cache GET failed for key {Key}", cacheKey);
-            return null;
-        }
-    }
-
-    public async Task SetLookupAsync(string cacheKey, PosProductLookupDto dto)
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(dto, JsonOpts);
-            await _cache.SetStringAsync(cacheKey, json,
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = LookupTtl });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS cache SET failed for key {Key}", cacheKey);
-        }
     }
 
     public async Task InvalidateLookupAsync(long variantId, string? barcode, string? sku, long? outletId = null)
@@ -93,36 +50,6 @@ public sealed class PosCacheService : IPosCacheService
         }
     }
 
-    // ── Price result ──────────────────────────────────────────────────────────
-
-    public async Task<PriceCalculationResultDto?> GetPriceAsync(long variantId, long? outletId, int qty)
-    {
-        try
-        {
-            var raw = await _cache.GetStringAsync(PriceKey(variantId, outletId, qty));
-            return raw is null ? null : JsonSerializer.Deserialize<PriceCalculationResultDto>(raw, JsonOpts);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS price cache GET failed for variant {VariantId}", variantId);
-            return null;
-        }
-    }
-
-    public async Task SetPriceAsync(long variantId, long? outletId, int qty, PriceCalculationResultDto dto)
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(dto, JsonOpts);
-            await _cache.SetStringAsync(PriceKey(variantId, outletId, qty), json,
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = PriceTtl });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS price cache SET failed for variant {VariantId}", variantId);
-        }
-    }
-
     public async Task InvalidatePriceAsync(long variantId, long? outletId)
     {
         // Removes the most common qty=1 entry. Other qty flavours expire via TTL.
@@ -131,42 +58,13 @@ public sealed class PosCacheService : IPosCacheService
         catch (Exception ex) { _logger.LogWarning(ex, "POS price cache REMOVE failed for key {Key}", key); }
     }
 
-    // ── Stock hint ────────────────────────────────────────────────────────────
-
-    public async Task<int?> GetStockHintAsync(long variantId, long outletId)
-    {
-        try
-        {
-            var raw = await _cache.GetStringAsync(StockKey(variantId, outletId));
-            return raw is null ? null : int.Parse(raw);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS stock cache GET failed for variant {VariantId}", variantId);
-            return null;
-        }
-    }
-
-    public async Task SetStockHintAsync(long variantId, long outletId, int qty)
-    {
-        try
-        {
-            await _cache.SetStringAsync(StockKey(variantId, outletId), qty.ToString(),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = StockTtl });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POS stock cache SET failed for variant {VariantId}", variantId);
-        }
-    }
-
     public async Task InvalidateStockAsync(long variantId, long outletId)
     {
         try   { await _cache.RemoveAsync(StockKey(variantId, outletId)); }
         catch (Exception ex) { _logger.LogWarning(ex, "POS stock cache REMOVE failed for variant {VariantId}", variantId); }
     }
 
-    // ── Static key builders (internal so PosLookupService can reuse them) ─────
+    // ── Static key builders used by lookup invalidation ───────────────────────
 
     internal static string LookupVariantKey(long variantId, long? outletId) =>
         $"pos:lookup:variant:{variantId}:{outletId ?? 0}";

@@ -1,0 +1,370 @@
+<div class="social-card m-b-30">
+  <div class="social-card-body">
+    <div class="social-card user-stroy" (click)="openDialog('assets/images/application/img-story-1.jpg')">
+      <img src="assets/images/application/img-story-1.jpg" alt="img" class="card-img" />
+      <div class="card-img-overlay add-story">
+        <div class="btn-plus">
+          <i class="ti ti-plus"></i>
+        </div>
+        <div class="text-white mat-caption">Add Story</div>
+      </div>
+    </div>
+    <div class="horizontal-scroll">
+      @for (list of userImages; track list) {
+        <a class="social-card user-stroy" (click)="openDialog(list.img)">
+          <img src="{{ list.img }}" alt="img" class="card-img" />
+          <div class="card-img-overlay">
+            <img src="{{ list.user }}" alt="img" class="wid-30 img-user" />
+          </div>
+        </a>
+      }
+    </div>
+  </div>
+</div>
+<app-card [showHeader]="false">
+  <mat-form-field appearance="outline" class="w-100 m-t-5 social-textarea">
+    <textarea matInput placeholder="What New, Stein?"></textarea>
+  </mat-form-field>
+  <div class="row align-item-center social-attach">
+    <div class="col">
+      <ul class="list-inline">
+        <li class="list-inline-item p-r-10 m-r-10">
+          <a href="javascript:" class="avatar avatar-s text-warning-500">
+            <i class="ti ti-mood-smile f-18"></i>
+          </a>
+        </li>
+        <li class="list-inline-item">
+          <a href="javascript:" class="avatar avatar-s text-muted">
+            <i class="ti ti-photo f-18"></i>
+          </a>
+        </li>
+        <li class="list-inline-item">
+          <a href="javascript:" class="avatar avatar-s text-muted">
+            <i class="ti ti-paperclip f-18"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <div class="col text-end">
+      <button mat-flat-button color="primary">Post</button>
+    </div>
+  </div>
+</app-card>
+<app-card [showHeader]="false">
+  <div class="flex align-item-center m-b-15">
+    <div class="chat-avatar">
+      <img src="assets/images/user/avatar-1.png" alt="img" class="img-fluid wid-40" />
+    </div>
+    <div class="flex-grow-1 m-l-10">
+      <div class="f-16 f-w-600">John Doe</div>
+      <div class="text-muted">Technical Department</div>
+    </div>
+    <a href="javascript:" class="avatar avatar-xs" [matMenuTriggerFor]="menu">
+      <i class="ti ti-dots-vertical f-18"></i>
+    </a>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item>Edit</button>
+      <button mat-menu-item>Delete</button>
+    </mat-menu>
+  </div>
+  <P class="m-y-20">{{ userDetails }}</P>
+  <div class="row g-2">
+    <div class="col-md-6">
+      <a href="javascript:" class="img-post social-card" (click)="openDialog('assets/images/application/img-post-1.jpg')">
+        <img src="assets/images/application/img-post-1.jpg" alt="img" class="card-img" />
+        <div class="card-img-overlay">
+          <i class="ti ti-search"></i>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a href="javascript:" class="img-post social-card" (click)="openDialog('assets/images/application/img-post-2.jpg')">
+        <img src="assets/images/application/img-post-2.jpg" alt="img" class="card-img" />
+        <div class="card-img-overlay">
+          <i class="ti ti-search"></i>
+        </div>
+      </a>
+    </div>
+    @for (task of postImages; track task) {
+      <div class="col-md-6 col-xl-3">
+        <a href="javascript:" class="img-post social-card" (click)="openDialog(task.img)">
+          <img src="{{ task.img }}" alt="img" class="card-img" />
+          <div class="card-img-overlay">
+            <i class="ti ti-search"></i>
+          </div>
+        </a>
+      </div>
+    }
+  </div>
+  <div class="row m-y-20">
+    <div class="col">
+      <button mat-button>
+        <i class="material-icons-two-tone f-18 m-r-5">thumb_up_alt</i>
+        450K
+        <small>Likes</small>
+      </button>
+      <button mat-button>
+        <i class="material-icons-two-tone f-18 m-r-5">comment</i>
+        500
+        <small>Comments</small>
+      </button>
+      <button mat-button class="text-muted">
+        <i class="material-icons-two-tone f-18 m-r-5">share</i>
+        100
+        <small>Share</small>
+      </button>
+      <button mat-button class="text-muted">
+        <i class="material-icons-two-tone f-18 m-r-5">bookmarks</i>
+        20
+        <small>Saved</small>
+      </button>
+    </div>
+    <div class="col-auto text-end">
+      <div class="flex align-item-center">
+        <p class="m-b-0 m-r-10">30 Comments</p>
+        <div class="user-group post-user-group">
+          <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+          <span class="avatar bg-warn-500 text-white">
+            <span class="f-12">K</span>
+          </span>
+          <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+          <span class="avatar bg-success-500 text-white">
+            <svg class="pc-icon m-0">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-user"></use>
+            </svg>
+          </span>
+          <img src="assets/images/user/avatar-4.jpg" alt="user-image" class="avatar" />
+          <span class="avatar bg-primary-50 text-primary-500">
+            <span class="f-12">+2</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="comment-block">
+    <div class="comment">
+      <div class="flex align-item-start">
+        <div class="chat-avatar flex-shrink-0">
+          <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-fluid" />
+        </div>
+        <div class="flex-grow-1 m-l-10">
+          <div class="f-16 f-w-600">John Doe</div>
+          <div class="text-muted">2 hour ago</div>
+        </div>
+      </div>
+      <div class="comment-content">
+        <p class="m-b-10 m-t-15">
+          {{ userComment }}
+        </p>
+        <a href="javascript:" class="text-primary-500 m-b-5 text-truncate">https://www.phoenixcoded.net/</a>
+      </div>
+    </div>
+    <div class="comment-content">
+      <div class="m-b-20">
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">favorite</i>
+          450
+        </button>
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">share</i>
+          100
+        </button>
+      </div>
+    </div>
+    <div class="comment sub-comment">
+      <div class="flex align-item-start">
+        <div class="chat-avatar flex-shrink-0">
+          <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-fluid" />
+        </div>
+        <div class="flex-grow-1 m-l-10">
+          <div class="f-16 f-w-600">John Doe</div>
+          <div class="text-muted">2 hour ago</div>
+        </div>
+      </div>
+      <div class="comment-content">
+        <app-card [showHeader]="false" cardClass="m-t-15 m-b-0">
+          <div class="f-w-600 m-b-10">Lorem Ipsum is simply dummy</div>
+          <p class="m-b-10">Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.</p>
+          <a href="javascript:" class="text-primary-500 text-truncate block m-b-5">https://www.phoenixcoded.net/</a>
+        </app-card>
+      </div>
+    </div>
+    <div class="comment-content">
+      <div class="m-b-20">
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">favorite</i>
+          450
+        </button>
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">share</i>
+          100
+        </button>
+      </div>
+    </div>
+    <div class="comment">
+      <div class="flex align-item-start">
+        <div class="chat-avatar flex-shrink-0">
+          <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-fluid" />
+        </div>
+        <div class="flex-grow-1 m-l-10">
+          <div class="f-16 f-w-600">John Doe</div>
+          <div class="text-muted">2 hour ago</div>
+        </div>
+      </div>
+      <div class="comment-content">
+        <p class="m-b-10 m-t-15">
+          {{ userComment }}
+        </p>
+        <a href="javascript:" class="text-primary-500 text-truncate m-b-5">https://www.phoenixcoded.net/</a>
+      </div>
+    </div>
+    <div class="comment-content">
+      <div class="m-b-20">
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">favorite</i>
+          450
+        </button>
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">share</i>
+          100
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="add-comment m-t-15">
+    <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-radius border-50 m-r-15" />
+    <div class="flex-grow-1 m-r-15">
+      <mat-form-field appearance="outline" class="w-100 m-t-5 social-input">
+        <input type="text" matInput placeholder="Type a Something.." />
+        <mat-icon matSuffix>
+          <i class="ti ti-photo f-24 text-muted"></i>
+        </mat-icon>
+        <mat-icon matSuffix>
+          <i class="ti ti-paperclip f-24 text-muted"></i>
+        </mat-icon>
+      </mat-form-field>
+    </div>
+    <a href="javascript:" class="avatar avatar-s bg-primary-500 text-white">
+      <i class="ti ti-send f-18"></i>
+    </a>
+  </div>
+</app-card>
+<app-card [showHeader]="false">
+  <div class="flex align-item-center m-b-15">
+    <div class="chat-avatar">
+      <img src="assets/images/user/avatar-1.png" alt="img" class="img-fluid wid-40" />
+    </div>
+    <div class="flex-grow-1 m-l-10">
+      <div class="f-16 f-w-600">John Doe</div>
+      <div class="text-muted">Technical Department</div>
+    </div>
+    <a href="javascript:" class="avatar avatar-xs" [matMenuTriggerFor]="menu">
+      <i class="ti ti-dots-vertical f-18"></i>
+    </a>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item>Edit</button>
+      <button mat-menu-item>Delete</button>
+    </mat-menu>
+  </div>
+  <P class="m-y-20">{{ userDetails }}</P>
+  <div class="row g-2">
+    <div class="col-12">
+      <iframe src="https://www.youtube.com/embed/f3NWvUV8MD8" width="100%" height="471" frameborder="0" allowfullscreen></iframe>
+    </div>
+  </div>
+  <div class="row m-y-20">
+    <div class="col">
+      <button mat-button>
+        <i class="material-icons-two-tone f-18 m-r-5">thumb_up_alt</i>
+        450K
+        <small>Likes</small>
+      </button>
+      <button mat-button>
+        <i class="material-icons-two-tone f-18 m-r-5">comment</i>
+        500
+        <small>Comments</small>
+      </button>
+      <button mat-button class="text-muted">
+        <i class="material-icons-two-tone f-18 m-r-5">share</i>
+        100
+        <small>Share</small>
+      </button>
+      <button mat-button class="text-muted">
+        <i class="material-icons-two-tone f-18 m-r-5">bookmarks</i>
+        20
+        <small>Saved</small>
+      </button>
+    </div>
+    <div class="col-auto text-end">
+      <div class="flex align-item-center">
+        <p class="m-b-0 m-r-10">30 Comments</p>
+        <div class="user-group post-user-group">
+          <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+          <span class="avatar bg-warn-500 text-white">
+            <span class="f-12">K</span>
+          </span>
+          <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+          <span class="avatar bg-success-500 text-white">
+            <svg class="pc-icon m-0">
+              <use xlink:href="assets/fonts/custom-icon.svg#custom-user"></use>
+            </svg>
+          </span>
+          <img src="assets/images/user/avatar-4.jpg" alt="user-image" class="avatar" />
+          <span class="avatar bg-primary-50 text-primary-500">
+            <span class="f-12">+2</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="comment-block">
+    <div class="comment">
+      <div class="flex align-item-start">
+        <div class="chat-avatar flex-shrink-0">
+          <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-fluid" />
+        </div>
+        <div class="flex-grow-1 m-l-10">
+          <div class="f-16 f-w-600">John Doe</div>
+          <div class="text-muted">2 hour ago</div>
+        </div>
+      </div>
+      <div class="comment-content">
+        <p class="m-b-10 m-t-15">
+          {{ userComment }}
+        </p>
+        <a href="javascript:" class="text-primary-500 m-b-5">https://www.phoenixcoded.net/</a>
+      </div>
+    </div>
+    <div class="comment-content">
+      <div class="m-b-20">
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">favorite</i>
+          450
+        </button>
+        <button mat-button class="text-muted">
+          <i class="material-icons-two-tone f-18 m-r-5">share</i>
+          100
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="add-comment m-t-15">
+    <img src="assets/images/user/avatar-1.png" alt="img" class="wid-40 img-radius border-50 m-r-15" />
+    <div class="flex-grow-1 m-r-15">
+      <mat-form-field appearance="outline" class="w-100 m-t-5 social-input">
+        <input type="text" matInput placeholder="Type a Something.." />
+        <mat-icon matSuffix>
+          <i class="ti ti-photo f-24 text-muted"></i>
+        </mat-icon>
+        <mat-icon matSuffix>
+          <i class="ti ti-paperclip f-24 text-muted"></i>
+        </mat-icon>
+      </mat-form-field>
+    </div>
+    <a href="javascript:" class="avatar avatar-s bg-primary-500 text-white">
+      <i class="ti ti-send f-18"></i>
+    </a>
+  </div>
+</app-card>

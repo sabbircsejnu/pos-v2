@@ -1,0 +1,60 @@
+<div class="row">
+  <div class="col-md-12">
+    <app-card cardTitle="paginator">
+      <div class="demo-options">
+        <mat-form-field appearance="outline" [floatLabel]="getFloatLabelValue()">
+          <input matInput placeholder="Length" type="number" [(ngModel)]="length" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [floatLabel]="getFloatLabelValue()">
+          <input matInput placeholder="Page Size" type="number" [(ngModel)]="pageSize" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [floatLabel]="getFloatLabelValue()">
+          <input matInput placeholder="Page Index" type="number" [(ngModel)]="pageIndex" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" [floatLabel]="getFloatLabelValue()">
+          <input
+            matInput
+            [ngModel]="pageSizeOptions"
+            (ngModelChange)="setPageSizeOptions($event)"
+            [ngModelOptions]="{ updateOn: 'blur' }"
+            placeholder="Ex. 10,25,50"
+          />
+        </mat-form-field>
+
+        <div class="demo-toggles">
+          <mat-slide-toggle color="primary" [(ngModel)]="hidePageSize">Hide page size</mat-slide-toggle>
+          <mat-slide-toggle color="primary" [(ngModel)]="showPageSizeOptions">Show multiple page size options</mat-slide-toggle>
+          <mat-slide-toggle color="primary" [(ngModel)]="showFirstLastButtons">Show first/last buttons</mat-slide-toggle>
+          <mat-slide-toggle color="primary" [(ngModel)]="disabled">Disabled</mat-slide-toggle>
+        </div>
+      </div>
+
+      <mat-paginator
+        #paginator
+        class="demo-paginator"
+        (page)="handlePageEvent($event)"
+        [length]="length"
+        [pageSize]="pageSize"
+        [disabled]="disabled"
+        [showFirstLastButtons]="showFirstLastButtons"
+        [pageSizeOptions]="showPageSizeOptions ? pageSizeOptions : []"
+        [hidePageSize]="hidePageSize"
+        [pageIndex]="pageIndex"
+        aria-label="Select page"
+      ></mat-paginator>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Paginator">
+      <mat-paginator [length]="100" [pageSize]="10" [pageSizeOptions]="[5, 10, 25, 100]" aria-label="Select page"></mat-paginator>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Paginator internationalization">
+      <mat-paginator [length]="200" [pageSizeOptions]="[10, 50, 100]" aria-label="Select page"></mat-paginator>
+    </app-card>
+  </div>
+</div>

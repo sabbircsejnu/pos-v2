@@ -24,10 +24,12 @@ pos-v2/
 
 ```text
 src/
-├── RetailPOS.Core/
-│   ├── RetailPOS.Core.csproj
+├── RetailPOS.Domain/
+│   ├── RetailPOS.Domain.csproj
 │   ├── Entities/
 │   └── Audit/
+├── RetailPOS.Application/
+│   ├── RetailPOS.Application.csproj
 ├── RetailPOS.Infrastructure/
 │   ├── RetailPOS.Infrastructure.csproj
 │   ├── Data/
@@ -70,12 +72,8 @@ retailpos-frontend/
 
 ```text
 tests/
-└── RetailPOS.Tests/
-    ├── RetailPOS.Tests.csproj
-    ├── Accounts/
-    ├── Audit/
-    ├── Infrastructure/
-    └── Products/
+├── RetailPOS.UnitTests/
+└── RetailPOS.IntegrationTests/
 ```
 
 ## Documentation Structure
@@ -130,11 +128,19 @@ From RetailPOSDbContext:
 ```text
 RetailPOS.API
     ├── RetailPOS.Infrastructure
-    │       └── RetailPOS.Core
-    └── RetailPOS.Core
+    │       ├── RetailPOS.Application
+    │       │       └── RetailPOS.Domain
+    │       └── RetailPOS.Domain
+    ├── RetailPOS.Application
+    └── RetailPOS.Domain
 
-RetailPOS.Tests
-    └── RetailPOS.API (integration-host style test setup)
+RetailPOS.UnitTests
+    └── RetailPOS.Application
+        └── RetailPOS.Domain
+
+RetailPOS.IntegrationTests
+    ├── RetailPOS.API
+    └── RetailPOS.Infrastructure
 
 retailpos-frontend
     └── RetailPOS.API (HTTP API consumer)

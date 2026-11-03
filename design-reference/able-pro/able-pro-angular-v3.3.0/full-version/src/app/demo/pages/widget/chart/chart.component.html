@@ -1,0 +1,343 @@
+<div class="row widget-chart p-t-25">
+  <div class="col-md-6 col-xxl-3">
+    <app-earning-chart
+      iconImage="#wallet-2"
+      headerTitle="All Earnings"
+      earningValue="$30200"
+      background="bg-primary-50"
+      textColor="text-primary-500"
+      [color]="['var(--primary-500)']"
+      percentageValue="30.6%"
+      [data]="[10, 30, 40, 20, 60, 50, 20, 15, 20, 25, 30, 25]"
+    />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-earning-chart
+      iconImage="#book"
+      headerTitle="Page Views"
+      earningValue="290+"
+      background="bg-warning-50"
+      textColor="text-warning-500"
+      [color]="['var(--warning-500)']"
+      percentageValue="30.6%"
+      [data]="[10, 30, 40, 20, 60, 50, 20, 15, 20, 25, 30, 25]"
+    />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-earning-chart
+      iconImage="#calendar"
+      headerTitle="Total Task"
+      earningValue="14568"
+      background="bg-success-50"
+      textColor="text-success-500"
+      [color]="['var(--success-500)']"
+      percentageValue="30.6%"
+      [data]="[10, 30, 40, 20, 60, 50, 20, 15, 20, 25, 30, 25]"
+    />
+  </div>
+  <div class="col-md-6 col-xxl-3">
+    <app-earning-chart
+      iconImage="#coludChange"
+      headerTitle="Download"
+      earningValue="$30200"
+      background="bg-warn-50"
+      textColor="text-warn-500"
+      [color]="['var(--warn-500)']"
+      percentageValue="30.6%"
+      [data]="[10, 30, 40, 20, 60, 50, 20, 15, 20, 25, 30, 25]"
+    />
+  </div>
+  <div class="col-lg-8 col-xxl-9">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-16 f-w-600 customer-report">Repeat customer rate</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <div class="text-end f-16 f-w-600">
+        5.44%
+        <span class="user-status bg-success-500 text-white">+2.6%</span>
+      </div>
+      <apx-chart
+        [series]="customerRateChart.series"
+        [chart]="customerRateChart.chart"
+        [colors]="preset"
+        [plotOptions]="customerRateChart.plotOptions"
+        [xaxis]="customerRateChart.xaxis"
+        [dataLabels]="customerRateChart.dataLabels"
+        [stroke]="customerRateChart.stroke"
+        [grid]="customerRateChart.grid"
+        [fill]="customerRateChart.fill"
+        [tooltip]="customerRateChart.tooltip"
+      ></apx-chart>
+    </app-card>
+    <app-project-overview-chart />
+    <div class="row">
+      <div class="col-xl-6 col-md-12">
+        <app-income-chart />
+      </div>
+      <div class="col-xl-6 col-md-12">
+        <app-total-earning-chart [color]="['#4680FF']" valueColor="#4680FF" background="#4680FF50" />
+        <app-total-earning-chart [color]="['#DC2626']" valueColor="#DC2626" background="#DC262650" />
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 col-xxl-3">
+    <app-new-order-chart />
+    <app-new-user-chart />
+    <app-visitors-chart />
+  </div>
+  <div class="col-12 project-chart">
+    <mat-card class="tab-card">
+      <mat-card-header class="card-header pb-0">
+        <mat-nav-list class="flex align-item-center">
+          @for (tab of tabs; track $index) {
+            <mat-list-item [class.active]="tab.id === activeTab" [activated]="tab.id === activeTab" (click)="setActiveTab(tab.id)">
+              {{ tab.title }}
+            </mat-list-item>
+          }
+        </mat-nav-list>
+      </mat-card-header>
+      <mat-card-content class="p-0">
+        <div class="project-body p-20">
+          <div class="row">
+            <div class="col-lg-7 col-xl-8">
+              <ul class="list-inline m-b-15">
+                <li class="list-inline-item">
+                  <select class="select-item">
+                    <option>Today</option>
+                    <option>Weekly</option>
+                    <option selected>Monthly</option>
+                  </select>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s border">
+                    <i class="ti ti-external-link f-20"></i>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" class="avatar avatar-s border">
+                    <i class="ti ti-arrows-diagonal f-20"></i>
+                  </a>
+                </li>
+                <li class="list-inline-item">
+                  <a href="javascript:" [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s border">
+                    <mat-menu #paymentInfo="matMenu">
+                      <a href="javascript:" mat-menu-item>Name</a>
+                      <a href="javascript:" mat-menu-item>Date</a>
+                      <a href="javascript:" mat-menu-item>Rating</a>
+                      <a href="javascript:" mat-menu-item>Unread</a>
+                    </mat-menu>
+                    <i class="ti ti-dots f-20"></i>
+                  </a>
+                </li>
+              </ul>
+              <app-monthly-overview-chart [currentSeries]="currentSeries" />
+            </div>
+            <div class="col-lg-5 col-xl-4">
+              <ul class="list-group project-report">
+                @for (list of project_report; track list) {
+                  <li class="list-group-item">
+                    <div class="flex align-item-center">
+                      <div class="flex-shrink-0">
+                        <div class="avatar avatar-s bg-accent-200">
+                          <i class="{{ list.icon }} f-20"></i>
+                        </div>
+                      </div>
+                      <div class="flex-grow-1 m-l-15">
+                        <div class="row">
+                          <div class="col-6 m-t-5">
+                            <div class="text-muted f-w-500">{{ list.title }}</div>
+                            <div class="f-w-600">{{ list.amount }}</div>
+                          </div>
+                          <div class="col-6 m-t-5 text-end">
+                            <div class="f-w-600">{{ list.number }}</div>
+                            <div class="{{ list.color }}  mat-caption f-w-500">
+                              <i class="{{ list.icon_2 }}"></i>
+                              {{ list.percentage }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  <div class="col-lg-6">
+    <app-overview-product-chart />
+  </div>
+  <div class="col-lg-6">
+    <app-total-income-chart />
+  </div>
+  <div class="col-lg-4">
+    <app-languages-support-chart />
+  </div>
+  <div class="col-lg-8">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600">Monthly Report</div>
+        <select class="p-5 select-item">
+          <option>Today</option>
+          <option>Weekly</option>
+          <option selected>Monthly</option>
+        </select>
+      </div>
+      <div class="m-t-10">
+        <apx-chart
+          [series]="monthlyReportChart.series"
+          [chart]="monthlyReportChart.chart"
+          [colors]="monthlyReportChart.colors"
+          [xaxis]="monthlyReportChart.xaxis"
+          [fill]="monthlyReportChart.fill"
+          [grid]="monthlyReportChart.grid"
+          [dataLabels]="monthlyReportChart.dataLabels"
+          [plotOptions]="monthlyReportChart.plotOptions"
+          [legend]="monthlyReportChart.legend"
+          [tooltip]="monthlyReportChart.tooltip"
+        ></apx-chart>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-12 col-xl-7">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600">Sales Report</div>
+        <select class="p-5 select-item">
+          <option>Today</option>
+          <option>Weekly</option>
+          <option selected>Monthly</option>
+        </select>
+      </div>
+      <div class="text-muted">Net Profit</div>
+      <div class="f-20 f-w-600">$7,650</div>
+      <apx-chart
+        [series]="salesReportChart.series"
+        [chart]="salesReportChart.chart"
+        [colors]="salesReportColor"
+        [xaxis]="salesReportChart.xaxis"
+        [stroke]="salesReportChart.stroke"
+        [dataLabels]="salesReportChart.dataLabels"
+        [plotOptions]="salesReportChart.plotOptions"
+        [legend]="salesReportChart.legend"
+        [yaxis]="salesReportChart.yaxis"
+        [fill]="salesReportChart.fill"
+        [responsive]="salesReportChart.responsive"
+        [tooltip]="salesReportChart.tooltip"
+      ></apx-chart>
+    </app-card>
+  </div>
+  <div class="col-md-12 col-xl-5">
+    <app-card [showHeader]="false" padding="0">
+      <div class="p-20">
+        <div class="flex align-item-center justify-content-between">
+          <div>
+            <div class="f-w-600 f-16">Acquisition Channels</div>
+            <p class="text-muted m-b-0">Marketing</p>
+          </div>
+          <h4 class="text-primary-500">-128</h4>
+        </div>
+        <apx-chart
+          [series]="acquisitionChart.series"
+          [chart]="acquisitionChart.chart"
+          [colors]="acquisitionChart.colors"
+          [xaxis]="acquisitionChart.xaxis"
+          [stroke]="acquisitionChart.stroke"
+          [dataLabels]="acquisitionChart.dataLabels"
+          [legend]="acquisitionChart.legend"
+          [grid]="acquisitionChart.grid"
+          [fill]="acquisitionChart.fill"
+          [yaxis]="acquisitionChart.yaxis"
+          [tooltip]="acquisitionChart.tooltip"
+        ></apx-chart>
+      </div>
+      <div class="list-group list-group-flush">
+        @for (task of acquisition; track task) {
+          <a href="javascript:" class="list-group-item list-group-item-action">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <div class="avatar avatar-s {{ task.background }}">
+                  <i class="{{ task.icon }} f-18"></i>
+                </div>
+              </div>
+              <div class="flex-grow-1 m-l-15">
+                <div class="f-w-500">{{ task.title }}</div>
+                <div class="text-muted">{{ task.time }}</div>
+              </div>
+              <div class="flex-shrink-0 text-end">
+                <div class="f-w-500">+ $1,430</div>
+                <div class="mat-caption text-muted">35%</div>
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    </app-card>
+  </div>
+</div>
+
+<ng-template #project>
+  <ul class="list-group project-report">
+    @for (list of project_report; track list) {
+      <li class="list-group-item">
+        <div class="flex align-item-center">
+          <div class="flex-shrink-0">
+            <div class="avatar avatar-s bg-accent-200">
+              <i class="{{ list.icon }} f-20"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 m-l-15">
+            <div class="row">
+              <div class="col-6 m-t-5">
+                <div class="text-muted f-w-500">{{ list.title }}</div>
+                <div class="f-w-600 f-16">{{ list.amount }}</div>
+              </div>
+              <div class="col-6 m-t-5 text-end">
+                <div class="f-w-500">{{ list.number }}</div>
+                <div class="{{ list.color }} mat-caption">
+                  <i class="{{ list.icon_2 }}"></i>
+                  {{ list.percentage }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+    }
+  </ul>
+</ng-template>
+<ng-template #Options>
+  <ul class="list-inline m-b-15">
+    <li class="list-inline-item">
+      <select class="select-item">
+        <option>Today</option>
+        <option>Weekly</option>
+        <option selected>Monthly</option>
+      </select>
+    </li>
+    <li class="list-inline-item">
+      <a href="javascript:" class="avatar avatar-s border">
+        <i class="ti ti-external-link f-18"></i>
+      </a>
+    </li>
+    <li class="list-inline-item">
+      <a href="javascript:" class="avatar avatar-s border">
+        <i class="ti ti-arrows-diagonal f-18"></i>
+      </a>
+    </li>
+    <li class="list-inline-item">
+      <a href="javascript:" [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s border">
+        <i class="ti ti-dots f-18"></i>
+      </a>
+    </li>
+  </ul>
+</ng-template>

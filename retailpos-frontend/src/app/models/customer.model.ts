@@ -8,6 +8,11 @@ export interface CustomerDto {
   totalPurchases?: number;
 }
 
+/** GET /api/customers/loyalty-capabilities */
+export interface LoyaltyCapabilitiesDto {
+  legacyPointsMutationEnabled: boolean;
+}
+
 export interface CreateCustomerDto {
   name: string;
   phone?: string;

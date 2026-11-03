@@ -1,18 +1,21 @@
 using System.Security.Claims;
+using RetailPOS.Application.Authentication.Abstractions;
+using RetailPOS.Application.Identity.Abstractions;
+using RetailPOS.Core.Entities;
 
 namespace RetailPOS.API.Services;
 
 public static class RoleSwitchClaims
 {
-    public const string RealRoleId = "real_role_id";
-    public const string RealRoleName = "real_role";
-    public const string ActingRoleId = "acting_role_id";
-    public const string ActingRoleName = "acting_role";
-    public const string ActingOutletId = "acting_outlet_id";
-    public const string ActingOutletName = "acting_outlet_name";
-    public const string IsRoleSwitched = "is_role_switched";
-    public const string BusinessOwnerRoleName = "BusinessOwner";
-    public const string SuperAdminRoleName = "Super Admin";
+    public const string RealRoleId = AuthenticationClaimNames.RealRoleId;
+    public const string RealRoleName = AuthenticationClaimNames.RealRoleName;
+    public const string ActingRoleId = AuthenticationClaimNames.ActingRoleId;
+    public const string ActingRoleName = AuthenticationClaimNames.ActingRoleName;
+    public const string ActingOutletId = AuthenticationClaimNames.ActingOutletId;
+    public const string ActingOutletName = AuthenticationClaimNames.ActingOutletName;
+    public const string IsRoleSwitched = AuthenticationClaimNames.IsRoleSwitched;
+    public const string BusinessOwnerRoleName = SystemRoleNames.BusinessOwner;
+    public const string SuperAdminRoleName = SystemRoleNames.SuperAdmin;
 
     /// <summary>
     /// Roles that operate above any single outlet — they create/manage businesses
@@ -64,7 +67,10 @@ public sealed class RoleSwitchContext : IRoleSwitchContext
             ? ActingOutletId
             : TryParseLong(User?.FindFirst("outletId")?.Value);
 
-    public long? EffectiveBusinessId => TryParseLong(User?.FindFirst("businessId")?.Value);
+    public long? EffectiveBusinessId =>
+        _http.HttpContext?.Items[RetailPOS.API.Middleware.BusinessContextMiddleware.ItemName] is long selected
+            ? selected
+            : TryParseLong(User?.FindFirst("businessId")?.Value);
 
     private static long? TryParseLong(string? s) => long.TryParse(s, out var v) ? v : null;
 }

@@ -1,6 +1,9 @@
 using RetailPOS.API.DTOs.PurchaseOrder;
 using RetailPOS.API.DTOs.Supplier;
-using RetailPOS.API.Services;
+using RetailPOS.Application.PurchaseOrders.Queries;
+using RetailPOS.Application.Suppliers.Queries;
+using RetailPOS.Application.Settings.Queries;
+using MediatR;
 
 namespace RetailPOS.API.Documents.Pdf;
 
@@ -11,31 +14,38 @@ public interface IPurchaseOrderPdfService
 
 public sealed class PurchaseOrderPdfService : IPurchaseOrderPdfService
 {
-    private readonly IPurchaseOrderService _purchaseOrderService;
-    private readonly ISupplierService _supplierService;
-    private readonly ISettingsService _settingsService;
+    private readonly ISender _sender;
     private readonly IPurchaseOrderPdfMapper _mapper;
     private readonly IDocumentPdfRenderer _renderer;
 
     public PurchaseOrderPdfService(
-        IPurchaseOrderService purchaseOrderService,
-        ISupplierService supplierService,
-        ISettingsService settingsService,
+        ISender sender,
         IPurchaseOrderPdfMapper mapper,
         IDocumentPdfRenderer renderer)
     {
-        _purchaseOrderService = purchaseOrderService;
-        _supplierService = supplierService;
-        _settingsService = settingsService;
+        _sender = sender;
         _mapper = mapper;
         _renderer = renderer;
     }
 
     public async Task<DocumentPdfFileResult> GenerateAsync(long purchaseOrderId, bool showCostFields, CancellationToken cancellationToken = default)
     {
-        var purchaseOrder = await _purchaseOrderService.GetByIdAsync(purchaseOrderId);
-        var supplier = await _supplierService.GetSupplierByIdAsync(purchaseOrder.SupplierId);
-        var settings = await _settingsService.GetAllSettingsAsync();
+        var purchaseOrder = PurchaseDocumentDtoMapper.MapPurchaseOrder(await _sender.Send(
+            new GetPurchaseOrderByIdQuery(purchaseOrderId), cancellationToken));
+        var supplierReadModel = await _sender.Send(
+            new GetSupplierByIdQuery(purchaseOrder.SupplierId),
+            cancellationToken);
+        var supplier = new SupplierDto
+        {
+            Id = supplierReadModel.Id,
+            Name = supplierReadModel.Name,
+            Contact = supplierReadModel.Contact,
+            Address = supplierReadModel.Address,
+            CreditLimit = supplierReadModel.CreditLimit,
+            CreatedAt = supplierReadModel.CreatedAt,
+            UpdatedAt = supplierReadModel.UpdatedAt
+        };
+        var settings = await _sender.Send(new GetSystemSettingsQuery(), cancellationToken);
 
         var request = _mapper.Map(purchaseOrder, supplier, settings, showCostFields);
         var pdfBytes = await _renderer.RenderAsync(request, cancellationToken);

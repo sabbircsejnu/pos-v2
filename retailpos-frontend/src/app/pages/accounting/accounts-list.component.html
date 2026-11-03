@@ -2,13 +2,9 @@
   <!-- Header -->
   <div class="flex justify-between items-center mb-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Chart of Accounts</h1>
-      <p class="text-sm text-gray-600 mt-0.5">Manage your accounting chart of accounts</p>
+      <h1 class="text-2xl font-bold text-gray-900">Legacy Accounts</h1>
+      <p class="text-sm text-gray-600 mt-0.5">Read-only historical records; Accounting Chart Accounts and Journal Engine reports are authoritative.</p>
     </div>
-    <button (click)="openCreateModal()" class="btn btn-primary">
-      <i class="fas fa-plus"></i>
-      Add Account
-    </button>
   </div>
 
   <!-- Type Filter Tabs -->
@@ -56,7 +52,7 @@
               <th class="px-4 py-2.5">Name</th>
               <th class="px-4 py-2.5">Type</th>
               <th class="px-4 py-2.5 text-right">Balance</th>
-              <th class="px-4 py-2.5 text-center">Actions</th>
+              <th class="px-4 py-2.5 text-center">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -77,14 +73,7 @@
                 </td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-center gap-2">
-                    <button (click)="openEditModal(account)" class="btn btn-ghost py-1 px-2" title="Edit">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                    <button (click)="deleteAccount(account)"
-                            class="btn btn-ghost py-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Delete">
-                      <i class="fas fa-trash"></i>
-                    </button>
+                    <span class="text-xs text-gray-500">Read-only legacy</span>
                   </div>
                 </td>
               </tr>
@@ -100,11 +89,7 @@
     <div class="bg-white rounded-lg shadow-md p-12 text-center">
       <i class="fas fa-book text-6xl text-gray-300 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">No Accounts Found</h3>
-      <p class="text-gray-600 mb-6">Start by creating your first account</p>
-      <button (click)="openCreateModal()" class="btn btn-primary">
-        <i class="fas fa-plus mr-2"></i>
-        Add Account
-      </button>
+      <p class="text-gray-600 mb-6">Legacy account records are retained as read-only historical evidence.</p>
     </div>
   }
 </div>

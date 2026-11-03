@@ -1,0 +1,103 @@
+@import '../../../@theme/styles/theme-palette-colors.scss';
+
+// ==========================
+//       contact us css start
+// ==========================
+
+.contact-page {
+  overflow-x: hidden;
+  background: var(--accent-50);
+  color: var(--accent-900);
+
+  @media (min-width: 1600px) {
+    .container {
+      max-width: 1200px;
+    }
+  }
+
+  .contact-hero {
+    background-image: url('../../../../assets/images/landing/img-headerbg.jpg');
+    background-size: cover;
+    position: relative;
+    padding: 110px 0 50px;
+
+    ::ng-deep.dark & {
+      background-image: url('../../../../assets/images/landing/img-headerbg-dark.jpg') !important;
+    }
+  }
+
+  .contact-form {
+    padding: 90px 0px;
+  }
+
+  .contact-footer {
+    padding: 100px 0 20px;
+    background-size: cover;
+
+    ::ng-deep {
+      .subscribe-email {
+        .mat-mdc-form-field-subscript-wrapper {
+          display: none;
+        }
+      }
+    }
+
+    .footer-center {
+      border-bottom: 1px solid var(--accent-300);
+      border-top: 1px solid var(--accent-300);
+      padding: 60px 0;
+      margin: 60px 0 20px;
+
+      .footer-link {
+        padding-left: 0;
+
+        li {
+          a {
+            &:hover {
+              color: var(--primary-500);
+            }
+          }
+        }
+
+        a {
+          margin: 14px 0;
+          display: block;
+          transition: all 0.08s cubic-bezier(0.37, 0.24, 0.53, 0.99);
+
+          &:not(:hover) {
+            color: var(--accent-600);
+            opacity: 0.9;
+          }
+        }
+      }
+    }
+  }
+
+  .footer-end {
+    .left-section {
+      margin: 5px 0px;
+      flex: 1 0 0%;
+      width: auto;
+
+      a {
+        &:not(:hover) {
+          color: var(--accent-600);
+        }
+        &:hover {
+          color: var(--primary-500);
+        }
+      }
+    }
+    .right-section {
+      flex: 0 0 auto;
+      width: auto;
+      padding: 0px 12px;
+      margin: 5px 0px;
+      ul li {
+        display: inline-block;
+      }
+    }
+  }
+}
+
+// contact us css end

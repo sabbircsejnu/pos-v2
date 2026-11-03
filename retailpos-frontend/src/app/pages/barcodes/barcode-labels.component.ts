@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,11 +26,12 @@ import { CurrencyService } from '../../services/currency.service';
 @Component({
   selector: 'app-barcode-labels',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, RouterLink],
   templateUrl: './barcode-labels.component.html',
   styleUrls: ['./barcode-labels.component.css']
 })
 export class BarcodeLabelsComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   private static readonly PREVIEW_MM_TO_PX = 3.1;
   private static readonly SVG_NS = 'http://www.w3.org/2000/svg';
   private static readonly SYSTEM_DEFAULT_COMPANY_NAME = 'IraniMart';
@@ -314,7 +318,7 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
   }
 
   formatDate(value: string): string {
-    return new Date(value).toLocaleString();
+    return this.companyDates.format(value, true);
   }
 
   getHistoryTotalPages(): number {

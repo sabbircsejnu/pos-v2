@@ -1,0 +1,160 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="Form Validation">
+      <form #validationForm="ngForm" class="editForm" novalidate>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="email">Email</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                id="email"
+                name="email"
+                type="text"
+                placeholder="Enter Your Email"
+                [ngClass]="{
+                  'is-invalid': !email.valid && (email.dirty || email.touched || isSubmit)
+                }"
+                #email="ngModel"
+                required
+                email
+                [(ngModel)]="formInput.email"
+              />
+              @if (!email.valid && (email.dirty || email.touched || isSubmit)) {
+                <mat-hint id="validation-email-error" class="text-warn-500 jquery-validation-error small form-text invalid-feedback">
+                  Please Enter a Valid Email Address.
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <label for="password">Password</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                type="password"
+                name="validation-password"
+                placeholder="Enter Password"
+                [ngClass]="{
+                  'is-invalid': !password.valid && (password.dirty || password.touched || isSubmit)
+                }"
+                #password="ngModel"
+                minlength="6"
+                required
+                [(ngModel)]="formInput.password"
+              />
+              @if (!password.valid && (password.dirty || password.touched || isSubmit)) {
+                <mat-hint id="validation-password-error" class="text-warn-500 jquery-validation-error small form-text invalid-feedback">
+                  Please Enter a Valid Password.
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <label for="password">Confirm password</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                type="password"
+                name="validation-password-confirm"
+                placeholder="Enter Confirm Password"
+                [ngClass]="{
+                  'is-invalid': !confirmPassword.valid && (confirmPassword.dirty || confirmPassword.touched || isSubmit)
+                }"
+                #confirmPassword="ngModel"
+                [equalTo]="password"
+                [(ngModel)]="formInput.confirmPassword"
+              />
+              @if (!confirmPassword.valid && (confirmPassword.dirty || confirmPassword.touched || isSubmit)) {
+                <mat-hint
+                  id="validation-password-confirm-error"
+                  class="text-warn-500 jquery-validation-error small form-text invalid-feedback"
+                >
+                  Please Enter a Valid Confirm Password.
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <label for="required">Required</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                type="text"
+                name="validation-required"
+                placeholder="Enter Value"
+                [ngClass]="{
+                  'is-invalid': !requiredInput.valid && (requiredInput.dirty || requiredInput.touched || isSubmit)
+                }"
+                #requiredInput="ngModel"
+                required
+                [(ngModel)]="formInput.requiredInput"
+              />
+              @if (!requiredInput.valid && (requiredInput.dirty || requiredInput.touched || isSubmit)) {
+                <mat-hint id="validation-required-error" class="text-warn-500 uery-validation-error small form-text invalid-feedback">
+                  This Field Should Be Required
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <label for="url">URL</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                type="text"
+                name="validation-url"
+                placeholder="Enter Value"
+                [ngClass]="{
+                  'is-invalid': !url.valid && (url.dirty || url.touched || isSubmit)
+                }"
+                #url="ngModel"
+                required
+                url
+                [(ngModel)]="formInput.url"
+              />
+              @if (!url.valid && (url.dirty || url.touched || isSubmit)) {
+                <mat-hint id="validation-url-error" class="text-warn-500 uery-validation-error small form-text invalid-feedback">
+                  Please Enter Valid URL.
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <label for="phone">Phone</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input
+                matInput
+                type="text"
+                name="validation-phone"
+                placeholder="Enter Contact Number"
+                [ngClass]="{
+                  'is-invalid': !phone.valid && (phone.dirty || phone.touched || isSubmit)
+                }"
+                #phone="ngModel"
+                required
+                maxlength="12"
+                minlength="10"
+                phone="IN"
+                [(ngModel)]="formInput.phone"
+              />
+              @if (!phone.valid && (phone.dirty || phone.touched || isSubmit)) {
+                <mat-hint id="validation-phone-error" class="text-warn-500 uery-validation-error small form-text invalid-feedback">
+                  Please Enter Valid Contact Number.
+                </mat-hint>
+              }
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="text-center">
+          <button uiSref="work" mat-flat-button color="primary" (click)="save(validationForm)">
+            <div class="flex align-item-center">
+              Next
+              <span class="m-l-5"><i class="ti ti-chevron-right"></i></span>
+            </div>
+          </button>
+        </div>
+      </form>
+    </app-card>
+  </div>
+</div>

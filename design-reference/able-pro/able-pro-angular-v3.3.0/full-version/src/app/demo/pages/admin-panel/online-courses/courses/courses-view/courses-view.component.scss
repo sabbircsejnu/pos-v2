@@ -1,0 +1,40 @@
+::ng-deep.courses-card {
+  .courses-image {
+    position: relative;
+    line-height: 1;
+
+    .courses-type {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 14px 8px;
+      span {
+        padding: 0.45em 0.8em;
+        font-size: 12px;
+        font-weight: 500;
+        background: var(--accent-50);
+        border-radius: 6px;
+      }
+    }
+  }
+
+  .list-group {
+    padding-left: 0px;
+    display: flex;
+    flex-direction: column;
+    margin-top: 8px;
+    margin-bottom: 8px !important;
+
+    .list-group-item {
+      padding-left: 0px;
+      padding-right: 0px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--accent-300);
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}

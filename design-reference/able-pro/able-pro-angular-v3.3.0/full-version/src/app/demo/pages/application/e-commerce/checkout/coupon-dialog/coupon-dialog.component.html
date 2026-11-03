@@ -1,0 +1,60 @@
+<div class="coupon-dialog">
+  <div class="dialog-header">
+    <div class="f-20 f-w-600 text-truncate">Festival gift for your</div>
+    <a href="javascript:" class="avatar avatar-s" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </div>
+  <div class="dialog-body">
+    <div class="row">
+      <div class="col-sm-6">
+        <app-card [showHeader]="false" cardClass="bg-warning-500 coupon-card">
+          <div class="flex align-item-center justify-content-between">
+            <div>
+              <div class="f-20 f-w-600 text-white">Up to 50% Off</div>
+              <button mat-stroked-button class="m-t-10 code" (click)="onSelect('ABLPRO50')">ABLPRO50</button>
+            </div>
+            <img src="assets/images/application/img-coupon-1.png" alt="img" class="img-fluid" />
+          </div>
+        </app-card>
+      </div>
+      <div class="col-sm-6">
+        <app-card [showHeader]="false" cardClass="bg-success-500 coupon-card">
+          <div class="flex align-item-center justify-content-between">
+            <div>
+              <div class="f-20 f-w-600 text-white">Festival Fires</div>
+              <button mat-stroked-button class="m-t-10 code" (click)="onSelect('FLAT05')">FLAT05</button>
+            </div>
+            <img src="assets/images/application/img-coupon-2.png" alt="img" class="img-fluid" />
+          </div>
+        </app-card>
+      </div>
+    </div>
+    <div class="more-coupon">
+      <div class="coupon-label coupon-label-primary">
+        <div class="flex align-item-center">
+          <div class="avatar bg-primary-100">
+            <i class="ti ti-gift f-22 text-primary-500"></i>
+          </div>
+          <div class="flex-grow-1 m-x-15">
+            <div class="f-16 f-w-500">Get $150 off on your subscription</div>
+            <div class="m-b-0 text-muted mat-small">When you subscribe to the unlimited consultation plan on able-pro.</div>
+          </div>
+          <button mat-flat-button color="primary" (click)="onSelect('SUB150')">SUB150</button>
+        </div>
+      </div>
+      <div class="coupon-label coupon-label-warning">
+        <div class="flex align-item-center">
+          <div class="avatar bg-warning-100">
+            <i class="ti ti-gift f-22 text-warning-500"></i>
+          </div>
+          <div class="flex-grow-1 m-x-15">
+            <div class="f-16 f-w-500">Save up to $200</div>
+            <div class="m-b-0 text-muted mat-small">Make 4 play store recharge code purchases & save up to $200</div>
+          </div>
+          <button mat-flat-button class="warning" (click)="onSelect('UPTO200')">UPTO200</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

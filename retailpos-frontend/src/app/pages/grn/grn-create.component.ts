@@ -1,4 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { CompanyDateService } from '../../services/company-date.service';
+import { getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { Component, OnInit, inject, signal  } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -22,11 +25,14 @@ interface GrnLineItem extends PurchaseOrderItemForGrn {
 @Component({
   selector: 'app-grn-create',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './grn-create.component.html',
   styleUrls: ['./grn-create.component.css']
 })
 export class GrnCreateComponent implements OnInit {
+  private readonly companyDates = inject(CompanyDateService);
+  readonly locationTypeLabel = getPurchaseLocationTypeLabel;
+  readonly locationName = getPurchaseLocationName;
   private imageSvc = inject(ProductImageService);
   resolveImage(path?: string | null): string { return this.imageSvc.resolveUrl(path); }
 
@@ -175,28 +181,7 @@ export class GrnCreateComponent implements OnInit {
 
   formatDateTime(date: string): string {
     if (!date) return '-';
-
-    const value = new Date(date);
-    if (Number.isNaN(value.getTime())) return '-';
-
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: this.businessTimeZone(),
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).formatToParts(value);
-
-    const day = parts.find(p => p.type === 'day')?.value ?? '--';
-    const month = parts.find(p => p.type === 'month')?.value ?? '---';
-    const year = parts.find(p => p.type === 'year')?.value ?? '----';
-    const hour = parts.find(p => p.type === 'hour')?.value ?? '--';
-    const minute = parts.find(p => p.type === 'minute')?.value ?? '--';
-    const dayPeriod = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toUpperCase();
-
-    return `${day} ${month}, ${year} ${hour}:${minute} ${dayPeriod}`.trim();
+    return this.companyDates.format(date, true, this.businessTimeZone());
   }
 
   private toDateTimeLocalString(date: Date, timeZone: string): string {

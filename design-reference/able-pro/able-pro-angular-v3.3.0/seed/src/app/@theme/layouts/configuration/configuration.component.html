@@ -1,0 +1,381 @@
+<!-- <div id="styleSelector" class="menu-styler" [ngClass]="{ open: styleSelectorToggle }">
+  <div class="pct-c-btn">
+    <a href="javascript:" (click)="styleSelectorToggle = !styleSelectorToggle">
+      <svg class="pc-icon">
+        <use xlink:href="assets/fonts/custom-icon.svg#custom-setting-2"></use>
+      </svg>
+    </a>
+  </div>
+  <div class="style-block">
+    <div class="customize-header align-item-center">
+      <div class="f-16 f-w-600">Settings</div>
+      <button
+        type="button"
+        mat-icon-button
+        class="close-drawer"
+        color="warn"
+        (click)="styleSelectorToggle = !styleSelectorToggle"
+        matTooltip="Close Customizer "
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <ng-scrollbar style="height: calc(100vh - 85px)" visibility="hover" [dir]="direction">
+      <div class="customize-body">
+        <ul class="list-group">
+          <li class="list-group-item">
+            <div class="pc-dark">
+              <div class="m-b-5 f-16 f-w-600">Theme Mode</div>
+              <p class="text-muted">Choose Light or Dark Mode or Auto</p>
+              <div class="row">
+                <div class="col-4">
+                  <div class="grid">
+                    <button
+                      matTooltip="Light Mode"
+                      mat-stroked-button
+                      class="customize-button"
+                      [ngClass]="{ active: layoutType === 'light' }"
+                      (click)="SetLayouts('light')"
+                    >
+                      <svg class="pc-icon light">
+                        <use xlink:href="assets/fonts/custom-icon.svg#custom-sun-1"></use>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="grid">
+                    <button
+                      matTooltip="Dark Mode"
+                      mat-stroked-button
+                      class="customize-button"
+                      [ngClass]="{ active: layoutType === 'dark' }"
+                      (click)="SetLayouts('dark')"
+                    >
+                      <svg class="pc-icon">
+                        <use xlink:href="assets/fonts/custom-icon.svg#custom-moon"></use>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="grid">
+                    <button
+                      matTooltip="Auto Mode"
+                      mat-stroked-button
+                      class="customize-button auto-button"
+                      [ngClass]="{ active: layoutType === 'auto-mode' }"
+                      (click)="layout_change_default('auto-mode')"
+                    >
+                      <svg class="pc-icon">
+                        <use xlink:href="assets/fonts/custom-icon.svg#custom-setting-2"></use>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Theme Contrast</div>
+            <p class="text-muted">Choose Theme Contrast</p>
+            <div class="row">
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Light Contrast"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: contrast === true }"
+                    (click)="setThemeContrast(true)"
+                  >
+                    <svg class="pc-icon">
+                      <use xlink:href="assets/fonts/custom-icon.svg#custom-mask"></use>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Gray Contrast"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: contrast === false }"
+                    (click)="setThemeContrast(false)"
+                  >
+                    <svg class="pc-icon">
+                      <use xlink:href="assets/fonts/custom-icon.svg#custom-mask-1-outline"></use>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Custom Theme</div>
+            <p class="text-muted">Choose your Primary color</p>
+            <div class="theme-color">
+              <a
+                href="javascript:"
+                matTooltip="Blue Layout"
+                class="blue-layout"
+                [ngClass]="{ active: bodyColor === 'blue-theme' }"
+                (click)="SetBodyColor('blue-theme')"
+                data-value="blue-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Indigo Layout"
+                class="indigo-layout"
+                [ngClass]="{ active: bodyColor === 'indigo-theme' }"
+                (click)="SetBodyColor('indigo-theme')"
+                data-value="indigo-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Purple Layout"
+                class="purple-layout"
+                [ngClass]="{ active: bodyColor === 'purple-theme' }"
+                (click)="SetBodyColor('purple-theme')"
+                data-value="purple-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Pink Layout"
+                class="pink-layout"
+                [ngClass]="{ active: bodyColor === 'pink-theme' }"
+                (click)="SetBodyColor('pink-theme')"
+                data-value="pink-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Red Layout"
+                class="red-layout"
+                [ngClass]="{ active: bodyColor === 'red-theme' }"
+                (click)="SetBodyColor('red-theme')"
+                data-value="red-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Orange Layout"
+                class="orange-layout"
+                [ngClass]="{ active: bodyColor === 'orange-theme' }"
+                (click)="SetBodyColor('orange-theme')"
+                data-value="orange-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Yellow Layout"
+                class="yellow-layout"
+                [ngClass]="{ active: bodyColor === 'yellow-theme' }"
+                (click)="SetBodyColor('yellow-theme')"
+                data-value="yellow-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Green Layout"
+                class="green-layout"
+                [ngClass]="{ active: bodyColor === 'green-theme' }"
+                (click)="SetBodyColor('green-theme')"
+                data-value="green-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Teal Layout"
+                class="teal-layout"
+                [ngClass]="{ active: bodyColor === 'teal-theme' }"
+                (click)="SetBodyColor('teal-theme')"
+                data-value="teal-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+              <a
+                href="javascript:"
+                matTooltip="Cyan Layout"
+                class="cyan-layout"
+                [ngClass]="{ active: bodyColor === 'cyan-theme' }"
+                (click)="SetBodyColor('cyan-theme')"
+                data-value="cyan-theme"
+              >
+                <i class="ti ti-check"></i>
+              </a>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Sidebar Caption</div>
+            <p class="text-muted">Sidebar Caption Hide/Show</p>
+            <div class="row">
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Show Menu Caption"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: caption === false }"
+                    (click)="setMenuCaption(false)"
+                  >
+                    <img src="assets/images/customizer/img-caption-1.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Hide Menu Caption"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: caption === true }"
+                    (click)="setMenuCaption(true)"
+                  >
+                    <img src="assets/images/customizer/img-caption-2.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Theme Layout</div>
+            <p class="text-muted">LTR/RTL</p>
+            <div class="row">
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="LTR Mode"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: rtlLayout === false }"
+                    (click)="setRtlLayout(false)"
+                  >
+                    <img src="assets/images/customizer/img-layout-1.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="RTL Mode"
+                    [disabled]="layout === 'horizontal'"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: rtlLayout === true }"
+                    (click)="setRtlLayout(true)"
+                  >
+                    <img src="assets/images/customizer/img-layout-2.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Menu Orientation</div>
+            <p class="text-muted">Choose Vertical or Horizontal or Compact Menu Orientation</p>
+            <div class="row">
+              <div class="col-4">
+                <div class="grid">
+                  <button
+                    matTooltip="Vertical Menu"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: layout === 'vertical' }"
+                    (click)="setMenuOrientation('vertical')"
+                  >
+                    <img src="assets/images/customizer/vertical.svg" alt="img" class="img-fluid" />
+                  </button>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="grid">
+                  <button
+                    matTooltip="Horizontal Menu"
+                    [disabled]="rtlLayout === true"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: layout === 'horizontal' }"
+                    (click)="setMenuOrientation('horizontal')"
+                  >
+                    <img src="assets/images/customizer/horizontal.svg" alt="img" class="img-fluid" />
+                  </button>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="grid">
+                  <button
+                    matTooltip="Compact Menu"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: layout === 'compact' }"
+                    (click)="setMenuOrientation('compact')"
+                  >
+                    <img src="assets/images/customizer/mini-menu.svg" alt="img" class="img-fluid" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="m-b-5 f-16 f-w-600">Layout Width</div>
+            <p class="text-muted">Choose Full or Container Layout</p>
+            <div class="row">
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Full Layout"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: boxLayouts === false }"
+                    (click)="setBoxLayouts(false)"
+                  >
+                    <img src="assets/images/customizer/img-container-1.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="grid">
+                  <button
+                    matTooltip="Container Layout"
+                    mat-stroked-button
+                    class="customize-button"
+                    [ngClass]="{ active: boxLayouts === true }"
+                    (click)="setBoxLayouts(true)"
+                  >
+                    <img src="assets/images/customizer/img-container-2.svg" alt="img" class="img-fluid" width="70%" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="list-group-item">
+            <div class="grid">
+              <button
+                matTooltip="Reset Layout"
+                mat-stroked-button
+                class="bg-primary-50 text-primary-500 b-rad-20 b-primary-50"
+                [ngClass]="{ active: resetLayoutType === 'reset' }"
+                (click)="setResetLayout('reset'); styleSelectorToggle = !styleSelectorToggle"
+              >
+                Reset Layout
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </ng-scrollbar>
+  </div>
+</div> -->

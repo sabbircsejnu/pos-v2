@@ -1,3 +1,5 @@
+import { PurchaseLocationType } from './purchase-order.model';
+
 export interface GrnItem {
   id: number;
   grnId: number;
@@ -16,7 +18,13 @@ export interface Grn {
   poNumber: string;
   poOrderNumber?: string;
   supplierName: string;
+  warehouseId?: number | null;
   warehouseName: string;
+  outletId?: number | null;
+  outletName?: string | null;
+  locationType: PurchaseLocationType;
+  locationId: number;
+  locationName: string;
   receivedDate: string;
   status: string; // 'full' | 'partial'
   notes?: string;
@@ -42,7 +50,13 @@ export interface PurchaseOrderForGrn {
   id: number;
   orderNumber: string;
   supplierName: string;
+  warehouseId?: number | null;
   warehouseName: string;
+  outletId?: number | null;
+  outletName?: string | null;
+  locationType: PurchaseLocationType;
+  locationId: number;
+  locationName: string;
   orderDate: string;
   totalAmount: number;
   items: PurchaseOrderItemForGrn[];

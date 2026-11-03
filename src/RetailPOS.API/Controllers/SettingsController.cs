@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
 using RetailPOS.API.Authorization;
+using RetailPOS.API.DTOs.Settings;
 using RetailPOS.API.Models;
-using RetailPOS.API.Services;
-using RetailPOS.API.Settings;
+using RetailPOS.Application.Abstractions;
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
+using RetailPOS.Application.Settings.Commands;
+using RetailPOS.Application.Settings.Queries;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,58 +16,76 @@ namespace RetailPOS.API.Controllers;
 [Route("api/[controller]")]
 public class SettingsController : ControllerBase
 {
-    private readonly ISettingsService _settingsService;
+    private readonly ISender _sender;
+    private readonly IBusinessScope _businessScope;
 
-    public SettingsController(ISettingsService settingsService)
+    public SettingsController(ISender sender, IBusinessScope businessScope)
     {
-        _settingsService = settingsService;
+        _sender = sender;
+        _businessScope = businessScope;
     }
 
     /// <summary>Gets all system settings.</summary>
     [HttpGet]
     [Authorize(Policy = "settings.view")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> GetAll()
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> GetAll(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetAllSettingsAsync();
+        var settings = await _sender.Send(new GetSystemSettingsQuery(), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(settings));
     }
 
     /// <summary>Gets company settings.</summary>
     [HttpGet("company")]
     [Authorize(Policy = "settings.view")]
-    public async Task<ActionResult<ApiResponse<CompanySettings>>> GetCompany()
+    public async Task<ActionResult<ApiResponse<CompanySettings>>> GetCompany(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetCompanySettingsAsync();
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Company;
         return Ok(ApiResponse<CompanySettings>.SuccessResponse(settings));
+    }
+
+    /// <summary>Gets the UI date format without exposing company administration settings.</summary>
+    [HttpGet("formatting")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UiFormattingSettings>>> GetFormatting(CancellationToken cancellationToken)
+    {
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Company;
+        return Ok(ApiResponse<UiFormattingSettings>.SuccessResponse(new UiFormattingSettings(settings.DateFormat)));
     }
 
     /// <summary>Updates company settings.</summary>
     [HttpPut("company")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCompany([FromBody] CompanySettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCompany(
+        [FromBody] CompanySettings settings,
+        CancellationToken cancellationToken)
     {
-        var result = await _settingsService.UpdateCompanySettingsAsync(settings);
+        var result = await _sender.Send(new UpdateCompanySettingsCommand(settings), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Company settings updated"));
     }
+
+    /// <summary>Company-controlled presentation settings available to authenticated UI users.</summary>
+    public sealed record UiFormattingSettings(string DateFormat);
 
     /// <summary>Gets currency settings.</summary>
     [HttpGet("currency")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<CurrencySettings>>> GetCurrency()
+    public async Task<ActionResult<ApiResponse<CurrencySettings>>> GetCurrency(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetCurrencySettingsAsync();
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Currency;
         return Ok(ApiResponse<CurrencySettings>.SuccessResponse(settings));
     }
 
     /// <summary>Updates currency settings.</summary>
     [HttpPut("currency")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCurrency([FromBody] CurrencySettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateCurrency(
+        [FromBody] CurrencySettings settings,
+        CancellationToken cancellationToken)
     {
         var validation = ValidateCurrency(settings);
         if (validation != null) return BadRequest(validation);
 
-        var result = await _settingsService.UpdateCurrencySettingsAsync(settings);
+        var result = await _sender.Send(new UpdateCurrencySettingsCommand(settings), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Currency settings updated"));
     }
 
@@ -102,55 +125,169 @@ public class SettingsController : ControllerBase
         return null;
     }
 
-    /// <summary>Gets tax settings.</summary>
+    /// <summary>Gets tax settings (Business-level).</summary>
     [HttpGet("tax")]
-    [Authorize(Policy = "settings.view")]
-    public async Task<ActionResult<ApiResponse<TaxSettings>>> GetTax()
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<TaxSettings>>> GetTax(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetTaxSettingsAsync();
-        return Ok(ApiResponse<TaxSettings>.SuccessResponse(settings));
+        if (!User.HasPermission("settings.view") && !User.HasPermission("sales.create"))
+            return Forbid();
+        var settings = await _sender.Send(new GetBusinessPosSettingsQuery(_businessScope.RequireBusinessId()), cancellationToken);
+        return Ok(ApiResponse<TaxSettings>.SuccessResponse(ToTaxSettings(settings)));
     }
 
-    /// <summary>Updates tax settings.</summary>
+    /// <summary>Updates the Business tax settings; the legacy tax settings are no longer used by checkout.</summary>
     [HttpPut("tax")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateTax([FromBody] TaxSettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateTax(
+        [FromBody] TaxSettings settings,
+        CancellationToken cancellationToken)
     {
-        var result = await _settingsService.UpdateTaxSettingsAsync(settings);
+        var updated = await _sender.Send(
+            new UpdateBusinessPosSettingsCommand(
+                _businessScope.RequireBusinessId(),
+                new BusinessPosSettingsUpdate(
+                    TaxEnabled: settings.TaxEnabled,
+                    DefaultTaxRate: settings.DefaultTaxRate,
+                    TaxName: settings.TaxName,
+                    PricesIncludeTax: settings.PricesIncludeTax),
+                TryGetCurrentUserId()),
+            cancellationToken);
+        var result = await _sender.Send(new GetSystemSettingsQuery(), cancellationToken);
+        result.Tax = ToTaxSettings(updated);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Tax settings updated"));
+    }
+
+    /// <summary>Gets the Business POS settings (cash-session limit, time zone, tax and manual-discount limit).</summary>
+    [HttpGet("pos")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<BusinessPosSettingsDto>>> GetPos(CancellationToken cancellationToken)
+    {
+        if (!User.HasPermission("settings.view")
+            && !User.HasPermission("sales.create")
+            && !User.HasPermission("sales.discount.configure"))
+            return Forbid();
+
+        var settings = await _sender.Send(new GetBusinessPosSettingsQuery(_businessScope.RequireBusinessId()), cancellationToken);
+        return Ok(ApiResponse<BusinessPosSettingsDto>.SuccessResponse(ToDto(settings)));
+    }
+
+    /// <summary>
+    /// Updates the Business POS settings. The manual-discount limit needs <c>sales.discount.configure</c>; every other
+    /// setting needs <c>settings.edit</c>. Cash-session enforcement of the duration is introduced with the session lifecycle.
+    /// </summary>
+    [HttpPut("pos")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<BusinessPosSettingsDto>>> UpdatePos(
+        [FromBody] UpdateBusinessPosSettingsDto dto,
+        CancellationToken cancellationToken)
+    {
+        var changesDiscountLimit = dto.MaxManualDiscountPercent.HasValue;
+        var changesSelfApproval = dto.AllowOwnerExpenseSelfApproval.HasValue;
+        var changesOtherSettings = dto.MaxCashSessionDurationHours.HasValue
+            || dto.DefaultTimeZoneId is not null
+            || dto.TaxEnabled.HasValue
+            || dto.DefaultTaxRate.HasValue
+            || dto.TaxName is not null
+            || dto.PricesIncludeTax.HasValue;
+        if (!changesDiscountLimit && !changesOtherSettings && !changesSelfApproval)
+            return BadRequest(ApiResponse<BusinessPosSettingsDto>.ErrorResponse("No settings were supplied."));
+        if (changesOtherSettings && !User.HasPermission("settings.edit"))
+            return Forbid();
+        if (changesDiscountLimit && !User.HasPermission("sales.discount.configure"))
+            return Forbid();
+        // The maker-checker exception is never implied by a wildcard: the exact permission must be granted.
+        if (changesSelfApproval && !User.HasExplicitPermission("expenses.self_approve"))
+            return Forbid();
+
+        var updated = await _sender.Send(
+            new UpdateBusinessPosSettingsCommand(
+                _businessScope.RequireBusinessId(),
+                new BusinessPosSettingsUpdate(
+                    dto.MaxCashSessionDurationHours,
+                    dto.DefaultTimeZoneId,
+                    dto.TaxEnabled,
+                    dto.DefaultTaxRate,
+                    dto.TaxName,
+                    dto.PricesIncludeTax,
+                    dto.MaxManualDiscountPercent,
+                    dto.AllowOwnerExpenseSelfApproval),
+                TryGetCurrentUserId()),
+            cancellationToken);
+        return Ok(ApiResponse<BusinessPosSettingsDto>.SuccessResponse(ToDto(updated), "POS settings updated"));
+    }
+
+    private BusinessPosSettingsDto ToDto(BusinessPosSettingsSnapshot settings) =>
+        new(
+            settings.MaxCashSessionDurationHours,
+            settings.DefaultTimeZoneId,
+            settings.TaxEnabled,
+            settings.DefaultTaxRate,
+            settings.TaxName,
+            settings.PricesIncludeTax,
+            settings.MaxManualDiscountPercent,
+            settings.Version,
+            settings.UpdatedAt,
+            settings.IsPersisted,
+            User.HasPermission("sales.discount.apply"),
+            User.HasPermission("sales.discount.override_limit"),
+            settings.AllowOwnerExpenseSelfApproval);
+
+    private static TaxSettings ToTaxSettings(BusinessPosSettingsSnapshot settings) =>
+        new()
+        {
+            TaxEnabled = settings.TaxEnabled,
+            DefaultTaxRate = settings.DefaultTaxRate,
+            TaxName = settings.TaxName,
+            PricesIncludeTax = settings.PricesIncludeTax
+        };
+
+    private long? TryGetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        return long.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 
     /// <summary>Gets receipt settings.</summary>
     [HttpGet("receipt")]
-    [Authorize(Policy = "settings.view")]
-    public async Task<ActionResult<ApiResponse<ReceiptSettings>>> GetReceipt()
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<ReceiptSettings>>> GetReceipt(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetReceiptSettingsAsync();
+        if (!User.HasPermission("settings.view") && !User.HasPermission("sales.create"))
+            return Forbid();
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Receipt;
         return Ok(ApiResponse<ReceiptSettings>.SuccessResponse(settings));
     }
 
     /// <summary>Updates receipt settings.</summary>
     [HttpPut("receipt")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateReceipt([FromBody] ReceiptSettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateReceipt(
+        [FromBody] ReceiptSettings settings,
+        CancellationToken cancellationToken)
     {
-        var result = await _settingsService.UpdateReceiptSettingsAsync(settings);
+        var result = await _sender.Send(new UpdateReceiptSettingsCommand(settings), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Receipt settings updated"));
     }
 
     /// <summary>Gets invoice number settings.</summary>
     [HttpGet("invoice-number")]
     [Authorize(Policy = "settings.view")]
-    public async Task<ActionResult<ApiResponse<InvoiceNumberSettings>>> GetInvoiceNumber()
+    public async Task<ActionResult<ApiResponse<InvoiceNumberSettings>>> GetInvoiceNumber(
+        CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetInvoiceNumberSettingsAsync();
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).InvoiceNumber;
         return Ok(ApiResponse<InvoiceNumberSettings>.SuccessResponse(settings));
     }
 
     /// <summary>Updates invoice number settings.</summary>
     [HttpPut("invoice-number")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInvoiceNumber([FromBody] InvoiceNumberSettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInvoiceNumber(
+        [FromBody] InvoiceNumberSettings settings,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.Prefix))
             return BadRequest(ApiResponse<SystemSettings>.ErrorResponse("Invoice prefix is required"));
@@ -161,13 +298,13 @@ public class SettingsController : ControllerBase
         if (settings.Padding < 3 || settings.Padding > 10)
             return BadRequest(ApiResponse<SystemSettings>.ErrorResponse("Padding must be between 3 and 10"));
 
-        var result = await _settingsService.UpdateInvoiceNumberSettingsAsync(settings);
+        var result = await _sender.Send(new UpdateInvoiceNumberSettingsCommand(settings), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Invoice number settings updated"));
     }
 
     /// <summary>Gets inventory settings.</summary>
     [HttpGet("inventory")]
-    public async Task<ActionResult<ApiResponse<InventorySettings>>> GetInventory()
+    public async Task<ActionResult<ApiResponse<InventorySettings>>> GetInventory(CancellationToken cancellationToken)
     {
         var canViewInventorySettings = User.HasPermission("settings.view")
             || User.HasPermission("inventory.view")
@@ -179,16 +316,18 @@ public class SettingsController : ControllerBase
             return Forbid();
         }
 
-        var settings = await _settingsService.GetInventorySettingsAsync();
+        var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Inventory;
         return Ok(ApiResponse<InventorySettings>.SuccessResponse(settings));
     }
 
     /// <summary>Updates inventory settings.</summary>
     [HttpPut("inventory")]
     [Authorize(Policy = "settings.edit")]
-    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInventory([FromBody] InventorySettings settings)
+    public async Task<ActionResult<ApiResponse<SystemSettings>>> UpdateInventory(
+        [FromBody] InventorySettings settings,
+        CancellationToken cancellationToken)
     {
-        var result = await _settingsService.UpdateInventorySettingsAsync(settings);
+        var result = await _sender.Send(new UpdateInventorySettingsCommand(settings), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Inventory settings updated"));
     }
 }

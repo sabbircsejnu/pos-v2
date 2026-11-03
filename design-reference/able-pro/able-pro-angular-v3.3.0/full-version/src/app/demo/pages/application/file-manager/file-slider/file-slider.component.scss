@@ -1,0 +1,36 @@
+::ng-deep.mat-drawer.file-drawer {
+  z-index: 1030;
+  width: 360px;
+  position: fixed;
+
+  .overlay {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    z-index: 1;
+  }
+
+  .file-content {
+    position: relative;
+    z-index: 5;
+
+    .file-drawer-header {
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-drawer-body {
+      padding: 20px;
+
+      .list-group {
+        li {
+          border-bottom: 1px solid var(--accent-300);
+        }
+      }
+    }
+  }
+}

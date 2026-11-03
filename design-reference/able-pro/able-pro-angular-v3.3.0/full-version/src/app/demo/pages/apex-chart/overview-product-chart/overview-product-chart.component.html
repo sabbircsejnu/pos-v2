@@ -1,0 +1,47 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between m-b-15">
+    <div class="f-w-600 f-16">Overview Product</div>
+    <a [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+    <mat-menu #paymentInfo="matMenu">
+      <a href="javascript:" mat-menu-item>Name</a>
+      <a href="javascript:" mat-menu-item>Date</a>
+      <a href="javascript:" mat-menu-item>Rating</a>
+      <a href="javascript:" mat-menu-item>Unread</a>
+    </mat-menu>
+  </div>
+  <div class="product-overview" id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [labels]="chartOptions.labels"
+      [legend]="chartOptions.legend"
+      [fill]="chartOptions.fill"
+      [responsive]="chartOptions.responsive"
+      [colors]="chartOptions.colors"
+    />
+  </div>
+  <div class="row text-center">
+    @for (task of overView_product; track task) {
+      <div class="col-6 col-lg-4 col-xxl-4">
+        <div class="overview-product-legends">
+          <p class="m-b-5">
+            <span>{{ task.name }}</span>
+          </p>
+          <div class="f-w-600">{{ task.value }}</div>
+        </div>
+      </div>
+    }
+  </div>
+  <div class="row text-center m-t-25">
+    <div class="col-sm-6 m-t-10">
+      <div class="grid">
+        <button mat-stroked-button class="b-rad-20">View All</button>
+      </div>
+    </div>
+    <div class="col-sm-6 m-t-10">
+      <div class="grid">
+        <button mat-flat-button class="b-rad-20" color="primary">Create New Page</button>
+      </div>
+    </div>
+  </div>
+</app-card>

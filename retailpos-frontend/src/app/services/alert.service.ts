@@ -57,7 +57,8 @@ export class AlertService {
     onConfirm: () => void,
     title: string = 'Confirm',
     confirmText: string = 'Confirm',
-    cancelText: string = 'Cancel'
+    cancelText: string = 'Cancel',
+    onCancel?: () => void
   ): void {
     this.alertConfig.set({
       type: 'confirm',
@@ -65,7 +66,8 @@ export class AlertService {
       message,
       confirmText,
       cancelText,
-      onConfirm
+      onConfirm,
+      onCancel
     });
   }
 

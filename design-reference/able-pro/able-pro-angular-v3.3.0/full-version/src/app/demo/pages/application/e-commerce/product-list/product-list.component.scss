@@ -1,0 +1,76 @@
+@import '../../../../../@theme/styles/theme-palette-colors.scss';
+
+.product-list {
+  .product-status {
+    padding: 3px 10px;
+    border-radius: 20px;
+    width: fit-content;
+
+    white-space: nowrap;
+
+    &.in {
+      background: var(--success-50);
+      color: var(--success-500);
+    }
+    &.out {
+      background: var(--warn-50);
+      color: var(--warn-500);
+    }
+  }
+
+  table {
+    width: 100%;
+  }
+
+  tr.product-row:not(.example-expanded-row):hover {
+    background: whitesmoke;
+
+    ::ng-deep.dark & {
+      background: var(--accent-300) !important;
+    }
+  }
+
+  tr.product-row:not(.example-expanded-row):active {
+    background: #efefef;
+  }
+
+  .product-list-diagram {
+    height: auto;
+    padding: 20px 20px 20px 120px;
+    border-top: 1px solid var(--accent-300);
+
+    .product-images {
+      position: relative;
+      background: var(--accent-100);
+      max-width: 100%;
+      width: 300px;
+      margin-bottom: 30px;
+
+      .status {
+        color: $white;
+        padding: 3px 10px;
+        border-radius: 20px;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-weight: 600;
+        font-size: 12px;
+
+        &.in {
+          background: var(--success-500);
+        }
+        &.out {
+          background: var(--warn-500);
+        }
+      }
+    }
+  }
+
+  .product-row td {
+    border-bottom-width: 0;
+  }
+
+  tr.product-detail-row {
+    height: 0;
+  }
+}

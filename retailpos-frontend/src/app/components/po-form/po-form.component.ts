@@ -1,3 +1,4 @@
+import { UiDateInputDirective } from '../shared/ui/ui-date-input.directive';
 import { Component, OnInit, AfterViewInit, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,17 +6,20 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { SupplierService } from '../../services/supplier.service';
-import { WarehouseService } from '../../services/warehouse.service';
+import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { ProductService } from '../../services/product.service';
 import { ProductImageService } from '../../services/product-image.service';
 import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { CreatePurchaseAndReceiveRequest, CreatePurchaseOrderRequest, CreatePurchaseOrderItem } from '../../models/purchase-order.model';
+import { CreatePurchaseAndReceiveRequest, CreatePurchaseOrderRequest, CreatePurchaseOrderItem, PurchaseLocationType, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { SearchableDropdownComponent, DropdownOption } from '../searchable-dropdown/searchable-dropdown.component';
 import { Supplier } from '../../models/supplier.model';
-import { Warehouse } from '../../models/warehouse.model';
+import { AuthorizedLocationDto, AuthorizedOutletsDto } from '../../models/report.model';
+import { UiButtonComponent, UiCardComponent, UiControlDirective, UiFormFieldComponent, UiStateComponent } from '../shared/ui';
 import { CurrencyService } from '../../services/currency.service';
+import { VariationService } from '../../services/variation.service';
+import { Variation } from '../../models/variation.model';
 import { findVariantIndexById, isVariantAlreadyInItems } from '../../utils/variant-selection.util';
 
 interface ProductVariantOption {
@@ -27,25 +31,32 @@ interface ProductVariantOption {
   sku?: string;
   barcode?: string;
   attributes?: string;
+  variantDisplay?: string;
   finalPrice: number;
   costPrice?: number;
   stockQuantity?: number;
   primaryImageThumb?: string;
 }
 
+type VariationMeta = {
+  name: string;
+  displayOrder: number;
+  options: string[];
+};
+
 @Component({
   selector: 'app-po-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, SearchableDropdownComponent],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, SearchableDropdownComponent, UiCardComponent, UiFormFieldComponent, UiControlDirective, UiStateComponent, UiButtonComponent],
   templateUrl: './po-form.component.html',
   styleUrl: './po-form.component.css'
 })
 export class PoFormComponent implements OnInit, AfterViewInit {
   @ViewChild('supplierDropdown') supplierDropdown!: SearchableDropdownComponent;
-  @ViewChild('warehouseDropdown') warehouseDropdown!: SearchableDropdownComponent;
 
   private imageSvc = inject(ProductImageService);
   private auth = inject(AuthService);
+  private locationAccess = inject(UserOutletAccessService);
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   canPurchaseAndReceive = computed(() => this.auth.hasPermission('purchases.receive'));
 
@@ -58,7 +69,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
 
   // Form fields
   supplierId = signal<number | null>(null);
-  warehouseId = signal<number | null>(null);
+  locationType = signal<PurchaseLocationType | null>(null);
+  locationId = signal<number | null>(null);
   orderDate = signal<string>(this.formatDateForInput(new Date()));
   expectedDeliveryDate = signal<string>('');
   notes = signal<string>('');
@@ -72,14 +84,14 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   totalQuantity = computed(() => this.selectedItems().reduce((sum: number, item: any) => sum + (item.quantity || 0), 0));
   setupChecklist = computed(() => {
     const hasSupplier = !!this.supplierId();
-    const hasWarehouse = !!this.warehouseId();
+    const hasDestination = !!this.locationType() && !!this.locationId();
     const hasDate = !!this.orderDate();
     const hasItems = this.selectedItemCount() > 0;
     const hasValue = this.calculateGrandTotal() > 0;
 
     return [
       { label: 'Supplier selected', complete: hasSupplier },
-      { label: 'Warehouse selected', complete: hasWarehouse },
+      { label: 'Destination selected', complete: hasDestination },
       { label: 'Order date selected', complete: hasDate },
       { label: 'At least one line item', complete: hasItems },
       { label: 'Order value confirmed', complete: hasValue },
@@ -96,7 +108,27 @@ export class PoFormComponent implements OnInit, AfterViewInit {
 
   // Data
   suppliers = signal<Supplier[]>([]);
-  warehouses = signal<Warehouse[]>([]);
+  // Destination locations: Business-scoped and access-filtered by the backend (/me/outlets).
+  authorizedOutlets = signal<AuthorizedLocationDto[]>([]);
+  authorizedWarehouses = signal<AuthorizedLocationDto[]>([]);
+  locationsLoading = signal(true);
+  locationsError = signal('');
+  availableLocations = computed<AuthorizedLocationDto[]>(() => {
+    switch (this.locationType()) {
+      case 'outlet': return this.authorizedOutlets();
+      case 'warehouse': return this.authorizedWarehouses();
+      default: return [];
+    }
+  });
+  locationTypeOptions = computed(() => [
+    { value: 'outlet' as PurchaseLocationType, label: 'Outlet', count: this.authorizedOutlets().length },
+    { value: 'warehouse' as PurchaseLocationType, label: 'Warehouse', count: this.authorizedWarehouses().length }
+  ]);
+  hasAnyLocation = computed(() => this.authorizedOutlets().length + this.authorizedWarehouses().length > 0);
+  selectedLocationTypeLabel = computed(() => getPurchaseLocationTypeLabel(this.locationType()));
+  selectedLocationName = computed(() =>
+    this.availableLocations().find(location => location.id === this.locationId())?.name ?? '');
+  private loadedDestination: { type: PurchaseLocationType; id: number; name: string } | null = null;
 
   // Product variant search per row
   variantSearchResults = signal<{ [index: number]: ProductVariantOption[] }>({});
@@ -108,6 +140,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   variantInputFocused = signal<{ [index: number]: boolean }>({});
   dropdownPosition = signal<{ [index: number]: { top: number; left: number; width: number } }>({});
   duplicateHighlightedVariantId = signal<number | null>(null);
+  variationMetadata = signal<VariationMeta[]>([]);
 
   constructor(
     private route: ActivatedRoute,
@@ -115,22 +148,26 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     private location: Location,
     private poService: PurchaseOrderService,
     private supplierService: SupplierService,
-    private warehouseService: WarehouseService,
     private productService: ProductService,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
-    private currencyService: CurrencyService
+    private currencyService: CurrencyService,
+    private variationService: VariationService
   ) {}
 
   ngOnInit(): void {
-    // Load suppliers and warehouses immediately
-    this.loadSuppliers();
-    this.loadWarehouses();
-    
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode.set(true);
       this.poId.set(+id);
+    }
+
+    // Load suppliers and the user's authorized destination locations immediately
+    this.loadSuppliers();
+    this.loadLocations();
+    this.loadVariationMetadata();
+
+    if (id) {
       this.loadPurchaseOrder(+id);
     } else {
       // Create mode - add one empty item
@@ -157,18 +194,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       this.supplierDropdown.setHasMore(false);
     }
     
-    if (this.warehouses().length > 0 && this.warehouseDropdown) {
-      const warehouseOptions = this.warehouses().map((w: Warehouse) => ({ 
-        id: w.id, 
-        name: w.name, 
-        address: w.address 
-      }));
-      this.warehouseDropdown.setOptions(warehouseOptions, false);
-      this.warehouseDropdown.setHasMore(false);
-    }
-    
     // If data not loaded yet, try again
-    if (this.suppliers().length === 0 || this.warehouses().length === 0) {
+    if (this.suppliers().length === 0) {
       setTimeout(() => this.initializeDropdowns(), 300);
     }
   }
@@ -196,29 +223,83 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     });
   }
   
-  loadWarehouses(): void {
-    this.warehouseService.getAllWarehouses().subscribe({
+  loadLocations(): void {
+    this.locationsLoading.set(true);
+    this.locationsError.set('');
+    this.locationAccess.load().subscribe({
       next: (response) => {
-        if (response.data) {
-          this.warehouses.set(response.data);
-          // Initialize dropdown after data loaded
-          if (this.warehouseDropdown) {
-            const warehouseOptions = this.warehouses().map((w: Warehouse) => ({ 
-              id: w.id, 
-              name: w.name, 
-              address: w.address 
-            }));
-            this.warehouseDropdown.setOptions(warehouseOptions, false);
-            this.warehouseDropdown.setHasMore(false);
-          }
+        const access = response.data;
+        this.authorizedOutlets.set(access.outlets);
+        this.authorizedWarehouses.set(access.warehouses);
+        this.locationsLoading.set(false);
+        this.applyLoadedDestination();
+        if (!this.isEditMode()) {
+          this.applyDefaultDestination(access);
         }
       },
       error: (err: any) => {
-        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.locationsLoading.set(false);
+        this.locationsError.set(this.errorHandler.extractErrorMessage(err));
       }
     });
   }
 
+  onLocationTypeChange(type: PurchaseLocationType | null): void {
+    this.locationType.set(type);
+    const options = this.availableLocations();
+    if (!options.some(location => location.id === this.locationId())) {
+      this.locationId.set(options.length === 1 ? options[0].id : null);
+    }
+  }
+
+  onLocationChange(id: number | string | null): void {
+    const parsed = id === null || id === '' ? null : Number(id);
+    this.locationId.set(parsed && !Number.isNaN(parsed) ? parsed : null);
+  }
+
+  /** Pre-selects the user's default location (or the only available one) for new orders. */
+  private applyDefaultDestination(access: AuthorizedOutletsDto | null): void {
+    if (this.locationType()) {
+      return;
+    }
+
+    const outlets = this.authorizedOutlets();
+    const warehouses = this.authorizedWarehouses();
+    const preferred = access?.defaultLocationType;
+    const type: PurchaseLocationType | null =
+      preferred === 'outlet' && outlets.length > 0 ? 'outlet'
+        : preferred === 'warehouse' && warehouses.length > 0 ? 'warehouse'
+          : outlets.length > 0 && warehouses.length === 0 ? 'outlet'
+            : warehouses.length > 0 && outlets.length === 0 ? 'warehouse'
+              : null;
+    if (!type) {
+      return;
+    }
+
+    this.locationType.set(type);
+    const options = this.availableLocations();
+    const defaultId = access?.defaultLocationType === type ? access?.defaultLocationId : null;
+    const match = options.find(location => location.id === defaultId);
+    this.locationId.set(match?.id ?? (options.length === 1 ? options[0].id : null));
+  }
+
+  /**
+   * Keeps an existing order's destination selectable while editing, even when it is not in the
+   * current user's list; the backend still enforces location access on save.
+   */
+  private applyLoadedDestination(): void {
+    const destination = this.loadedDestination;
+    if (!destination || this.locationsLoading()) {
+      return;
+    }
+
+    const list = destination.type === 'outlet' ? this.authorizedOutlets : this.authorizedWarehouses;
+    if (!list().some(location => location.id === destination.id)) {
+      list.update(locations => [...locations, { id: destination.id, name: destination.name, type: destination.type }]);
+    }
+    this.locationType.set(destination.type);
+    this.locationId.set(destination.id);
+  }
   onSupplierSearch(event: { query: string, page: number, pageSize: number }): void {
     const suppliers: DropdownOption[] = this.suppliers().map((s: Supplier) => ({
       id: s.id,
@@ -243,37 +324,22 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     this.supplierId.set(option.id);
   }
 
-  onWarehouseSearch(event: { query: string, page: number, pageSize: number }): void {
-    const warehouses: DropdownOption[] = this.warehouses().map((w: Warehouse) => ({
-      id: w.id,
-      name: w.name,
-      address: w.address
-    }));
-    
-    // Filter by query if provided
-    const filtered = event.query 
-      ? warehouses.filter(w => w.name.toLowerCase().includes(event.query.toLowerCase()))
-      : warehouses;
-    
-    this.warehouseDropdown?.setOptions(filtered, false);
-    this.warehouseDropdown?.setHasMore(false);
-  }
-
-  onWarehouseLoadMore(event: { query: string, page: number, pageSize: number }): void {
-    // Not needed for warehouses as we load all
-  }
-
-  onWarehouseSelect(option: DropdownOption): void {
-    this.warehouseId.set(option.id);
-  }
-
   loadPurchaseOrder(id: number): void {
     this.isLoading.set(true);
     this.poService.getById(id).subscribe({
       next: (response) => {
         const po = response.data;
         this.supplierId.set(po.supplierId);
-        this.warehouseId.set(po.warehouseId);
+        const loadedType: PurchaseLocationType = po.locationType === 'outlet' ? 'outlet' : 'warehouse';
+        const loadedId = po.locationId || (loadedType === 'outlet' ? po.outletId : po.warehouseId) || 0;
+        if (loadedId) {
+          this.loadedDestination = {
+            type: loadedType,
+            id: loadedId,
+            name: po.locationName || (loadedType === 'outlet' ? po.outletName : po.warehouseName) || ''
+          };
+          this.applyLoadedDestination();
+        }
         this.orderDate.set(this.formatDateForInput(new Date(po.orderDate)));
         if (po.expectedDelivery) {
           this.expectedDeliveryDate.set(this.formatDateForInput(new Date(po.expectedDelivery)));
@@ -435,7 +501,10 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     
     this.productService.searchVariants(query, page, 20).subscribe({
       next: (response) => {
-        const variants: ProductVariantOption[] = response.data || [];
+        const variants: ProductVariantOption[] = (response.data || []).map((variant: ProductVariantOption) => ({
+          ...variant,
+          variantDisplay: this.resolveVariantDisplay(variant)
+        }));
         
         if (page === 1) {
           this.variantSearchResults.update(r => ({ ...r, [index]: variants }));
@@ -504,6 +573,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       productName: variant.productName,
       variantName: variant.name,
       variantAttributes: variant.attributes || '',
+      variantDisplay: variant.variantDisplay || this.resolveVariantDisplay(variant),
       primaryImageThumb: variant.primaryImageThumb,
     };
     this.items.set(updatedItems);
@@ -584,13 +654,23 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   }
 
   validateForm(): boolean {
+    if (this.locationsLoading() || this.locationsError()) {
+      this.alertService.error(this.locationsError() || 'Please wait for locations to load');
+      return false;
+    }
+
     if (!this.supplierId()) {
       this.alertService.error('Please select a supplier');
       return false;
     }
     
-    if (!this.warehouseId()) {
-      this.alertService.error('Please select a warehouse');
+    if (!this.locationType()) {
+      this.alertService.error('Please select a location type');
+      return false;
+    }
+
+    if (!this.locationId()) {
+      this.alertService.error(`Please select ${this.locationType() === 'outlet' ? 'an outlet' : 'a warehouse'}`);
       return false;
     }
     
@@ -646,7 +726,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
 
     const request: any = {
       supplierId: this.supplierId()!,
-      warehouseId: this.warehouseId()!,
+      locationType: this.locationType()!,
+      locationId: this.locationId()!,
       orderDate: this.orderDate(),
       expectedDelivery: this.expectedDeliveryDate() || undefined,
       notes: this.notes() || undefined,
@@ -711,7 +792,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     }
 
     this.alertService.confirm(
-      'This will create the purchase order, automatically generate a GRN, and add the products to warehouse stock. Do you want to continue?',
+      `This will create the purchase order, automatically generate a GRN, and add the products to the stock of ${this.selectedLocationTypeLabel().toLowerCase()} "${this.selectedLocationName()}". Do you want to continue?`,
       () => this.executePurchaseAndReceive(),
       'Confirm Purchase & Receive',
       'Continue',
@@ -728,7 +809,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
 
     const request: CreatePurchaseAndReceiveRequest = {
       supplierId: this.supplierId()!,
-      warehouseId: this.warehouseId()!,
+      locationType: this.locationType()!,
+      locationId: this.locationId()!,
       orderDate: new Date(this.orderDate()),
       expectedDelivery: this.expectedDeliveryDate() ? new Date(this.expectedDeliveryDate()) : undefined,
       notes: this.notes() || undefined,
@@ -807,28 +889,194 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   }
 
   getVariantDisplayText(item: any): string {
-    if (item.productName && item.variantName) {
-      return `${item.productName} - ${item.variantName}`;
+    if (item.productName) {
+      const variantText = this.resolveVariantText(item.variantAttributes, item.variantDisplay || item.variantName);
+      return variantText ? `${item.productName} (${variantText})` : item.productName;
     }
     return '';
   }
 
-  formatVariantAttributes(attributes?: string | null): string {
-    if (!attributes) {
+  formatVariantAttributes(attributes?: string | null, fallbackName?: string | null): string {
+    return this.resolveVariantText(attributes, fallbackName);
+  }
+
+  getSearchVariantText(variant: ProductVariantOption): string {
+    return this.resolveVariantText(variant.attributes, variant.variantDisplay || variant.name);
+  }
+
+  private resolveVariantText(attributes?: string | null, fallbackName?: string | null): string {
+    const formattedAttributes = this.formatFromAttributes(attributes);
+    if (formattedAttributes) {
+      return formattedAttributes;
+    }
+
+    const fallback = (fallbackName || '').trim();
+    if (!fallback) {
+      return '';
+    }
+
+    const normalized = this.normalizeVariantDisplay(fallback);
+    return this.formatFromHyphenValues(normalized) || normalized;
+  }
+
+  private resolveVariantDisplay(variant: ProductVariantOption): string {
+    const explicit = (variant.variantDisplay || '').trim();
+    if (explicit) {
+      return this.resolveVariantText(variant.attributes, explicit);
+    }
+
+    return this.resolveVariantText(variant.attributes, variant.name);
+  }
+
+  private formatFromAttributes(attributes?: string | null): string {
+    if (!attributes?.trim()) {
       return '';
     }
 
     try {
       const parsed = JSON.parse(attributes);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return Object.entries(parsed)
-          .map(([key, value]) => `${key} ${value}`)
-          .join(' / ');
+        const entries = Object.entries(parsed as Record<string, unknown>)
+          .map(([key, value]) => ({ label: this.humanizeKey(key), value: String(value ?? '').trim() }))
+          .filter(x => !!x.label && !!x.value && x.value.toLowerCase() !== 'null' && x.value.toLowerCase() !== 'undefined');
+
+        if (!entries.length) {
+          return '';
+        }
+
+        const preferredOrder = ['color', 'size', 'fabric', 'febric'];
+        entries.sort((a, b) => {
+          const ai = preferredOrder.indexOf(a.label.toLowerCase());
+          const bi = preferredOrder.indexOf(b.label.toLowerCase());
+          const left = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+          const right = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+          if (left !== right) return left - right;
+          return a.label.localeCompare(b.label);
+        });
+
+        return entries.map(x => `${x.label}: ${x.value}`).join(' / ');
       }
     } catch {
-      // Fall back to the raw string when the payload is already formatted text.
+      // Payload may already be formatted text.
     }
 
-    return attributes;
+    return '';
+  }
+
+  private normalizeVariantDisplay(display: string): string {
+    const parts = display.split('/').map(x => x.trim()).filter(Boolean);
+    if (!parts.length) {
+      return display;
+    }
+
+    return parts
+      .map(part => {
+        if (part.includes(':')) {
+          const [rawLabel, ...rest] = part.split(':');
+          const label = this.humanizeKey(rawLabel.trim());
+          const value = rest.join(':').trim();
+          return value ? `${label}: ${value}` : label;
+        }
+
+        const firstSpace = part.indexOf(' ');
+        if (firstSpace <= 0) {
+          return part;
+        }
+
+        const label = this.humanizeKey(part.substring(0, firstSpace).trim());
+        const value = part.substring(firstSpace + 1).trim();
+        return value ? `${label}: ${value}` : label;
+      })
+      .join(' / ');
+  }
+
+  private formatFromHyphenValues(raw: string): string {
+    if (!raw || raw.includes(':') || raw.includes('/')) {
+      return '';
+    }
+
+    const variations = this.variationMetadata();
+    if (!variations.length) {
+      return '';
+    }
+
+    const parts = raw
+      .split(/\s+-\s+/)
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    if (parts.length < 2) {
+      return '';
+    }
+
+    const usedVariations = new Set<string>();
+    const mappedByVariation = new Map<string, { label: string; value: string; order: number }>();
+
+    for (const part of parts) {
+      const token = part.trim().toLowerCase();
+      if (!token) {
+        continue;
+      }
+
+      const matched = variations.find(variation => {
+        if (usedVariations.has(variation.name)) {
+          return false;
+        }
+
+        return variation.options.some(option => option.toLowerCase() === token);
+      });
+
+      if (!matched) {
+        continue;
+      }
+
+      usedVariations.add(matched.name);
+      mappedByVariation.set(matched.name, {
+        label: this.humanizeKey(matched.name),
+        value: part,
+        order: matched.displayOrder
+      });
+    }
+
+    if (!mappedByVariation.size) {
+      return '';
+    }
+
+    return Array.from(mappedByVariation.values())
+      .sort((a, b) => a.order - b.order)
+      .map(entry => `${entry.label}: ${entry.value}`)
+      .join(' / ');
+  }
+
+  private humanizeKey(key: string): string {
+    return key
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^./, c => c.toUpperCase());
+  }
+
+  private loadVariationMetadata(): void {
+    this.variationService.getAllVariations().subscribe({
+      next: (variations: Variation[]) => {
+        const prepared = (variations || [])
+          .filter(v => v.isActive)
+          .sort((a, b) => a.displayOrder - b.displayOrder)
+          .map(v => ({
+            name: v.name,
+            displayOrder: v.displayOrder,
+            options: (v.options || [])
+              .filter(o => o.isActive)
+              .sort((a, b) => a.displayOrder - b.displayOrder)
+              .map(o => o.name)
+          }));
+
+        this.variationMetadata.set(prepared);
+      },
+      error: () => {
+        this.variationMetadata.set([]);
+      }
+    });
   }
 }

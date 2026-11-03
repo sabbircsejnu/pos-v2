@@ -22,15 +22,15 @@
       <form [formGroup]="expenseForm" (ngSubmit)="onSubmit()">
         <!-- Category -->
         <div class="mb-4">
-          <label for="category" class="label">Category <span class="text-red-500">*</span></label>
-          <select id="category" formControlName="category" class="input"
-                  [class.border-red-500]="isFieldInvalid('category')">
+          <label for="expenseCategoryId" class="label">Category <span class="text-red-500">*</span></label>
+          <select id="expenseCategoryId" formControlName="expenseCategoryId" class="input"
+                  [class.border-red-500]="isFieldInvalid('expenseCategoryId')">
             <option value="">Select category...</option>
-            @for (cat of categories; track cat) {
-              <option [value]="cat">{{ cat }}</option>
+            @for (cat of categories(); track cat.id) {
+              <option [value]="cat.id">{{ getCategoryLabel(cat) }}</option>
             }
           </select>
-          @if (isFieldInvalid('category')) {
+          @if (isFieldInvalid('expenseCategoryId')) {
             <p class="mt-1 text-sm text-red-600">Category is required</p>
           }
         </div>
@@ -46,10 +46,62 @@
           }
         </div>
 
+        <!-- Payment Source (D7): approval is never payout; a drawer payout is recorded separately at a terminal. -->
+        <div class="mb-4">
+          <label class="label" id="paymentSourceLabel">Payment Source <span class="text-red-500">*</span></label>
+          <app-searchable-dropdown
+            #sourceDropdown
+            [placeholder]="selectedSource().name"
+            ariaLabel="Payment source"
+            [selectedId]="selectedSource().id"
+            [disabled]="isSubmitting()"
+            [showSecondaryText]="true"
+            [secondaryTextField]="'description'"
+            (onSearch)="onSourceSearch($event)"
+            (onLoadMore)="onSourceSearch($event)"
+            (onSelect)="onSourceSelect($event)">
+          </app-searchable-dropdown>
+          <p class="mt-1 text-xs text-gray-500">{{ selectedSource().description }}</p>
+        </div>
+
+        <!-- Payment Account -->
+        <div class="mb-4">
+          <label for="paymentAccountId" class="label">Payment Account <span class="text-red-500">*</span></label>
+          @if (paymentAccounts(); as accounts) {
+            <app-searchable-dropdown
+              #accountDropdown
+              placeholder="Search cash, bank or liability account..."
+              ariaLabel="Payment account"
+              [selectedId]="expenseForm.value.paymentAccountId"
+              [disabled]="isSubmitting()"
+              [clearable]="true"
+              (onSearch)="onAccountSearch($event)"
+              (onLoadMore)="onAccountSearch($event)"
+              (onSelect)="onAccountSelect($event)"
+              (cleared)="onAccountCleared()">
+            </app-searchable-dropdown>
+          } @else {
+            <input type="number" id="paymentAccountId" formControlName="paymentAccountId" class="input"
+                   min="1" placeholder="Chart account ID (account list unavailable)"
+                   [class.border-red-500]="isFieldInvalid('paymentAccountId')" />
+            <p class="mt-1 text-xs text-gray-500">The account list could not be loaded for your role; enter the account ID. The server validates it.</p>
+          }
+          @if (isFieldInvalid('paymentAccountId')) {
+            <p class="mt-1 text-sm text-red-600">Payment account is required</p>
+          }
+        </div>
+
+        <!-- Reference Number -->
+        <div class="mb-4">
+          <label for="referenceNumber" class="label">Reference Number</label>
+          <input type="text" id="referenceNumber" formControlName="referenceNumber" class="input"
+                 placeholder="Invoice, receipt, or external reference" />
+        </div>
+
         <!-- Expense Date -->
         <div class="mb-4">
           <label for="expenseDate" class="label">Expense Date <span class="text-red-500">*</span></label>
-          <input type="date" id="expenseDate" formControlName="expenseDate" class="input"
+          <input type="date" appCompanyDate id="expenseDate" formControlName="expenseDate" class="input"
                  [class.border-red-500]="isFieldInvalid('expenseDate')" />
           @if (isFieldInvalid('expenseDate')) {
             <p class="mt-1 text-sm text-red-600">Date is required</p>
@@ -63,11 +115,21 @@
                     placeholder="Optional notes about this expense"></textarea>
         </div>
 
-        <!-- Outlet ID (optional) -->
+        <!-- Outlet: required for a POS drawer expense (the drawer of that outlet pays it). -->
         <div class="mb-6">
-          <label for="outletId" class="label">Outlet ID <span class="text-xs text-gray-400">(optional)</span></label>
-          <input type="number" id="outletId" formControlName="outletId" class="input"
-                 min="1" placeholder="Leave blank for all outlets" />
+          <label for="outletId" class="label">Outlet
+            @if (isDrawerSource()) { <span class="text-red-500">*</span> } @else { <span class="text-xs text-gray-400">(optional)</span> }
+          </label>
+          <select id="outletId" formControlName="outletId" class="input"
+                  [class.border-red-500]="isDrawerSource() && expenseForm.get('outletId')?.touched && !expenseForm.value.outletId">
+            <option [ngValue]="null">{{ isDrawerSource() ? 'Select the paying outlet' : 'Not outlet-specific' }}</option>
+            @for (outlet of outlets(); track outlet.id) {
+              <option [ngValue]="outlet.id">{{ outlet.name }}</option>
+            }
+          </select>
+          @if (isDrawerSource()) {
+            <p class="mt-1 text-xs text-gray-500">After approval, record the payout from that outlet's open cash session ("Pay from drawer" in the expense list).</p>
+          }
         </div>
 
         <!-- Actions -->

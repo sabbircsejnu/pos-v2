@@ -1,0 +1,13 @@
+@baseUrl = https://localhost:5006
+
+### Daily attendance report
+GET {{baseUrl}}/api/hr/v1/attendance/reports?from=2026-10-01&to=2026-10-31
+Authorization: ******
+
+### Employee and location scoped exception report
+GET {{baseUrl}}/api/hr/v1/attendance/reports?from=2026-10-01&to=2026-10-31&employeeId=1&locationProjectionId=10&exceptionsOnly=true&page=1&pageSize=50
+Authorization: ******
+
+### Filter by effective attendance status
+GET {{baseUrl}}/api/hr/v1/attendance/reports?from=2026-10-01&to=2026-10-31&status=Late
+Authorization: ******

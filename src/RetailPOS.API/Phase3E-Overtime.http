@@ -1,0 +1,95 @@
+@baseUrl = http://localhost:5000/api/hr/v1/overtime
+
+### List effective-dated overtime policy versions
+GET {{baseUrl}}/policies
+Authorization: Bearer {{token}}
+
+### Create Business-wide overtime policy version
+POST {{baseUrl}}/policies
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "STANDARD",
+  "name": "Standard overtime",
+  "scopeType": "Business",
+  "scopeReference": null,
+  "versionNo": 1,
+  "effectiveFrom": "2026-10-01",
+  "effectiveTo": null,
+  "minimumEligibleMinutes": 30,
+  "maximumEligibleMinutes": 240,
+  "roundingUnitMinutes": 15,
+  "roundingMethod": "Down",
+  "includePreShift": false,
+  "includePostShift": true,
+  "allowNormalWorkingDay": true,
+  "allowWeeklyOff": true,
+  "allowHoliday": true,
+  "allowSpecialDay": false,
+  "rateType": "Multiplier",
+  "normalDayRate": 1.5,
+  "weeklyOffRate": 2,
+  "holidayRate": 2,
+  "specialDayRate": 2,
+  "isActive": true
+}
+
+### Calculate or reprocess overtime from attendance evidence
+POST {{baseUrl}}/calculate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "from": "2026-10-01",
+  "to": "2026-10-31",
+  "employeeId": null,
+  "locationProjectionId": null
+}
+
+### List overtime workbench entries
+GET {{baseUrl}}/entries?from=2026-10-01&to=2026-10-31&status=Calculated
+Authorization: Bearer {{token}}
+
+### Read an overtime entry
+GET {{baseUrl}}/entries/1
+Authorization: Bearer {{token}}
+
+### Submit a calculated overtime entry
+POST {{baseUrl}}/entries/1/submit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "expectedVersion": 1
+}
+
+### Cancel a pending overtime approval
+POST {{baseUrl}}/entries/1/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "a8917f48-4859-4ef9-8ed6-3c2e3ec9040a",
+  "reason": "Operational cancellation"
+}
+
+### Approve an overtime entry
+POST {{baseUrl}}/approvals/1/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "2a01d30e-cf1b-4600-8a12-2e41c5d3ae32",
+  "reason": "Verified"
+}
+
+### Reject an overtime entry
+POST {{baseUrl}}/approvals/1/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "decisionKey": "b4b4db52-d101-43ba-8dde-715501bc99e6",
+  "reason": "Supporting attendance requires review"
+}

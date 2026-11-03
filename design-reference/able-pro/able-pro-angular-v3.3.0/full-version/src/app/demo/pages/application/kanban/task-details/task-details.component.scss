@@ -1,0 +1,81 @@
+@import '../../../../../@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.mat-drawer.kanban-drawer {
+  z-index: 1025;
+  width: 450px;
+  position: fixed;
+
+  @media (max-width: 576px) {
+    width: 320px;
+  }
+
+  .header-title {
+    padding: 25px 0px 25px 25px;
+
+    ::ng-deep.able-pro-rtl & {
+      padding: 25px 25px 25px 0px;
+    }
+
+    .kanban-header-title {
+      display: flex;
+      margin-left: -4px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    h4 {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      font-size: 1.25rem;
+      font-weight: 600;
+      width: calc(100% - 34px);
+      margin: 0px;
+    }
+  }
+
+  .presentation {
+    outline: none;
+    border-radius: 8px;
+    background-color: var(--accent-50);
+    border: 1px dashed rgb(91, 107, 121);
+    padding: 0px;
+    margin: 8px;
+    width: 64px;
+    height: 64px;
+
+    .d-none {
+      display: none;
+    }
+
+    ::ng-deep.dark & {
+      background-color: var(--accent-300) !important;
+    }
+
+    .inner-attachments {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      cursor: pointer;
+      position: relative;
+
+      .close-file {
+        border-radius: 50%;
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        font-size: 8px;
+        background-color: var(--warn-500);
+        color: $white;
+      }
+    }
+  }
+
+  .avatar-s {
+    &:hover {
+      background: var(--primary-50);
+    }
+  }
+}

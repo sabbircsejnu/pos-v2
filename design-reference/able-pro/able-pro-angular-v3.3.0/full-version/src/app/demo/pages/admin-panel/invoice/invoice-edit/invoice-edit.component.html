@@ -1,0 +1,235 @@
+<div class="row">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false">
+      <div class="row g-3">
+        <div class="col-sm-6 col-xl-3">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Invoice id</mat-label>
+            <input matInput type="text" placeholder="#xxxx" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Status</mat-label>
+            <mat-select value="select">
+              <mat-option value="select">Please Select</mat-option>
+              <mat-option value="Paid">Paid</mat-option>
+              <mat-option value="unpaid">Unpaid</mat-option>
+              <mat-option value="partial-2">Partial Paid</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Start Date</mat-label>
+            <input matInput type="datetime-local" placeholder="mm/dd/yyyy" />
+          </mat-form-field>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Due Date</mat-label>
+            <input matInput type="datetime-local" placeholder="mm/dd/yyyy" />
+          </mat-form-field>
+        </div>
+        <div class="col-xl-6">
+          <div class="border border-4 p-15 h-100">
+            <div class="flex align-item-center justify-content-between m-b-10">
+              <div class="f-w-600">From:</div>
+              <button mat-button class="bg-accent-100 text-accent-500" (click)="addressList()">
+                <div class="flex align-item-center gap-2">
+                  <svg class="wid-15 hei-15 f-16">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-edit2"></use>
+                  </svg>
+                  Change
+                </div>
+              </button>
+            </div>
+            @if (selectedAddress) {
+              <div class="f-16 f-w-600">{{ selectedAddress.name }}</div>
+              <p class="m-b-0">{{ selectedAddress.address }}</p>
+              <p class="m-b-0">{{ selectedAddress.mobile }}</p>
+              <p class="m-b-0">{{ selectedAddress.email }}</p>
+            } @else {
+              <div class="f-16 f-w-600">Garcia-Cameron and Sons</div>
+              <p class="m-b-0">8534 Saunders Hill Apt. 583</p>
+              <p class="m-b-0">(970) 982-3353</p>
+              <p class="m-b-0">brandon07&#64;pierce.com</p>
+            }
+          </div>
+        </div>
+        <div class="col-xl-6">
+          <div class="border border-4 p-15 h-100">
+            <div class="flex align-item-center justify-content-between m-b-10">
+              <div class="f-w-600">To:</div>
+              <button mat-button class="bg-accent-100 text-accent-500" (click)="addNewAddress()">
+                <div class="flex align-item-center gap-2">
+                  <svg class="wid-15 hei-15 f-16">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-add-circle"></use>
+                  </svg>
+                  Add
+                </div>
+              </button>
+            </div>
+            @if (newAddress) {
+              <div class="f-16 f-w-600">{{ newAddress.name }}</div>
+              <p class="m-b-0">{{ newAddress.address }}</p>
+              <p class="m-b-0">{{ newAddress.mobile }}</p>
+              <p class="m-b-0">{{ newAddress.email }}</p>
+            }
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="f-16 f-w-600">Detail</div>
+          <div class="table-responsive">
+            <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+              <ng-container matColumnDef="no">
+                <th mat-header-cell *matHeaderCellDef>#</th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">{{ element.no }}</td>
+              </ng-container>
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  NAME
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <div class="input-group">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <input matInput type="text" [value]="element.name" />
+                    </mat-form-field>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="description">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  DESCRIPTION
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <div class="input-group">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <input matInput type="text" [value]="element.description" />
+                    </mat-form-field>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="qty">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  QTY
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <div class="input-group">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <input matInput type="number" [value]="element.qty" />
+                    </mat-form-field>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="price">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  PRICE
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <div class="input-group">
+                    <mat-form-field appearance="outline" class="w-100">
+                      <input matInput type="number" [value]="element.price" />
+                    </mat-form-field>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="amount">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  TOTAL AMOUNT
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">₹{{ element.qty * element.price }}</td>
+              </ng-container>
+              <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef>
+                  <span class="text-warn-500">*</span>
+                  ACTION
+                </th>
+                <td mat-cell *matCellDef="let element" class="text-nowrap">
+                  <a href="javascript:" class="avatar avatar-s text-warn-500">
+                    <i class="ti ti-trash f-20"></i>
+                  </a>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            </table>
+          </div>
+          <div class="text-start">
+            <mat-divider class="m-b-25 m-t-0"></mat-divider>
+            <button mat-button class="bg-primary-50 text-primary-500">
+              <div class="flex align-item-center gap-2">
+                <i class="ti ti-plus"></i>
+                Add new item
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="invoice-total">
+            <div class="row">
+              <div class="col-6">
+                <div class="m-b-15">
+                  <mat-form-field appearance="outline" class="w-100">
+                    <mat-label>Discount(%)</mat-label>
+                    <input matInput type="number" value="0" />
+                  </mat-form-field>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="m-b-15">
+                  <mat-form-field appearance="outline" class="w-100">
+                    <mat-label>Taxes(%)</mat-label>
+                    <input matInput type="number" value="0" />
+                  </mat-form-field>
+                </div>
+              </div>
+              <div class="col-6"><p class="text-muted m-b-5 text-start">Sub Total :</p></div>
+              <div class="col-6"><p class="f-w-600 m-b-5 text-end">$20.00</p></div>
+              <div class="col-6"><p class="text-muted mb-1 text-start">Discount :</p></div>
+              <div class="col-6"><p class="f-w-600 m-b-5 text-end text-success">$10.00</p></div>
+              <div class="col-6"><p class="text-muted m-b-5 text-start">Taxes :</p></div>
+              <div class="col-6"><p class="f-w-600 m-b-5 text-end">$5.000</p></div>
+              <div class="col-6"><p class="f-w-600 m-b-5 text-start">Grand Total :</p></div>
+              <div class="col-6"><p class="f-w-600 m-b-5 text-end">$25.00</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Note</mat-label>
+              <textarea matInput rows="3" placeholder="Note"></textarea>
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="row align-item-end justify-content-between g-3">
+            <div class="col-sm-auto">
+              <div class="input-group">
+                <mat-form-field appearance="outline" class="w-100">
+                  <mat-label>Set Currency*</mat-label>
+                  <mat-select value="usd">
+                    <mat-option value="usd">USD (US Dollar)</mat-option>
+                    <mat-option value="inr">INR (Rupes)</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </div>
+            <div class="col-sm-auto">
+              <button mat-stroked-button color="accent" class="m-r-10 m-b-10">Preview</button>
+              <button mat-stroked-button color="accent" class="m-r-10 m-b-10">Save</button>
+              <button mat-flat-button color="primary" class="m-b-10">Create & Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

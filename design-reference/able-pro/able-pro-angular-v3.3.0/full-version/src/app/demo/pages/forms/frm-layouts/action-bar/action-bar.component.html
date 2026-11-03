@@ -1,0 +1,108 @@
+<div class="row p-t-25">
+  <div class="col-lg-6">
+    <app-card cardTitle="Simple Action Bar" actionClass="card-action block">
+      <ng-template #actionTemplate>
+        <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+        <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+      </ng-template>
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Name</mat-label>
+        <input matInput type="text" placeholder="Enter Full Name" />
+        <mat-hint>Please enter your full name</mat-hint>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Right Align Action Bar" actionClass="card-action text-end block">
+      <ng-template #actionTemplate>
+        <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+        <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+      </ng-template>
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Name</mat-label>
+        <input matInput type="text" placeholder="Enter Full Name" />
+        <mat-hint>Please enter your full name</mat-hint>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Action Button with Link" actionClass="card-action text-end block">
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Name</mat-label>
+        <input matInput type="text" placeholder="Enter Full Name" />
+        <mat-hint>Please enter your full name</mat-hint>
+      </mat-form-field>
+      <ng-template #actionTemplate>
+        <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+        <span class="m-l-10">
+          or
+          <a href="javascript:" class="m-l-10 text-primary-500">Clear</a>
+        </span>
+      </ng-template>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Horizontal Form" actionClass="card-action text-center bg-accent-200 block">
+      <ng-template #actionTemplate>
+        <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+        <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+      </ng-template>
+      <div class="row">
+        <div class="col-lg-4 p-15">
+          <label class="f-w-500 text-muted">Name:</label>
+        </div>
+        <div class="col-lg-6">
+          <mat-form-field appearance="outline" class="w-100 m-b-15">
+            <input matInput placeholder="Enter Your Name" />
+            <mat-hint>Please enter your full name</mat-hint>
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Layout With side action button" actionClass="card-action block">
+      <ng-template #actionTemplate>
+        <div class="row">
+          <div class="col-lg-6">
+            <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+            <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+          </div>
+          <div class="col-lg-6 text-end">
+            <button mat-flat-button color="warn" class="m-r-10">Delete</button>
+          </div>
+        </div>
+      </ng-template>
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label>Name</mat-label>
+        <input matInput type="text" placeholder="Enter Full Name" />
+        <mat-hint>Please enter your full name</mat-hint>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-lg-6">
+    <app-card cardTitle="Top & Bottom Action Bar" padding="0" actionClass="card-action bg-accent-200 text-center block">
+      <ng-template #actionTemplate>
+        <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+        <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+      </ng-template>
+      <div class="p-25">
+        <div class="row align-item-center">
+          <div class="col-sm-6">Top Actions</div>
+          <div class="col-sm-6 text-end">
+            <button mat-flat-button color="primary" class="m-r-10">Submit</button>
+            <button mat-flat-button color="accent" class="m-r-10">Clear</button>
+          </div>
+        </div>
+      </div>
+      <mat-divider></mat-divider>
+      <div class="p-25">
+        <mat-form-field appearance="outline" class="w-100">
+          <mat-label>Name</mat-label>
+          <input matInput type="text" placeholder="Enter Full Name" />
+          <mat-hint>Please enter your full name</mat-hint>
+        </mat-form-field>
+      </div>
+    </app-card>
+  </div>
+</div>

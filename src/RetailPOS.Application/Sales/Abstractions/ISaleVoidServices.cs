@@ -1,0 +1,63 @@
+using RetailPOS.Core.Entities;
+
+namespace RetailPOS.Application.Sales.Abstractions;
+
+public interface ISaleVoidStore
+{
+    Task<ISaleVoidTransaction> BeginTransactionAsync(CancellationToken cancellationToken);
+    Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken);
+    Task<string?> FindCurrentSaleStatusAsync(long saleId, CancellationToken cancellationToken);
+    Task<bool> TryMarkCompletedSaleVoidedAsync(long saleId, CancellationToken cancellationToken);
+    Task<RetailPOS.Core.Entities.Inventory?> FindOutletInventoryAsync(
+        long variantId,
+        long outletId,
+        CancellationToken cancellationToken);
+    Task<Customer?> FindCustomerForUpdateAsync(long customerId, CancellationToken cancellationToken);
+    Task AddSaleVoidAsync(SaleVoid saleVoid, CancellationToken cancellationToken);
+    Task SaveChangesAsync(CancellationToken cancellationToken);
+}
+
+public interface ISaleMutationOutletAuthorizer
+{
+    Task AuthorizeAsync(long outletId, CancellationToken cancellationToken);
+}
+
+public interface ISaleVoidTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken);
+    Task RollbackAsync(CancellationToken cancellationToken);
+}
+
+public sealed record SaleRefundLine(long SaleItemId, long VariantId, int Quantity);
+
+public interface ISaleVoidStockLedgerWriter
+{
+    void AppendReturn(
+        Sale sale,
+        SaleItem item,
+        int balanceAfter,
+        long actorUserId,
+        string reason,
+        DateTime createdAt);
+}
+
+public interface ISaleVoidAuditWriter
+{
+    Task RecordVoidedAsync(
+        Sale sale,
+        string previousStatus,
+        string reason,
+        long? journalEntryId,
+        long actorUserId,
+        CancellationToken cancellationToken);
+}
+
+public interface ISaleVoidCacheInvalidator
+{
+    Task InvalidateAsync(long variantId, long outletId, CancellationToken cancellationToken);
+}
+
+public interface ISaleVoidLogger
+{
+    void SaleVoided(long saleId, string reason);
+}

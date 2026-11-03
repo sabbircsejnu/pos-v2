@@ -1,4 +1,5 @@
 using RetailPOS.API.DTOs.Outlet;
+using RetailPOS.Application.Identity.LocationAccess;
 
 namespace RetailPOS.API.Services;
 
@@ -11,6 +12,30 @@ public interface IUserOutletAccessService
 {
     /// <summary>The list of outlets/warehouses the current user can read from.</summary>
     Task<AuthorizedOutletsDto> GetAuthorizedOutletsAsync();
+
+    /// <summary>
+    /// Locations selectable under an explicit operation policy. Prefer this over the parameterless overload
+    /// so each module states which access setting (Step 3 scope, Step 5 assignments, business-wide) applies.
+    /// </summary>
+    Task<AuthorizedOutletsDto> GetAuthorizedOutletsAsync(LocationAccessPolicy policy);
+
+    /// <summary>Policy-aware read-side resolution of a requested location.</summary>
+    Task<(long? LocationId, string? LocationType)> ResolveAndAuthorizeLocationAsync(
+        LocationAccessPolicy policy,
+        long? requestedLocationId,
+        string? requestedLocationType);
+
+    /// <summary>Policy-aware write-side enforcement of a location.</summary>
+    Task<(long LocationId, string LocationType)> EnforceWriteLocationAsync(
+        LocationAccessPolicy policy,
+        long requestedLocationId,
+        string requestedLocationType);
+
+    /// <summary>
+    /// Gets the current user's locations within an explicitly selected Business.
+    /// Intended for endpoints that require Business-scoped access.
+    /// </summary>
+    Task<AuthorizedOutletsDto> GetAuthorizedOutletsForBusinessAsync(long businessId);
 
     /// <summary>
     /// Validates an inbound outlet/warehouse filter against the user's authorized set.

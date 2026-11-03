@@ -7,6 +7,7 @@ public class StockAdjustmentDto
     public string Status { get; set; } = string.Empty;
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty;
+    public long? SourceStockCountId { get; set; }
     public string LocationName { get; set; } = string.Empty;
     public long VariantId { get; set; }
     public string VariantSku { get; set; } = string.Empty;

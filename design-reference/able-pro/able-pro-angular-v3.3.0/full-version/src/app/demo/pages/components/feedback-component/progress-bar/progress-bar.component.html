@@ -1,0 +1,67 @@
+<div class="row">
+  <div class="col-md-12">
+    <app-card cardTitle="Buffer Progress Bar">
+      <mat-progress-bar mode="buffer"></mat-progress-bar>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Determinate progress-bar">
+      <mat-progress-bar mode="determinate" value="40"></mat-progress-bar>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Indeterminate progress-bar">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Query progress-bar">
+      <mat-progress-bar mode="query"></mat-progress-bar>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Determinate">
+      <div class="progress-bar">
+        <section class="flex align-item-center hei-60 m-b-15">
+          <label class="m-x-10">Color:</label>
+          <mat-radio-group [(ngModel)]="color">
+            <mat-radio-button class="m-x-10" value="primary">Primary</mat-radio-button>
+            <mat-radio-button class="m-x-10" value="accent">Accent</mat-radio-button>
+            <mat-radio-button class="m-x-10" value="warn">Warn</mat-radio-button>
+          </mat-radio-group>
+        </section>
+
+        <section class="flex align-item-center">
+          <label class="m-x-10">Mode:</label>
+          <mat-radio-group [(ngModel)]="mode">
+            <mat-radio-button class="m-x-10" value="determinate">Determinate</mat-radio-button>
+            <mat-radio-button class="m-x-10" value="indeterminate">Indeterminate</mat-radio-button>
+            <mat-radio-button class="m-x-10" value="buffer">Buffer</mat-radio-button>
+            <mat-radio-button class="m-x-10" value="query">Query</mat-radio-button>
+          </mat-radio-group>
+        </section>
+
+        @if (mode === 'determinate' || mode === 'buffer') {
+          <section class="flex align-item-center hei-60">
+            <label class="m-x-10">Progress:</label>
+            <mat-slider class="m-x-10">
+              <input type="range" [(ngModel)]="value" matSliderThumb />
+            </mat-slider>
+          </section>
+        }
+        @if (mode === 'buffer') {
+          <section class="flex align-item-center hei-60">
+            <label class="m-x-10">Buffer:</label>
+            <mat-slider class="m-x-10">
+              <input type="range" [(ngModel)]="bufferValue" matSliderThumb />
+            </mat-slider>
+          </section>
+        }
+        <h2 class="m-10">Result</h2>
+        <section class="flex align-item-center hei-60">
+          <mat-progress-bar class="m-x-10" [color]="color" [mode]="mode" [value]="value" [bufferValue]="bufferValue"></mat-progress-bar>
+        </section>
+      </div>
+    </app-card>
+  </div>
+</div>

@@ -16,11 +16,11 @@
     <div class="flex flex-wrap gap-3 items-end">
       <div>
         <label class="label">From</label>
-        <input type="date" class="input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
       </div>
       <div>
         <label class="label">To</label>
-        <input type="date" class="input" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+        <input type="date" appCompanyDate class="input" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
       </div>
       <div class="flex gap-2 flex-wrap">
         <button (click)="setToday()" class="btn btn-outline text-sm">Today</button>

@@ -1,6 +1,6 @@
 using RetailPOS.API.DTOs.PurchaseOrder;
 using RetailPOS.API.DTOs.Supplier;
-using RetailPOS.API.Settings;
+using RetailPOS.Application.Settings;
 
 namespace RetailPOS.API.Documents.Pdf;
 
@@ -63,8 +63,8 @@ public sealed class PurchaseOrderPdfMapper : IPurchaseOrderPdfMapper
                 AddressLines: DocumentPdfFormatting.SplitLines(supplier.Address),
                 Contact: supplier.Contact),
             ShipTo: new DocumentPdfPartyInfo(
-                Label: "Ship To",
-                Name: purchaseOrder.WarehouseName,
+                Label: $"Ship To ({PurchaseDocumentDtoMapper.LocationLabel(purchaseOrder.LocationType)})",
+                Name: purchaseOrder.LocationName,
                 AddressLines: Array.Empty<string>()),
             Items: items,
             Summary: new DocumentPdfSummary(

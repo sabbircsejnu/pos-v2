@@ -1,0 +1,130 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Basic Information">
+      <form [formGroup]="basicInfoForm" (ngSubmit)="onSubmit()">
+        <div class="row">
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>First Name</mat-label>
+              <input matInput type="text" placeholder="Enter First Name" formControlName="firstName" />
+              @if (basicInfoForm.get('firstName')?.touched && basicInfoForm.get('firstName')?.invalid) {
+                <mat-error>First Name is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Last Name</mat-label>
+              <input matInput type="text" placeholder="Enter Last Name" formControlName="lastName" />
+              @if (basicInfoForm.get('lastName')?.touched && basicInfoForm.get('lastName')?.invalid) {
+                <mat-error>Last name is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Email</mat-label>
+              <input matInput type="email" placeholder="Enter Email" formControlName="email" />
+              @if (basicInfoForm.get('email')?.touched && basicInfoForm.get('email')?.invalid) {
+                <mat-error>Email is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Joining Date</mat-label>
+              <input matInput type="date" placeholder="mm/dd/yyyy" formControlName="joiningDate" />
+              @if (basicInfoForm.get('joiningDate')?.touched && basicInfoForm.get('joiningDate')?.invalid) {
+                <mat-error>Date is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Password</mat-label>
+              <input matInput type="password" placeholder="Enter Your Password" formControlName="password" />
+              @if (basicInfoForm.get('password')?.touched && basicInfoForm.get('password')?.invalid) {
+                <mat-error>Password is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Confirm Password</mat-label>
+              <input matInput type="password" placeholder="Enter Your Confirm Password" formControlName="confirmPassword" />
+              @if (basicInfoForm.get('confirmPassword')?.touched && basicInfoForm.get('confirmPassword')?.invalid) {
+                <mat-error>Confirm Password is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Mobile Number</mat-label>
+              <input matInput type="number" placeholder="Enter Mobile Number" formControlName="mobileNumber" maxlength="10" />
+              @if (basicInfoForm.get('mobileNumber')?.touched && basicInfoForm.get('mobileNumber')?.invalid) {
+                <mat-error>Mobile Number is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Gender</mat-label>
+              <mat-select formControlName="gender">
+                <mat-option value="male">Male</mat-option>
+                <mat-option value="female">Female</mat-option>
+              </mat-select>
+              @if (basicInfoForm.get('gender')?.touched && basicInfoForm.get('gender')?.invalid) {
+                <mat-error>Gender is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Designation</mat-label>
+              <input matInput type="text" placeholder="Enter Designation" formControlName="designation" />
+              @if (basicInfoForm.get('designation')?.touched && basicInfoForm.get('designation')?.invalid) {
+                <mat-error>Designation is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Department</mat-label>
+              <mat-select formControlName="department">
+                <mat-option value="department-1">Department 1</mat-option>
+                <mat-option value="department-2">Department 2</mat-option>
+              </mat-select>
+              @if (basicInfoForm.get('department')?.touched && basicInfoForm.get('department')?.invalid) {
+                <mat-error>Department is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Date of Birth</mat-label>
+              <input matInput type="date" placeholder="mm/dd/yyyy" formControlName="dateOfBirth" />
+              @if (basicInfoForm.get('dateOfBirth')?.touched && basicInfoForm.get('dateOfBirth')?.invalid) {
+                <mat-error>DOB is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-6">
+            <mat-form-field appearance="outline" class="w-100 m-b-10">
+              <mat-label>Education</mat-label>
+              <input matInput type="text" placeholder="Enter Education" formControlName="education" />
+              @if (basicInfoForm.get('education')?.touched && basicInfoForm.get('education')?.invalid) {
+                <mat-error>Education is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+          <div class="col-md-12">
+            <input type="file" class="file-upload" (change)="basicInfoForm.get('file')?.setValue($event.target.files[0])" />
+          </div>
+          <div class="col-md-12 text-end">
+            <button mat-flat-button color="primary" [disabled]="!basicInfoForm.valid">Submit</button>
+          </div>
+        </div>
+      </form>
+    </app-card>
+  </div>
+</div>

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Core.Entities;
+using RetailPOS.Core.Entities.HR.Employees;
+using RetailPOS.Application.HR.Employees;
 using BCrypt.Net;
 
 namespace RetailPOS.Infrastructure.Data;
@@ -16,13 +18,12 @@ public static class DbSeeder
     /// </summary>
     public static async Task SeedAsync(RetailPOSDbContext context)
     {
-        // Always ensure the BusinessOwner role + seed user exist (idempotent).
-        // This runs even on already-seeded databases so older deployments pick up new roles.
-        await EnsureBusinessOwnerAsync(context);
-        await EnsureDefaultPosTerminalsAsync(context);
-
         if (await context.Roles.AnyAsync())
         {
+            await EnsureBusinessOwnerAsync(context);
+            await EnsureAccountingManagerAsync(context);
+            await RepairDemoBusinessAssignmentsAsync(context);
+            await EnsureDefaultPosTerminalsAsync(context);
             return; // Database already seeded
         }
 
@@ -37,6 +38,23 @@ public static class DbSeeder
         var managerRole = await context.Roles.FirstAsync(r => r.Name == "Manager");
         var cashierRole = await context.Roles.FirstAsync(r => r.Name == "Cashier");
         var stockManagerRole = await context.Roles.FirstAsync(r => r.Name == "Stock Manager");
+
+        var seedBusiness = new Business
+        {
+            Name = "RetailPOS Demo Business",
+            IsActive = true
+        };
+        await context.Businesses.AddAsync(seedBusiness);
+        await context.SaveChangesAsync();
+        await context.HrEmploymentTypes.AddRangeAsync(HrEmploymentTypeCatalog.Defaults.Select(type =>
+            new HrEmploymentType
+            {
+                BusinessId = seedBusiness.Id,
+                Code = type.Code,
+                Name = type.Name,
+                IsActive = true
+            }));
+        await context.SaveChangesAsync();
 
         // 2. Seed Outlets (no managers yet)
         var outlets = new List<Outlet>
@@ -103,6 +121,12 @@ public static class DbSeeder
             new User { Name = "Tom Stock Manager", Email = "tom.stock@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Stock@123", workFactor: 12), RoleId = stockManagerRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new User { Name = "Business Owner", Email = "owner@retailpos.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Owner@123", workFactor: 12), RoleId = businessOwnerRole.Id, OutletId = null, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
+        foreach (var user in users.Where(user => user.RoleId != superAdminRole.Id))
+            user.BusinessId = seedBusiness.Id;
+        foreach (var outlet in outlets)
+            outlet.BusinessId = seedBusiness.Id;
+        foreach (var warehouse in warehouses)
+            warehouse.BusinessId = seedBusiness.Id;
         await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
 
@@ -127,6 +151,7 @@ public static class DbSeeder
             new Category { Name = "Home & Garden", Description = "Home essentials and gardening supplies", DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new Category { Name = "Sports & Outdoors", Description = "Sporting goods and outdoor equipment", DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
+        foreach (var category in rootCategories) category.BusinessId = seedBusiness.Id;
         await context.Categories.AddRangeAsync(rootCategories);
         await context.SaveChangesAsync();
 
@@ -143,6 +168,7 @@ public static class DbSeeder
             new Category { Name = "Women's Wear", Description = "Women's clothing", ParentCategoryId = clothingCategory.Id, DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new Category { Name = "Coffee & Tea", Description = "Coffee beans, tea, and hot beverages", ParentCategoryId = foodCategory.Id, DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
+        foreach (var category in subCategories) category.BusinessId = seedBusiness.Id;
         await context.Categories.AddRangeAsync(subCategories);
         await context.SaveChangesAsync();
 
@@ -160,6 +186,8 @@ public static class DbSeeder
             new Supplier { Name = "Fashion World Distributors", Contact = "orders@fashionworld.com", Address = "200 Fashion District, Los Angeles, CA 90015", CreditLimit = 30000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             new Supplier { Name = "Global Food Imports", Contact = "sales@globalfood.com", Address = "100 Harbor View, Miami, FL 33101", CreditLimit = 20000, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
+        foreach (var supplier in suppliers)
+            supplier.BusinessId = seedBusiness.Id;
         await context.Suppliers.AddRangeAsync(suppliers);
         await context.SaveChangesAsync();
 
@@ -231,6 +259,8 @@ public static class DbSeeder
         // Product 7: Wireless Earbuds (with color variants)
         var earbudsProduct = new Product { Name = "TrueWireless Earbuds", Description = "Noise-cancelling wireless earbuds", Sku = "ACC-EAR-TWS", Barcode = "8901234567896", CategoryId = accessoriesCategory.Id, BasePrice = 89.99m, CostPrice = 35.00m, TaxRate = 8.5m, HasVariants = true, Status = ProductStatus.Active, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
 
+        foreach (var seededProduct in new[] { laptopProduct, phoneProduct, cableProduct, tshirtProduct, dressProduct, coffeeProduct, earbudsProduct })
+            seededProduct.BusinessId = seedBusiness.Id;
         await context.Products.AddRangeAsync(laptopProduct, phoneProduct, cableProduct, tshirtProduct, dressProduct, coffeeProduct, earbudsProduct);
         await context.SaveChangesAsync();
 
@@ -291,6 +321,9 @@ public static class DbSeeder
             new ProductVariant { ProductId = earbudsProduct.Id, Name = "TrueWireless Earbuds - White", Sku = "ACC-EAR-TWS-WHT", Barcode = "8901234568302", Attributes = "{\"Color\":\"White\"}", PriceAdjustment = 0, CostAdjustment = 0, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
         };
 
+        foreach (var seededVariant in new[] { laptopVariant, cableVariant, coffeeVariant }
+                     .Concat(phoneVariants).Concat(tshirtVariants).Concat(dressVariants).Concat(earbudsVariants))
+            seededVariant.BusinessId = seedBusiness.Id;
         await context.ProductVariants.AddAsync(laptopVariant);
         await context.ProductVariants.AddRangeAsync(phoneVariants);
         await context.ProductVariants.AddAsync(cableVariant);
@@ -401,6 +434,7 @@ public static class DbSeeder
             new Customer { Name = "David Brown", IsSystem = false, IsActive = true, Phone = "+1-555-1004", Email = "david.brown@example.com", LoyaltyPoints = 75, CreatedAt = DateTime.UtcNow },
             new Customer { Name = "Emma Wilson", IsSystem = false, IsActive = true, Phone = "+1-555-1005", Email = "emma.wilson@example.com", LoyaltyPoints = 320, CreatedAt = DateTime.UtcNow }
         };
+        foreach (var customer in customers) customer.BusinessId = seedBusiness.Id;
         await context.Customers.AddRangeAsync(customers);
         await context.SaveChangesAsync();
 
@@ -424,6 +458,7 @@ public static class DbSeeder
         var now = DateTime.UtcNow;
         var po1 = new PurchaseOrder
         {
+            PoNumber = "SEED-PO-0001",
             SupplierId = techSupplier.Id, WarehouseId = centralWarehouse.Id,
             OrderDate = now.AddDays(-30), ExpectedDelivery = now.AddDays(-20),
             TotalAmount = 18500m, Status = "received", CreatedBy = superAdmin.Id,
@@ -431,6 +466,7 @@ public static class DbSeeder
         };
         var po2 = new PurchaseOrder
         {
+            PoNumber = "SEED-PO-0002",
             SupplierId = fashionSupplier.Id, WarehouseId = centralWarehouse.Id,
             OrderDate = now.AddDays(-15), ExpectedDelivery = now.AddDays(-5),
             TotalAmount = 5500m, Status = "received", CreatedBy = tomStock.Id,
@@ -438,6 +474,7 @@ public static class DbSeeder
         };
         var po3 = new PurchaseOrder
         {
+            PoNumber = "SEED-PO-0003",
             SupplierId = techSupplier.Id, WarehouseId = northWarehouse.Id,
             OrderDate = now.AddDays(-5), ExpectedDelivery = now.AddDays(5),
             TotalAmount = 9999m, Status = "pending", CreatedBy = tomStock.Id,
@@ -511,6 +548,7 @@ public static class DbSeeder
             TotalAmount = 749.97m, Discount = 10, Tax = 63.75m, PaymentMethod = "card",
             Status = "completed", CashierId = lisaManager.Id, CreatedAt = now.AddDays(-3)
         };
+        foreach (var seededSale in new[] { sale1, sale2, sale3 }) seededSale.BusinessId = seedBusiness.Id;
         await context.Sales.AddRangeAsync(sale1, sale2, sale3);
         await context.SaveChangesAsync();
 
@@ -620,11 +658,11 @@ public static class DbSeeder
         // 21. Seed Expenses
         var expenses = new List<Expense>
         {
-            new Expense { Category = "Utilities", Amount = 850m, Description = "Monthly electricity bill", ExpenseDate = now.AddDays(-5), OutletId = mainOutlet.Id },
-            new Expense { Category = "Rent", Amount = 5000m, Description = "Monthly store rent", ExpenseDate = now.AddDays(-1), OutletId = mainOutlet.Id },
-            new Expense { Category = "Utilities", Amount = 620m, Description = "Monthly electricity bill", ExpenseDate = now.AddDays(-5), OutletId = branchOutlet.Id },
-            new Expense { Category = "Marketing", Amount = 1200m, Description = "Social media advertising campaign", ExpenseDate = now.AddDays(-12), OutletId = null },
-            new Expense { Category = "Supplies", Amount = 300m, Description = "Office supplies and packaging materials", ExpenseDate = now.AddDays(-8), OutletId = mainOutlet.Id }
+            new Expense { BusinessId = seedBusiness.Id, Category = "Utilities", Amount = 850m, Description = "Monthly electricity bill", ExpenseDate = now.AddDays(-5), OutletId = mainOutlet.Id },
+            new Expense { BusinessId = seedBusiness.Id, Category = "Rent", Amount = 5000m, Description = "Monthly store rent", ExpenseDate = now.AddDays(-1), OutletId = mainOutlet.Id },
+            new Expense { BusinessId = seedBusiness.Id, Category = "Utilities", Amount = 620m, Description = "Monthly electricity bill", ExpenseDate = now.AddDays(-5), OutletId = branchOutlet.Id },
+            new Expense { BusinessId = seedBusiness.Id, Category = "Marketing", Amount = 1200m, Description = "Social media advertising campaign", ExpenseDate = now.AddDays(-12), OutletId = null },
+            new Expense { BusinessId = seedBusiness.Id, Category = "Supplies", Amount = 300m, Description = "Office supplies and packaging materials", ExpenseDate = now.AddDays(-8), OutletId = mainOutlet.Id }
         };
         await context.Expenses.AddRangeAsync(expenses);
         await context.SaveChangesAsync();
@@ -653,10 +691,85 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 
-    /// <summary>
-    /// Idempotently ensures the BusinessOwner role and a default Business Owner user exist.
-    /// Safe to call on already-seeded databases — only inserts what's missing.
-    /// </summary>
+    private static async Task RepairDemoBusinessAssignmentsAsync(RetailPOSDbContext context)
+    {
+        var demoBusinesses = await context.Businesses
+            .Where(business => business.Name == "RetailPOS Demo Business")
+            .ToListAsync();
+        if (demoBusinesses.Count == 0)
+            return;
+        if (demoBusinesses.Count != 1)
+            throw new InvalidOperationException("Demo seed repair requires exactly one named demo Business.");
+
+        var demo = demoBusinesses[0];
+        var expectedUsers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["owner@retailpos.com"] = "BusinessOwner",
+            ["john.admin@retailpos.com"] = "Admin",
+            ["sarah.manager@retailpos.com"] = "Manager",
+            ["mike.cashier@retailpos.com"] = "Cashier",
+            ["lisa.manager@retailpos.com"] = "Manager",
+            ["tom.stock@retailpos.com"] = "Stock Manager"
+        };
+        var users = await context.Users.Include(user => user.Role)
+            .Where(user => expectedUsers.Keys.Contains(user.Email)).ToListAsync();
+        foreach (var user in users)
+        {
+            if (!string.Equals(user.Role?.Name, expectedUsers[user.Email], StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Demo seed identity {user.Email} has an unexpected role.");
+            if (user.BusinessId.HasValue && user.BusinessId != demo.Id)
+                throw new InvalidOperationException($"Demo seed identity {user.Email} belongs to another Business.");
+            user.BusinessId ??= demo.Id;
+        }
+
+        var managerIds = users.Where(user => user.Email is "sarah.manager@retailpos.com"
+            or "lisa.manager@retailpos.com").Select(user => user.Id).ToList();
+        var outlets = await context.Outlets.Where(outlet =>
+            (outlet.Name == "Main Store" && outlet.Address == "123 Main Street, New York, NY 10001"
+                || outlet.Name == "Downtown Branch" && outlet.Address == "456 Downtown Ave, New York, NY 10002")
+            && outlet.ManagerId.HasValue && managerIds.Contains(outlet.ManagerId.Value)).ToListAsync();
+        foreach (var outlet in outlets)
+        {
+            if (outlet.BusinessId.HasValue && outlet.BusinessId != demo.Id)
+                throw new InvalidOperationException("Demo seed Outlet belongs to another Business.");
+            outlet.BusinessId ??= demo.Id;
+        }
+        var stockManagerIds = users.Where(user => user.Email == "tom.stock@retailpos.com")
+            .Select(user => user.Id).ToList();
+        var warehouses = await context.Warehouses.Where(warehouse =>
+            (warehouse.Name == "Central Warehouse" && warehouse.Address == "789 Warehouse Blvd, Brooklyn, NY 11201"
+                || warehouse.Name == "North Warehouse" && warehouse.Address == "321 North Industrial Rd, Queens, NY 11101")
+            && warehouse.ManagerId.HasValue && stockManagerIds.Contains(warehouse.ManagerId.Value)).ToListAsync();
+        foreach (var warehouse in warehouses)
+        {
+            if (warehouse.BusinessId.HasValue && warehouse.BusinessId != demo.Id)
+                throw new InvalidOperationException("Demo seed Warehouse belongs to another Business.");
+            warehouse.BusinessId ??= demo.Id;
+        }
+        var suppliers = await context.Suppliers.Where(supplier =>
+            supplier.Name == "TechSupply Co." && supplier.Contact == "contact@techsupply.com"
+            || supplier.Name == "Fashion World Distributors" && supplier.Contact == "orders@fashionworld.com"
+            || supplier.Name == "Global Food Imports" && supplier.Contact == "sales@globalfood.com").ToListAsync();
+        foreach (var supplier in suppliers)
+        {
+            if (supplier.BusinessId.HasValue && supplier.BusinessId != demo.Id)
+                throw new InvalidOperationException("Demo seed Supplier belongs to another Business.");
+            supplier.BusinessId ??= demo.Id;
+        }
+        var cashier = users.SingleOrDefault(user => user.Email == "mike.cashier@retailpos.com");
+        if (cashier?.Role is { } role)
+        {
+            var permissions = System.Text.Json.JsonSerializer.Deserialize<List<string>>(role.Permissions ?? "[]")
+                ?? throw new InvalidOperationException("Demo Cashier permissions must be a JSON array.");
+            if (!permissions.Contains("categories.view", StringComparer.OrdinalIgnoreCase))
+            {
+                permissions.Add("categories.view");
+                role.Permissions = System.Text.Json.JsonSerializer.Serialize(permissions);
+            }
+        }
+        await context.SaveChangesAsync();
+    }
+
     private static async Task EnsureBusinessOwnerAsync(RetailPOSDbContext context)
     {
         var ownerRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "BusinessOwner");
@@ -718,6 +831,46 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 
+    private static async Task EnsureAccountingManagerAsync(RetailPOSDbContext context)
+    {
+        var exists = await context.Roles.AnyAsync(r => r.Name == "Accounting Manager");
+        if (exists)
+            return;
+
+        context.Roles.Add(new Role
+        {
+            Name = "Accounting Manager",
+            Permissions = @"[
+                    ""suppliers.view"",
+                    ""accounting.dashboard.view"",
+                    ""accounting.chart_accounts.view"", ""accounting.chart_accounts.create"", ""accounting.chart_accounts.edit"",
+                    ""accounting.configuration.view"",
+                    ""accounting.journals.view"",
+                    ""sales.financial_postings.view"", ""sales.financial_postings.retry"",
+                    ""accounting.manual_journals.view"", ""accounting.manual_journals.create"", ""accounting.manual_journals.update"", ""accounting.manual_journals.submit"", ""accounting.manual_journals.cancel"",
+                    ""accounting.expenses.view"", ""accounting.expenses.create"", ""accounting.expenses.edit"", ""accounting.expenses.submit"", ""accounting.expenses.cancel"",
+                    ""accounting.supplier_payments.view"", ""accounting.supplier_payments.create"", ""accounting.supplier_payments.submit"", ""accounting.supplier_payments.cancel"",
+                    ""accounting.supplier_advances.view"", ""accounting.supplier_advances.create"", ""accounting.supplier_advances.submit"", ""accounting.supplier_advances.cancel"",
+                    ""accounting.other_income.view"", ""accounting.other_income.create"", ""accounting.other_income.edit"", ""accounting.other_income.submit"", ""accounting.other_income.cancel"",
+                    ""accounting.settlements.view"", ""accounting.settlements.create"",
+                    ""accounting.liquidity_transfers.view"", ""accounting.liquidity_transfers.create"",
+                    ""accounting.statement_import.view"", ""accounting.statement_import.create"",
+                    ""accounting.reconciliation.view"", ""accounting.reconciliation.create"", ""accounting.reconciliation.match"", ""accounting.reconciliation.unmatch"",
+                    ""accounting.adjustments.propose"", ""accounting.exceptions.manage"",
+                    ""accounting.financial_years.view"", ""accounting.periods.view"",
+                    ""accounting.close.prepare"", ""accounting.close.audit.view"",
+                    ""accounting.reports.general_ledger"", ""accounting.reports.trial_balance"", ""accounting.reports.profit_loss"", ""accounting.reports.balance_sheet"",
+                    ""accounting.reports.cash_book"", ""accounting.reports.cash_flow"", ""accounting.reports.profitability"",
+                    ""accounting.reports.cogs"", ""accounting.reports.inventory_valuation"",
+                    ""accounting.reports.ap_subledger"", ""accounting.reports.ap_aging"", ""accounting.reports.supplier_statement"", ""accounting.reports.ap_reconciliation"", ""accounting.reports.vat"",
+                    ""reports.export""
+                ]",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+    }
+
     /// <summary>
     /// Gets the default roles with their permissions.
     /// </summary>
@@ -744,6 +897,7 @@ public static class DbSeeder
                 Name = "OutletManager",
                 Permissions = @"[
                     ""products.view"", ""products.create"", ""products.edit"",
+                    ""variations.view"",
                     ""categories.view"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"",
                     ""stock_adjustments.view"", ""stock_adjustments.create"",
@@ -751,11 +905,13 @@ public static class DbSeeder
                     ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
                     ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
                     ""low_stock_alerts.view"",
-                    ""sales.view"", ""sales.create"",
+                    ""sales.view"", ""sales.create"", ""sales.discount.apply"",
+                    ""cash_sessions.view"", ""cash_sessions.open"", ""cash_sessions.close"", ""cash_sessions.handover.confirm"", ""cash_sessions.attachments.upload"", ""cash_sessions.attachments.download"", ""cash_sessions.variance.view"", ""cash_sessions.expenses.pay"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
                     ""suppliers.view"",
-                    ""reports.view""
+                    ""outlets.view"",
+                    ""reports.sales"", ""reports.inventory""
                 ]",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -765,6 +921,7 @@ public static class DbSeeder
                 Name = "Salesman",
                 Permissions = @"[
                     ""products.view"",
+                    ""variations.view"",
                     ""inventory.view"",
                     ""stock_requisitions.view"",
                     ""stock_transfers.view"",
@@ -782,21 +939,66 @@ public static class DbSeeder
                     ""users.view"", ""users.create"", ""users.edit"", ""users.delete"",
                     ""roles.view"", ""roles.create"", ""roles.edit"", ""roles.delete"",
                     ""products.view"", ""products.create"", ""products.edit"", ""products.delete"",
+                    ""variations.view"", ""variations.create"", ""variations.edit"", ""variations.delete"",
                     ""categories.view"", ""categories.create"", ""categories.edit"", ""categories.delete"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"", ""inventory.delete"",
                     ""stock_adjustments.view"", ""stock_adjustments.create"", ""stock_adjustments.edit"", ""stock_adjustments.delete"", ""stock_adjustments.approve"", ""stock_adjustments.cancel"",
                     ""StockCount.ViewOwn"", ""StockCount.ViewAll"", ""StockCount.Create"", ""StockCount.Download"", ""StockCount.Print"", ""StockCount.Upload"", ""StockCount.Submit"", ""StockCount.Approve"", ""StockCount.Reject"", ""StockCount.Reopen"",
-                    ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.edit"", ""stock_transfers.delete"", ""stock_transfers.approve"", ""stock_transfers.cancel"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"", ""stock_transfers.transfer_from_any_location"",
+                    ""stock_transfers.view"", ""stock_transfers.view_all_locations"", ""stock_transfers.create"", ""stock_transfers.edit"", ""stock_transfers.delete"", ""stock_transfers.approve"", ""stock_transfers.cancel"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"", ""stock_transfers.transfer_from_any_location"",
                     ""stock_requisitions.view"", ""stock_requisitions.create"", ""stock_requisitions.edit"", ""stock_requisitions.approve"", ""stock_requisitions.reject"", ""stock_requisitions.convert_to_transfer"",
                     ""low_stock_alerts.view"", ""low_stock_alerts.create"", ""low_stock_alerts.edit"", ""low_stock_alerts.delete"",
-                    ""sales.view"", ""sales.create"",
+                    ""sales.view"", ""sales.create"", ""sales.discount.apply"", ""sales.discount.configure"",
+                    ""sales.financial_postings.view"", ""sales.financial_postings.retry"",
+                    ""cash_sessions.view"", ""cash_sessions.open"", ""cash_sessions.close"", ""cash_sessions.handover.confirm"", ""cash_sessions.attachments.upload"", ""cash_sessions.attachments.download"", ""cash_sessions.variance.view"", ""cash_sessions.variance.approve"", ""cash_sessions.variance.retry_posting"", ""cash_sessions.expenses.pay"",
                     ""purchases.view"", ""purchases.create"", ""purchases.edit"", ""purchases.delete"",
                     ""customers.view"", ""customers.create"", ""customers.edit"", ""customers.delete"",
                     ""suppliers.view"", ""suppliers.create"", ""suppliers.edit"", ""suppliers.delete"",
                     ""outlets.view"", ""outlets.create"", ""outlets.edit"", ""outlets.delete"",
                     ""warehouses.view"", ""warehouses.create"", ""warehouses.edit"", ""warehouses.delete"",
-                    ""reports.view"", ""reports.export"",
+                    ""accounting.dashboard.view"",
+                    ""accounting.chart_accounts.view"", ""accounting.chart_accounts.create"", ""accounting.chart_accounts.edit"",
+                    ""accounting.configuration.view"", ""accounting.configuration.edit"",
+                    ""accounting.journals.view"", ""accounting.journals.create"", ""accounting.journals.update"", ""accounting.journals.cancel"", ""accounting.journals.post"", ""accounting.journals.reverse"",
+                    ""accounting.manual_journals.create"", ""accounting.manual_journals.post"",
+                    ""accounting.expenses.view"", ""accounting.expenses.create"", ""accounting.expenses.edit"", ""accounting.expenses.submit"", ""accounting.expenses.approve"", ""accounting.expenses.reject"", ""accounting.expenses.cancel"",
+                    ""accounting.other_income.view"", ""accounting.other_income.create"", ""accounting.other_income.edit"", ""accounting.other_income.submit"", ""accounting.other_income.approve"", ""accounting.other_income.cancel"",
+                    ""accounting.financial_years.view"", ""accounting.financial_years.manage"", ""accounting.financial_years.reopen"",
+                    ""accounting.periods.view"", ""accounting.periods.close"", ""accounting.periods.reopen"", ""accounting.close.prepare"", ""accounting.close.approve"", ""accounting.close.execute"", ""accounting.close.override_exception"", ""accounting.close.audit.view"",
+                    ""accounting.opening_balances.post"",
+                    ""accounting.opening_balances.adjust"",
+                    ""accounting.reports.general_ledger"", ""accounting.reports.trial_balance"", ""accounting.reports.profit_loss"", ""accounting.reports.cash_flow"", ""accounting.reports.profitability"",
+                    ""reports.sales"", ""reports.inventory"", ""reports.financial"", ""reports.export"",
                     ""settings.view"", ""settings.edit""
+                ]",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new Role
+            {
+                Name = "Accounting Manager",
+                Permissions = @"[
+                    ""suppliers.view"",
+                    ""accounting.dashboard.view"",
+                    ""accounting.chart_accounts.view"", ""accounting.chart_accounts.create"", ""accounting.chart_accounts.edit"",
+                    ""accounting.configuration.view"",
+                    ""accounting.journals.view"",
+                    ""accounting.manual_journals.view"", ""accounting.manual_journals.create"", ""accounting.manual_journals.update"", ""accounting.manual_journals.submit"", ""accounting.manual_journals.cancel"",
+                    ""accounting.expenses.view"", ""accounting.expenses.create"", ""accounting.expenses.edit"", ""accounting.expenses.submit"", ""accounting.expenses.cancel"",
+                    ""accounting.supplier_payments.view"", ""accounting.supplier_payments.create"", ""accounting.supplier_payments.submit"", ""accounting.supplier_payments.cancel"",
+                    ""accounting.supplier_advances.view"", ""accounting.supplier_advances.create"", ""accounting.supplier_advances.submit"", ""accounting.supplier_advances.cancel"",
+                    ""accounting.other_income.view"", ""accounting.other_income.create"", ""accounting.other_income.edit"", ""accounting.other_income.submit"", ""accounting.other_income.cancel"",
+                    ""accounting.settlements.view"", ""accounting.settlements.create"",
+                    ""accounting.liquidity_transfers.view"", ""accounting.liquidity_transfers.create"",
+                    ""accounting.statement_import.view"", ""accounting.statement_import.create"",
+                    ""accounting.reconciliation.view"", ""accounting.reconciliation.create"", ""accounting.reconciliation.match"", ""accounting.reconciliation.unmatch"",
+                    ""accounting.adjustments.propose"", ""accounting.exceptions.manage"",
+                    ""accounting.financial_years.view"", ""accounting.periods.view"",
+                    ""accounting.close.prepare"", ""accounting.close.audit.view"",
+                    ""accounting.reports.general_ledger"", ""accounting.reports.trial_balance"", ""accounting.reports.profit_loss"", ""accounting.reports.balance_sheet"",
+                    ""accounting.reports.cash_book"", ""accounting.reports.cash_flow"", ""accounting.reports.profitability"",
+                    ""accounting.reports.cogs"", ""accounting.reports.inventory_valuation"",
+                    ""accounting.reports.ap_subledger"", ""accounting.reports.ap_aging"", ""accounting.reports.supplier_statement"", ""accounting.reports.ap_reconciliation"", ""accounting.reports.vat"",
+                    ""reports.export""
                 ]",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -806,6 +1008,7 @@ public static class DbSeeder
                 Name = "Manager",
                 Permissions = @"[
                     ""products.view"", ""products.create"", ""products.edit"",
+                    ""variations.view"", ""variations.create"", ""variations.edit"",
                     ""categories.view"", ""categories.create"", ""categories.edit"",
                     ""inventory.view"", ""inventory.create"", ""inventory.edit"",
                     ""stock_adjustments.view"", ""stock_adjustments.create"",
@@ -814,10 +1017,11 @@ public static class DbSeeder
                     ""stock_transfers.view"", ""stock_transfers.create"", ""stock_transfers.dispatch"", ""stock_transfers.receive"", ""stock_transfers.reject_receive"", ""stock_transfers.return_create"",
                     ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"",
+                    ""cash_sessions.view"", ""cash_sessions.open"", ""cash_sessions.close"",
                     ""purchases.view"", ""purchases.create"",
                     ""customers.view"", ""customers.create"", ""customers.edit"",
                     ""suppliers.view"", ""suppliers.create"", ""suppliers.edit"",
-                    ""reports.view""
+                    ""reports.sales"", ""reports.inventory""
                 ]",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -827,9 +1031,11 @@ public static class DbSeeder
                 Name = "Cashier",
                 Permissions = @"[
                     ""products.view"",
+                    ""categories.view"",
                     ""inventory.view"",
                     ""low_stock_alerts.view"",
                     ""sales.view"", ""sales.create"",
+                    ""cash_sessions.view"", ""cash_sessions.open"", ""cash_sessions.close"", ""cash_sessions.attachments.upload"",
                     ""customers.view"", ""customers.create""
                 ]",
                 CreatedAt = DateTime.UtcNow,

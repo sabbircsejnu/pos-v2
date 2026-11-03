@@ -1,0 +1,295 @@
+<div class="auth-main">
+  <div class="auth-wrapper version-3">
+    <div class="authentication-page">
+      <div class="text-start t-25">
+        <a href="javascript:">
+          <img src="assets/images/logo-dark.svg" alt="logo" />
+        </a>
+      </div>
+      <div class="center-content">
+        <div [ngClass]="{ 'header-hide': showStepper }">
+          <h3 class="m-b-10 text-center">Welcome to the Able Pro</h3>
+          <div class="f-w-500 text-muted text-center">Sign up or login with your work email.</div>
+        </div>
+        <div class="login">
+          @if (showStepper === true) {
+            <div class="login-mail text-center" [ngClass]="{ 'border-remove': showStepper }">
+              <mat-stepper labelPosition="bottom" class="no-header" #stepper>
+                <mat-step [stepControl]="secondFormGroup" optional>
+                  <h3 class="m-b-16 text-center">Welcome to the Able Pro</h3>
+                  <p class="m-b-25 text-muted text-center">Sign up or login with your work email.</p>
+                  <form [formGroup]="secondFormGroup">
+                    <div class="text-start">
+                      <label for="name" class="f-w-500">Enter Your Email</label>
+                      <mat-form-field appearance="outline" class="w-100 m-t-5">
+                        <input matInput [formControl]="email" required />
+                        @if (email.invalid) {
+                          <mat-error>{{ getErrorMessage() }}</mat-error>
+                        }
+                      </mat-form-field>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-stroked-button matStepperPrevious (click)="this.showStepper = !this.showStepper">Back</button>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-flat-button color="primary" matStepperNext>Continue</button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </mat-step>
+                <mat-step [stepControl]="secondFormGroup" optional>
+                  <h3 class="m-b-16 text-center">What’s your purpose for use Able Pro</h3>
+                  <div class="m-b-25 text-muted text-center f-w-500">Your setup experience will be streamlined accordingly.</div>
+                  <form [formGroup]="secondFormGroup">
+                    <div class="row m-b-25">
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <mat-radio-button value="1" class="auth-business" checked>
+                            <svg class="pc-icon">
+                              <use xlink:href="assets/fonts/custom-icon.svg#custom-user"></use>
+                            </svg>
+                            <div class="f-16 f-w-500">Personal</div>
+                          </mat-radio-button>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <mat-radio-button value="1" class="auth-business">
+                            <svg class="pc-icon">
+                              <use xlink:href="assets/fonts/custom-icon.svg#custom-home"></use>
+                            </svg>
+                            <div class="f-16 f-w-500">Business</div>
+                          </mat-radio-button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-stroked-button matStepperPrevious>Back</button>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-flat-button color="primary" matStepperNext>Continue</button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </mat-step>
+                <mat-step [stepControl]="secondFormGroup" optional>
+                  <h3 class="m-b-10 text-center">Tell us About Yourself</h3>
+                  <div class="m-b-25 f-w-500 text-muted text-center">Tell us a bit about yourself</div>
+                  <form [formGroup]="secondFormGroup">
+                    <div class="row text-start">
+                      <div class="col-sm-6">
+                        <label for="name" class="f-w-500">First Name</label>
+                        <mat-form-field appearance="outline" class="w-100 m-t-5">
+                          <input type="text" matInput placeholder="First Name" />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-sm-6">
+                        <label for="name" class="f-w-500">Last Name</label>
+                        <mat-form-field appearance="outline" class="w-100 m-t-5">
+                          <input type="text" matInput placeholder="Last Name" />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-12">
+                        <label for="name" class="f-w-500">Enter Your Email</label>
+                        <mat-form-field appearance="outline" class="w-100 m-t-5">
+                          <input matInput [formControl]="email" required />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-12">
+                        <label for="name" class="f-w-500">Enter your password</label>
+                        <mat-form-field appearance="outline" class="w-100 m-t-5">
+                          <input matInput [type]="hide ? 'password' : 'text'" />
+                          <button
+                            mat-icon-button
+                            matSuffix
+                            (click)="hide = !hide"
+                            [attr.aria-label]="'Hide password'"
+                            [attr.aria-pressed]="hide"
+                          >
+                            <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+                          </button>
+                        </mat-form-field>
+                      </div>
+                      <div class="col-12">
+                        <label for="name" class="f-w-500">Enter your Confirm Password</label>
+                        <mat-form-field appearance="outline" class="w-100 m-t-5">
+                          <input matInput [type]="coHide ? 'password' : 'text'" />
+                          <button
+                            mat-icon-button
+                            matSuffix
+                            (click)="coHide = !coHide"
+                            [attr.aria-label]="'Hide password'"
+                            [attr.aria-pressed]="coHide"
+                          >
+                            <mat-icon>{{ coHide ? 'visibility_off' : 'visibility' }}</mat-icon>
+                          </button>
+                        </mat-form-field>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-stroked-button matStepperPrevious>Back</button>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-flat-button color="primary" matStepperNext>Continue</button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </mat-step>
+                <mat-step [stepControl]="secondFormGroup" optional>
+                  <h3 class="m-b-10 text-center">Please confirm your email id</h3>
+                  <p class="m-b-25 text-muted text-center">
+                    Lorem Ipsum is simply dummy text of the printing and
+                    <br />
+                    typesetting industry of Lorem Ipsum.
+                  </p>
+                  <form [formGroup]="secondFormGroup">
+                    <div class="row text-center">
+                      <div class="col-3 g-0">
+                        <mat-form-field appearance="fill" class="otp-input wid-80">
+                          <input matInput #input maxlength="1" placeholder="0" />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-3">
+                        <mat-form-field appearance="fill" class="otp-input wid-80">
+                          <input matInput #input maxlength="1" placeholder="0" />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-3">
+                        <mat-form-field appearance="fill" class="otp-input wid-80">
+                          <input matInput #input maxlength="1" placeholder="0" />
+                        </mat-form-field>
+                      </div>
+                      <div class="col-3">
+                        <mat-form-field appearance="fill" class="otp-input wid-80">
+                          <input matInput #input maxlength="1" placeholder="0" />
+                        </mat-form-field>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-stroked-button matStepperPrevious>Back</button>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="grid">
+                          <button mat-flat-button color="primary" matStepperNext>Continue</button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </mat-step>
+                <mat-step>
+                  <div class="final-step flex align-item-center p-15 m-y-25">
+                    <i class="ti ti-circle-check f-24 m-r-10 text-success-500"></i>
+                    <p class="m-b-0">All steps completed - you're finished</p>
+                  </div>
+                  <div>
+                    <button mat-flat-button color="warn" class="float-end" (click)="stepper.reset(); this.showStepper = !this.showStepper">
+                      Reset
+                    </button>
+                  </div>
+                </mat-step>
+              </mat-stepper>
+            </div>
+          }
+          <div class="login-social-media" [ngClass]="{ 'button-hide': showStepper }">
+            <button mat-stroked-button class="m-t-10 text-muted" (click)="this.showStepper = !this.showStepper">
+              <div class="flex align-item-center">
+                <img [src]="isDark ? 'assets/images/authentication/sms-dark.svg' : 'assets/images/authentication/sms.svg'" alt="mail" />
+                <span class="p-l-10">Continue with work email</span>
+              </div>
+            </button>
+            <button mat-stroked-button class="m-t-10 text-muted">
+              <div class="flex">
+                <img
+                  [src]="isDark ? 'assets/images/authentication/facebook.svg' : 'assets/images/authentication/facebook.svg'"
+                  alt="facebook"
+                />
+                <span class="p-l-10">Sign In with Facebook</span>
+              </div>
+            </button>
+            <button mat-stroked-button class="m-t-10 text-muted">
+              <div class="flex">
+                <img src="assets/images/authentication/twitter.svg" alt="facebook" />
+                <span class="p-l-10">Sign In with Twitter</span>
+              </div>
+            </button>
+            <button mat-stroked-button class="m-t-10 text-muted">
+              <div class="flex">
+                <img src="assets/images/authentication/google.svg" alt="facebook" />
+                <span class="p-l-10">Sign In with Google</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="auth-footer">
+        <p class="m-0 w-100 text-center">
+          By signing up, you confirm to have read Able pro
+          <a href="https://www.envato.com/privacy/" target="_blank" class="text-primary-500">Privacy Policy</a>
+          and agree to the
+          <a
+            href="https://help.elements.envato.com/hc/en-us/sections/360000117103-Terms-Conditions"
+            target="_blank"
+            class="text-primary-500"
+          >
+            Terms & Conditions
+          </a>
+          .
+        </p>
+      </div>
+    </div>
+    <div class="auth-side-content flex align-item-center">
+      <div class="auth-side-3">
+        <owl-carousel-o class="auth-carousel" [options]="customOptions">
+          <ng-template carouselSlide [width]="305">
+            <ng-container *ngTemplateOutlet="scrollContent"></ng-container>
+          </ng-template>
+          <ng-template carouselSlide [width]="305">
+            <ng-container *ngTemplateOutlet="scrollContent"></ng-container>
+          </ng-template>
+          <ng-template carouselSlide [width]="305">
+            <ng-container *ngTemplateOutlet="scrollContent"></ng-container>
+          </ng-template>
+          <ng-template carouselSlide [width]="305">
+            <ng-container *ngTemplateOutlet="scrollContent"></ng-container>
+          </ng-template>
+        </owl-carousel-o>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ng-template #scrollContent>
+  <img src="assets/images/user/avatar-1.png" alt="user-image" class="user-avatar wid-50 m-b-16" />
+  <div class="user-info f-16 f-w-500">Allie Grater</div>
+  <p class="user-info m-b-0">&#64;alliegrater</p>
+  <div class="user-rating m-b-30 m-t-15">
+    <i class="fas fa-star"></i>
+    <i class="fas fa-star"></i>
+    <i class="fas fa-star"></i>
+    <i class="fas fa-star"></i>
+    <i class="fas fa-star-half-alt"></i>
+  </div>
+  <p>
+    Very good customer service!👌 I liked the design and there was nothing wrong, but found out after testing that it did not quite match
+    the functionality and overall design that I needed for my type of software. I therefore contacted customer service and it was no problem
+    even though the deadline for refund had actually expired.😍
+  </p>
+</ng-template>

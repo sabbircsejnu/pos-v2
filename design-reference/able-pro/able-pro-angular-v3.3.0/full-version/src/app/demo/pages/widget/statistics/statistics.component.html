@@ -1,0 +1,156 @@
+<div class="row statistics p-t-25">
+  @for (list of card; track list) {
+    <div class="col-md-6 col-xl-3">
+      <app-card [showHeader]="false">
+        <div class="row align-item-center">
+          <div class="col-8">
+            <h3 class="m-b-5 f-w-500">{{ list.number }}</h3>
+            <div class="text-muted f-w-500">{{ list.text }}</div>
+          </div>
+          <div class="col-4 text-end">
+            <i class="{{ list.icon }} f-36"></i>
+          </div>
+        </div>
+      </app-card>
+    </div>
+  }
+  @for (list of social_card; track list) {
+    <div class="col-md-6 col-xl-3">
+      <app-card [showHeader]="false" cardClass="social-widget-card {{ list.background }} text-white">
+        <h3 class="m-b-5 f-w-500">{{ list.number }}</h3>
+        <div>{{ list.text }}</div>
+        <i class="{{ list.icon }}"></i>
+      </app-card>
+    </div>
+  }
+  @for (task of percentage_card; track task) {
+    <div class="col-md-6 col-xl-3">
+      <app-card [showHeader]="false">
+        <div class="m-b-10 text-muted">{{ task.text }}</div>
+        <div class="m-b-15 f-20 f-w-600">
+          {{ task.number }}
+          <span class="sub-head mat-body {{ task.color }}">
+            <i class="{{ task.icon }}"></i>
+            {{ task.percentage }}
+          </span>
+        </div>
+        <p class="m-b-0 text-muted mat-small">
+          You made an extra
+          <span class="{{ task.text_color }}">{{ task.sale }}</span>
+          this year
+        </p>
+      </app-card>
+    </div>
+  }
+
+  <div class="col-md-6 col-lg-4">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-w-600 f-16">Add Fund</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <div class="text-center">
+        <p class="m-b-5">Amount</p>
+        <h3 class="f-w-600">$100</h3>
+        <ul class="list-inline fund-amount">
+          <li class="list-inline-item bg-primary-50 text-primary-500"><span class="mat-small">$100</span></li>
+          <li class="list-inline-item"><span class="mat-small">$150</span></li>
+          <li class="list-inline-item"><span class="mat-small">$200</span></li>
+          <li class="list-inline-item"><span class="mat-small">$250</span></li>
+        </ul>
+      </div>
+      <app-card [showHeader]="false" padding="16" cardClass="m-b-15 m-t-15">
+        <div class="flex align-item-center">
+          <div class="flex-shrink-0">
+            <img src="assets/images/user/avatar-1.png" alt="user-image" class="user-avatar wid-45 hei-45" />
+          </div>
+          <div class="flex-grow-1 m-l-15">
+            <div class="f-w-600">Able pro</div>
+            <div class="text-muted mat-caption">&#64;ableprodevelop</div>
+          </div>
+          <a [matMenuTriggerFor]="userMenu" class="avatar avatar-s"><i class="ti ti-chevron-down f-18"></i></a>
+          <mat-menu #userMenu="matMenu">
+            <a mat-menu-item>Active</a>
+            <a mat-menu-item>Disable</a>
+            <a mat-menu-item>Remove</a>
+          </mat-menu>
+        </div>
+      </app-card>
+      <div class="grid">
+        <button mat-flat-button color="primary" class="b-rad-20">Confirm</button>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center">
+        <div class="flex-shrink-0">
+          <div class="avatar avatar-s bg-primary-50 text-primary-500">
+            <i class="ti ti-at f-20"></i>
+          </div>
+        </div>
+        <div class="flex-grow-1 m-l-15">
+          <div class="f-w-600">Able pro</div>
+          <div class="text-muted mat-caption">&#64;ableprodevelop</div>
+        </div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s"><i class="ti ti-dots-vertical f-18"></i></a>
+      </div>
+      <div class="flex justify-content-between align-item-center m-t-25 able-user-group">
+        <div class="user-group">
+          <img src="assets/images/user/avatar-1.png" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-2.png" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-3.png" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-4.jpg" alt="user-image" class="avatar" />
+          <img src="assets/images/user/avatar-5.jpg" alt="user-image" class="avatar" />
+          <span class="avatar bg-primary-50 text-primary-500 mat-body">+2</span>
+        </div>
+        <a href="javascript:" class="avatar avatar-s bg-primary-500 text-white">
+          <i class="ti ti-plus f-20"></i>
+        </a>
+      </div>
+    </app-card>
+    <app-card [showHeader]="false" cardClass="premium-card" class="text-center">
+      <div class="avatar avatar-s justify-content-center bg-primary-500 text-white text-center">
+        <i class="ti ti-lock f-20"></i>
+      </div>
+      <div class="m-b-5 f-16 f-w-600 m-t-15">Unlock All Features</div>
+      <div class="text-muted mat-caption m-t-10">Unlock All Features</div>
+      <div class="grid">
+        <button mat-flat-button color="primary" class="b-rad-20">Upgrade to premium</button>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6 col-lg-4">
+    <app-card [showHeader]="false" cardClass="storage-card text-white">
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-w-600">Dropbox Storage</div>
+        <div class="f-16 f-w-600">150GB</div>
+      </div>
+      <div class="m-b-15 dropbox-card">
+        <div class="avatar avatar-s">
+          <i class="ti ti-cloud f-18"></i>
+        </div>
+      </div>
+      <div class="mat-caption f-w-500">134,2GB of 150GB Users</div>
+      <div class="m-t-10">
+        <mat-progress-bar mode="determinate" [value]="75" color="warn"></mat-progress-bar>
+      </div>
+    </app-card>
+    <app-card [showHeader]="false" cardClass="bg-primary-500 balance-card text-white">
+      <div class="flex align-item-center justify-content-between">
+        <div>
+          <p class="m-b-0 text-white text-opacity-75">Available Balance</p>
+          <div class="f-20 f-w-600 text-white">$1,234.90</div>
+        </div>
+        <div class="avatar balance-card">
+          <i class="ti ti-arrows-left-right f-18"></i>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

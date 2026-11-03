@@ -1,0 +1,184 @@
+<div class="row p-t-25">
+  <div class="e-comm-body">
+    <mat-drawer-container>
+      <mat-drawer #commerce [mode]="modeValue" [opened]="status" class="filter-columns">
+        <app-card cardTitle="filter" [padding]="0">
+          <app-scrollbar [customStyle]="{ height: 'calc(100vh - 0px)', position: 'relative' }">
+            <div class="p-25">
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                  <div class="filer-select">
+                    <div class="f-16 f-w-600">Gender</div>
+                    @for (item of genderOptions; track item) {
+                      <mat-checkbox color="primary" [checked]="selectedGender === item" (change)="toggleGender(item)">
+                        {{ item | titlecase }}
+                      </mat-checkbox>
+                    }
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="filer-select">
+                    <div class="f-16 f-w-600">Categories</div>
+                    @for (option of categoryOptions; track option) {
+                      <mat-checkbox color="primary" [checked]="selectedCategory === option" (change)="toggleCategory(option)">
+                        {{ option === '' ? 'All' : (option | titlecase) }}
+                      </mat-checkbox>
+                    }
+                  </div>
+                </li>
+                <li class="list-group-item color">
+                  <div class="f-16 f-w-600">Color</div>
+                  <div class="flex align-item-center m-t-10">
+                    <section name="product-color">
+                      @for (option of colorOptions; track option) {
+                        <mat-checkbox
+                          value="{{ option.value }}"
+                          class="product-color"
+                          [checked]="selectedColor === option.value"
+                          (change)="toggleColor(option.value)"
+                          matTooltip="{{ option.tooltip }}"
+                          [ngClass]="{ 'checked-color': selectedColor === option.value }"
+                        >
+                          <i class="fas fa-circle {{ option.color }} f-28"></i>
+                        </mat-checkbox>
+                      }
+                    </section>
+                  </div>
+                </li>
+                <li class="list-group-item m-r-25">
+                  <div class="f-16 f-w-600">price</div>
+                  <section class="row">
+                    <div class="col-sm-6">
+                      <label for="name" class="f-w-500">Min value</label>
+                      <mat-form-field appearance="outline" class="wid-110 m-t-5">
+                        <input type="text" matInput type="number" [(ngModel)]="min" />
+                      </mat-form-field>
+                    </div>
+                    <div class="col-sm-6">
+                      <label for="name" class="f-w-500">Max value</label>
+                      <mat-form-field appearance="outline" class="wid-110 m-r-15 m-t-5">
+                        <input type="text" matInput type="number" [(ngModel)]="value" />
+                      </mat-form-field>
+                    </div>
+                  </section>
+                  <mat-slider class="w-100" [max]="max" [min]="min" [discrete]="thumbLabel">
+                    <input matSliderThumb [(ngModel)]="value" #slider />
+                  </mat-slider>
+                </li>
+              </ul>
+            </div>
+          </app-scrollbar>
+        </app-card>
+      </mat-drawer>
+      <mat-drawer-content class="product-list-details">
+        <app-card [showHeader]="false" [padding]="16">
+          <div class="product-page-header">
+            <div class="flex align-item-center">
+              <button mat-button (click)="commerce.toggle()" class="text-nowrap m-r-10">
+                <svg class="pc-icon">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-filter"></use>
+                </svg>
+                Filter
+              </button>
+              <mat-form-field appearance="outline">
+                <input matInput placeholder="Placeholder" />
+                <mat-icon matSuffix class="search-icons">
+                  <svg class="pc-icon">
+                    <use xlink:href="assets/fonts/custom-icon.svg#custom-search"></use>
+                  </svg>
+                </mat-icon>
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-select value="option-1">
+                <mat-option value="option-1">Price: High To Low</mat-option>
+                <mat-option value="option-2">Price: Low To High</mat-option>
+                <mat-option value="option-3">popularity</mat-option>
+                <mat-option value="option-4">Discount</mat-option>
+                <mat-option value="option-5">Fresh Arrivals</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </app-card>
+        @if (productData) {
+          @if (productData.length === 0) {
+            <div class="row">
+              <div class="col-sm-12">
+                <app-card [showHeader]="false">
+                  <div class="no-product">
+                    <div class="row justify-content-center align-item-center">
+                      <div class="col-sm-6 text-end">
+                        <img src="assets/images/application/empty.png" alt="img" class="img-fluid" />
+                      </div>
+                      <div class="col-sm-6 text-start">
+                        <div class="f-38 f-w-600">There is no Product</div>
+                        <div class="f-16 f-w-600 text-muted">Try checking your spelling or use more general terms</div>
+                        <button mat-flat-button color="warn" class="m-t-10">
+                          <div class="flex align-item-center">
+                            Reset Filter
+                            <i class="ti ti-chevron-right m-l-10 f-20"></i>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </app-card>
+              </div>
+            </div>
+          } @else {
+            <div class="row">
+              @for (product of productData; track product) {
+                <div class="col-md-6 col-lg-4">
+                  <app-card [showHeader]="false" padding="0" cardClass="product-card">
+                    <div class="product-img">
+                      <div class="discount-tabs">
+                        @if (product.isStock === true && product?.salePrice && product?.salePrice.length !== 0) {
+                          <div class="discount-stock">{{ product.discount }}%</div>
+                        }
+                        @if (product.isStock === false) {
+                          <div class="discount-out">Sold out</div>
+                        }
+                      </div>
+                      <div class="whilst-tab" (click)="toggleWhitelist(product)">
+                        <i class="f-20" [ngClass]="product.isWhitelisted ? 'ti ti-heart-filled text-warn-500' : 'ti ti-heart'"></i>
+                      </div>
+                      <a href="javascript:" [ngClass]="{ unStock: !product.isStock }">
+                        <img src="assets/images/e-commerce/{{ product.image }}" alt="product-img" class="img-prod img-fluid" />
+                      </a>
+                    </div>
+                    <div class="product-content">
+                      <a href="javascript:" [routerLink]="['/application/e-commerce/product-details', product.id]">
+                        <div class="prod-name text-muted">{{ product.name }}</div>
+                      </a>
+                      <div>{{ product.brand }}</div>
+                      <div class="flex align-item-center justify-content-between m-t-10">
+                        <div class="f-20 f-w-600 prod-price">
+                          <b>${{ product.offerPrice }}</b>
+                          @if (product?.salePrice && product?.salePrice.length !== 0) {
+                            <span class="mat-small text-muted f-w-400">${{ product.salePrice }}</span>
+                          }
+                        </div>
+                        <button mat-flat-button color="primary" [disabled]="!product.isStock" (click)="addToCart(product)">
+                          {{ product.isStock ? 'Add To Cart' : 'Sold Out' }}
+                        </button>
+                      </div>
+                    </div>
+                  </app-card>
+                </div>
+              }
+            </div>
+          }
+        }
+      </mat-drawer-content>
+    </mat-drawer-container>
+    <div class="ec-cart">
+      <a (click)="goToCheckout()" class="icon" title="Cart Icon">
+        <mat-icon [matBadge]="cartItemCount" matBadgeSize="small" matBadgeColor="warn">
+          <svg class="pc-icon">
+            <use xlink:href="assets/fonts/custom-icon.svg#e-commerce-cart"></use>
+          </svg>
+        </mat-icon>
+      </a>
+    </div>
+  </div>
+</div>

@@ -2,10 +2,15 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using MediatR;
+using RetailPOS.Application.Authentication.Commands;
+using RetailPOS.Application.Authentication.Contracts;
+using RetailPOS.Application.Authentication.Queries;
 using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Services;
 using RetailPOS.Core.Entities.Audit;
-using RetailPOS.Infrastructure.Audit;
+using RetailPOS.Application.AuditEvents.Abstractions;
+using RetailPOS.Application.AuditEvents.Commands;
 
 namespace RetailPOS.API.Controllers;
 
@@ -13,37 +18,37 @@ namespace RetailPOS.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
-    private readonly IRoleSwitchService _roleSwitch;
-    private readonly IAuditService _audit;
     private readonly ILogger<AuthController> _logger;
+    private readonly ISender _sender;
 
-    public AuthController(IAuthService authService, IRoleSwitchService roleSwitch,
-        IAuditService audit, ILogger<AuthController> logger)
+    public AuthController(
+        ILogger<AuthController> logger,
+        ISender sender)
     {
-        _authService = authService;
-        _roleSwitch = roleSwitch;
-        _audit = audit;
         _logger = logger;
+        _sender = sender;
     }
 
     [HttpPost("login")]
     [EnableRateLimiting("auth-login")]
-    public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
+    public async Task<ActionResult<LoginResponseDto>> Login(
+        [FromBody] LoginRequestDto request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _authService.LoginAsync(request);
+            var response = ToResponse(await _sender.Send(
+                new LoginCommand(request.Email, request.Password, request.RememberMe),
+                cancellationToken));
 
             try
             {
-                await _audit.RecordAsync(new AuditEventInput
-                {
-                    ActionType = AuditActionType.Login,
-                    Module = AuditModule.Auth,
-                    Summary = $"Login successful for {request.Email}",
-                    PrimaryEntity = ("User", response.User?.Id.ToString() ?? ""),
-                });
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Login,
+                    AuditModule.Auth,
+                    $"Login successful for {request.Email}",
+                    "User",
+                    response.User?.Id.ToString() ?? "")), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit login success"); }
 
@@ -53,12 +58,21 @@ public class AuthController : ControllerBase
         {
             try
             {
-                await _audit.RecordFailureAsync(AuditActionType.Login, AuditModule.Auth,
-                    $"Login failed for {request.Email}", "User", null, ex.Message);
+                await _sender.Send(new RecordAuditEventFailureCommand(
+                    AuditActionType.Login,
+                    AuditModule.Auth,
+                    $"Login failed for {request.Email}",
+                    "User",
+                    null,
+                    ex.Message), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit login failure"); }
 
             return Unauthorized(new { message = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -68,18 +82,30 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = RoleSwitchClaims.SuperAdminRoleName)]
     [EnableRateLimiting("auth-register")]
-    public async Task<ActionResult<LoginResponseDto>> Register([FromBody] RegisterRequestDto request)
+    public async Task<ActionResult<LoginResponseDto>> Register(
+        [FromBody] RegisterRequestDto request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _authService.RegisterAsync(request);
+            var response = ToResponse(await _sender.Send(
+                new RegisterCommand(request.Name, request.Email, request.Password, request.ConfirmPassword),
+                cancellationToken));
             return Ok(response);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -89,11 +115,15 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("complete-invitation")]
-    public async Task<ActionResult<LoginResponseDto>> CompleteInvitation([FromBody] CompleteInvitationRequestDto request)
+    public async Task<ActionResult<LoginResponseDto>> CompleteInvitation(
+        [FromBody] CompleteInvitationRequestDto request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _authService.CompleteInvitationAsync(request);
+            var response = ToResponse(await _sender.Send(
+                new CompleteInvitationCommand(request.Token, request.NewPassword),
+                cancellationToken));
             return Ok(response);
         }
         catch (UnauthorizedAccessException ex)
@@ -103,6 +133,14 @@ public class AuthController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (FluentValidation.ValidationException ex)
+        {
+            return BadRequest(new { message = ex.Errors.FirstOrDefault()?.ErrorMessage });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -113,25 +151,32 @@ public class AuthController : ControllerBase
 
     [HttpPost("refresh-token")]
     [EnableRateLimiting("auth-refresh")]
-    public async Task<ActionResult<LoginResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto request)
+    public async Task<ActionResult<LoginResponseDto>> RefreshToken(
+        [FromBody] RefreshTokenRequestDto request,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var response = await _authService.RefreshTokenAsync(request);
+            var response = ToResponse(await _sender.Send(
+                new RefreshTokenCommand(request.Token, request.RefreshToken),
+                cancellationToken));
 
             try
             {
-                await _audit.RecordAsync(new AuditEventInput
-                {
-                    ActionType = AuditActionType.TokenRefresh,
-                    Module = AuditModule.Auth,
-                    Summary = $"Token refresh successful for user {response.User?.Id}",
-                    PrimaryEntity = ("User", response.User?.Id.ToString() ?? ""),
-                });
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.TokenRefresh,
+                    AuditModule.Auth,
+                    $"Token refresh successful for user {response.User?.Id}",
+                    "User",
+                    response.User?.Id.ToString() ?? "")), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit token refresh success"); }
 
             return Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -142,13 +187,23 @@ public class AuthController : ControllerBase
 
                 if (isReuseAttempt)
                 {
-                    await _audit.RecordFailureAsync(AuditActionType.TokenReuseAttempt, AuditModule.Auth,
-                        "Revoked refresh token reuse attempt", "Auth", null, ex.Message);
+                    await _sender.Send(new RecordAuditEventFailureCommand(
+                        AuditActionType.TokenReuseAttempt,
+                        AuditModule.Auth,
+                        "Revoked refresh token reuse attempt",
+                        "Auth",
+                        null,
+                        ex.Message), cancellationToken);
                 }
                 else
                 {
-                    await _audit.RecordFailureAsync(AuditActionType.TokenRefresh, AuditModule.Auth,
-                        "Token refresh failed", "Auth", null, ex.Message);
+                    await _sender.Send(new RecordAuditEventFailureCommand(
+                        AuditActionType.TokenRefresh,
+                        AuditModule.Auth,
+                        "Token refresh failed",
+                        "Auth",
+                        null,
+                        ex.Message), cancellationToken);
                 }
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit token refresh failure"); }
@@ -164,26 +219,37 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout(
+        [FromBody] LogoutRequestDto request,
+        CancellationToken cancellationToken)
     {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) || userId <= 0)
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _authService.LogoutAsync(userId);
+            await _sender.Send(
+                new LogoutCommand(userId, request.RefreshToken),
+                cancellationToken);
 
             try
             {
-                await _audit.RecordAsync(new AuditEventInput
-                {
-                    ActionType = AuditActionType.Logout,
-                    Module = AuditModule.Auth,
-                    Summary = $"Logout for user {userId}",
-                    PrimaryEntity = ("User", userId.ToString()),
-                });
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Logout,
+                    AuditModule.Auth,
+                    $"Logout for user {userId}",
+                    "User",
+                    userId.ToString())), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit logout"); }
 
             return Ok(new { message = "Logged out successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -193,35 +259,84 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("logout-all")]
+    public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) || userId <= 0)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            await _sender.Send(new LogoutAllCommand(userId), cancellationToken);
+
+            try
+            {
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Logout,
+                    AuditModule.Auth,
+                    $"All sessions logged out for user {userId}",
+                    "User",
+                    userId.ToString())), cancellationToken);
+            }
+            catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit all-session logout"); }
+
+            return Ok(new { message = "All sessions logged out successfully" });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during all-session logout");
+            return StatusCode(500, new { message = "An error occurred during logout" });
+        }
+    }
+
+    [Authorize]
     [HttpPost("switch-role")]
-    public async Task<ActionResult<LoginResponseDto>> SwitchRole([FromBody] RoleSwitchRequestDto request)
+    public async Task<ActionResult<LoginResponseDto>> SwitchRole(
+        [FromBody] RoleSwitchRequestDto request,
+        CancellationToken cancellationToken)
     {
         var realUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         try
         {
-            var response = await _roleSwitch.SwitchRoleAsync(realUserId, request);
+            var response = ToResponse(await _sender.Send(
+                new SwitchRoleCommand(realUserId, request.ActingRole, request.ActingOutletId),
+                cancellationToken));
 
             try
             {
-                await _audit.RecordAsync(new AuditEventInput
-                {
-                    ActionType = AuditActionType.RoleSwitch,
-                    Module = AuditModule.Auth,
-                    Summary = $"User {realUserId} switched to {request.ActingRole}" +
-                              (request.ActingOutletId.HasValue ? $" @ outlet {request.ActingOutletId}" : ""),
-                    PrimaryEntity = ("User", realUserId.ToString()),
-                });
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.RoleSwitch,
+                    AuditModule.Auth,
+                    $"User {realUserId} switched to {request.ActingRole}" +
+                    (request.ActingOutletId.HasValue ? $" @ outlet {request.ActingOutletId}" : ""),
+                    "User",
+                    realUserId.ToString())), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit role switch"); }
 
             return Ok(response);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (UnauthorizedAccessException ex)
         {
             try
             {
-                await _audit.RecordFailureAsync(AuditActionType.RoleSwitch, AuditModule.Auth,
-                    $"Role switch denied for user {realUserId}", "User", realUserId.ToString(), ex.Message);
+                await _sender.Send(new RecordAuditEventFailureCommand(
+                    AuditActionType.RoleSwitch,
+                    AuditModule.Auth,
+                    $"Role switch denied for user {realUserId}",
+                    "User",
+                    realUserId.ToString(),
+                    ex.Message), cancellationToken);
             }
             catch { }
             return Forbid();
@@ -239,26 +354,31 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("return-owner")]
-    public async Task<ActionResult<LoginResponseDto>> ReturnOwner()
+    public async Task<ActionResult<LoginResponseDto>> ReturnOwner(CancellationToken cancellationToken)
     {
         var realUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         try
         {
-            var response = await _roleSwitch.ReturnOwnerAsync(realUserId);
+            var response = ToResponse(await _sender.Send(
+                new ReturnOwnerCommand(realUserId),
+                cancellationToken));
 
             try
             {
-                await _audit.RecordAsync(new AuditEventInput
-                {
-                    ActionType = AuditActionType.RoleSwitch,
-                    Module = AuditModule.Auth,
-                    Summary = $"User {realUserId} returned to Owner Mode",
-                    PrimaryEntity = ("User", realUserId.ToString()),
-                });
+                await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.RoleSwitch,
+                    AuditModule.Auth,
+                    $"User {realUserId} returned to Owner Mode",
+                    "User",
+                    realUserId.ToString())), cancellationToken);
             }
             catch (Exception auditEx) { _logger.LogWarning(auditEx, "Failed to audit return-owner"); }
 
             return Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (UnauthorizedAccessException)
         {
@@ -273,19 +393,22 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult<UserInfoDto>> GetCurrentUser()
+    public async Task<ActionResult<UserInfoDto>> GetCurrentUser(CancellationToken cancellationToken)
     {
         try
         {
             var userId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var user = await _authService.GetCurrentUserAsync(userId);
-            
-            if (user == null)
+            var profile = await _sender.Send(new GetCurrentUserQuery(userId), cancellationToken);
+
+            if (profile == null)
             {
                 return NotFound(new { message = "User not found" });
             }
 
-            return Ok(user);
+            var result = ToUserInfo(profile);
+            if (HttpContext.Items[RetailPOS.API.Middleware.BusinessContextMiddleware.ItemName] is long selected)
+                result.BusinessId = selected;
+            return Ok(result);
         }
         catch (Exception ex)
         {
@@ -293,4 +416,80 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { message = "An error occurred" });
         }
     }
+
+    [Authorize(Roles = RoleSwitchClaims.SuperAdminRoleName)]
+    [HttpPost("business-context")]
+    [ProducesResponseType(typeof(BusinessContextResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<BusinessContextResult>> SelectBusinessContext(
+        [FromBody] SelectBusinessContextRequest request, CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            return Unauthorized();
+        try
+        {
+            return Ok(await _sender.Send(new ValidateBusinessContextQuery(userId, request.BusinessId),
+                cancellationToken));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning("Business selection denied for user {UserId}: {Reason}", userId, exception.Message);
+            return Forbid();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    /// <summary>Validates an explicit Super Admin Business selection; null clears the selection.</summary>
+    public sealed record SelectBusinessContextRequest(long? BusinessId);
+
+    private static LoginResponseDto ToResponse(AuthenticationResult result) =>
+        new()
+            {
+                Token = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                ExpiresAt = result.ExpiresAt,
+                User = new UserInfoDto
+                {
+                    Id = result.User.Id,
+                    BusinessId = result.User.BusinessId,
+                    Name = result.User.Name,
+                    Email = result.User.Email,
+                    RoleName = result.User.RoleName,
+                    Permissions = result.User.Permissions.ToList(),
+                    OutletId = result.User.OutletId,
+                    OutletName = result.User.OutletName,
+                    RealRoleName = result.User.RealRoleName,
+                    ActingRoleName = result.User.ActingRoleName,
+                    ActingOutletId = result.User.ActingOutletId,
+                    ActingOutletName = result.User.ActingOutletName,
+                    IsRoleSwitched = result.User.IsRoleSwitched,
+                    IsBusinessOwner = result.User.IsBusinessOwner,
+                    MustResetPassword = result.User.MustResetPassword
+                }
+            };
+
+    private static UserInfoDto ToUserInfo(AuthenticationUserProfile profile) =>
+        new()
+        {
+            Id = profile.Id,
+            BusinessId = profile.BusinessId,
+            Name = profile.Name,
+            Email = profile.Email,
+            RoleName = profile.RoleName,
+            Permissions = profile.Permissions.ToList(),
+            OutletId = profile.OutletId,
+            OutletName = profile.OutletName,
+            RealRoleName = profile.RealRoleName,
+            ActingRoleName = profile.ActingRoleName,
+            ActingOutletId = profile.ActingOutletId,
+            ActingOutletName = profile.ActingOutletName,
+            IsRoleSwitched = profile.IsRoleSwitched,
+            IsBusinessOwner = profile.IsBusinessOwner,
+            MustResetPassword = profile.MustResetPassword
+        };
 }

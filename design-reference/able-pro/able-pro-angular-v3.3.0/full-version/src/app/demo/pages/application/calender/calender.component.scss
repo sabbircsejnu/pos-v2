@@ -1,0 +1,97 @@
+// ========================== //
+//  calender css start        //
+// ========================== //
+
+::ng-deep.calender-table {
+  table,
+  th,
+  td {
+    border: 1px solid var(--accent-300);
+    border-collapse: collapse;
+    padding: 10px;
+  }
+  table {
+    width: 100%;
+  }
+
+  .input-date,
+  .select-color {
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+
+  .select-color {
+    .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+    .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+      border: none;
+    }
+
+    .mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control.mdc-text-field__input[type='color'] {
+      height: 32px;
+    }
+
+    .colorpick-eyedropper-input-trigger {
+      display: none;
+    }
+
+    .mat-mdc-form-field-infix {
+      padding: 0px;
+    }
+  }
+}
+
+::ng-deep.dark {
+  .cal-month-view,
+  .cal-week-view,
+  .cal-day-view {
+    background-color: var(--accent-200);
+
+    .cal-cell-row {
+      &:hover {
+        background-color: var(--accent-300);
+      }
+      .cal-cell:hover {
+        background-color: var(--accent-300);
+      }
+    }
+  }
+
+  // calender
+  .cal-month-view {
+    .cal-cell-row:hover,
+    .cal-cell-row .cal-cell:hover,
+    .cal-cell.cal-has-events.cal-open {
+      background-color: var(--accent-200);
+    }
+  }
+
+  .cal-month-view .cal-day-cell.cal-weekend .cal-day-number {
+    color: #f67e7e;
+  }
+
+  .cal-week-view .cal-header.cal-weekend span {
+    color: var(--accent-800);
+  }
+
+  .cal-week-view .cal-hour-odd,
+  .cal-week-view .cal-time-events .cal-day-columns:not(.cal-resize-active) .cal-hour-segment:hover,
+  .cal-week-view .cal-day-headers .cal-header:hover,
+  .cal-week-view .cal-day-headers .cal-drag-over {
+    background-color: var(--accent-200);
+  }
+
+  .cal-week-view .cal-hour:not(:last-child) .cal-hour-segment,
+  .cal-week-view .cal-hour:last-child :not(:last-child) .cal-hour-segment {
+    border-color: var(--accent-300);
+  }
+
+  .cal-week-view .cal-header.cal-today {
+    background-color: var(--primary-500) !important;
+    color: #fff;
+  }
+}
+
+// ========================== //
+//   calender css end         //
+// ========================== //

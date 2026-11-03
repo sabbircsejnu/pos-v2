@@ -1,0 +1,31 @@
+<div class="flex flex-col h-full gap-4 p-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div><h1 class="text-2xl font-bold text-gray-900">Cash Book</h1><p class="text-sm text-gray-500">Posted cash, petty cash, and bank journal movements</p></div>
+    <button class="btn btn-primary text-sm" (click)="load()" [disabled]="isLoading()"><i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i> Refresh</button>
+  </div>
+
+  <div class="card p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+    <label class="label">From<input type="date" appCompanyDate class="input mt-1" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)"></label>
+    <label class="label">To<input type="date" appCompanyDate class="input mt-1" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)"></label>
+    <label class="label">Outlet ID<input type="number" class="input mt-1" [ngModel]="outletId()" (ngModelChange)="outletId.set($event || null); warehouseId.set(null)"></label>
+    <label class="label">Warehouse ID<input type="number" class="input mt-1" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event || null); outletId.set(null)"></label>
+    <div><p class="label mb-1">Accounts</p><div class="flex flex-wrap gap-3 pt-1 text-sm"><label><input type="checkbox" [checked]="accountSlots().includes('cash')" (change)="toggleSlot('cash', $any($event.target).checked)"> Cash</label><label><input type="checkbox" [checked]="accountSlots().includes('petty_cash')" (change)="toggleSlot('petty_cash', $any($event.target).checked)"> Petty Cash</label><label><input type="checkbox" [checked]="accountSlots().includes('bank')" (change)="toggleSlot('bank', $any($event.target).checked)"> Bank</label></div></div>
+    <div class="md:col-span-2 xl:col-span-5 flex justify-end"><button class="btn btn-primary text-sm" (click)="load()" [disabled]="isLoading() || accountSlots().length === 0">Apply</button></div>
+  </div>
+
+  @if (isLoading()) { <div class="py-16 text-center text-gray-500"><i class="fas fa-spinner fa-spin text-2xl"></i></div> }
+  @else if (error()) { <div class="card p-5 text-red-700">{{ error() }}</div> }
+  @else if (report()) {
+    @if (!accounts().length) { <div class="card p-10 text-center text-gray-500">No configured cash or bank accounts matched the selected filters.</div> }
+    @for (account of accounts(); track account.accountId) {
+      <section class="card overflow-hidden">
+        <div class="p-4 border-b flex flex-wrap justify-between gap-3"><div><h2 class="font-semibold text-gray-900">{{ account.accountName }}</h2><p class="text-xs text-gray-500">{{ account.accountSlot }} · {{ account.accountCode }}</p></div><div class="text-right" [class.text-red-700]="account.reconciliationDifference !== 0"><p class="text-xs uppercase text-gray-500">GL reconciliation difference</p><p class="font-bold">{{ formatCurrency(account.reconciliationDifference) }}</p></div></div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 bg-gray-50 text-sm"><div><p class="text-gray-500">Opening</p><strong>{{ formatCurrency(account.openingBalance) }}</strong></div><div><p class="text-gray-500">Inflows</p><strong class="text-green-700">{{ formatCurrency(account.totalInflows) }}</strong></div><div><p class="text-gray-500">Outflows</p><strong class="text-red-700">{{ formatCurrency(account.totalOutflows) }}</strong></div><div><p class="text-gray-500">Closing</p><strong>{{ formatCurrency(account.closingBalance) }}</strong></div><div><p class="text-gray-500">GL Balance</p><strong>{{ formatCurrency(account.generalLedgerBalance) }}</strong></div></div>
+        <div class="overflow-auto"><table class="table min-w-full"><thead><tr><th>Date</th><th>Journal / Source</th><th>Narration</th><th>Counterpart</th><th class="text-right">Inflow</th><th class="text-right">Outflow</th><th class="text-right">Running</th></tr></thead><tbody>
+          @for (row of account.rows; track row.journalEntryLineId) { <tr><td>{{ row.postingDate | appDate:'mediumDate' }}</td><td><div>{{ row.journalNumber }}</div><div class="text-xs text-gray-500">{{ row.referenceType }} #{{ row.referenceId }}</div></td><td>{{ row.narration || '-' }}</td><td>{{ row.counterpartAccounts || '-' }}</td><td class="text-right text-green-700">{{ formatCurrency(row.inflow) }}</td><td class="text-right text-red-700">{{ formatCurrency(row.outflow) }}</td><td class="text-right font-medium">{{ formatCurrency(row.runningBalance) }}</td></tr> }
+          @if (!account.rows?.length) { <tr><td colspan="7" class="py-10 text-center text-gray-500">No posted movements in this period.</td></tr> }
+        </tbody></table></div>
+      </section>
+    }
+  }
+</div>

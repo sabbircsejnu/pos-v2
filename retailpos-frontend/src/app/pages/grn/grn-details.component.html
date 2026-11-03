@@ -69,8 +69,12 @@
           <p class="font-semibold text-gray-900">{{ grn()!.supplierName }}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Warehouse</p>
-          <p class="font-semibold text-gray-900">{{ grn()!.warehouseName }}</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Location Type</p>
+          <p class="font-semibold text-gray-900">{{ locationTypeLabel(grn()!.locationType) }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Location</p>
+          <p class="font-semibold text-gray-900">{{ locationName(grn()!) }}</p>
         </div>
         <div>
           <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Received Date &amp; Time</p>

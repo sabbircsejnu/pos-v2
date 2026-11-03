@@ -1,0 +1,91 @@
+<div class="row">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false">
+      <div class="container">
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="mb-3">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Customer</mat-label>
+                <mat-select value="default">
+                  <mat-option value="default">Default select</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="mb-3">
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label>Category</mat-label>
+                <mat-select value="default">
+                  <mat-option value="default">Default select</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Subject</mat-label>
+            <input matInput type="text" placeholder="Enter Subject" />
+          </mat-form-field>
+        </div>
+        <div class="mb-3">
+          <mat-label>Description</mat-label>
+          <quill-editor class="w-100 m-b-25">
+            <div quill-editor-toolbar>
+              <span class="ql-formats">
+                <select class="ql-header" [title]="'header'">
+                  <option value="1"></option>
+                  <option value="2"></option>
+                  <option value="3"></option>
+                  <option value="4"></option>
+                  <option value="5"></option>
+                  <option value="6"></option>
+                  <option selected="selected"></option>
+                </select>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-bold" [title]="'Bold'"></button>
+                <button class="ql-italic" [title]="'Italic'"></button>
+                <button class="ql-underline" [title]="'Italic'"></button>
+                <button class="ql-italic" [title]="'strike'"></button>
+                <button class="ql-link" [title]="'link'"></button>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-list" value="ordered"></button>
+                <button class="ql-list" value="bullet"></button>
+              </span>
+              <span class="ql-formats">
+                <button class="ql-clean"></button>
+              </span>
+            </div>
+          </quill-editor>
+        </div>
+        <file-upload [control]="control" class="p-25 file-upload">
+          <ng-template let-isFileDragDropAvailable="isFileDragDropAvailable" #placeholder>
+            @if (control.size === 0) {
+              <div class="upload-text">
+                <ng-container>Drag File Here To Upload</ng-container>
+              </div>
+            }
+          </ng-template>
+          <ng-template let-i="index" let-file="file" let-control="control" #item>
+            <div class="overlay">
+              <span class="delete-button" (click)="control.removeFile(file)">
+                <i class="ti ti-trash text-warn-500"></i>
+              </span>
+              @if (control.valid) {
+                <img [src]="uploadedFile | async" />
+              }
+            </div>
+          </ng-template>
+        </file-upload>
+        <div class="text-end mt-4">
+          <button mat-stroked-button color="accent" class="m-r-10">Clear</button>
+          <button mat-flat-button color="primary">Submit</button>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

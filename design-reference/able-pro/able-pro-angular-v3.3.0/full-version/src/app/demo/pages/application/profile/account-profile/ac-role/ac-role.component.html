@@ -1,0 +1,87 @@
+<div class="row m-t-25">
+  <div class="col-sm-12">
+    <app-card cardTitle="Invite Team Members">
+      <div class="p-b-25">
+        <h4 class="f-20 f-w-600">
+          5/10
+          <small>members available in your plan.</small>
+        </h4>
+        <mat-divider class="m-y-15"></mat-divider>
+        <div class="row">
+          <div class="col-md-8">
+            <label for="email">Email Address</label>
+            <div class="row">
+              <div class="col">
+                <mat-form-field appearance="outline" class="w-100 m-t-5">
+                  <input type="text" matInput placeholder="Name" value="demo@sample.com" />
+                </mat-form-field>
+              </div>
+              <div class="col-auto p-10">
+                <button mat-flat-button color="primary">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-t-25">
+        <div class="table-responsive">
+          <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>MEMBER</th>
+              <td mat-cell *matCellDef="let element">
+                <div class="row align-item-center role-user">
+                  <div class="col-auto p-r-0">
+                    <img src="{{ element.img }}" alt="user-image" class="wid-40 border-50" />
+                  </div>
+                  <div class="col">
+                    <div class="text-truncate f-w-600 f-16 w-100">{{ element.name }}</div>
+                    <div class="text-muted f-12 text-truncate w-100">{{ element.text }}</div>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+
+            <!-- role Column -->
+            <ng-container matColumnDef="role">
+              <th mat-header-cell *matHeaderCellDef>ROLE</th>
+              <td mat-cell *matCellDef="let element">
+                <div class="user-status {{ element.role_type }} text-center">{{ element.role }}</div>
+              </td>
+            </ng-container>
+
+            <!-- status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef class="text-end">STATUS</th>
+              <td mat-cell *matCellDef="let element">
+                <div class="text-end">
+                  <a href="javascripr:" class="text-warn-500 p-10">{{ element.status_send }}</a>
+                  <span class="user-status {{ element.status_type }}">{{ element.status }}</span>
+                </div>
+              </td>
+            </ng-container>
+
+            <!-- Symbol Column -->
+            <ng-container matColumnDef="more">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let element">
+                <div class="text-end">
+                  <a href="javascript:" class="avatar avatar-s">
+                    <i class="ti ti-dots f-18"></i>
+                  </a>
+                </div>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-12 text-end">
+    <button mat-stroked-button class="m-r-10">Cancel</button>
+    <button mat-flat-button color="primary">Update Profile</button>
+  </div>
+</div>

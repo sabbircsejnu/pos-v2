@@ -1,0 +1,36 @@
+<div class="address-modal">
+  <div class="p-20 flex align-item-center justify-content-between border-bottom">
+    <div class="f-16 f-w-600">Select address</div>
+    <button mat-button class="bg-primary-50 text-primary-500" mat-dialog-close>
+      <div class="flex align-item-center">
+        <i class="ti ti-plus m-r-5"></i>
+        Add New
+      </div>
+    </button>
+  </div>
+  <div class="p-20">
+    <mat-form-field appearance="outline" class="w-100 input-group">
+      <input matInput placeholder="Search...." #input />
+    </mat-form-field>
+  </div>
+  <app-scrollbar [customStyle]="{ height: 'calc(100vh - 433px)', position: 'relative' }">
+    <div class="p-x-20 p-b-20 border-bottom">
+      @for (list of addresses; track list) {
+        <div class="border border-8 p-10 m-b-15" (click)="selectAddress(list)">
+          <div class="f-w-600">
+            {{ list.name }}
+          </div>
+          <div class="address-details">
+            <p class="m-b-0 m-r-5">{{ list.address }}</p>
+            <p class="m-b-0 m-r-5">{{ list.mobile }}</p>
+            <p class="m-b-0">{{ list.email }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </app-scrollbar>
+  <div class="dialog-footer">
+    <button mat-button color="warn" class="m-r-10" mat-dialog-close>Cancel</button>
+    <button mat-flat-button color="primary" mat-dialog-close>Add</button>
+  </div>
+</div>

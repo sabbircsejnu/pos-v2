@@ -1,0 +1,124 @@
+<div class="row p-t-25 social-profile">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false" padding="0" cardClass="social">
+      <img src="assets/images/application/img-profile-cover.jpg" alt="img" class="w-100 card-img-top" />
+      <div class="user-details">
+        <div class="row align-item-end">
+          <div class="col-md-auto user-images">
+            <img src="assets/images/user/avatar-5.jpg" alt="img" class="img-fluid img-profile-avatar" />
+          </div>
+          <div class="col">
+            <div class="row justify-content-between align-item-end">
+              <div class="col-md-auto soc-profile-data">
+                <div class="f-16 f-w-500">Stein Ben</div>
+                <div class="f-w-500">UI/UX Designer</div>
+              </div>
+              <div class="col-md-auto">
+                <button mat-flat-button color="primary" class="m-r-15">Message</button>
+                <button mat-stroked-button>Follow</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </app-card>
+    <app-card [showHeader]="false" cardClass="social-tabs">
+      <mat-tab-group dynamicHeight mat-stretch-tabs="false" mat-align-tabs="start">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <i class="ti ti-user f-18 m-r-10"></i>
+            Profile
+          </ng-template>
+          <div class="row m-t-25">
+            <div class="col-lg-8 col-xxl-9">
+              <app-sc-profile></app-sc-profile>
+            </div>
+            <div class="col-lg-4 col-xxl-3">
+              <app-social-summary></app-social-summary>
+            </div>
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <i class="ti ti-users f-18 m-r-10"></i>
+            Friends
+            <span class="avatar avatar-small border-50 f-10 bg-accent-600 text-white vertical-align m-l-10">99</span>
+          </ng-template>
+          <div class="row m-t-25">
+            <div class="col-lg-8 col-xxl-9">
+              <app-card cardTitle="Friends" padding="0">
+                <ng-template #headerTitleTemplate>
+                  <span class="avatar avatar-small border-50 f-10 bg-primary-500 text-white vertical-align">99</span>
+                </ng-template>
+                <ul class="list-group list-group-flush">
+                  @for (task of friends_list; track task) {
+                    <li class="list-group-item">
+                      <div class="flex align-item-center">
+                        <img src="{{ task.img }}" alt="img" class="wid-40 img-fluid border-50" />
+                        <div class="flex-grow-1 m-l-10">
+                          <div class="f-w-500">{{ task.name }}</div>
+                          <div class="text-mute mat-caption">{{ task.email }}</div>
+                        </div>
+                        <button mat-stroked-button>Message</button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </app-card>
+            </div>
+            <div class="col-lg-4 col-xxl-3">
+              <app-social-summary></app-social-summary>
+            </div>
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <i class="ti ti-user-plus f-18 m-r-10"></i>
+            Friends Request
+          </ng-template>
+          <div class="row m-t-25">
+            <div class="col-lg-8 col-xxl-9">
+              <app-card cardTitle="Friends" padding="0">
+                <ng-template #headerTitleTemplate>
+                  <span class="avatar avatar-small border-50 f-10 bg-primary-500 text-white vertical-align">30</span>
+                </ng-template>
+                <ul class="list-group list-group-flush">
+                  @for (task of friends_list; track task) {
+                    <li class="list-group-item">
+                      <div class="flex align-item-center">
+                        <img src="{{ task.img }}" alt="img" class="wid-40 img-fluid border-50" />
+                        <div class="flex-grow-1 m-l-10">
+                          <div class="f-w-500">{{ task.name }}</div>
+                          <div class="text-mute mat-caption">{{ task.email }}</div>
+                        </div>
+                        <button mat-stroked-button class="m-r-10">Decline</button>
+                        <button mat-flat-button color="primary">Accept</button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </app-card>
+            </div>
+            <div class="col-lg-4 col-xxl-3">
+              <app-social-summary></app-social-summary>
+            </div>
+          </div>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <i class="ti ti-photo f-18 m-r-10"></i>
+            Gallery
+          </ng-template>
+          <div class="row m-t-25">
+            <div class="col-lg-8 col-xxl-9">
+              <app-sc-gallery></app-sc-gallery>
+            </div>
+            <div class="col-lg-4 col-xxl-3">
+              <app-social-summary></app-social-summary>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </app-card>
+  </div>
+</div>

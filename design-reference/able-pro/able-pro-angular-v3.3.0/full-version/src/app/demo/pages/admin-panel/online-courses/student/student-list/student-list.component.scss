@@ -1,0 +1,11 @@
+.table-options {
+  display: flex;
+  align-items: center;
+
+  @media (max-width: 575px) {
+    display: block;
+    .mdc-button {
+      margin-top: 10px;
+    }
+  }
+}

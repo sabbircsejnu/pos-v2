@@ -34,8 +34,8 @@ export class GlobalSearchComponent {
 
     const items: SearchResultItem[] = [];
     for (const section of this.sections()) {
-      for (const item of section.items) {
-        if (!item.route || item.disabled) {
+      for (const item of this.routedItems(section.items)) {
+        if (item.disabled) {
           continue;
         }
 
@@ -71,5 +71,12 @@ export class GlobalSearchComponent {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+  }
+
+  private routedItems(items: MenuItem[]): MenuItem[] {
+    return items.flatMap(item => [
+      ...(item.route ? [item] : []),
+      ...(item.children ? this.routedItems(item.children) : [])
+    ]);
   }
 }

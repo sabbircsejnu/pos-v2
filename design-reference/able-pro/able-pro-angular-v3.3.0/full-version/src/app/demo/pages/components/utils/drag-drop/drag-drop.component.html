@@ -1,0 +1,116 @@
+<div class="row">
+  <div class="col-md-6">
+    <app-card cardTitle="Basic Drag Drop">
+      <div class="example-box" cdkDrag>Drag me around</div>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Delayed Dragging">
+      <div class="example-box" cdkDrag [cdkDragStartDelay]="1000">Dragging starts after one second</div>
+    </app-card>
+  </div>
+</div>
+<div class="card-flex">
+  <app-card cardTitle="Drag Drop up & Down And Left & Right">
+    <div class="example-box m-r-25" cdkDragLockAxis="y" cdkDrag>I can only be dragged up/down</div>
+    <div class="example-box" cdkDragLockAxis="x" cdkDrag>I can only be dragged left/right</div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Boundary">
+    <div class="drop-boundary">
+      <div class="example-box" cdkDragBoundary=".drop-boundary" cdkDrag>I can only be dragged within the dotted container</div>
+    </div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Custom Placeholder">
+    <div cdkDropList class="drop-list" (cdkDropListDropped)="drop_1($event)">
+      @for (movie of movies; track movie) {
+        <div class="drop-box" cdkDrag>
+          <div class="drop-custom-placeholder" *cdkDragPlaceholder></div>
+          {{ movie }}
+        </div>
+      }
+    </div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Connected Sorting Group">
+    <div cdkDropListGroup>
+      <div class="row">
+        <div class="div col-md-6">
+          <div class="drop-container">
+            <h2>To do</h2>
+            <div cdkDropList [cdkDropListData]="todo" class="drop-list" (cdkDropListDropped)="drop($event)">
+              @for (item of todo; track item) {
+                <div class="drop-box" cdkDrag>{{ item }}</div>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="div col-md-6">
+          <div class="drop-container">
+            <h2>Done</h2>
+            <div cdkDropList [cdkDropListData]="done" class="drop-list" (cdkDropListDropped)="drop($event)">
+              @for (item of done; track item) {
+                <div class="drop-box" cdkDrag>{{ item }}</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Custom preview">
+    <div cdkDropList class="drop-list" (cdkDropListDropped)="drop_2($event)">
+      @for (movie of movies_pitcher; track movie) {
+        <div class="drop-box" cdkDrag>
+          {{ movie.title }}
+          <img *cdkDragPreview [src]="movie.poster" [alt]="movie.title" />
+        </div>
+      }
+    </div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Disabled">
+    <div cdkDropList class="drop-list" (cdkDropListDropped)="drop_3($event)">
+      @for (item of items; track items) {
+        <div class="drop-box" cdkDrag [cdkDragDisabled]="item.disabled">{{ item.value }}</div>
+      }
+    </div>
+  </app-card>
+  <app-card cardTitle="Drag & Drop Enter Predicate">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="drop-container">
+          <h2>Available numbers</h2>
+          <div
+            id="all"
+            cdkDropList
+            [cdkDropListData]="all"
+            cdkDropListConnectedTo="even"
+            class="drop-list"
+            (cdkDropListDropped)="drop_4($event)"
+            [cdkDropListEnterPredicate]="noReturnPredicate"
+          >
+            @for (number of all; track number) {
+              <div class="drop-box" [cdkDragData]="number" cdkDrag>{{ number }}</div>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="drop-container">
+          <h2>Even numbers</h2>
+          <div
+            id="even"
+            cdkDropList
+            [cdkDropListData]="even"
+            cdkDropListConnectedTo="all"
+            class="drop-list"
+            (cdkDropListDropped)="drop_4($event)"
+            [cdkDropListEnterPredicate]="evenPredicate"
+          >
+            @for (number of even; track number) {
+              <div class="drop-box" cdkDrag [cdkDragData]="number">{{ number }}</div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </app-card>
+</div>

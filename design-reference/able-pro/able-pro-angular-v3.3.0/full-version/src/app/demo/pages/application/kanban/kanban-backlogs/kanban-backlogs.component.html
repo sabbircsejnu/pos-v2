@@ -1,0 +1,150 @@
+<div class="m-t-25">
+  <div class="kanban-backlog">
+    <table mat-table [dataSource]="dataSource" multiTemplateDataRows class="mat-elevation-z8">
+      <ng-container matColumnDef="position">
+        <th mat-header-cell *matHeaderCellDef class="add-task">
+          <div mat-flat-button class="user-story-button mat-body f-w-700" matTooltip="Add User Story">
+            <div class="m-b-0">Add</div>
+            <i class="ti ti-plus m-l-10 f-w-700"></i>
+          </div>
+        </th>
+        <td mat-cell *matCellDef="let element" class="add-task">
+          <div class="flex align-item-center">
+            <a href="javascript:" class="avatar avatar-xs bg-primary-100">
+              <i class="ti ti-circle-plus f-18" matTooltip="Add Task"></i>
+            </a>
+            <button
+              mat-icon-button
+              aria-label="expand row"
+              (click)="expandedElement = expandedElement === element ? null : element; $event.stopPropagation()"
+            >
+              @if (expandedElement !== element) {
+                <mat-icon>keyboard_arrow_right</mat-icon>
+              } @else {
+                <mat-icon>keyboard_arrow_down</mat-icon>
+              }
+            </button>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="id">
+        <th mat-header-cell *matHeaderCellDef class="user-id">ID</th>
+        <td mat-cell *matCellDef="let element" class="user-id">
+          <div class="flex align-item-center">
+            <i class="ti ti-stack f-18 m-r-5 text-primary-500"></i>
+            {{ element.id }}
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef class="user-title">Title</th>
+        <td mat-cell *matCellDef="let element" class="story-title user-title">{{ element.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="edit">
+        <th mat-header-cell *matHeaderCellDef class="kanban-drop user-edit"></th>
+        <td mat-cell *matCellDef="let element" class="user-edit">
+          <button mat-button [matMenuTriggerFor]="menu">
+            <i class="{{ element.edit }}"></i>
+          </button>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item>Edit</button>
+            <button mat-menu-item>Delete</button>
+          </mat-menu>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef class="user-live">Status</th>
+        <td mat-cell *matCellDef="let element" class="user-live">{{ element.status }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="assigned">
+        <th mat-header-cell *matHeaderCellDef class="user-assigned">Assigned To</th>
+        <td mat-cell *matCellDef="let element" class="user-assigned">{{ element.assigned }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="priority">
+        <th mat-header-cell *matHeaderCellDef class="user-priority">Priority</th>
+        <td mat-cell *matCellDef="let element" class="user-priority">{{ element.priority }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef class="user-date">Due Date</th>
+        <td mat-cell *matCellDef="let element" class="user-date">{{ element.date }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="expandedDetail">
+        <td mat-cell *matCellDef="let element" [attr.colspan]="columnsToDisplayWithExpand.length" class="collapse_data">
+          <div class="children-content" [class.collapsed]="expandedElement === element">
+            <div class="kanban-diagram">
+              <table mat-table [dataSource]="dataSource1" class="mat-elevation-z8">
+                <ng-container matColumnDef="position">
+                  <td mat-cell *matCellDef="let element" style="width: 140px" class="add-task"></td>
+                </ng-container>
+
+                <ng-container matColumnDef="id">
+                  <td mat-cell *matCellDef="let element" class="user-id">
+                    <div class="flex align-item-center">
+                      <i class="ti ti-book f-18 m-r-5 text-primary-500"></i>
+                      {{ element.id }}
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="title">
+                  <td mat-cell *matCellDef="let element" class="user-title">{{ element.title }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="edit">
+                  <td mat-cell *matCellDef="let element" class="user-edit">
+                    <button mat-button [matMenuTriggerFor]="menu">
+                      <i class="{{ element.edit }}"></i>
+                    </button>
+                    <mat-menu #menu="matMenu">
+                      <button mat-menu-item>Edit</button>
+                      <button mat-menu-item>Delete</button>
+                    </mat-menu>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="state">
+                  <td mat-cell *matCellDef="let element" class="user-live">{{ element.state }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="assigned">
+                  <td mat-cell *matCellDef="let element" class="user-assigned">{{ element.assigned }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="priority">
+                  <td mat-cell *matCellDef="let element" class="user-priority">{{ element.priority }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="date">
+                  <td mat-cell *matCellDef="let element" class="user-date">{{ element.date }}</td>
+                </ng-container>
+                <ng-container matColumnDef="expand">
+                  <td mat-cell *matCellDef="let element" class="add-task"></td>
+                </ng-container>
+
+                <tr mat-row *matRowDef="let row; columns: collapseColumns"></tr>
+              </table>
+            </div>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columnsToDisplayWithExpand"></tr>
+      <tr
+        mat-row
+        *matRowDef="let element; columns: columnsToDisplayWithExpand"
+        class="kanban-row"
+        [class.example-expanded-row]="expandedElement === element"
+        (click)="expandedElement = expandedElement === element ? null : element"
+      ></tr>
+      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="kanban-detail-row"></tr>
+    </table>
+  </div>
+</div>

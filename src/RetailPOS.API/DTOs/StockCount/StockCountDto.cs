@@ -27,5 +27,29 @@ public class StockCountDto
     public int PostGenerationMovementCount { get; set; }
     public DateTime? LastPostGenerationMovementAt { get; set; }
 
+    /// <summary>
+    /// None, DraftGenerated, Completed (manual draft path) or the asynchronous job state:
+    /// Pending, Processing, RetryScheduled, Completed, Blocked, Failed. "Approved" with a Pending job means
+    /// AdjustmentPending - Inventory has not changed yet.
+    /// </summary>
+    public string AdjustmentState { get; set; } = "None";
+    public StockCountAdjustmentJobDto? AdjustmentJob { get; set; }
+
     public List<StockCountLineDto> Lines { get; set; } = new();
+}
+
+public class StockCountAdjustmentJobDto
+{
+    public Guid JobId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public bool IsTerminal { get; set; }
+    public int AttemptCount { get; set; }
+    public DateTime? NextAttemptAtUtc { get; set; }
+    public string? FailureCode { get; set; }
+    public string? EvidenceStatus { get; set; }
+    public List<string> BlockedReasonCodes { get; set; } = new();
+    public long? StockAdjustmentId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
 }

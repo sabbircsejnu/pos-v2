@@ -1,0 +1,77 @@
+.auth-main {
+  .auth-wrapper {
+    &.version-1 {
+      display: flex;
+      align-items: stretch;
+
+      .auth-form {
+        flex-direction: column;
+        background-size: cover;
+        position: relative;
+        justify-content: center;
+
+        .auth-background {
+          position: absolute;
+          filter: blur(140px);
+          z-index: -1;
+          inset: 0px;
+          overflow: hidden;
+
+          &::before {
+            content: ' ';
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background-color: rgb(247, 220, 179);
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            opacity: 1;
+
+            ::ng-deep .dark & {
+              background-color: rgb(211, 90, 0) !important;
+              opacity: 0.6 !important;
+            }
+          }
+        }
+
+        .yellow-circle {
+          width: 250px;
+          height: 250px;
+          border-radius: 50%;
+          background-color: rgb(192, 229, 217);
+          margin-left: 160px;
+          position: absolute;
+          bottom: 180px;
+          opacity: 1;
+
+          ::ng-deep .dark & {
+            background-color: rgb(16, 125, 79) !important;
+            opacity: 0.8 !important;
+          }
+        }
+
+        .red-circle {
+          width: 200px;
+          height: 200px;
+          border-radius: 50%;
+          background-color: rgb(231, 103, 103);
+          position: absolute;
+          bottom: 0px;
+          left: -50px;
+          opacity: 1;
+
+          ::ng-deep .dark & {
+            background-color: rgb(211, 28, 28) !important;
+            opacity: 0.8 !important;
+          }
+        }
+
+        .main-form {
+          display: flex;
+          justify-content: center;
+        }
+      }
+    }
+  }
+}

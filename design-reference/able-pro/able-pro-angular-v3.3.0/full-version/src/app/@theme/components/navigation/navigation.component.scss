@@ -1,0 +1,149 @@
+@import '../../../@theme/styles/theme-palette-colors.scss';
+
+.mat-drawer-container {
+  .mat-drawer-side {
+    &.component-menubar {
+      border-right: none !important;
+    }
+  }
+}
+
+.component-block {
+  padding-top: 50px;
+
+  .component-menubar {
+    width: 260px;
+    position: fixed;
+    top: 120px;
+  }
+
+  ::ng-deep {
+    .component-list-card {
+      position: sticky;
+      z-index: 1020;
+      border-radius: 12px;
+      transition: box-shadow 0.2s ease-in-out;
+      border: 1px solid var(--accent-300);
+      background: var(--accent-100);
+      display: flex;
+      flex-direction: column;
+
+      .card-header {
+        padding: 24px 16px 24px 18px;
+        border-bottom: 1px solid var(--accent-300);
+
+        .form-search {
+          position: relative;
+
+          i {
+            position: absolute;
+            top: 9px;
+            left: 13px;
+            font-size: 17px;
+          }
+
+          .form-control {
+            padding: 0.65rem 0.75rem 0.65rem 2.5rem;
+            border: 1px solid var(--accent-300);
+            border-radius: 4px;
+
+            ::ng-deep.dark & {
+              background: var(--accent-200);
+              color: $white;
+            }
+          }
+        }
+      }
+
+      .coded-navbar {
+        .coded-menu-caption {
+          padding: 12px 25px;
+        }
+
+        app-component-item {
+          > li {
+            position: relative;
+            border: none;
+            margin: 2px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+
+            > a {
+              padding: 12px 25px;
+              display: block;
+              position: relative;
+              font-weight: 500;
+              color: var(--accent-600) !important;
+            }
+
+            &:hover {
+              background: var(--accent-300);
+            }
+
+            &.active {
+              background: var(--primary-100);
+
+              ::ng-deep.dark & {
+                background: var(--primary-50);
+              }
+
+              > a {
+                color: var(--primary-500) !important;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .component-content {
+    margin-left: 260px;
+    padding-left: 64px;
+    position: relative;
+    overflow: hidden;
+
+    .component-explore {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  .component-block {
+    padding-top: 71px;
+
+    .component-list-card {
+      border-radius: 0px;
+      border: none;
+
+      .card-header {
+        padding: 18px 16px 9px 18px;
+      }
+    }
+
+    .component-menubar {
+      top: 71px;
+      box-shadow: none !important;
+      left: 0px;
+    }
+    .component-content {
+      margin-left: 0px;
+      padding-left: 12px;
+
+      .component-explore {
+        display: block;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .component-block {
+    padding-top: 65px;
+
+    .component-menubar {
+      top: 64px;
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,7 @@ import { AuthorizedLocationDto } from '../../models/report.model';
 @Component({
   selector: 'app-stock-count-create',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [UiDateInputDirective, CommonModule, FormsModule],
   templateUrl: './stock-count-create.component.html',
   styleUrls: ['./stock-count-create.component.css']
 })
@@ -41,20 +42,21 @@ export class StockCountCreateComponent implements OnInit {
 
   ngOnInit(): void {
     this.isLoading.set(true);
-    this.locationAccess.load().subscribe({
+    this.locationAccess.load('StockCountOperation').subscribe({
       next: (res) => {
         const data = res.data;
         this.outlets.set(data?.outlets || []);
         this.warehouses.set(data?.warehouses || []);
-        this.canSelectAnyLocation.set(!!data?.isGlobalAccess || this.auth.hasPermission('StockCount.ViewAll'));
+        this.canSelectAnyLocation.set(this.outlets().length + this.warehouses().length > 1);
 
-        if (data?.defaultLocationType === 'warehouse') {
+        if (this.warehouses().length && (data?.defaultLocationType === 'warehouse' || !this.outlets().length)) {
           this.locationType.set('warehouse');
         } else {
           this.locationType.set('outlet');
         }
 
-        this.locationId.set(data?.defaultLocationId ?? null);
+        const defaultLocation = this.getLocations().find(loc => loc.id === data?.defaultLocationId);
+        this.locationId.set(defaultLocation?.id ?? this.getLocations()[0]?.id ?? null);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -74,7 +76,7 @@ export class StockCountCreateComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.locationId()) {
+    if (this.isLoading() || !this.getLocations().some(loc => loc.id === this.locationId())) {
       this.alert.error('Please select a valid location');
       return;
     }

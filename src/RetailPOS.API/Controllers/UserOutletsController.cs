@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.Outlet;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Application.Identity.LocationAccess;
 
 namespace RetailPOS.API.Controllers;
 
@@ -23,12 +24,24 @@ public class UserOutletsController : ControllerBase
         _access = access;
     }
 
+    /// <param name="policy">
+    /// Optional operation policy: InventoryStockView (default), StockCountOperation,
+    /// StockTransferSource or StockTransferDestination.
+    /// </param>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<AuthorizedOutletsDto>>> GetAuthorizedOutlets()
+    public async Task<ActionResult<ApiResponse<AuthorizedOutletsDto>>> GetAuthorizedOutlets(
+        [FromQuery] string? policy = null)
     {
+        var resolvedPolicy = LocationAccessPolicy.InventoryStockView;
+        if (!string.IsNullOrWhiteSpace(policy) && !LocationAccessPolicies.TryParse(policy, out resolvedPolicy))
+        {
+            return BadRequest(ApiResponse<AuthorizedOutletsDto>.ErrorResponse(
+                $"Unknown location access policy '{policy}'."));
+        }
+
         try
         {
-            var dto = await _access.GetAuthorizedOutletsAsync();
+            var dto = await _access.GetAuthorizedOutletsAsync(resolvedPolicy);
             return Ok(ApiResponse<AuthorizedOutletsDto>.SuccessResponse(dto));
         }
         catch (UnauthorizedAccessException ex)

@@ -1,5 +1,7 @@
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -14,7 +16,7 @@ import { SaleListDto, SaleSummaryDto } from '../../models/sale.model';
 @Component({
   selector: 'app-sales-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppCurrencyPipe, DatePipe],
+  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule, AppCurrencyPipe],
   templateUrl: './sales-list.component.html',
   styleUrls: ['./sales-list.component.css']
 })

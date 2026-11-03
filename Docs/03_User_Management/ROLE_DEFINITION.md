@@ -122,7 +122,7 @@ It follows the current business rules:
 ## Files involved
 
 - src/RetailPOS.API/Services/RoleService.cs
-- src/RetailPOS.API/Services/RoleSwitchService.cs
+- src/RetailPOS.Application/Authentication/Commands/RoleSwitchCommands.cs
 - src/RetailPOS.API/Services/RoleSwitchContext.cs
 - src/RetailPOS.API/Services/UserService.cs
 - src/RetailPOS.API/Services/BusinessOnboardingService.cs

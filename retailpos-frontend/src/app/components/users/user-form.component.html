@@ -1,5 +1,4 @@
 <div class="container mx-auto px-4 py-4 max-w-5xl">
-  <!-- Header -->
   <div class="mb-4">
     <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2.5">
       <div class="p-2 bg-gray-900 rounded-lg text-white">
@@ -12,7 +11,6 @@
     </p>
   </div>
 
-  <!-- Success Message -->
   @if (successMessage()) {
     <div class="alert alert-success mb-4">
       <i class="fas fa-check-circle"></i>
@@ -20,7 +18,6 @@
     </div>
   }
 
-  <!-- Error Message -->
   @if (error()) {
     <div class="alert alert-error mb-4">
       <i class="fas fa-exclamation-circle"></i>
@@ -28,137 +25,129 @@
     </div>
   }
 
-  <!-- Form -->
   <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="form-container">
-    <div class="form-body">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Name -->
-        <div class="col-span-1">
-          <label for="name" class="label label-required">
-            Full Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            formControlName="name"
-            class="input"
-            [class.input-error]="userForm.get('name')?.invalid && userForm.get('name')?.touched"
-            placeholder="Enter full name"
-          />
-          @if (userForm.get('name')?.invalid && userForm.get('name')?.touched) {
-            <p class="mt-1 text-xs text-red-600 flex items-center gap-1">
-              <i class="fas fa-exclamation-circle"></i>
-              {{ getFieldError('name') }}
-            </p>
-          }
-        </div>
-
-        <!-- Email -->
-        <div class="col-span-1">
-          <label for="email" class="label label-required">
-            Email Address
-          </label>
-          <input
-            id="email"
-            type="email"
-            formControlName="email"
-            class="input"
-            [class.input-error]="userForm.get('email')?.invalid && userForm.get('email')?.touched"
-            placeholder="user@example.com"
-          />
-          @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
-            <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-              <i class="fas fa-exclamation-circle"></i>
-              {{ getFieldError('email') }}
-            </p>
-          }
-        </div>
-
-        <!-- Password (only for create mode) -->
-        @if (!isEditMode()) {
-          <div class="col-span-1">
-            <label for="password" class="label label-required">
-              Password
-            </label>
-            <div class="relative">
-              <input
-                id="password"
-                [type]="showPassword() ? 'text' : 'password'"
-                formControlName="password"
-                class="input pr-10"
-                [class.input-error]="userForm.get('password')?.invalid && userForm.get('password')?.touched"
-                placeholder="Enter secure password"
-              />
-              <button
-                type="button"
-                (click)="togglePasswordVisibility()"
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <i [class]="showPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-              </button>
-            </div>
-            @if (userForm.get('password')?.invalid && userForm.get('password')?.touched) {
-              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                <i class="fas fa-exclamation-circle"></i>
-                {{ getFieldError('password') }}
-              </p>
-            }
-          </div>
-
-          <div class="col-span-1">
-            <label for="confirmPassword" class="label label-required">
-              Confirm Password
-            </label>
-            <div class="relative">
-              <input
-                id="confirmPassword"
-                [type]="showConfirmPassword() ? 'text' : 'password'"
-                formControlName="confirmPassword"
-                class="input pr-10"
-                [class.input-error]="userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched"
-                placeholder="Re-enter password"
-              />
-              <button
-                type="button"
-                (click)="toggleConfirmPasswordVisibility()"
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <i [class]="showConfirmPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-              </button>
-            </div>
-            @if (userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched) {
-              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                <i class="fas fa-exclamation-circle"></i>
-                {{ getFieldError('confirmPassword') }}
-              </p>
-            }
-          </div>
-        }
-
-        <!-- Role -->
-        <div class="col-span-1">
-          <label for="roleId" class="label label-required">
-            User Role
-          </label>
-          <select
-            id="roleId"
-            formControlName="roleId"
-            class="select"
-            [class.input-error]="userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched"
+    <div class="form-body space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        @for (step of wizardSteps; track $index; let i = $index) {
+          <button
+            type="button"
+            (click)="goToStep(i)"
+            class="text-left border rounded-lg p-3 transition-colors"
+            [class.bg-gray-900]="isCurrentStep(i)"
+            [class.text-white]="isCurrentStep(i)"
+            [class.border-gray-900]="isCurrentStep(i)"
+            [class.bg-white]="!isCurrentStep(i)"
+            [class.text-gray-800]="!isCurrentStep(i)"
+            [class.border-gray-200]="!isCurrentStep(i)"
           >
-            <option [value]="null">Select a role</option>
-            @for (role of roles(); track role.id) {
-              <option [value]="role.id">{{ role.name }}</option>
-            }
-          </select>
-          @if (userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched) {
-            <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-              <i class="fas fa-exclamation-circle"></i>
-              Role is required
-            </p>
-          }
-        </div>
+            <p class="text-xs font-semibold">Step {{ i + 1 }}</p>
+            <p class="text-sm font-medium">{{ step.title }}</p>
+          </button>
+        }
+      </div>
 
+      <div class="rounded-xl border border-gray-200 bg-white p-4">
+        <h2 class="text-lg font-semibold text-gray-900">{{ wizardSteps[currentStep()].title }}</h2>
+        <p class="text-sm text-gray-600 mt-1">{{ wizardSteps[currentStep()].subtitle }}</p>
+      </div>
+
+      @if (isCurrentStep(0)) {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="name" class="label label-required">Full Name</label>
+            <input id="name" type="text" formControlName="name" class="input" [class.input-error]="userForm.get('name')?.invalid && userForm.get('name')?.touched" placeholder="Enter full name" />
+            @if (userForm.get('name')?.invalid && userForm.get('name')?.touched) {
+              <p class="mt-1 text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>{{ getFieldError('name') }}</p>
+            }
+          </div>
+
+          <div>
+            <label for="email" class="label label-required">Email Address</label>
+            <input id="email" type="email" formControlName="email" class="input" [class.input-error]="userForm.get('email')?.invalid && userForm.get('email')?.touched" placeholder="user@example.com" />
+            @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+              <p class="mt-1 text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>{{ getFieldError('email') }}</p>
+            }
+          </div>
+
+          @if (!isEditMode()) {
+            <div>
+              <label for="password" class="label label-required">Password</label>
+              <div class="relative">
+                <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" class="input pr-10" [class.input-error]="userForm.get('password')?.invalid && userForm.get('password')?.touched" placeholder="Enter secure password" />
+                <button type="button" (click)="togglePasswordVisibility()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                  <i [class]="showPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              @if (userForm.get('password')?.invalid && userForm.get('password')?.touched) {
+                <p class="mt-1 text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>{{ getFieldError('password') }}</p>
+              }
+            </div>
+
+            <div>
+              <label for="confirmPassword" class="label label-required">Confirm Password</label>
+              <div class="relative">
+                <input id="confirmPassword" [type]="showConfirmPassword() ? 'text' : 'password'" formControlName="confirmPassword" class="input pr-10" [class.input-error]="userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched" placeholder="Re-enter password" />
+                <button type="button" (click)="toggleConfirmPasswordVisibility()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                  <i [class]="showConfirmPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              @if (userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched) {
+                <p class="mt-1 text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>{{ getFieldError('confirmPassword') }}</p>
+              }
+            </div>
+          }
+
+          <div>
+            <label for="roleId" class="label label-required">User Role</label>
+            <select id="roleId" formControlName="roleId" class="select" [class.input-error]="userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched">
+              <option [value]="null">Select a role</option>
+              @for (role of roles(); track role.id) {
+                <option [value]="role.id">{{ role.name }}</option>
+              }
+            </select>
+            @if (userForm.get('roleId')?.invalid && userForm.get('roleId')?.touched) {
+              <p class="mt-1 text-xs text-red-600 flex items-center gap-1"><i class="fas fa-exclamation-circle"></i>Role is required</p>
+            }
+          </div>
+
+          <div class="md:col-span-2">
+            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <input type="checkbox" formControlName="isActive" id="isActive" class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 transition-all" />
+              <div class="flex-1">
+                <label for="isActive" class="text-sm font-medium text-gray-700 cursor-pointer">Active User</label>
+                <p class="mt-0.5 text-xs text-gray-500">Inactive users cannot log in to the system</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (isCurrentStep(1)) {
+        <div class="space-y-4">
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-sm text-gray-700">Role-based permissions remain managed by the selected role. User-level permissions below are additive overrides.</p>
+          </div>
+
+          <div class="p-4 bg-white border border-gray-200 rounded-lg">
+            <p class="text-sm font-medium text-gray-900 mb-3">User-Level Permission Assignment</p>
+
+            <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                class="mt-1 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                [checked]="hasUserPermission(backdatedPermissionKey)"
+                (change)="toggleUserPermission(backdatedPermissionKey)"
+              />
+              <span>
+                <span class="block text-sm font-medium text-gray-800">Backdated POS Sale</span>
+                <span class="block text-xs text-gray-500">Permission key: {{ backdatedPermissionKey }}. Allows manual Sales Order Date selection in POS.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+      }
+
+      @if (isCurrentStep(2)) {
         <div class="col-span-1 md:col-span-2">
           <label class="label label-required">Inventory Location Access</label>
           <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
@@ -176,8 +165,10 @@
             </label>
           </div>
         </div>
+      }
 
-        <div class="col-span-1 md:col-span-2">
+      @if (isCurrentStep(3)) {
+        <div>
           <label class="label label-required">Default Inventory Location</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
             <div>
@@ -189,7 +180,7 @@
             </div>
             <div>
               <label class="label">Location</label>
-              <select formControlName="defaultLocationId" class="select">
+              <select formControlName="defaultLocationId" class="select" [class.input-error]="userForm.get('defaultLocationId')?.invalid && userForm.get('defaultLocationId')?.touched">
                 <option [ngValue]="null">Select default inventory location</option>
                 @if (userForm.get('defaultLocationType')?.value === 'outlet') {
                   @for (outlet of outlets(); track outlet.id) {
@@ -203,116 +194,80 @@
               </select>
             </div>
           </div>
-          <p class="mt-1.5 text-xs text-gray-500">
-            Default location is the user's starting working location. Assigned locations remain separate.
-          </p>
+          <p class="mt-1.5 text-xs text-gray-500">Default location is the user's starting working location. Assigned locations remain separate.</p>
         </div>
+      }
 
-        <div class="col-span-1 md:col-span-2">
-          <label class="label">Outlet Assignments</label>
-          <div class="p-4 bg-white border border-gray-200 rounded-lg">
-            @if (outlets().length > 0) {
-              <div class="space-y-2 max-h-48 overflow-y-auto">
-                @for (outlet of outlets(); track outlet.id) {
-                  <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                    <input
-                      type="checkbox"
-                      (change)="toggleOutletSelection(outlet.id)"
-                      [checked]="isOutletSelected(outlet.id)"
-                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
-                    />
-                    <span class="text-sm text-gray-700">{{ outlet.name }}</span>
-                  </label>
-                }
-              </div>
-            } @else {
-              <p class="text-sm text-gray-500 text-center py-3">
-                <i class="fas fa-inbox"></i>
-                No outlets available
-              </p>
-            }
+      @if (isCurrentStep(4)) {
+        <div class="grid grid-cols-1 gap-4">
+          <div>
+            <label class="label">Outlet Assignments</label>
+            <div class="p-4 bg-white border border-gray-200 rounded-lg">
+              @if (outlets().length > 0) {
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                  @for (outlet of outlets(); track outlet.id) {
+                    <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                      <input type="checkbox" (change)="toggleOutletSelection(outlet.id)" [checked]="isOutletSelected(outlet.id)" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500" />
+                      <span class="text-sm text-gray-700">{{ outlet.name }}</span>
+                    </label>
+                  }
+                </div>
+              } @else {
+                <p class="text-sm text-gray-500 text-center py-3"><i class="fas fa-inbox"></i>No outlets available</p>
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="col-span-1 md:col-span-2">
-          <label class="label">Warehouse Assignments</label>
-          <div class="p-4 bg-white border border-gray-200 rounded-lg">
-            @if (warehouses().length > 0) {
-              <div class="space-y-2 max-h-48 overflow-y-auto">
-                @for (warehouse of warehouses(); track warehouse.id) {
-                  <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                    <input
-                      type="checkbox"
-                      (change)="toggleWarehouseSelection(warehouse.id)"
-                      [checked]="isWarehouseSelected(warehouse.id)"
-                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
-                    />
-                    <span class="text-sm text-gray-700">
-                      {{ warehouse.name }}
-                      <span class="text-gray-500">
-                        @if (warehouse.address) {
-                          ({{ warehouse.address }})
-                        }
-                      </span>
-                    </span>
-                  </label>
-                }
-              </div>
-            } @else {
-              <p class="text-sm text-gray-500 text-center py-3">
-                <i class="fas fa-inbox"></i>
-                No warehouses available
-              </p>
-            }
-          </div>
-        </div>
-
-        <!-- Active Status -->
-        <div class="col-span-1 md:col-span-2">
-          <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <input
-              type="checkbox"
-              formControlName="isActive"
-              id="isActive"
-              class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 transition-all"
-            />
-            <div class="flex-1">
-              <label for="isActive" class="text-sm font-medium text-gray-700 cursor-pointer">
-                Active User
-              </label>
-              <p class="mt-0.5 text-xs text-gray-500">
-                Inactive users cannot log in to the system
-              </p>
+          <div>
+            <label class="label">Warehouse Assignments</label>
+            <div class="p-4 bg-white border border-gray-200 rounded-lg">
+              @if (warehouses().length > 0) {
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                  @for (warehouse of warehouses(); track warehouse.id) {
+                    <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                      <input type="checkbox" (change)="toggleWarehouseSelection(warehouse.id)" [checked]="isWarehouseSelected(warehouse.id)" class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500" />
+                      <span class="text-sm text-gray-700">{{ warehouse.name }} @if (warehouse.address) { <span class="text-gray-500">({{ warehouse.address }})</span> }</span>
+                    </label>
+                  }
+                </div>
+              } @else {
+                <p class="text-sm text-gray-500 text-center py-3"><i class="fas fa-inbox"></i>No warehouses available</p>
+              }
             </div>
           </div>
         </div>
-      </div>
+      }
     </div>
 
-    <!-- Sticky Form Actions -->
     <div class="form-actions">
-      <button
-        type="button"
-        (click)="cancel()"
-        class="btn btn-outline flex-1 md:flex-none"
-        [disabled]="isLoading()"
-      >
+      <button type="button" (click)="cancel()" class="btn btn-outline" [disabled]="isLoading()">
         <i class="fas fa-times"></i>
         Cancel
       </button>
-      <button
-        type="submit"
-        class="btn btn-primary flex-1 md:flex-none"
-        [disabled]="isLoading() || userForm.invalid"
-      >
-        @if (isLoading()) {
-          <i class="fas fa-spinner fa-spin"></i>
-          <span>Processing...</span>
-        } @else {
-          <i class="fas fa-save"></i>
-          <span>{{ isEditMode() ? 'Update User' : 'Create User' }}</span>
-        }
-      </button>
+
+      @if (currentStep() > 0) {
+        <button type="button" (click)="previousStep()" class="btn btn-outline" [disabled]="isLoading()">
+          <i class="fas fa-arrow-left"></i>
+          Previous
+        </button>
+      }
+
+      @if (!canSaveFromCurrentStep()) {
+        <button type="button" (click)="nextStep()" class="btn btn-primary" [disabled]="isLoading()">
+          <span>Next</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      } @else {
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading() || userForm.invalid">
+          @if (isLoading()) {
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Processing...</span>
+          } @else {
+            <i class="fas fa-save"></i>
+            <span>{{ isEditMode() ? 'Update User' : 'Create User' }}</span>
+          }
+        </button>
+      }
     </div>
   </form>
 </div>

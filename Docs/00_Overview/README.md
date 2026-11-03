@@ -27,11 +27,13 @@ Status: Implemented and corrected
 Implemented
 - Monorepo structure with backend, frontend, docs, tests, and database scripts:
   - RetailPOS.slnx
-  - src/RetailPOS.Core
+  - src/RetailPOS.Domain
+  - src/RetailPOS.Application
   - src/RetailPOS.Infrastructure
   - src/RetailPOS.API
   - retailpos-frontend
-  - tests/RetailPOS.Tests
+  - tests/RetailPOS.UnitTests
+  - tests/RetailPOS.IntegrationTests
   - Docs
   - database
 

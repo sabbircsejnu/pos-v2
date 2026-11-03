@@ -1,0 +1,25 @@
+.pos-section-title {
+  margin: 0;
+  color: var(--rp-color-text-primary);
+  font-size: var(--rp-text-section-size);
+  line-height: var(--rp-text-section-line);
+  font-weight: var(--rp-font-weight-semibold);
+}
+
+.pos-note {
+  margin: 0;
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-body-size);
+}
+
+.pos-grid {
+  grid-template-columns: 1fr;
+  gap: var(--rp-space-4);
+  max-width: 48rem;
+}
+
+@media (min-width: 768px) {
+  .pos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

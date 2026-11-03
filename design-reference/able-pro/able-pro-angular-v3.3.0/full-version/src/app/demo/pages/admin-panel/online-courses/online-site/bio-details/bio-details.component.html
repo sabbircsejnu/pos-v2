@@ -1,0 +1,46 @@
+<div class="p-20 border-bottom">
+  <div class="flex align-item-center justify-content-between">
+    <div class="f-w-600 f-16">Profile update</div>
+    <a class="avatar avatar-s modal-close" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </div>
+</div>
+<div class="p-20">
+  <div class="flex flex-column gap-3 align-item-center m-b-25">
+    <img src="assets/images/admin/img-add-user.png" alt="img" class="img-fluid" />
+    <button mat-stroked-button color="accent">Add Image</button>
+  </div>
+  <quill-editor class="w-100">
+    <div quill-editor-toolbar>
+      <span class="ql-formats">
+        <select class="ql-header" [title]="'header'">
+          <option value="1"></option>
+          <option value="2"></option>
+          <option value="3"></option>
+          <option value="4"></option>
+          <option value="5"></option>
+          <option value="6"></option>
+          <option selected="selected"></option>
+        </select>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-bold" [title]="'Bold'"></button>
+        <button class="ql-italic" [title]="'Italic'"></button>
+        <button class="ql-underline" [title]="'Italic'"></button>
+        <button class="ql-italic" [title]="'strike'"></button>
+        <button class="ql-link" [title]="'link'"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-list" value="ordered"></button>
+        <button class="ql-list" value="bullet"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-clean"></button>
+      </span>
+    </div>
+  </quill-editor>
+  <div class="m-t-15 text-center">
+    <button mat-flat-button color="primary" mat-dialog-close>Add Bio</button>
+  </div>
+</div>

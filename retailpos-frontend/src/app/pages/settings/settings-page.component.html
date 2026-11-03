@@ -24,10 +24,10 @@
             class="py-3 px-3 text-sm transition-colors">
             <i class="fas fa-coins mr-1"></i> Currency
           </button>
-          <button (click)="activeTab.set('tax')"
-            [class]="activeTab() === 'tax' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+          <button (click)="activeTab.set('pos')"
+            [class]="activeTab() === 'pos' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
             class="py-3 px-3 text-sm transition-colors">
-            <i class="fas fa-percent mr-1"></i> Tax
+            <i class="fas fa-cash-register mr-1"></i> POS &amp; Tax
           </button>
           <button (click)="activeTab.set('receipt')"
             [class]="activeTab() === 'receipt' ? 'border-b-2 border-gray-900 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
@@ -92,10 +92,9 @@
               <select class="input"
                 [ngModel]="company().dateFormat"
                 (ngModelChange)="updateCompanyField('dateFormat', $event)">
-                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="MM/dd/yyyy">MM/dd/yyyy</option>
                 <option value="dd/MM/yyyy">dd/MM/yyyy</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                <option value="yyyy-MM-dd">yyyy-MM-dd</option>
               </select>
             </div>
             <div>
@@ -210,41 +209,121 @@
         </div>
       }
 
-      <!-- Tax Tab -->
-      @if (activeTab() === 'tax') {
-        <div class="p-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="taxEnabled" class="w-4 h-4"
-                [ngModel]="tax().taxEnabled"
-                (ngModelChange)="updateTaxField('taxEnabled', $event)" />
-              <label for="taxEnabled" class="text-sm font-medium text-gray-700">Enable Tax</label>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="pricesIncludeTax" class="w-4 h-4"
-                [ngModel]="tax().pricesIncludeTax"
-                (ngModelChange)="updateTaxField('pricesIncludeTax', $event)" />
-              <label for="pricesIncludeTax" class="text-sm font-medium text-gray-700">Prices Include Tax</label>
-            </div>
-            <div>
-              <label class="label">Tax Name</label>
-              <input type="text" class="input"
-                [ngModel]="tax().taxName"
-                (ngModelChange)="updateTaxField('taxName', $event)" />
-            </div>
-            <div>
-              <label class="label">Default Tax Rate (%)</label>
-              <input type="number" class="input" min="0" max="100" step="0.01"
-                [ngModel]="tax().defaultTaxRate"
-                (ngModelChange)="updateTaxField('defaultTaxRate', +$event)" />
-            </div>
-          </div>
-          <div class="mt-6">
-            <button (click)="saveTax()" class="btn btn-primary" [disabled]="isSaving()">
-              <i class="fas fa-save"></i>
-              {{ isSaving() ? 'Saving...' : 'Save Tax Settings' }}
-            </button>
-          </div>
+      <!-- POS & Tax Tab -->
+      @if (activeTab() === 'pos') {
+        <div class="p-6 ui-form-stack" data-density="compact">
+          @if (posLoadError()) {
+            <app-ui-state kind="error" title="POS settings could not be loaded" [message]="posLoadError()!">
+              <button appUiButton type="button" variant="outline" (click)="loadPosSettings()">Retry</button>
+            </app-ui-state>
+          } @else {
+            <app-ui-card title="POS settings" subtitle="Business-wide defaults for cash sessions, time zone, tax and manual discounts." [loading]="posLoading()">
+              @if (!canEditPosSettings) {
+                <app-ui-alert variant="info" title="View only">You can view these settings but you do not have permission to change them.</app-ui-alert>
+              }
+
+              <form id="pos-settings-form" class="ui-form-stack" (ngSubmit)="savePosSettings()" novalidate>
+                <h3 class="pos-section-title">Cash sessions and time zone</h3>
+                <div class="pos-grid">
+                  <app-ui-form-field
+                    label="Maximum cash-session duration (hours)"
+                    hint="Applied when the session lifecycle is enabled. Whole hours from 1 to 20."
+                    [required]="true"
+                    [error]="posErrors().maxCashSessionDurationHours ?? ''">
+                    <input appUiControl type="number" name="maxCashSessionDurationHours" min="1" max="20" step="1"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().maxCashSessionDurationHours"
+                      (ngModelChange)="updatePosField('maxCashSessionDurationHours', $event)" />
+                  </app-ui-form-field>
+
+                  <app-ui-form-field
+                    label="Default time zone"
+                    hint="IANA time zone id, for example Asia/Dhaka. Outlets can override it."
+                    [required]="true"
+                    [error]="posErrors().defaultTimeZoneId ?? ''">
+                    <input appUiControl type="text" name="defaultTimeZoneId" list="pos-time-zones" autocomplete="off"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().defaultTimeZoneId"
+                      (ngModelChange)="updatePosField('defaultTimeZoneId', $event)" />
+                    <datalist id="pos-time-zones">
+                      @for (zone of timeZoneSuggestions; track zone) {
+                        <option [value]="zone"></option>
+                      }
+                    </datalist>
+                  </app-ui-form-field>
+                </div>
+
+                <h3 class="pos-section-title">Tax</h3>
+                <div class="pos-grid">
+                  <label class="ui-check">
+                    <input appUiControl type="checkbox" name="taxEnabled"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().taxEnabled"
+                      (ngModelChange)="updatePosField('taxEnabled', $event)" />
+                    <span>Enable tax</span>
+                  </label>
+                  <label class="ui-check">
+                    <input appUiControl type="checkbox" name="pricesIncludeTax"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().pricesIncludeTax"
+                      (ngModelChange)="updatePosField('pricesIncludeTax', $event)" />
+                    <span>Prices include tax</span>
+                  </label>
+                  <app-ui-form-field label="Tax name" [required]="true" [error]="posErrors().taxName ?? ''">
+                    <input appUiControl type="text" name="taxName"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().taxName"
+                      (ngModelChange)="updatePosField('taxName', $event)" />
+                  </app-ui-form-field>
+                  <app-ui-form-field
+                    label="Default tax rate (%)"
+                    hint="Used by products that have no tax rate of their own."
+                    [required]="true"
+                    [error]="posErrors().defaultTaxRate ?? ''">
+                    <input appUiControl type="number" name="defaultTaxRate" min="0" max="100" step="0.01"
+                      [disabled]="!canEditPosSettings"
+                      [ngModel]="posForm().defaultTaxRate"
+                      (ngModelChange)="updatePosField('defaultTaxRate', $event)" />
+                  </app-ui-form-field>
+                </div>
+
+                <h3 class="pos-section-title">Discounts</h3>
+                <p class="pos-note">
+                  The manual discount limit is managed on its own screen.
+                  @if (canConfigureDiscount) {
+                    <a routerLink="/settings/discounts">Open discount limit settings</a>
+                  } @else {
+                    Changing it needs the “Configure discount limit” permission (sales.discount.configure).
+                  }
+                </p>
+              </form>
+
+              @if (canEditPosSettings) {
+                <div uiCardFooter>
+                  <button appUiButton type="submit" form="pos-settings-form" [loading]="isSavingPos()" [disabled]="posLoading()">
+                    <i class="fas fa-save" aria-hidden="true"></i>
+                    <span>{{ isSavingPos() ? 'Saving...' : 'Save POS settings' }}</span>
+                  </button>
+                </div>
+              }
+            </app-ui-card>
+
+            <app-ui-card title="Invoice numbering" subtitle="Legacy settings, no longer used for sale numbers.">
+              <app-ui-badge uiCardActions variant="neutral">Legacy</app-ui-badge>
+              <app-ui-alert variant="info">Invoice numbers now use each outlet's invoice prefix (Outlets → Edit). The values below are kept for reference only and cannot be changed here.</app-ui-alert>
+              <div class="pos-grid">
+                <app-ui-form-field label="Prefix">
+                  <input appUiControl type="text" name="legacyInvoicePrefix" disabled [value]="invoiceNumber()?.prefix ?? ''" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Next number">
+                  <input appUiControl type="text" name="legacyInvoiceNext" disabled [value]="invoiceNumber()?.nextNumber ?? ''" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Padding">
+                  <input appUiControl type="text" name="legacyInvoicePadding" disabled [value]="invoiceNumber()?.padding ?? ''" />
+                </app-ui-form-field>
+              </div>
+            </app-ui-card>
+          }
         </div>
       }
 

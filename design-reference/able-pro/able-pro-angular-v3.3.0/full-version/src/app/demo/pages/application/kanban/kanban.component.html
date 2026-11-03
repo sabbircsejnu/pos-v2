@@ -1,0 +1,61 @@
+<mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
+  <mat-tab label="View As Board">
+    <div class="m-t-25">
+      <div cdkDropListGroup class="kanban-dashboard">
+        @for (item of columns; track item) {
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <input type="text" class="form-control flex-grow-1" [value]="item.title" />
+              <div class="m-l-10">
+                <a href="javascript:" class="avatar avatar-s kanban-delete" (click)="deleteColumn(item.id)">
+                  <i class="ti ti-trash f-20"></i>
+                </a>
+              </div>
+            </div>
+            <div class="kanban-body">
+              <app-kanban-columns [title]="item.title"></app-kanban-columns>
+            </div>
+          </div>
+        }
+        <div class="kanban-column">
+          <div class="column-add" [ngClass]="{ open: columnAdd }">
+            <div class="grid">
+              <button mat-stroked-button class="new-column-add" (click)="toggleColumn()">Add Columns</button>
+            </div>
+            <div class="kanban-card">
+              <form (submit)="columnSubmit()">
+                <div class="input-title">
+                  <mat-form-field appearance="outline" class="w-100 comment-section">
+                    <input matInput placeholder="Add Columns" name="column" [(ngModel)]="newColumns" />
+                  </mat-form-field>
+                  <div class="flex align-item-center justify-content-between">
+                    <div class="flex align-item-center">
+                      <svg class="pc-icon m-r-10">
+                        <use xlink:href="assets/fonts/custom-icon.svg#custom-profile-2user-outline"></use>
+                      </svg>
+                      <svg class="pc-icon">
+                        <use xlink:href="assets/fonts/custom-icon.svg#custom-calculator"></use>
+                      </svg>
+                    </div>
+                    <div class="flex align-item-center">
+                      <div class="pc-icon m-r-10" (click)="toggleColumn()">
+                        <i class="ti ti-x f-18 text-warn-500"></i>
+                      </div>
+                      <button mat-flat-button color="primary" class="submit-details" type="submit">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </mat-tab>
+  <mat-tab label="Backlogs">
+    <app-kanban-backlogs></app-kanban-backlogs>
+  </mat-tab>
+</mat-tab-group>
+
+<app-task-details></app-task-details>
+<app-user-story-details></app-user-story-details>

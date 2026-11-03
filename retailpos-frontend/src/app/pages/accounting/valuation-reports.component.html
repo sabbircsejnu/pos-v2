@@ -1,0 +1,41 @@
+<div class="flex flex-col h-full gap-4 p-4">
+  <div class="flex flex-wrap justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">{{ isCogs() ? 'Cost of Goods Sold' : 'Inventory Valuation' }}</h1>
+      <p class="text-sm text-gray-500">{{ isCogs() ? 'Posted COGS journal lines with source-document traceability' : 'Historical weighted-average valuation replayed from stock movements' }}</p>
+    </div>
+    <button class="btn btn-primary text-sm" (click)="load()" [disabled]="isLoading()"><i class="fas fa-sync-alt" [class.fa-spin]="isLoading()"></i> Refresh</button>
+  </div>
+
+  <div class="card p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+    @if (isCogs()) { <label class="label">From<input type="date" appCompanyDate class="input mt-1" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event)"></label> }
+    <label class="label">{{ isCogs() ? 'To' : 'As of date' }}<input type="date" appCompanyDate class="input mt-1" [ngModel]="toDate()" (ngModelChange)="toDate.set($event)"></label>
+    <label class="label">Outlet ID<input type="number" class="input mt-1" [ngModel]="outletId()" (ngModelChange)="outletId.set($event || null)"></label>
+    <label class="label">Warehouse ID<input type="number" class="input mt-1" [ngModel]="warehouseId()" (ngModelChange)="warehouseId.set($event || null)"></label>
+    <label class="label">Product ID<input type="number" class="input mt-1" [ngModel]="productId()" (ngModelChange)="productId.set($event || null)"></label>
+    <label class="label">Variant ID<input type="number" class="input mt-1" [ngModel]="variantId()" (ngModelChange)="variantId.set($event || null)"></label>
+    <div class="col-span-2 md:col-span-3 xl:col-span-6 flex justify-end gap-2"><button class="btn btn-outline text-sm" (click)="clear()">Clear</button><button class="btn btn-primary text-sm" (click)="load()">Apply</button></div>
+  </div>
+
+  @if (isLoading()) { <div class="py-16 text-center text-gray-500"><i class="fas fa-spinner fa-spin text-2xl"></i></div> }
+  @else if (error()) { <div class="card p-5 text-red-700">{{ error() }}</div> }
+  @else if (report(); as data) {
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div class="card p-4"><p class="text-xs text-gray-500 uppercase">{{ isCogs() ? 'COGS total' : 'Inventory value' }}</p><p class="text-2xl font-bold">{{ formatCurrency(isCogs() ? data.totalCogs : data.totalInventoryValue) }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 uppercase">GL balance</p><p class="text-2xl font-bold">{{ formatCurrency(data.generalLedgerBalance) }}</p></div>
+      <div class="card p-4" [class.bg-red-50]="data.reconciliationDifference !== 0"><p class="text-xs text-gray-500 uppercase">Reconciliation difference</p><p class="text-2xl font-bold">{{ formatCurrency(data.reconciliationDifference) }}</p></div>
+    </div>
+    @if (!isCogs()) { <p class="text-sm text-gray-600">Quantity as of {{ data.asOfDate | appDate:'mediumDate' }}: <strong>{{ data.totalQuantity | number }}</strong>. Unvalued movements excluded: <strong>{{ data.unvaluedMovements?.length || 0 }}</strong>.</p> }
+    <div class="card overflow-auto">
+      <table class="table min-w-full"><thead><tr>
+        @if (isCogs()) { <th>Date</th><th>Journal</th><th>Source</th><th>Type</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Net COGS</th> }
+        @else { <th>Product</th><th>SKU</th><th>Location</th><th class="text-right">Quantity</th><th class="text-right">Weighted Cost</th><th class="text-right">Value</th> }
+      </tr></thead><tbody>
+        @if (isCogs()) { @for (row of data.rows; track row.journalEntryId + '_' + row.netCogs) { <tr><td>{{ row.postingDate | appDate:'mediumDate' }}</td><td>{{ row.journalNumber }}</td><td>{{ row.referenceType }} #{{ row.referenceId }}</td><td>{{ row.journalType }}</td><td class="text-right">{{ formatCurrency(row.debitAmount) }}</td><td class="text-right">{{ formatCurrency(row.creditAmount) }}</td><td class="text-right font-medium">{{ formatCurrency(row.netCogs) }}</td></tr> } }
+        @else { @for (row of data.rows; track row.variantId + '_' + row.locationType + '_' + row.locationId) { <tr><td>{{ row.productName }}</td><td>{{ row.sku }}</td><td>{{ row.locationType }} #{{ row.locationId }}</td><td class="text-right">{{ row.quantity | number }}</td><td class="text-right">{{ formatCurrency(row.unitCost) }}</td><td class="text-right font-medium">{{ formatCurrency(row.inventoryValue) }}</td></tr> } }
+        @if (!data.rows?.length) { <tr><td colspan="7" class="text-center py-12 text-gray-500">No report data matches the selected filters.</td></tr> }
+      </tbody></table>
+    </div>
+    @if (!isCogs() && data.unvaluedMovements?.length) { <div class="card p-4 border-yellow-300 bg-yellow-50"><h2 class="font-semibold text-yellow-900">Unvalued movements excluded from precise valuation</h2><p class="text-sm text-yellow-800 mt-1">{{ data.unvaluedMovements.length }} legacy or unreliable movement records require an approved backfill or estimation policy.</p></div> }
+  }
+</div>

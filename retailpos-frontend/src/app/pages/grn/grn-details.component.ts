@@ -1,4 +1,6 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { CompanyDateService } from '../../services/company-date.service';
+import { getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
+import { Component, OnInit, signal, inject  } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RouterLink } from '@angular/router';
@@ -17,6 +19,9 @@ import { Grn } from '../../models/grn.model';
   styleUrls: ['./grn-details.component.css']
 })
 export class GrnDetailsComponent implements OnInit {
+  private readonly companyDates = inject(CompanyDateService);
+  readonly locationTypeLabel = getPurchaseLocationTypeLabel;
+  readonly locationName = getPurchaseLocationName;
   grn = signal<Grn | null>(null);
   isLoading = signal(false);
   isCompleting = signal(false);
@@ -165,27 +170,6 @@ export class GrnDetailsComponent implements OnInit {
 
   formatDateTime(date: string): string {
     if (!date) return '-';
-
-    const value = new Date(date);
-    if (Number.isNaN(value.getTime())) return '-';
-
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: this.businessTimeZone(),
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).formatToParts(value);
-
-    const day = parts.find(p => p.type === 'day')?.value ?? '--';
-    const month = parts.find(p => p.type === 'month')?.value ?? '---';
-    const year = parts.find(p => p.type === 'year')?.value ?? '----';
-    const hour = parts.find(p => p.type === 'hour')?.value ?? '--';
-    const minute = parts.find(p => p.type === 'minute')?.value ?? '--';
-    const dayPeriod = (parts.find(p => p.type === 'dayPeriod')?.value ?? '').toUpperCase();
-
-    return `${day} ${month}, ${year} ${hour}:${minute} ${dayPeriod}`.trim();
+    return this.companyDates.format(date, true, this.businessTimeZone());
   }
 }

@@ -1,3 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { inject as injectCompanyDates } from '@angular/core';
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -22,11 +25,12 @@ import { AuthorizedLocationDto } from '../../models/report.model';
 @Component({
   selector: 'app-adjustment-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, RouterLink],
   templateUrl: './adjustment-list.component.html',
   styleUrls: ['./adjustment-list.component.css']
 })
 export class AdjustmentListComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   Math = Math;
   readonly statuses = STOCK_ADJUSTMENT_STATUSES;
 
@@ -179,16 +183,11 @@ export class AdjustmentListComponent implements OnInit, OnDestroy {
 
   formatDate(date: string): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric'
-    });
+    return this.companyDates.format(date, false);
   }
 
   formatDateTime(date?: string | null): string {
     if (!date) return '-';
-    return new Date(date).toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    return this.companyDates.format(date, true);
   }
 }

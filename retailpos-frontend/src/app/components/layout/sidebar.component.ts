@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MenuService } from '../../services/menu.service';
@@ -15,6 +15,8 @@ export class SidebarComponent {
   menuService = inject(MenuService);
   private router = inject(Router);
   expandedGroupId = signal<string | null>(null);
+  expandedSubGroupIds = signal<ReadonlySet<string>>(new Set<string>());
+  private lastSyncedSubGroupRoute: string | null = null;
   private readonly expandedGroupStorageKey = 'sidebar_expanded_group';
   private lastSyncedRoute: string | null = null;
 
@@ -54,6 +56,44 @@ export class SidebarComponent {
 
       this.lastSyncedRoute = routeForSync;
     });
+
+    // Expand the level-2 group owning the current page, including on direct load/reload.
+    effect(() => {
+      const routeForSync = this.menuService.activeRoute() || this.router.url;
+      const groupIds = this.findSubGroupIdsByRoute(routeForSync, this.menuService.sections());
+      if (groupIds.length === 0 || this.lastSyncedSubGroupRoute === routeForSync) {
+        return;
+      }
+
+      untracked(() => this.expandedSubGroupIds.update(current => new Set([...current, ...groupIds])));
+      this.lastSyncedSubGroupRoute = routeForSync;
+    });
+  }
+
+  isSubGroupCollapsed(groupId: string): boolean {
+    if (this.menuService.sidebarCollapsed()) {
+      return false;
+    }
+
+    return !this.expandedSubGroupIds().has(groupId);
+  }
+
+  toggleSubGroup(groupId: string): void {
+    if (this.menuService.sidebarCollapsed()) {
+      return;
+    }
+
+    this.expandedSubGroupIds.update(current => {
+      const next = new Set(current);
+      if (!next.delete(groupId)) {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  isSubGroupActive(group: MenuItem): boolean {
+    return (group.children ?? []).some(child => this.isItemActive(child));
   }
 
   isGroupCollapsed(sectionId: string): boolean {
@@ -124,13 +164,26 @@ export class SidebarComponent {
 
   private findSectionByRoute(route: string, sections: MenuSection[]): MenuSection | null {
     for (const section of sections) {
-      const hasMatch = section.items.some(item => item.route ? route.startsWith(item.route) : false);
-      if (hasMatch) {
+      if (this.flattenRoutedItems(section.items).some(item => route.startsWith(item.route!))) {
         return section;
       }
     }
 
     return null;
+  }
+
+  private flattenRoutedItems(items: MenuItem[]): MenuItem[] {
+    return items.flatMap(item => [
+      ...(item.route ? [item] : []),
+      ...(item.children ? this.flattenRoutedItems(item.children) : [])
+    ]);
+  }
+
+  private findSubGroupIdsByRoute(route: string, sections: MenuSection[]): string[] {
+    return sections
+      .flatMap(section => section.items)
+      .filter(item => item.children?.some(child => !!child.route && route.startsWith(child.route)))
+      .map(item => item.id);
   }
 
   private readSavedExpandedGroup(): string | null {

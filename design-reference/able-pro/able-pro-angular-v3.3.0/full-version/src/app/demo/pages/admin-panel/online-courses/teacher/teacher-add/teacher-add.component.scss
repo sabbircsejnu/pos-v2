@@ -1,0 +1,28 @@
+.file-upload {
+  display: block;
+  border: 1px solid var(--accent-300);
+  width: 100%;
+  margin-bottom: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+
+  &:not(:disabled):not([readonly]) {
+    cursor: pointer;
+  }
+  &::file-selector-button {
+    padding: 0.8rem 0.75rem;
+    margin-right: 8px;
+    color: var(--accent-800);
+    pointer-events: none;
+    border-color: var(--accent-300);
+    border-style: solid;
+    border-width: 0px;
+    border-inline-end-width: 1px;
+    border-radius: 0;
+    background: var(--accent-100);
+  }
+
+  &:hover:not(:disabled):not([readonly])::file-selector-button {
+    background: var(--accent-200);
+  }
+}

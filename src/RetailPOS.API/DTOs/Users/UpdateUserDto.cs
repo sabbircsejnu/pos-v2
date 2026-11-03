@@ -61,5 +61,10 @@ public class UpdateUserDto
     /// </summary>
     public long? BusinessId { get; set; }
 
+    /// <summary>
+    /// Optional additive per-user permissions in addition to role permissions.
+    /// </summary>
+    public IEnumerable<string>? UserPermissions { get; set; }
+
     public bool IsActive { get; set; }
 }

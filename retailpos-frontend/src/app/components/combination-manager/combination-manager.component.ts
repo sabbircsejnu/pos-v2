@@ -8,11 +8,12 @@ import { VariationService } from '../../services/variation.service';
 import { Variation } from '../../models/variation.model';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { UI_KIT, UiTableColumn } from '../shared/ui';
 
 @Component({
   selector: 'app-combination-manager',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, ...UI_KIT],
   templateUrl: './combination-manager.component.html',
   styleUrls: ['./combination-manager.component.css']
 })
@@ -35,6 +36,14 @@ export class CombinationManagerComponent implements OnInit {
   showEditModal = signal(false);
   isLoading = signal(false);
   editingCombination = signal<CombinationDto | null>(null);
+
+  /** Columns of the variants table; cells are rendered by the templates in the component template. */
+  readonly variantColumns: UiTableColumn[] = [
+    { key: 'variant', header: 'Variant', type: 'custom' },
+    { key: 'sku', header: 'SKU / Barcode', type: 'custom' },
+    { key: 'priceAdjustment', header: 'Price Adj.', type: 'custom', align: 'end' },
+    { key: 'finalPrice', header: 'Final Price', type: 'custom', align: 'end' }
+  ];
 
   // Manual combination form
   manualForm = signal({

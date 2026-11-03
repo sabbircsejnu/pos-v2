@@ -1,0 +1,99 @@
+<div>
+  <mat-toolbar class="landing-header">
+    <div class="component-header top-header default">
+      <div class="container">
+        <a href="/" class="theme-logo">
+          <img src="assets/images/logo-dark.svg" alt="logo" />
+        </a>
+        <button mat-stroked-button class="nav-content-collapse" (click)="this.navDataShow = !this.navDataShow">
+          <i class="ti ti-menu-2 f-26 flex"></i>
+        </button>
+        <div class="nav-bar-data" [ngClass]="{ show: navDataShow }">
+          <ul class="navbar align-item-center">
+            <li class="mat-body p-x-10">
+              <a
+                href="javascript:"
+                class="text-muted f-w-500"
+                [routerLink]="['/dashboard/default']"
+                [queryParams]="buyNowLinkService.getQueryParams"
+              >
+                {{ this.authenticationService.currentUserValue ? 'Dashboard' : 'Login' }}
+              </a>
+            </li>
+            <li class="mat-body p-x-10">
+              <a class="text-muted f-w-500">Component</a>
+            </li>
+            <li class="mat-body p-x-10">
+              <a class="text-muted f-w-500" href="https://phoenixcoded.gitbook.io/able-pro" target="_blank">Documentation</a>
+            </li>
+            <li class="mat-body live-demo p-x-10">
+              <a [matMenuTriggerFor]="menu" (click)="toggleIcon()" class="flex align-item-center f-w-500">
+                Live Preview
+                <span class="flex m-l-5">
+                  <svg class="wid-15 hei-15">
+                    <use attr.xlink:href="assets/fonts/custom-icon.svg#{{ dropDownIcon }}"></use>
+                  </svg>
+                </span>
+                <mat-menu #menu="matMenu" (closed)="resetIcon()">
+                  @for (item of drpTechBlock; track item) {
+                    @if (item.tech_name === 'Angular') {
+                      <a
+                        [matTooltip]="item.tooltip"
+                        mat-menu-item
+                        class="drp-tech-link text-muted f-w-500"
+                        [routerLink]="[item.url]"
+                        [queryParams]="buyNowLinkService.getQueryParams"
+                      >
+                        <img src="{{ item.images }}" alt="img" class="img-fluid wid-30" />
+                        {{ item.tech_name }}
+                      </a>
+                    } @else {
+                      <a
+                        [matTooltip]="item.tooltip"
+                        mat-menu-item
+                        class="drp-tech-link text-muted f-w-500"
+                        href="{{ item.url + buyNowLinkService.getQueryParams }}"
+                        [target]="item.target === true ? '_blank' : '_self'"
+                      >
+                        <img
+                          src="{{ item.images }}"
+                          alt="img"
+                          class="img-fluid wid-30"
+                          [ngStyle]="{ filter: item.url === 'javascript:' ? 'grayscale(1)' : '' }"
+                        />
+                        {{ item.tech_name }}
+                      </a>
+                    }
+                  }
+                </mat-menu>
+              </a>
+            </li>
+            <li class="mat-body github p-r-5 m-r-10">
+              <a class="text-muted" href="https://github.com/phoenixcoded/able-pro-free-admin-dashboard-template" target="_blank">
+                <svg class="pc-icon">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-document-2"></use>
+                </svg>
+              </a>
+            </li>
+            <li class="mat-body">
+              <a
+                mat-stroked-button
+                class="b-rad-20 bg-success-500"
+                [ngClass]="isDarkMode ? 'text-accent-900' : 'text-accent-50'"
+                target="_blank"
+                [href]="buyNowLinkService.buyNowLink"
+              >
+                Purchase Now
+                <i class="ti ti-external-link"></i>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </mat-toolbar>
+  <div class="router-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>
+<app-configuration></app-configuration>

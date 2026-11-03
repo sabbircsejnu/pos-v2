@@ -9,6 +9,7 @@ public class ApiResponse<T>
     public string? Message { get; set; }
     public T? Data { get; set; }
     public List<string>? Errors { get; set; }
+    public string? ErrorCode { get; set; }
 
     public static ApiResponse<T> SuccessResponse(T data, string message = "Operation successful")
     {

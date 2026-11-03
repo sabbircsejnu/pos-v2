@@ -1,5 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
+import { inject as injectCompanyDates } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -16,7 +18,8 @@ import { environment } from '../../../environments/environment';
   templateUrl: './stock-count-details.component.html',
   styleUrls: ['./stock-count-details.component.css']
 })
-export class StockCountDetailsComponent implements OnInit {
+export class StockCountDetailsComponent implements OnInit, OnDestroy {
+  private readonly companyDates = injectCompanyDates(CompanyDateService);
   readonly phase3Enabled = environment.stockCountPhase3Enabled;
   stockCount = signal<StockCountDto | null>(null);
   isLoading = signal(true);
@@ -25,6 +28,7 @@ export class StockCountDetailsComponent implements OnInit {
   showReasonModal = signal(false);
   reasonModalTitle = signal('');
   reasonText = signal('');
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     public auth: AuthService,
@@ -46,11 +50,15 @@ export class StockCountDetailsComponent implements OnInit {
     this.load(+id);
   }
 
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
   load(id: number): void {
     this.isLoading.set(true);
     this.service.getById(id).subscribe({
       next: (res) => {
-        this.stockCount.set(res.data as StockCountDto);
+        this.setStockCount(res.data as StockCountDto);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -59,6 +67,66 @@ export class StockCountDetailsComponent implements OnInit {
         this.location.back();
       }
     });
+  }
+
+  private setStockCount(item: StockCountDto): void {
+    this.stockCount.set(item);
+    this.stopPolling();
+    if (item.adjustmentJob && !item.adjustmentJob.isTerminal) {
+      this.pollTimer = setTimeout(() => this.refreshQuietly(item.id), 5000);
+    }
+  }
+
+  private refreshQuietly(id: number): void {
+    this.service.getById(id).subscribe({
+      next: (res) => this.setStockCount(res.data as StockCountDto),
+      error: () => {
+        this.pollTimer = setTimeout(() => this.refreshQuietly(id), 15000);
+      }
+    });
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  /** Approved never means Adjusted: the adjustment is posted later by a background job. */
+  adjustmentLabel(item: StockCountDto): string | null {
+    switch (item.adjustmentState) {
+      case 'Pending': return 'Approved - stock adjustment pending (inventory not changed yet)';
+      case 'Processing': return 'Approved - stock adjustment is being posted';
+      case 'RetryScheduled': return 'Approved - stock adjustment will be retried automatically';
+      case 'Completed': return item.adjustmentJob?.stockAdjustmentId
+        ? 'Adjusted - inventory updated and stock count completed'
+        : item.adjustmentJob ? 'Completed - no stock differences to adjust' : 'Completed';
+      case 'Blocked': return 'Adjustment blocked - movement evidence is ambiguous; inventory was not changed';
+      case 'Failed': return 'Adjustment failed - inventory was not changed';
+      case 'DraftGenerated': return 'Adjustment draft generated - awaiting stock adjustment approval';
+      default: return null;
+    }
+  }
+
+  adjustmentClass(item: StockCountDto): string {
+    switch (item.adjustmentState) {
+      case 'Completed': return 'border-emerald-300 bg-emerald-50 text-emerald-900';
+      case 'Blocked':
+      case 'Failed': return 'border-red-300 bg-red-50 text-red-900';
+      default: return 'border-blue-300 bg-blue-50 text-blue-900';
+    }
+  }
+
+  canOpenAdjustment(item: StockCountDto): boolean {
+    return !!item.adjustmentJob?.stockAdjustmentId && this.auth.hasPermission('stock_adjustments.view');
+  }
+
+  openAdjustment(item: StockCountDto): void {
+    const adjustmentId = item.adjustmentJob?.stockAdjustmentId;
+    if (adjustmentId) {
+      this.router.navigate(['/stock-adjustments', adjustmentId]);
+    }
   }
 
   canUpload(item: StockCountDto): boolean {
@@ -82,7 +150,8 @@ export class StockCountDetailsComponent implements OnInit {
   }
 
   canGenerateAdjustmentDraft(item: StockCountDto): boolean {
-    return this.phase3Enabled && item.status === 'Approved' && this.auth.hasPermission('StockCount.Approve');
+    return this.phase3Enabled && item.status === 'Approved' && !item.adjustmentJob
+      && this.auth.hasPermission('StockCount.Approve');
   }
 
   uploadExcel(fileInput: HTMLInputElement): void {
@@ -194,9 +263,9 @@ export class StockCountDetailsComponent implements OnInit {
         this.isWorking.set(true);
         this.service.approve(item.id).subscribe({
           next: (res) => {
-            this.stockCount.set(res.data as StockCountDto);
+            this.setStockCount(res.data as StockCountDto);
             this.isWorking.set(false);
-            this.alert.success('Stock count approved');
+            this.alert.success(res.message || 'Stock count approved');
           },
           error: (err) => {
             this.isWorking.set(false);
@@ -292,14 +361,12 @@ export class StockCountDetailsComponent implements OnInit {
 
   formatDate(date?: string | null): string {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return this.companyDates.format(date, false);
   }
 
   formatDateTime(date?: string | null): string {
     if (!date) return '-';
-    return new Date(date).toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    return this.companyDates.format(date, true);
   }
 
   statusClass(status: string): string {
@@ -308,6 +375,8 @@ export class StockCountDetailsComponent implements OnInit {
       case 'Submitted': return 'bg-blue-100 text-blue-700';
       case 'Rejected': return 'bg-red-100 text-red-700';
       case 'Approved': return 'bg-green-100 text-green-700';
+      case 'AdjustmentGenerated': return 'bg-violet-100 text-violet-700';
+      case 'Completed': return 'bg-emerald-100 text-emerald-800';
       default: return 'bg-gray-100 text-gray-700';
     }
   }

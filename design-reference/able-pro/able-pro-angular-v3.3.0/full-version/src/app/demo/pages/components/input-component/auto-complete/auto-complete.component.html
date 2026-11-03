@@ -1,0 +1,78 @@
+<div class="row">
+  <div class="col-sm-6">
+    <app-card cardTitle="Highlight The First Autocomplete Option">
+      <form class="example-form">
+        <mat-form-field class="w-100" appearance="fill">
+          <mat-label>Number</mat-label>
+          <input type="text" placeholder="Pick one" aria-label="Number" matInput [formControl]="myControl" [matAutocomplete]="auto" />
+          <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+            @for (option of filteredOptions | async; track option) {
+              <mat-option [value]="option">{{ option }}</mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Display Value Autocomplete">
+      <form class="example-form">
+        <mat-form-field class="w-100" appearance="fill">
+          <mat-label>Assignee</mat-label>
+          <input type="text" matInput [formControl]="myControl_2" [matAutocomplete]="auto_1" />
+          <mat-autocomplete #auto_1="matAutocomplete" [displayWith]="displayFn">
+            @for (option of filteredOptions_2 | async; track option) {
+              <mat-option [value]="option">{{ option.name }}</mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Options Groups Autocomplete">
+      <form [formGroup]="stateForm">
+        <mat-form-field class="w-100" appearance="fill">
+          <mat-label>States Group</mat-label>
+          <input type="text" matInput formControlName="stateGroup" required [matAutocomplete]="autoGroup" />
+          <mat-autocomplete #autoGroup="matAutocomplete">
+            @for (group of stateGroupOptions | async; track group) {
+              <mat-optgroup [label]="group.letter">
+                @for (name of group.names; track name) {
+                  <mat-option [value]="name">{{ name }}</mat-option>
+                }
+              </mat-optgroup>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </form>
+    </app-card>
+  </div>
+  <div class="col-sm-6">
+    <app-card cardTitle="Autocomplete overview">
+      <form class="example-form">
+        <mat-form-field class="w-100 m-b-15" appearance="fill">
+          <mat-label>State</mat-label>
+          <input matInput aria-label="State" [matAutocomplete]="autoState" [formControl]="stateCtrl" />
+          <mat-autocomplete #autoState="matAutocomplete">
+            @for (state of filteredStates | async; track state) {
+              <mat-option [value]="state.name">
+                <img alt="" class="example-option-img" [src]="state.flag" height="25" />
+                <span>{{ state.name }}</span>
+                |
+                <small>Population: {{ state.population }}</small>
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+        <mat-slide-toggle
+          [checked]="stateCtrl.disabled"
+          [labelPosition]="themeDirection ? 'before' : 'after'"
+          (change)="stateCtrl.disabled ? stateCtrl.enable() : stateCtrl.disable()"
+        >
+          Disable Input?
+        </mat-slide-toggle>
+      </form>
+    </app-card>
+  </div>
+</div>

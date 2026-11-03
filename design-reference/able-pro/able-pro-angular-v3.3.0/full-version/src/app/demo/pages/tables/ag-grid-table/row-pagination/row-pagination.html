@@ -1,0 +1,12 @@
+<app-card cardTitle="Row Pagination" [padding]="0">
+  <ag-grid-angular
+    style="width: 100%; height: calc(100vh - 311px)"
+    [theme]="theme"
+    [columnDefs]="columnDefs"
+    [defaultColDef]="defaultColDef"
+    [pagination]="true"
+    [rowData]="rowData"
+    (gridReady)="onGridReady()"
+    [enableRtl]="direction"
+  />
+</app-card>

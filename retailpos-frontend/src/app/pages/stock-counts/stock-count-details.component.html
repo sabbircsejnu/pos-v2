@@ -38,6 +38,25 @@
         }
       </div>
 
+      @if (adjustmentLabel(item); as adjustmentText) {
+        <div class="mt-4 rounded-lg border px-4 py-3 text-sm" [ngClass]="adjustmentClass(item)">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span><strong>Stock adjustment:</strong> {{ adjustmentText }}</span>
+            @if (canOpenAdjustment(item)) {
+              <button (click)="openAdjustment(item)" type="button" class="px-3 py-1 border border-current rounded-lg text-xs hover:bg-white/60">View adjustment</button>
+            }
+          </div>
+          @if (item.adjustmentJob; as job) {
+            @if (job.blockedReasonCodes.length) {
+              <div class="mt-1 text-xs">Reasons: {{ job.blockedReasonCodes.join(', ') }}. Use a manual stock adjustment if inventory must be corrected.</div>
+            }
+            @if (job.failureCode) {
+              <div class="mt-1 text-xs">Code: {{ job.failureCode }}</div>
+            }
+          }
+        </div>
+      }
+
       @if (item.hasPostGenerationMovements) {
         <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
           <strong>Warning:</strong> {{ item.postGenerationMovementCount }} inventory movements occurred after generation.

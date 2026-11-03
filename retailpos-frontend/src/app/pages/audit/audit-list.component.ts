@@ -1,4 +1,6 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
+import { AppDatePipe } from '../../pipes/app-date.pipe';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuditService } from '../../services/audit.service';
@@ -12,7 +14,7 @@ import { AuditDetailsDrawerComponent } from './audit-details.component';
 @Component({
   selector: 'app-audit-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, AuditDetailsDrawerComponent],
+  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule, AuditDetailsDrawerComponent],
   template: `
     <div class="p-4 space-y-4">
       <div class="flex items-center justify-between">
@@ -31,8 +33,8 @@ import { AuditDetailsDrawerComponent } from './audit-details.component';
           placeholder="Search (user, summary, correlation id, entity id)"
           [(ngModel)]="filter.search"
           (keyup.enter)="reload()" />
-        <input type="date" class="border rounded px-2 py-1" [(ngModel)]="filter.fromDate" />
-        <input type="date" class="border rounded px-2 py-1" [(ngModel)]="filter.toDate" />
+        <input type="date" appCompanyDate class="border rounded px-2 py-1" [(ngModel)]="filter.fromDate" />
+        <input type="date" appCompanyDate class="border rounded px-2 py-1" [(ngModel)]="filter.toDate" />
         <select class="border rounded px-2 py-1" [(ngModel)]="actionTypeOne">
           <option value="">All actions</option>
           <option *ngFor="let a of actionTypes" [value]="a">{{ a }}</option>
@@ -71,7 +73,7 @@ import { AuditDetailsDrawerComponent } from './audit-details.component';
             <ng-container *ngFor="let row of items()">
               <tr class="border-t hover:bg-slate-50">
                 <td class="px-3 py-2 align-top whitespace-nowrap">
-                  {{ row.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}
+                  {{ row.createdAt | appDate: 'yyyy-MM-dd HH:mm:ss' }}
                 </td>
                 <td class="px-3 py-2 align-top">
                   <div class="flex items-center gap-2">

@@ -16,7 +16,8 @@ public class ProductDto
     public string CategoryName { get; set; } = string.Empty;
     public decimal BasePrice { get; set; }
     public decimal? CostPrice { get; set; }
-    public decimal TaxRate { get; set; }
+    public decimal? TaxRate { get; set; }
+    public string? TaxClassification { get; set; }
     public string? PrimaryImageThumb { get; set; }
     public string? PrimaryImageMedium { get; set; }
     /// <summary>Canonical status: "active", "inactive", or "draft".</summary>
@@ -30,5 +31,7 @@ public class ProductDto
     // Related data
     public int VariantCount { get; set; }
     public int TotalStock { get; set; }
+    /// <summary>Inventory availability in the authorized, optionally selected location scope.</summary>
+    public string StockStatus { get; set; } = "unavailable";
     public List<ProductVariantDto> Variants { get; set; } = new();
 }

@@ -101,6 +101,11 @@ export class StockTransferService {
     return this.http.post<any>(`${this.apiUrl}/${id}/submit`, {});
   }
 
+  /** Atomically submit, approve when required, and dispatch a stock transfer */
+  submitAndDispatch(id: number): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/submit-and-dispatch`, {});
+  }
+
   /** Reject a stock transfer */
   reject(id: number, dto: TransferStatusUpdateDto): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/${id}/reject`, dto);

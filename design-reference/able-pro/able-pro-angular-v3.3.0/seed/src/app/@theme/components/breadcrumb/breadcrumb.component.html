@@ -1,0 +1,74 @@
+@if (dashboard()) {
+  @for (breadcrumb of navigationList; track breadcrumb; let last = $last) {
+    @if (last && breadcrumb.breadcrumbs !== false) {
+      <div class="page-header">
+        <div class="page-block">
+          <div class="row align-item-center">
+            <div class="col-md-12">
+              <div class="flex align-item-center">
+                <ul class="breadcrumb align-item-center">
+                  <li class="breadcrumb-item">
+                    @if (type === 'theme2') {
+                      <a [routerLink]="['/sample-page']" title="Home"><i class="ti ti-home-2"></i></a>
+                    }
+                    @if (type === 'theme1') {
+                      <a [routerLink]="['/sample-page']">{{ 'Home' | translate }}</a>
+                    }
+                  </li>
+                  @for (breadcrumb of navigationList; track breadcrumb) {
+                    @if (breadcrumb.url !== false) {
+                      <li class="breadcrumb-item">
+                        <a [routerLink]="breadcrumb.url">{{ breadcrumb.title | translate }}</a>
+                      </li>
+                    }
+                    @if (breadcrumb.url === false && breadcrumb.type !== 'group') {
+                      <li class="breadcrumb-item">
+                        <a href="javascript:">{{ breadcrumb.title | translate }}</a>
+                      </li>
+                    }
+                  }
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-12">
+              <div class="page-header-title">
+                @for (breadcrumb of navigationList; track breadcrumb; let last = $last) {
+                  @if (last) {
+                    <h2 class="f-w-700">
+                      {{ breadcrumb.title | translate }}
+                    </h2>
+                  }
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+}
+@if (Component()) {
+  @for (breadcrumb of componentList; track breadcrumb; let last = $last) {
+    @if (last && breadcrumb.breadcrumbs !== false) {
+      <div class="page-block">
+        <div class="felx align-item-center">
+          <div class="page-header-title">
+            @for (breadcrumb of componentList; track breadcrumb; let last = $last) {
+              @if (last) {
+                <h2 class="m-b-5">
+                  {{ breadcrumb.title }}
+                </h2>
+                <button mat-stroked-button class="bg-accent-300 b-rad-20 m-b-15 p-x-10">
+                  <a href="{{ breadcrumb.link }}" target="_blank" class="text-accent-900">
+                    <i class="ti ti-external-link"></i>
+                    Reference
+                  </a>
+                </button>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    }
+  }
+}

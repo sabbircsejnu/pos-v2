@@ -1,8 +1,12 @@
 export interface StockTransferItemDto {
   id: number;
   variantId: number;
+  productCode?: string;
   variantSku: string;
   productName: string;
+  variantAttributes?: string;
+  variantDisplay?: string;
+  primaryImageThumb?: string;
   quantity: number;
   requestedQuantity: number;
   transferQuantity: number;
@@ -85,7 +89,16 @@ export interface TransferStatusUpdateDto {
 }
 
 export interface StockTransferSearchRequest {
+  searchTerm?: string;
   status?: string;
+  fromLocationType?: string;
+  fromLocationId?: number;
+  toLocationType?: string;
+  toLocationId?: number;
+  productVariantId?: number;
+  transferType?: string;
+  dateFrom?: string;
+  dateTo?: string;
   pageNumber: number;
   pageSize: number;
 }

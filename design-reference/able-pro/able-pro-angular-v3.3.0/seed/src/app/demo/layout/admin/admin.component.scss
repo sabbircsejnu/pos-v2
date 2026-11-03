@@ -1,0 +1,85 @@
+.app-container {
+  padding-left: 40px;
+  padding-right: 40px;
+  padding-top: 84px;
+  min-height: calc(100vh - 146px);
+
+  // apply when box layout has been set
+  &.container {
+    @media (min-width: 1200px) {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 1400px) {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+  }
+}
+
+::ng-deep.horizontal-navbar {
+  display: block;
+  height: 75px;
+}
+
+::ng-deep.horizontal-menu {
+  display: block;
+  height: 80px;
+  width: 100%;
+  z-index: 1024;
+  position: fixed;
+  top: 64px;
+  background: transparent;
+  backdrop-filter: blur(8px);
+
+  ::ng-deep.dark & {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)) !important;
+  }
+}
+
+::ng-deep {
+  @media only screen and (max-width: 1024px) {
+    .mat-drawer-content {
+      .app-container {
+        padding-left: 15px;
+        padding-right: 15px;
+      }
+    }
+  }
+}
+
+.floating-button {
+  position: fixed;
+  bottom: 50px;
+  right: 30px;
+  z-index: 1029;
+  .mdc-button {
+    animation: pulse 2s infinite;
+
+    @media (max-width: 576px) {
+      span {
+        display: none;
+      }
+    }
+  }
+
+  ::ng-deep.able-pro-rtl & {
+    left: 30px;
+    right: auto;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3);
+  }
+
+  70% {
+    box-shadow: 0 0 0 20px rgba(220, 38, 38, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}

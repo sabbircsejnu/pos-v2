@@ -1,0 +1,122 @@
+<mat-drawer #story position="end" mode="over" class="kanban-drawer">
+  @if (storyDetails) {
+    <div class="header-title">
+      <div class="kanban-header-title">
+        <h4>{{ storyDetails.title }}</h4>
+        <div class="flex align-item-center hei-10">
+          <button mat-icon-button>
+            <i class="ti ti-trash f-20 text-warn-500"></i>
+          </button>
+          <button mat-icon-button (click)="closeEditDetails()">
+            <i class="ti ti-x f-20"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <mat-divider></mat-divider>
+    <app-scrollbar [customStyle]="{ height: 'calc(100vh - 88px)', position: 'relative' }">
+      <div class="p-20">
+        <form (submit)="storyForms()">
+          <label for="Title" class="f-w-500">Title</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input matInput type="text" name="title" [(ngModel)]="storyDetails.title" />
+          </mat-form-field>
+          <label for="Assign" class="f-w-500">Assign To</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <mat-select [(ngModel)]="storyDetails.assign" name="assign">
+              @for (profile of assignProfile; track profile) {
+                <mat-option [value]="profile.id">
+                  <div class="flex align-item-center">
+                    <img src="assets/images/user/{{ profile.avatar }}" alt="images" class="img-fuild m-r-10 border-50 wid-35" />
+                    {{ profile.name }}
+                  </div>
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <label for="Prioritize" class="f-w-500">Prioritize</label>
+          <mat-radio-group class="block" [(ngModel)]="storyDetails.priority" name="priority">
+            <mat-radio-button color="primary" value="low" [checked]="storyDetails.priority === 'low'">Low</mat-radio-button>
+            <mat-radio-button color="warn" value="medium" [checked]="storyDetails.priority === 'medium'">Medium</mat-radio-button>
+            <mat-radio-button value="high" [checked]="storyDetails.priority === 'high'">High</mat-radio-button>
+          </mat-radio-group>
+          <label for="date" class="f-w-500">Due Date</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <input matInput [matDatepicker]="picker" name="date" [(ngModel)]="storyDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+          </mat-form-field>
+          <label for="acceptance" class="f-w-500">Acceptance</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <textarea matInput rows="3" name="acceptance" [(ngModel)]="storyDetails.acceptance"></textarea>
+          </mat-form-field>
+          <label for="description" class="f-w-500">Description</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <textarea matInput name="description" [(ngModel)]="storyDetails.description" rows="3"></textarea>
+          </mat-form-field>
+          <label for="state" class="f-w-500">State</label>
+          <mat-form-field appearance="outline" class="w-100 m-t-5">
+            <mat-select [(ngModel)]="getColumnData" name="state">
+              @for (item of columnsDetails; track item) {
+                <mat-option [value]="item">
+                  {{ item.title }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <div class="col-12">
+            <div class="grid">
+              <button mat-flat-button color="primary" class="m-b-30" (click)="closeEditDetails()">Save</button>
+            </div>
+          </div>
+        </form>
+        @for (commentData of commentList; track commentData) {
+          <app-card [showHeader]="false" padding="10" cardClass="bg-accent-200">
+            <div class="flex align-item-center m-b-10">
+              <div class="flex-grow-1 m-r-15">
+                <div class="flex align-item-center">
+                  <div class="flex-shrink-0">
+                    <img src="assets/images/user/{{ commentData.profile.avatar }}" alt="avatar" class="wid-30 img-user border-50" />
+                  </div>
+                  <div class="flex-grow-1 m-l-10">
+                    <div class="mat-body f-w-600">{{ commentData.profile.name }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <div class="block-inline m-r-10">
+                  <div class="flex align-item-center">
+                    <i class="fas fa-circle f-8 m-r-10"></i>
+                    {{ commentData.profile.time }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p>{{ commentData.comment.comment }}</p>
+          </app-card>
+        }
+        <app-card [showHeader]="false" padding="10">
+          <mat-form-field appearance="outline" class="w-100 comment-section">
+            <input matInput placeholder="Add Comment Here" />
+          </mat-form-field>
+          <div class="flex align-item-center justify-content-between">
+            <div class="flex align-item-center">
+              <div class="avatar avatar-s">
+                <i class="ti ti-camera f-20 text-primary-500"></i>
+              </div>
+              <div class="avatar avatar-s">
+                <i class="ti ti-paperclip f-20 text-primary-500"></i>
+              </div>
+              <div class="avatar avatar-s">
+                <i class="ti ti-brand-android f-20 text-primary-500"></i>
+              </div>
+            </div>
+            <div>
+              <button mat-flat-button color="primary">Comment</button>
+            </div>
+          </div>
+        </app-card>
+      </div>
+    </app-scrollbar>
+  }
+</mat-drawer>

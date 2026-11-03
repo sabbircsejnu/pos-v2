@@ -1,0 +1,422 @@
+<div class="row p-t-25">
+  <div class="chat-body">
+    <mat-drawer-container>
+      <mat-drawer #personList [mode]="modeValue" [opened]="personStatus" class="contact-list" position="start">
+        <app-card [showHeader]="false" [padding]="0">
+          <div class="p-25">
+            <div class="m-b-25 f-16 f-w-600">
+              Messages
+              <span class="avatar avatar-xs text-primary-500 bg-primary-50 b-rad-50">9</span>
+            </div>
+            <mat-form-field appearance="outline">
+              <input matInput placeholder="Placeholder" [(ngModel)]="searchTerm" (input)="filterPerson(searchTerm)" />
+              <mat-icon matSuffix class="search-icons">
+                <svg class="pc-icon">
+                  <use xlink:href="assets/fonts/custom-icon.svg#custom-search"></use>
+                </svg>
+              </mat-icon>
+            </mat-form-field>
+          </div>
+          <app-scrollbar [customStyle]="{ height: 'calc(100vh - 520px)', position: 'relative' }">
+            <div class="list-group list-group-flush user-list">
+              @for (list of chatPersonList; track $index) {
+                <a
+                  href="javascript:"
+                  class="list-group-item list-group-item-action p-15"
+                  (click)="chatPerson(list.id)"
+                  [ngClass]="{ 'bg-primary-100': list.id === selectedPersonId }"
+                >
+                  <div class="flex align-item-center">
+                    <div class="chat-avatar">
+                      <img class="rounded-circle img-fluid wid-40" src="{{ list.avatar }}" alt="User image" />
+                      @if (list.online_status === 'available') {
+                        <i class="ti ti-circle-check-filled text-success-500 list-user-status"></i>
+                      } @else if (list.online_status === 'do_not_disturb') {
+                        <i class="ti ti-clock-filled text-warn-500 list-user-status"></i>
+                      } @else if (list.online_status === 'offline') {
+                        <i class="ti ti-circle-minus text-accent-500 list-user-status"></i>
+                      }
+                    </div>
+                    <div class="flex-grow-1 m-x-10">
+                      <div class="f-w-500 text-accent-900">
+                        {{ list.name }}
+                        <span class="float-end mat-small text-muted f-w-400">{{ list.lastMessage }}</span>
+                      </div>
+                      <div class="flex align-item-center justify-content-between">
+                        <span class="mat-small text-muted">{{ list.status }}</span>
+                        <span>
+                          @if (list.unReadChatCount === 0) {
+                            <i class="ti ti-checks f-18 text-primary-500"></i>
+                          } @else {
+                            <div class="wid-10 hei-10 b-rad-50 bg-primary-500"></div>
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              }
+            </div>
+          </app-scrollbar>
+
+          <div class="list-group list-group-flush">
+            <a href="javascript:" class="list-group-item list-group-item-action flex align-item-center text-accent-900 p-15">
+              <i class="ti ti-power f-18 m-r-5"></i>
+              <span>Logout</span>
+            </a>
+            <a href="javascript:" class="list-group-item list-group-item-action flex align-item-center text-accent-900 p-15">
+              <i class="ti ti-settings f-18 m-r-5"></i>
+              <span>Setting</span>
+            </a>
+            <div class="list-group-item p-15 main-user">
+              <div class="flex align-item-center">
+                <div class="chat-avatar">
+                  <img class="b-rad-50 img-fluid wid-40" src="assets/images/user/avatar-5.jpg" alt="User image" />
+                  @if (userStatus === 'active') {
+                    <i class="ti ti-circle-check-filled text-success-500 user-status"></i>
+                  } @else if (userStatus === 'away') {
+                    <i class="ti ti-clock-filled text-warn-500 user-status"></i>
+                  } @else if (userStatus === 'offline') {
+                    <i class="ti ti-circle-minus text-accent-500 user-status"></i>
+                  }
+                </div>
+                <div class="flex-grow-1 m-x-15">
+                  <div class="f-w-500">John Doe</div>
+                </div>
+                <div class="flex-shrink-0">
+                  <a href="javascript:" class="avatar avatar-s hover text-accent-500" [matMenuTriggerFor]="usersStatus">
+                    <i class="ti ti-chevron-right f-20"></i>
+                  </a>
+                  <mat-menu #usersStatus>
+                    <menu mat-menu-item (click)="setStatus('active')">
+                      <i class="ti ti-circle-check-filled text-success-500"></i>
+                      Active
+                    </menu>
+                    <menu mat-menu-item (click)="setStatus('away')">
+                      <i class="ti ti-clock-filled text-warn-500"></i>
+                      Away
+                    </menu>
+                    <menu mat-menu-item (click)="setStatus('offline')">
+                      <i class="ti ti-circle-minus text-accent-500"></i>
+                      Edit Do Not Disturb
+                    </menu>
+                  </mat-menu>
+                </div>
+              </div>
+            </div>
+          </div>
+        </app-card>
+      </mat-drawer>
+      <mat-drawer-content
+        class="chat-history-body"
+        [ngClass]="{ 'info-section-open': infoSection.opened, 'person-list-section': personList.opened }"
+      >
+        <mat-card class="m-b-0 chat-card">
+          @if (selectedUser) {
+            <mat-card-header class="card-header p-15">
+              <div class="card-chat-header w-100">
+                <ul class="list-inline">
+                  <li class="list-inline-item">
+                    <a class="chat-header-button avatar avatar-s hover" (click)="personList.toggle()">
+                      <i class="ti ti-menu-2 f-20"></i>
+                    </a>
+                  </li>
+                  <li class="list-inline-item">
+                    <div class="flex align-item-center">
+                      <div class="chat-avatar">
+                        <img class="b-rad-50 img-fluid wid-40" [src]="selectedUser.avatar" alt="User image" />
+                        @if (selectedUser.online_status === 'available') {
+                          <i class="ti ti-circle-check-filled text-success-500 list-user-status"></i>
+                        } @else if (selectedUser.online_status === 'do_not_disturb') {
+                          <i class="ti ti-clock-filled text-warn-500 list-user-status"></i>
+                        } @else if (selectedUser.online_status === 'offline') {
+                          <i class="ti ti-circle-minus text-accent-500 list-user-status"></i>
+                        }
+                      </div>
+                      <div class="flex-grow-1 m-x-15">
+                        <div class="f-w-500">{{ selectedUser.name }}</div>
+                        <span class="mat-small text-muted">{{ selectedUser.lastMessage }}</span>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+                <ul class="list-inline action-section">
+                  <li class="list-inline-item">
+                    <a class="chat-header-button avatar avatar-s hover">
+                      <i class="ti ti-phone-call f-18"></i>
+                    </a>
+                  </li>
+                  <li class="list-inline-item">
+                    <a class="chat-header-button avatar avatar-s hover">
+                      <i class="ti ti-video f-18"></i>
+                    </a>
+                  </li>
+                  <li class="list-inline-item">
+                    <a class="chat-header-button avatar avatar-s hover" (click)="infoSection.toggle()">
+                      <i class="ti ti-info-circle f-18"></i>
+                    </a>
+                  </li>
+                  <li class="list-inline-item">
+                    <a [matMenuTriggerFor]="menu" class="chat-header-button avatar avatar-s hover">
+                      <i class="ti ti-dots f-18"></i>
+                    </a>
+                    <mat-menu #menu="matMenu">
+                      <button mat-menu-item>Name</button>
+                      <button mat-menu-item>Date</button>
+                      <button mat-menu-item>Ratting</button>
+                      <button mat-menu-item>Unread</button>
+                    </mat-menu>
+                  </li>
+                </ul>
+              </div>
+            </mat-card-header>
+            <mat-card-content class="p-0">
+              <div class="chat-message">
+                <app-scrollbar [customStyle]="{ height: 'calc(100vh - 347px)', position: 'relative' }">
+                  <div class="p-25">
+                    @for (message of selectedUserChatHistory; track message) {
+                      <div class="{{ message.to === 'User1' ? 'message-in' : 'message-out' }}">
+                        <div class="flex">
+                          @if (message.to === 'User1') {
+                            <div class="flex-shrink-0">
+                              @if (selectedUser) {
+                                <div class="chat-avatar">
+                                  <img class="b-rad-50 img-fluid wid-40 m-r-10" src="{{ selectedUser.avatar }}" alt="User image" />
+                                  @if (selectedUser.online_status === 'available') {
+                                    <i class="ti ti-circle-check-filled text-success-500 list-user-status"></i>
+                                  } @else if (selectedUser.online_status === 'do_not_disturb') {
+                                    <i class="ti ti-clock-filled text-warn-500 list-user-status"></i>
+                                  } @else if (selectedUser.online_status === 'offline') {
+                                    <i class="ti ti-circle-minus text-accent-500 list-user-status"></i>
+                                  }
+                                </div>
+                              }
+                            </div>
+                          }
+
+                          @if (message.to !== 'User1') {
+                            <div class="flex-shrink-0 message-out-edit">
+                              <ul class="list-inline m-b-0">
+                                <li class="list-inline-item">
+                                  <a href="javascript:" class="avatar avatar-xs hover text-accent-600" [matMenuTriggerFor]="options">
+                                    <i class="ti ti-dots-vertical f-16"></i>
+                                  </a>
+                                  <mat-menu #options>
+                                    <menu mat-menu-item>
+                                      <i class="ti ti-player-track-prev-filled"></i>
+                                      Reply
+                                    </menu>
+                                    <menu mat-menu-item>
+                                      <i class="ti ti-player-track-next-filled"></i>
+                                      Forward
+                                    </menu>
+                                    <menu mat-menu-item>
+                                      <i class="ti ti-copy f-14"></i>
+                                      Copy
+                                    </menu>
+                                    <menu mat-menu-item>
+                                      <i class="ti ti-trash f-14"></i>
+                                      Delete
+                                    </menu>
+                                  </mat-menu>
+                                </li>
+                                <li class="list-inline-item">
+                                  <a href="javascript:" class="avatar avatar-xs hover text-accent-600" title="Edit Message">
+                                    <i class="ti ti-edit f-16"></i>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          }
+
+                          <div class="flex-grow-1 m-x-15">
+                            <div class="msg-content border {{ message.to === 'User1' ? '' : 'bg-primary-500' }}">
+                              <p class="m-b-0">{{ message.text }}</p>
+                            </div>
+                            <p class="m-b-0 text-muted  mat-small {{ message.to === 'User1' ? '' : 'text-end' }}">{{ message.time }}</p>
+                          </div>
+                          @if (message.to !== 'User1') {
+                            <div class="flex-shrink-0">
+                              @if (selectedUser) {
+                                <div class="chat-avatar">
+                                  @if (status === 'active') {
+                                    <i class="ti ti-circle-check-filled text-success-500 list-user-status"></i>
+                                  } @else if (status === 'away') {
+                                    <i class="ti ti-clock-filled text-warn-500 list-user-status"></i>
+                                  } @else if (status === 'offline') {
+                                    <i class="ti ti-circle-minus text-accent-500 list-user-status"></i>
+                                  }
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </app-scrollbar>
+              </div>
+              <div class="enter-new-message">
+                <mat-form-field class="w-100">
+                  <textarea
+                    matInput
+                    placeholder="Enter New Message"
+                    [(ngModel)]="message"
+                    (keyup.enter)="sendNewMessage(selectedUser.name)"
+                  ></textarea>
+                  @if (errorMessage) {
+                    <mat-error>{{ errorMessage }}</mat-error>
+                  }
+                </mat-form-field>
+                <div class="file-upload">
+                  <ul class="list-inline m-b-0">
+                    @for (task of footer_icon; track task) {
+                      <li class="list-inline-item">
+                        <a href="javascript:" class="avatar avatar-xs hover" title="Input Type">
+                          <i class="f-18 text-muted {{ task.icon }}"></i>
+                        </a>
+                      </li>
+                    }
+                  </ul>
+                  <ul class="list-inline ms-auto mb-0">
+                    <li class="list-inline-item">
+                      <a
+                        href="javascript:"
+                        class="avatar avatar-s hover"
+                        title="Send Your Message"
+                        (click)="sendNewMessage(selectedUser.name)"
+                      >
+                        <i class="f-20 text-primary-500 ti ti-send"></i>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </mat-card-content>
+          }
+        </mat-card>
+      </mat-drawer-content>
+      <mat-drawer #infoSection [mode]="modeValue" [opened]="infoStatus" class="info-columns" position="end">
+        <app-card [showHeader]="false" [padding]="0">
+          @if (selectedUser) {
+            <div class="chat-user_info p-25 p-t-0">
+              <div class="text-center">
+                <div class="flex align-item-center justify-content-between m-b-10">
+                  <div class="text-start f-16 f-w-600">Profile View</div>
+                  <div class="close-chat-user-info">
+                    <a href="javascript:" class="avatar avatar-xs text-warn-500" (click)="infoSection.toggle()">
+                      <i class="ti ti-x f-16"></i>
+                    </a>
+                  </div>
+                </div>
+
+                <div class="chat-avatar">
+                  <img class="rounded-circle img-fluid wid-100" [src]="selectedUser.avatar" alt="User image" />
+                </div>
+                <div class="f-w-600 f-16">{{ selectedUser.name }}</div>
+                <p class="text-muted mat-small">{{ selectedUser.status }}</p>
+                <div class="flex align-item-center justify-content-center m-b-20">
+                  @if (selectedUser.online_status === 'available') {
+                    <i class="ti ti-circle-check-filled text-success-500 m-r-10"></i>
+                    <span class="user-status bg-success-50 text-success-500">{{ selectedUser.online_status | titlecase }}</span>
+                  } @else if (selectedUser.online_status === 'do_not_disturb') {
+                    <i class="ti ti-clock-filled text-warn-500 m-r-10"></i>
+                    <span class="user-status text-warn-500 bg-warn-50">{{ selectedUser.online_status | titlecase }}</span>
+                  } @else if (selectedUser.online_status === 'offline') {
+                    <i class="ti ti-circle-minus text-accent-500 m-r-10"></i>
+                    <span class="user-status text-accent-500 bg-accent-100">
+                      {{ selectedUser.online_status | titlecase }}
+                    </span>
+                  }
+                </div>
+                <ul class="list-inline ms-auto mb-0">
+                  <li class="list-inline-item">
+                    <a href="javascript:" class="avatar avatar-s hover text-accent-600"><i class="ti ti-phone-call f-18"></i></a>
+                  </li>
+                  <li class="list-inline-item">
+                    <a href="javascript:" class="avatar avatar-s hover text-accent-600">
+                      <i class="ti ti-message-circle f-18"></i>
+                    </a>
+                  </li>
+                  <li class="list-inline-item">
+                    <a href="javascript:" class="avatar avatar-s hover text-accent-600">
+                      <i class="ti ti-video f-18"></i>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          }
+          <app-scrollbar [customStyle]="{ height: 'calc(100vh - 450px)', position: 'relative' }">
+            <div class="user-all-details p-25 p-t-0">
+              <div class="row m-b-15">
+                @for (card of cards; track card) {
+                  <div class="col-6">
+                    <div class="p-15 b-rad-10 {{ card.background }}">
+                      <p class="m-b-5">{{ card.title }}</p>
+                      <div class="flex align-item-center">
+                        <i class="{{ card.text_color }} f-16"></i>
+                        <div class="m-l-10 f-16 f-w-600">{{ card.amount }}</div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+              <mat-slide-toggle [checked]="true" labelPosition="before" class="w-100 chat_User_info_notification">
+                Notification
+              </mat-slide-toggle>
+              <mat-accordion>
+                <mat-expansion-panel class="chat_user_info-details">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title><div class="f-w-600 f-16">Information</div></mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <div class="flex align-item-center justify-content-between m-b-10">
+                    <p class="m-b-0">Address</p>
+                    <p class="m-b-0 text-muted">{{ selectedUser.location }}</p>
+                  </div>
+                  <div class="flex align-item-center justify-content-between m-b-10">
+                    <p class="m-b-0">Email</p>
+                    <p class="m-b-0 text-muted">{{ selectedUser.work_email }}</p>
+                  </div>
+                  <div class="flex align-item-center justify-content-between m-b-10">
+                    <p class="m-b-0">Phone</p>
+                    <p class="m-b-0 text-muted">{{ selectedUser.personal_phone }}</p>
+                  </div>
+                  <div class="flex align-item-center justify-content-between m-b-10">
+                    <p class="m-b-0">Last visited</p>
+                    <p class="m-b-0 text-muted">{{ selectedUser.lastMessage }}</p>
+                  </div>
+                </mat-expansion-panel>
+                <mat-expansion-panel class="chat_user_info-details">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title><div class="f-w-600 f-16">File Type</div></mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <ul class="list-group list-group-flush">
+                    @for (task of file; track task) {
+                      <li class="list-group-item p-x-0">
+                        <div class="flex align-item-center">
+                          <div class="flex-shrink-0 m-r-10">
+                            <a class="avatar avatar-s {{ task.background }}">
+                              <i class="{{ task.icon }} f-22"></i>
+                            </a>
+                          </div>
+                          <div class="flex-grow-1">
+                            <div class="f-w-500">{{ task.title }}</div>
+                            <span class="text-muted mat-small">{{ task.text }}</span>
+                          </div>
+                          <div class="flex-shrink-0 m-l-10">
+                            <a class="avatar avatar-s hover"><i class="ti ti-chevron-right f-18"></i></a>
+                          </div>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                </mat-expansion-panel>
+              </mat-accordion>
+            </div>
+          </app-scrollbar>
+        </app-card>
+      </mat-drawer>
+    </mat-drawer-container>
+  </div>
+</div>

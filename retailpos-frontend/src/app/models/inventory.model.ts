@@ -5,6 +5,8 @@ export interface Inventory {
   productName: string;
   productCode?: string;
   variantName: string;
+  variantAttributes?: string;
+  primaryImageThumb?: string;
   sku?: string;
   barcode?: string;
   outletId?: number;
@@ -44,6 +46,8 @@ export interface LowStock {
   productVariantId: number;
   productName: string;
   variantName: string;
+  variantAttributes?: string;
+  primaryImageThumb?: string;
   sku?: string;
   currentQuantity: number;
   reorderLevel: number;
@@ -77,6 +81,7 @@ export interface InventorySearchRequest {
   productSearch?: string;
   variantId?: number;
   variantSearch?: string;
+  variantAttributeFilters?: VariantAttributeFilterSelection[];
   categoryId?: number;
   outletId?: number;
   warehouseId?: number;
@@ -86,6 +91,16 @@ export interface InventorySearchRequest {
   expiringWithinDays?: number;
   page: number;
   pageSize: number;
+}
+
+export interface VariantAttributeFilterSelection {
+  attributeName: string;
+  values: string[];
+}
+
+export interface VariantAttributeFilterOptions {
+  attributeName: string;
+  values: string[];
 }
 
 export interface UpdateStockThreshold {

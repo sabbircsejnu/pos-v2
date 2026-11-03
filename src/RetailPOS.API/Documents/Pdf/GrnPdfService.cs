@@ -1,16 +1,18 @@
 using RetailPOS.API.DTOs.Grn;
-using RetailPOS.API.Services;
+using RetailPOS.Application.Grns.Queries;
+using MediatR;
+using RetailPOS.Application.Settings.Queries;
 
 namespace RetailPOS.API.Documents.Pdf;
 
 public interface IGrnPdfMapper
 {
-    DocumentPdfRequest Map(GrnDto grn, RetailPOS.API.Settings.SystemSettings settings, bool showCostFields);
+    DocumentPdfRequest Map(GrnDto grn, RetailPOS.Application.Settings.SystemSettings settings, bool showCostFields);
 }
 
 public sealed class GrnPdfMapper : IGrnPdfMapper
 {
-    public DocumentPdfRequest Map(GrnDto grn, RetailPOS.API.Settings.SystemSettings settings, bool showCostFields)
+    public DocumentPdfRequest Map(GrnDto grn, RetailPOS.Application.Settings.SystemSettings settings, bool showCostFields)
     {
         var formatting = new DocumentPdfFormattingOptions(
             CurrencySymbol: settings.Currency.CurrencySymbol,
@@ -57,8 +59,8 @@ public sealed class GrnPdfMapper : IGrnPdfMapper
                 Name: grn.SupplierName,
                 AddressLines: Array.Empty<string>()),
             ShipTo: new DocumentPdfPartyInfo(
-                Label: "Warehouse",
-                Name: grn.WarehouseName,
+                Label: $"Received At ({PurchaseDocumentDtoMapper.LocationLabel(grn.LocationType)})",
+                Name: grn.LocationName,
                 AddressLines: Array.Empty<string>()),
             Items: items,
             Summary: new DocumentPdfSummary(
@@ -93,27 +95,25 @@ public interface IGrnPdfService
 
 public sealed class GrnPdfService : IGrnPdfService
 {
-    private readonly IGrnService _grnService;
-    private readonly ISettingsService _settingsService;
+    private readonly ISender _sender;
     private readonly IGrnPdfMapper _mapper;
     private readonly IDocumentPdfRenderer _renderer;
 
     public GrnPdfService(
-        IGrnService grnService,
-        ISettingsService settingsService,
+        ISender sender,
         IGrnPdfMapper mapper,
         IDocumentPdfRenderer renderer)
     {
-        _grnService = grnService;
-        _settingsService = settingsService;
+        _sender = sender;
         _mapper = mapper;
         _renderer = renderer;
     }
 
     public async Task<DocumentPdfFileResult> GenerateAsync(long grnId, bool showCostFields, CancellationToken cancellationToken = default)
     {
-        var grn = await _grnService.GetByIdAsync(grnId);
-        var settings = await _settingsService.GetAllSettingsAsync();
+        var grn = PurchaseDocumentDtoMapper.MapGrn(await _sender.Send(
+            new GetGrnByIdQuery(grnId), cancellationToken));
+        var settings = await _sender.Send(new GetSystemSettingsQuery(), cancellationToken);
 
         var request = _mapper.Map(grn, settings, showCostFields);
         var pdfBytes = await _renderer.RenderAsync(request, cancellationToken);

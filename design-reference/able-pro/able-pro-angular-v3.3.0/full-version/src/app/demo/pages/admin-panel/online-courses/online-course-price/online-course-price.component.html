@@ -1,0 +1,42 @@
+<div class="row">
+  <div class="col-12">
+    <app-card cardTitle="Course Pricing">
+      <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8 col-xxl-6">
+          <app-card [showHeader]="false" cardClass="border">
+            <div class="row">
+              <div class="col-sm-5">
+                <img [src]="selectedImage" alt="images" class="img-fluid bull-img" />
+                <ul class="details-list">
+                  @for (item of priceList[selectedPackageIndex].items; track item) {
+                    <li>{{ item }}</li>
+                  }
+                </ul>
+              </div>
+              <div class="col-sm-7">
+                <div class="course-price">
+                  @for (list of priceList; track list; let i = $index) {
+                    <div class="price-card" (click)="selectPrice(i)">
+                      <span class="price-list flex align-item-center" [ngClass]="{ active: i === selectedPackageIndex }">
+                        <span class="flex-grow-1 m-r-15">
+                          <span class="f-20 f-w-600 block">{{ list.title }}</span>
+                          <span class="badge">{{ list.type }}</span>
+                        </span>
+                        <span class="flex-shrink-0">
+                          <span class="f-24 f-w-600 m-b-0">
+                            {{ list.price }}$/
+                            <span class="mat-small f-w-600">mo</span>
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          </app-card>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

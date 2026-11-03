@@ -86,34 +86,32 @@
           }
 
           <!-- Status card -->
-          <div class="card p-4 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-500">Status</span>
-              @if (product()!.status === 'active') {
-                <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Active</span>
-              } @else if (product()!.status === 'draft') {
-                <span class="badge badge-warning"><i class="fas fa-pencil-alt mr-1"></i>Draft</span>
-              } @else {
-                <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Inactive</span>
-              }
+          <app-ui-card>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-rp-ink-secondary">Status</span>
+                @if (product()!.status === 'active') {
+                  <app-ui-badge variant="success">Active</app-ui-badge>
+                } @else if (product()!.status === 'draft') {
+                  <app-ui-badge variant="warning">Draft</app-ui-badge>
+                } @else {
+                  <app-ui-badge variant="danger">Inactive</app-ui-badge>
+                }
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-rp-ink-secondary">Variants</span>
+                @if (product()!.hasVariants) {
+                  <app-ui-badge variant="neutral">{{ product()!.variantCount }}</app-ui-badge>
+                } @else {
+                  <span class="text-rp-ink">Single SKU</span>
+                }
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-rp-ink-secondary">Stock</span>
+                <app-product-stock-badge [product]="product()!" />
+              </div>
             </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-500">Variants</span>
-              @if (product()!.hasVariants) {
-                <span class="badge badge-primary">{{ product()!.variantCount }}</span>
-              } @else {
-                <span class="text-sm text-gray-700">Single SKU</span>
-              }
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-500">Total Stock</span>
-              @if (product()!.totalStock > 0) {
-                <span class="badge badge-success">{{ product()!.totalStock }}</span>
-              } @else {
-                <span class="badge badge-danger">Out of Stock</span>
-              }
-            </div>
-          </div>
+          </app-ui-card>
 
         </div><!-- /LEFT -->
 
@@ -219,7 +217,7 @@
 
               <div>
                 <p class="text-xs font-medium text-gray-500 mb-1">Tax Rate</p>
-                <p class="text-lg font-semibold text-gray-700">{{ product()!.taxRate }}%</p>
+                <p class="text-lg font-semibold text-gray-700">{{ taxDisplay() }}</p>
               </div>
 
             </div>
@@ -292,11 +290,11 @@
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p class="text-xs font-medium text-gray-500 mb-1">Created</p>
-                <p class="text-gray-700">{{ product()!.createdAt | date:'mediumDate' }}</p>
+                <p class="text-gray-700">{{ product()!.createdAt | appDate:'mediumDate' }}</p>
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-500 mb-1">Last Updated</p>
-                <p class="text-gray-700">{{ product()!.updatedAt | date:'mediumDate' }}</p>
+                <p class="text-gray-700">{{ product()!.updatedAt | appDate:'mediumDate' }}</p>
               </div>
             </div>
           </div>

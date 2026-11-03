@@ -1,0 +1,23 @@
+@import '../../../../../../@theme/styles/theme-palette-colors.scss';
+
+.text-cyan-500 {
+  color: map-get($cyan-theme, 500);
+}
+.bg-cyan-500 {
+  background: map-get($cyan-theme, 500);
+}
+
+::ng-deep.dashboard-summary {
+  .p-25 {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .border-end {
+    border-right: 1px solid var(--accent-300);
+  }
+
+  .border-start {
+    border-left: 1px solid var(--accent-300);
+  }
+}

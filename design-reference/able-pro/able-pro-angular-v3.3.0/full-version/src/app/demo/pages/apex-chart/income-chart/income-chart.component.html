@@ -1,0 +1,27 @@
+<app-card [showHeader]="false">
+  <div class="flex align-item-center justify-content-between m-b-15">
+    <div class="avatar avatar-s currency-dollar">
+      <i class="ti ti-currency-dollar f-20"></i>
+    </div>
+    <a [matMenuTriggerFor]="paymentInfo" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+    <mat-menu #paymentInfo="matMenu">
+      <a href="javascript:" mat-menu-item>Name</a>
+      <a href="javascript:" mat-menu-item>Date</a>
+      <a href="javascript:" mat-menu-item>Rating</a>
+      <a href="javascript:" mat-menu-item>Unread</a>
+    </mat-menu>
+  </div>
+  <div class="f-w-600">$30,200.00</div>
+  <div class="text-muted mat-caption f-w-500">Income</div>
+  <div class="m-t-10" id="chart">
+    <apx-chart
+      [series]="chartOptions.series"
+      [chart]="chartOptions.chart"
+      [colors]="chartOptions.colors"
+      [plotOptions]="chartOptions.plotOptions"
+      [xaxis]="chartOptions.xaxis"
+      [tooltip]="chartOptions.tooltip"
+      [theme]="chartOptions.theme"
+    ></apx-chart>
+  </div>
+</app-card>

@@ -150,13 +150,20 @@ If inventory transactions occur after stock count generation timestamp for inclu
 
 Can:
 
-- View stock counts for own outlet only
-- Create stock counts for own outlet only
-- Download and print own outlet stock counts
+- View and create stock counts for assigned outlets only (including all active assignments when multiple outlets are authorized)
+- Download, print, upload counts, submit, reject, reopen, and approve only for authorized locations, subject to the existing action permissions and feature gates
 
 Cannot:
 
-- Access other outlets or warehouses
+- Access unassigned outlets or warehouses, including via direct API requests or manipulated URLs
+
+Location selectors use the existing authorized location response, not destination
+locations or the `StockCount.ViewAll` permission. That permission grants the Stock
+Count view action; it does not widen location access. Searches intersect filters
+with the authorized outlet and warehouse sets before totals and pagination; no
+assignments means no results. Detail and workflow requests validate the count's
+Business and location before returning data or changing state. Business Owner
+and Super Admin retain their existing authorized Business/location scope.
 
 ## Warehouse Manager
 

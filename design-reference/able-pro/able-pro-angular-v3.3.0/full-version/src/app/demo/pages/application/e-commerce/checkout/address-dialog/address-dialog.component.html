@@ -1,0 +1,114 @@
+<div class="address-dialog">
+  <div class="address-header">
+    <div class="f-20 f-w-600 text-truncate">Add New Address</div>
+    <a href="javascript:" class="avatar avatar-s hover text-accent-800" mat-dialog-close>
+      <i class="ti ti-x f-20"></i>
+    </a>
+  </div>
+  <div class="address-body">
+    <div class="row">
+      <div class="col-12">
+        <div class="row m-b-15">
+          <div class="col-lg-4">
+            <label>
+              Address Type :
+              <span class="text-muted block">Enter Add Type</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-radio-group aria-label="Select an option">
+              <mat-radio-button value="1" color="primary" checked class="m-r-10">Home (All Day Delivery)</mat-radio-button>
+              <mat-radio-button value="2" color="primary">Work (Between 10 AM to 5 PM)</mat-radio-button>
+            </mat-radio-group>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              First Name :
+              <span class="text-muted block">Enter Your First Name</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="First Name" />
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              Last Name :
+              <span class="text-muted block">Enter Your Last Name</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="Enter Last Name" />
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              Email Id :
+              <span class="text-muted block">Enter Email Id</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="email" matInput placeholder="Enter Email Address" />
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              Date of Birth :
+              <span class="text-muted block">Enter the Date of Birth</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input matInput [matDatepicker]="picker" placeholder="dd/mm/yyyy" />
+              <mat-datepicker-toggle matIconSuffix [for]="picker" class="m-r-5"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              Phone number :
+              <span class="text-muted block">Enter Phone Number</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input matInput #phoneNumber maxlength="10" placeholder="Ex. 9404399999" value="9404399999" />
+              <mat-hint align="end">{{ phoneNumber.value.length }} / 10</mat-hint>
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+            <label>
+              City :
+              <span class="text-muted block">Enter City Name</span>
+            </label>
+          </div>
+          <div class="col-lg-8">
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput placeholder="Enter City Name" />
+            </mat-form-field>
+          </div>
+        </div>
+        <mat-checkbox class="m-b-15">Save this new address for future shipping</mat-checkbox>
+        <div class="text-end">
+          <button mat-stroked-button class="m-r-10 m-b-10" mat-dialog-close>Cancel</button>
+          <button mat-flat-button color="primary" class="m-b-10" mat-dialog-close>Save & Delivery to this Address</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

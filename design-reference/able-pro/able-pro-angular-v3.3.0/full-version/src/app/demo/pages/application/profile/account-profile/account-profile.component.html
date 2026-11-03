@@ -1,0 +1,17 @@
+<div class="row p-t-25">
+  <div class="col-sm-12">
+    <app-card [showHeader]="false" cardClass="m-b-0">
+      <nav mat-tab-nav-bar [tabPanel]="tabPanel" class="account-profile">
+        @for (link of navLinks; track link) {
+          <a mat-tab-link [routerLink]="link.link" routerLinkActive #rla="routerLinkActive" [active]="rla.isActive">
+            <i class="{{ link.icon }} f-18 m-r-10"></i>
+            {{ link.label }}
+          </a>
+        }
+      </nav>
+      <mat-tab-nav-panel #tabPanel>
+        <router-outlet></router-outlet>
+      </mat-tab-nav-panel>
+    </app-card>
+  </div>
+</div>

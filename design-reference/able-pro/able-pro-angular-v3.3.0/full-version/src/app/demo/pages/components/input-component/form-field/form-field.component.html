@@ -1,0 +1,140 @@
+<div class="row">
+  <div class="col-md-6">
+    <app-card cardTitle="Form field appearance variants">
+      <mat-form-field appearance="outline" class="w-100 m-b-30">
+        <input matInput placeholder="Placeholder" />
+        <mat-icon matSuffix>sentiment_very_satisfied</mat-icon>
+        <mat-hint>Hint</mat-hint>
+      </mat-form-field>
+      <mat-form-field appearance="fill" class="w-100">
+        <mat-label>Fill form field</mat-label>
+        <input matInput placeholder="Placeholder" />
+        <mat-icon matSuffix>sentiment_very_satisfied</mat-icon>
+        <mat-hint>Hint</mat-hint>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Form field with error messages">
+      <mat-form-field appearance="fill" class="w-100 m-b-30">
+        <mat-label>Enter your email</mat-label>
+        <input matInput placeholder="pat@example.com" [formControl]="email" required />
+        @if (email.invalid) {
+          <mat-error>{{ getErrorMessage() }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field hintLabel="Max 10 characters" appearance="fill" class="w-100">
+        <mat-label>Enter some input</mat-label>
+        <input matInput #input maxlength="10" placeholder="Ex. Nougat" />
+        <mat-hint align="end">{{ input.value.length }}/10</mat-hint>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Form field with label">
+      <div class="filed-with-label">
+        <form [formGroup]="options">
+          <mat-checkbox [formControl]="hideRequiredControl">Hide required marker</mat-checkbox>
+          <div>
+            <label>Float label:</label>
+            <mat-radio-group [formControl]="floatLabelControl">
+              <mat-radio-button value="auto">Auto</mat-radio-button>
+              <mat-radio-button value="always">Always</mat-radio-button>
+            </mat-radio-group>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <mat-form-field
+                appearance="fill"
+                class="w-100"
+                [hideRequiredMarker]="hideRequiredControl.value"
+                [floatLabel]="getFloatLabelValue()"
+              >
+                <input matInput placeholder="Simple placeholder" required />
+              </mat-form-field>
+            </div>
+            <div class="col-md-4">
+              <mat-form-field appearance="fill" class="w-100" [floatLabel]="getFloatLabelValue()">
+                <mat-label>label and a placeholder</mat-label>
+                <input matInput placeholder="Simple placeholder" />
+              </mat-form-field>
+            </div>
+            <div class="col-md-4">
+              <mat-form-field
+                appearance="fill"
+                class="w-100"
+                [hideRequiredMarker]="hideRequiredControl.value"
+                [floatLabel]="getFloatLabelValue()"
+              >
+                <mat-select required>
+                  <mat-option>-- None --</mat-option>
+                  <mat-option value="option">Option</mat-option>
+                </mat-select>
+                <mat-label>
+                  <mat-icon>favorite</mat-icon>
+                  <b>Fancy</b>
+                  <i>label</i>
+                </mat-label>
+              </mat-form-field>
+            </div>
+          </div>
+        </form>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Simple Form Field">
+      <mat-form-field appearance="fill" class="w-100">
+        <mat-label>Input</mat-label>
+        <input matInput />
+      </mat-form-field>
+      <mat-form-field appearance="fill" class="w-100">
+        <mat-label>Select</mat-label>
+        <mat-select>
+          <mat-option value="one">First option</mat-option>
+          <mat-option value="two">Second option</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="fill" class="w-100">
+        <mat-label>Textarea</mat-label>
+        <textarea matInput></textarea>
+      </mat-form-field>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Form field with prefix & suffix">
+      <div class="row">
+        <div class="col-md-6">
+          <mat-form-field appearance="fill" class="w-100">
+            <mat-label>Enter your password</mat-label>
+            <input matInput [type]="hide ? 'password' : 'text'" />
+            <button mat-icon-button matSuffix (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
+              <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </mat-form-field>
+        </div>
+        <div class="col-md-6">
+          <mat-form-field appearance="fill" floatLabel="always" class="w-100">
+            <mat-label>Amount</mat-label>
+            <input matInput type="number" class="example-right-align" placeholder="0" />
+            <span matTextPrefix>$&nbsp;</span>
+            <span matTextSuffix>.00</span>
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Form field theming">
+      <mat-form-field appearance="fill" [color]="colorControl.value!" class="w-100">
+        <mat-label>Color</mat-label>
+        <mat-select [formControl]="colorControl">
+          <mat-option value="primary">Primary</mat-option>
+          <mat-option value="accent">Accent</mat-option>
+          <mat-option value="warn">Warn</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </app-card>
+  </div>
+</div>

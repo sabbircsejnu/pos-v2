@@ -1,0 +1,117 @@
+<div class="row">
+  <div class="col-xl-4 col-md-12">
+    <app-support-bar-chart
+      [value]="350"
+      typeRequest="Support Requests"
+      inputColor="text-cyan-500"
+      backgroundColor="bg-cyan-500"
+      [openValue]="10"
+      [runningValue]="5"
+      [solvedValue]="3"
+      [chartColor]="['#3ec9d6']"
+    />
+  </div>
+  <div class="col-xl-4 col-md-12">
+    <app-support-bar-chart
+      [value]="500"
+      typeRequest="Agent Response"
+      inputColor="text-primary-500"
+      backgroundColor="bg-primary-500"
+      [openValue]="50"
+      [runningValue]="75"
+      [solvedValue]="30"
+      [chartColor]="['#4680ff']"
+    />
+  </div>
+  <div class="col-xl-4 col-md-12">
+    <app-support-bar-chart
+      [value]="800"
+      typeRequest="Support Resolved"
+      inputColor="text-success-500"
+      backgroundColor="bg-success-500"
+      [openValue]="80"
+      [runningValue]="60"
+      [solvedValue]="90"
+      [chartColor]="['#2ca87f']"
+    />
+  </div>
+  <div class="col-xl-7 col-md-6">
+    <app-card [showHeader]="false">
+      <div class="f-w-600">Customer Satisfaction</div>
+      <span>
+        It takes continuous effort to maintain high customer satisfaction levels.Internal and external quality measures are often tied
+        together.,as the opinion...
+      </span>
+      <a href="javascript:" class="text-primary-500 block">Learn more..</a>
+      <div class="row flex justify-content-center align-item-center">
+        <div class="col">
+          <app-satisfaction-chart />
+        </div>
+      </div>
+    </app-card>
+    <div class="row">
+      @for (source of socialMedia; track source) {
+        <div class="col-xl-6 col-md-12">
+          <app-card [cardTitle]="source.name">
+            @for (list of source.sourceList; track list; let last = $last) {
+              <p class="m-b-10">{{ list.title }}</p>
+              <div [ngClass]="{ 'm-b-25': !last }">
+                <mat-progress-bar mode="determinate" [value]="list.value" [color]="source.color"></mat-progress-bar>
+              </div>
+            }
+          </app-card>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="col-xl-5 col-md-6">
+    <app-card cardTitle="Latest Activity" actionClass="text-center card-action block">
+      <ng-template #headerOptionsTemplate>
+        <a [matMenuTriggerFor]="menu" href="javascript:" class="avatar avatar-xs hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </ng-template>
+      @for (activity of activityList; track activity; let last = $last) {
+        <div class="row align-item-center" [ngClass]="{ 'm-b-30': !last }">
+          <div class="col-auto p-r-0">
+            <div class="avatar avatar-xs rounded-circle {{ activity.color }} ">
+              <svg class="pc-icon">
+                <use attr.xlink:href="assets/fonts/custom-icon.svg{{ activity.icon }}"></use>
+              </svg>
+            </div>
+          </div>
+          <div class="col">
+            <div class="f-w-600">
+              {{ activity.title }}
+              <span class="text-muted mat-small float-end f-13">Just Now</span>
+            </div>
+          </div>
+        </div>
+      }
+      <ng-template #actionTemplate>
+        <a href="javascript:" class="text-primary-500">View all Feeds</a>
+      </ng-template>
+    </app-card>
+    <app-card cardClass="feed-card" [showHeader]="false" [padding]="0">
+      <div class="row">
+        <div class="col-4 bg-primary-500 border-feed flex align-item-center justify-content-center">
+          <svg class="wid-50 hei-50 f-50 text-white">
+            <use xlink:href="assets/fonts/custom-icon.svg#book1"></use>
+          </svg>
+        </div>
+        <div class="col-8">
+          <div class="p-t-25 p-b-25">
+            <h2 class="f-w-400 m-b-10">379</h2>
+            <p class="text-muted m-0">
+              Tickets
+              <span class="text-primary-500 f-w-400">Answered</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

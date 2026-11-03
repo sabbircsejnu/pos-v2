@@ -1,0 +1,228 @@
+@import '../../../../@theme/styles/theme-palette-colors.scss';
+
+::ng-deep.chat-body {
+  .contact-list {
+    width: 300px;
+
+    .mat-mdc-card {
+      height: 100%;
+
+      .mat-mdc-card-content {
+        height: calc(100% - 67px);
+      }
+    }
+  }
+
+  .info-columns {
+    width: 300px;
+
+    .mat-mdc-card {
+      height: 100%;
+
+      .mat-mdc-card-content {
+        height: calc(100% - 67px);
+      }
+    }
+  }
+
+  .material-icons.search-icons {
+    line-height: 0 !important;
+  }
+
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+  }
+
+  .list-group-flush {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+
+    .list-group-item {
+      width: 100%;
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--accent-300);
+      }
+    }
+  }
+}
+
+.chat-avatar {
+  position: relative;
+  .list-user-status {
+    position: absolute;
+    left: 28px;
+    bottom: 30px;
+  }
+}
+
+::ng-deep.main-user {
+  .chat-avatar {
+    position: relative;
+
+    .user-status {
+      position: absolute;
+      left: 28px;
+      bottom: 30px;
+      padding: 0px;
+      font-size: 14px !important;
+    }
+  }
+}
+
+::ng-deep.chat-message {
+  .msg-content {
+    padding: 8px;
+    border-color: var(--accent-300);
+    border-radius: 8px;
+    margin-bottom: 8px;
+
+    @media (max-width: 768px) {
+      max-width: 90%;
+    }
+  }
+  .message-out,
+  .message-in {
+    display: flex;
+    margin-bottom: 24px;
+    .d-flex {
+      max-width: 80%;
+    }
+  }
+  .message-out {
+    justify-content: flex-end;
+    .msg-content {
+      p {
+        color: $white;
+      }
+
+      p:last-child {
+        text-align: right;
+      }
+    }
+  }
+  .message-in {
+    justify-content: flex-start;
+    .msg-content {
+      background: var(--accent-50);
+    }
+  }
+}
+
+.enter-new-message {
+  padding: 0px 16px;
+  .file-upload {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+
+    @media (max-width: 576px) {
+      display: block;
+    }
+  }
+}
+
+.chat-user_info {
+  > div {
+    position: relative;
+    padding-bottom: 0px;
+
+    .close-chat-user-info {
+      > a {
+        &:hover {
+          background: var(--warn-50);
+        }
+      }
+    }
+
+    .chat-avatar {
+      display: inline-flex;
+      img {
+        border-radius: 50%;
+      }
+    }
+  }
+}
+
+.mat-drawer-container {
+  .mat-drawer-side {
+    &.contact-list,
+    &.info-columns {
+      border-right: none !important;
+      border-left: none !important;
+
+      ::ng-deep.able-pro-rtl & {
+        border-left: none !important;
+        border-right: none !important;
+      }
+    }
+  }
+
+  .mat-drawer-content {
+    overflow: hidden;
+
+    &.chat-history-body {
+      &.person-list-section {
+        padding-left: 25px !important;
+
+        ::ng-deep.able-pro-rtl & {
+          padding-right: 25px !important;
+          padding-left: 0px !important;
+        }
+      }
+
+      &.info-section-open {
+        padding-right: 25px !important;
+
+        ::ng-deep.able-pro-rtl & {
+          padding-left: 25px !important;
+          padding-right: 0px !important;
+        }
+      }
+
+      @media (max-width: 1025px) {
+        padding: 0px !important;
+      }
+
+      .list-inline {
+        .list-inline-item {
+          margin-right: 0.5rem;
+          vertical-align: text-bottom;
+
+          .chat-header-button {
+            color: var(--accent-600);
+          }
+        }
+      }
+    }
+  }
+}
+
+::ng-deep.chat_User_info_notification {
+  .mat-internal-form-field {
+    padding: 5px 0px;
+    justify-content: space-between;
+    width: 100%;
+    > label {
+      margin: 0 !important;
+      font-size: 16px;
+      font-weight: 600;
+    }
+  }
+}
+
+::ng-deep.chat-card {
+  .card-header {
+    .card-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      @media (max-width: 576px) {
+        display: block;
+      }
+    }
+  }
+}

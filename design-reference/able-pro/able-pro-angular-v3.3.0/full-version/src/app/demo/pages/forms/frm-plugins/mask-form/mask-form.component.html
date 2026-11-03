@@ -1,0 +1,152 @@
+<div class="row p-t-25">
+  <div class="col-md-6">
+    <app-card cardTitle="Date">
+      <div class="row">
+        <div class="col-lg-3 col-sm-12 p-15">
+          <label>Date</label>
+        </div>
+        <div class="col-xl-9 col-md-12 col-sm-12 m-b-10">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="00/00/0000" placeholder="DD/MM/YYYY" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Valid Date And Month</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="d0/M0/0000" placeholder="DD/MM/YYYY" />
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Time">
+      <div class="row">
+        <div class="col-lg-3 col-sm-12 p-15">
+          <label>Date And Hour</label>
+        </div>
+        <div class="col-xl-9 col-md-12 col-sm-12 m-b-10">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="00/00/00 00:00:00" placeholder="DD/MM/YYYY HH:MM:SS" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Valid 24 Hour Format</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="Hh:m0:s0" placeholder="HH:MM:SS" />
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Mixed Type">
+      <div class="row">
+        <div class="col-lg-3 col-sm-12 p-15">
+          <label>Mixed</label>
+        </div>
+        <div class="col-xl-9 col-md-12 col-sm-12 m-b-10">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="AAA 000-S0S" placeholder="AAA 000-S0S" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Mask With Special Characters</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput [specialCharacters]="['[', ']', '\\']" mask="[00]\[000]" placeholder="[00]\[000]" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Show Mask Type</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="(000) 000-0000" [showMaskTyped]="true" placeholder="(000) 000-0000" />
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-6">
+    <app-card cardTitle="Mixed Type">
+      <div class="row">
+        <div class="col-lg-3 col-sm-12 p-15">
+          <label>Prefix</label>
+        </div>
+        <div class="col-xl-9 col-md-12 col-sm-12 m-b-10">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput prefix="+7 " mask="(000) 000 00 00" placeholder="(00) 000 000" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Suffix</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput suffix=" $" mask="0000" placeholder="0 000" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Drop Special Characters</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput [dropSpecialCharacters]="false" mask="000-000.00" placeholder="000-000.00" />
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-md-12">
+    <app-card cardTitle="Separators">
+      <div class="row">
+        <div class="col-lg-3 col-sm-12 p-15">
+          <label>Thousand Separator</label>
+        </div>
+        <div class="col-xl-9 col-md-12 col-sm-12 m-b-10">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="separator" placeholder="separator" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Thousand Separator</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="separator" thousandSeparator="." placeholder="Dot Separator" />
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-3 col-sm-12 p-15">
+          <label>Comma Separator</label>
+        </div>
+        <div class="col-lg-9 col-md-12 col-sm-12">
+          <mat-form-field appearance="outline" class="w-100">
+            <input matInput mask="separator.0" thousandSeparator="," placeholder="Comma Separator" />
+          </mat-form-field>
+        </div>
+      </div>
+    </app-card>
+  </div>
+</div>

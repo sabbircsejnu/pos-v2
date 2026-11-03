@@ -1,3 +1,58 @@
 :host {
 	display: block;
 }
+
+.rp-shell {
+	min-height: 100vh;
+	background: var(--rp-color-surface-page, #f8f9fa);
+}
+
+.rp-shell-main {
+	padding-top: var(--rp-shell-header-height, 64px);
+	transition: padding-left 200ms ease;
+}
+
+.rp-shell-main:focus {
+	outline: none;
+}
+
+.rp-shell-content {
+	padding: 1rem;
+}
+
+@media (min-width: 1024px) {
+	.rp-shell-main {
+		padding-left: var(--rp-shell-sidebar-offset, 280px);
+	}
+
+	.rp-shell-content {
+		padding: 1.25rem 1.5rem 1.5rem;
+	}
+}
+
+.rp-skip-link {
+	position: fixed;
+	top: 8px;
+	left: 8px;
+	z-index: 70;
+	padding: 10px 16px;
+	border-radius: var(--rp-radius-control, 8px);
+	background: var(--rp-color-primary-700, #1c76da);
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	transform: translateY(-200%);
+}
+
+.rp-skip-link:focus {
+	transform: none;
+	outline: 2px solid var(--rp-color-neutral-800, #1d2630);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rp-shell-main {
+		transition: none;
+	}
+}

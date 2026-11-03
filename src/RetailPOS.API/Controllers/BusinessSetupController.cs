@@ -4,8 +4,16 @@ using RetailPOS.API.DTOs.Outlet;
 using RetailPOS.API.DTOs.Warehouse;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Application.AuditEvents.Abstractions;
+using RetailPOS.Application.AuditEvents.Commands;
+using RetailPOS.Application.Outlets;
+using RetailPOS.Application.Outlets.Commands;
+using RetailPOS.Application.Outlets.Queries;
+using RetailPOS.Application.Warehouses;
+using RetailPOS.Application.Warehouses.Commands;
+using RetailPOS.Application.Warehouses.Queries;
+using MediatR;
 using RetailPOS.Core.Entities.Audit;
-using RetailPOS.Infrastructure.Audit;
 
 namespace RetailPOS.API.Controllers;
 
@@ -18,53 +26,71 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Roles = RoleSwitchClaims.SuperAdminRoleName)]
 public class BusinessSetupController : ControllerBase
 {
-    private readonly IOutletService _outletService;
-    private readonly IWarehouseService _warehouseService;
-    private readonly IAuditService _auditSvc;
     private readonly ILogger<BusinessSetupController> _logger;
+    private readonly ISender _sender;
 
     public BusinessSetupController(
-        IOutletService outletService,
-        IWarehouseService warehouseService,
-        IAuditService auditSvc,
-        ILogger<BusinessSetupController> logger)
+        ILogger<BusinessSetupController> logger,
+        ISender sender)
     {
-        _outletService = outletService;
-        _warehouseService = warehouseService;
-        _auditSvc = auditSvc;
         _logger = logger;
+        _sender = sender;
     }
 
     // ── Outlets ────────────────────────────────────────────────────────────────
 
     [HttpGet("outlets")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<OutletDto>>>> GetOutlets([FromRoute] long businessId)
+    public async Task<ActionResult<ApiResponse<IEnumerable<OutletDto>>>> GetOutlets(
+        [FromRoute] long businessId,
+        CancellationToken cancellationToken)
     {
-        var outlets = await _outletService.GetByBusinessIdAsync(businessId);
+        var results = await _sender.Send(new GetBusinessOutletsQuery(businessId), cancellationToken);
+        var outlets = results.Select(outlet => new OutletDto
+        {
+            Id = outlet.Id,
+            Name = outlet.Name,
+            Address = outlet.Address,
+            ContactNumber = outlet.ContactNumber,
+            ManagerId = outlet.ManagerId,
+            ManagerName = outlet.ManagerName,
+            UserCount = outlet.UserCount,
+            CreatedAt = outlet.CreatedAt,
+            UpdatedAt = outlet.UpdatedAt
+        });
         return Ok(ApiResponse<IEnumerable<OutletDto>>.SuccessResponse(outlets, "Outlets retrieved successfully"));
     }
 
     [HttpPost("outlets")]
     public async Task<ActionResult<ApiResponse<OutletDto>>> CreateOutlet(
         [FromRoute] long businessId,
-        [FromBody] CreateOutletDto dto)
+        [FromBody] CreateOutletDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var outlet = await _outletService.CreateForBusinessAsync(businessId, dto);
+            var result = await _sender.Send(
+                new CreateBusinessOutletCommand(
+                    businessId,
+                    dto.Name,
+                    dto.Address,
+                    dto.ContactNumber,
+                    dto.ManagerId),
+                cancellationToken);
+            var outlet = MapOutlet(result);
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Create,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Outlet '{outlet.Name}' created for business {businessId}",
-                PrimaryEntity = ("Outlet", outlet.Id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Outlet", outlet.Id.ToString(), AuditOperationType.Insert,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Create,
+                    AuditModule.BusinessSetup,
+                    $"Outlet '{outlet.Name}' created for business {businessId}",
+                    "Outlet",
+                    outlet.Id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Outlet",
+                        outlet.Id.ToString(),
+                        AuditOperationType.Insert,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetOutlets),
@@ -81,24 +107,35 @@ public class BusinessSetupController : ControllerBase
     public async Task<ActionResult<ApiResponse<OutletDto>>> UpdateOutlet(
         [FromRoute] long businessId,
         [FromRoute] long id,
-        [FromBody] UpdateOutletDto dto)
+        [FromBody] UpdateOutletDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var outlet = await _outletService.UpdateForBusinessAsync(businessId, id, dto);
+            var result = await _sender.Send(
+                new UpdateBusinessOutletCommand(
+                    businessId,
+                    id,
+                    dto.Name,
+                    dto.Address,
+                    dto.ContactNumber,
+                    dto.ManagerId),
+                cancellationToken);
+            var outlet = MapOutlet(result);
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Update,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Outlet '{outlet.Name}' updated for business {businessId}",
-                PrimaryEntity = ("Outlet", outlet.Id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Outlet", outlet.Id.ToString(), AuditOperationType.Update,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Update,
+                    AuditModule.BusinessSetup,
+                    $"Outlet '{outlet.Name}' updated for business {businessId}",
+                    "Outlet",
+                    outlet.Id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Outlet",
+                        outlet.Id.ToString(),
+                        AuditOperationType.Update,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return Ok(ApiResponse<OutletDto>.SuccessResponse(outlet, "Outlet updated successfully"));
         }
@@ -113,26 +150,30 @@ public class BusinessSetupController : ControllerBase
     [HttpDelete("outlets/{id:long}")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteOutlet(
         [FromRoute] long businessId,
-        [FromRoute] long id)
+        [FromRoute] long id,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var deleted = await _outletService.DeleteForBusinessAsync(businessId, id);
+            var deleted = await _sender.Send(
+                new DeleteBusinessOutletCommand(businessId, id),
+                cancellationToken);
             if (!deleted)
                 return NotFound(new ApiResponse<object> { Success = false, Message = $"Outlet {id} not found in business {businessId}" });
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Delete,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Outlet {id} deleted from business {businessId}",
-                PrimaryEntity = ("Outlet", id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Outlet", id.ToString(), AuditOperationType.Delete,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Delete,
+                    AuditModule.BusinessSetup,
+                    $"Outlet {id} deleted from business {businessId}",
+                    "Outlet",
+                    id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Outlet",
+                        id.ToString(),
+                        AuditOperationType.Delete,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return Ok(ApiResponse<object>.SuccessResponse("Outlet deleted successfully"));
         }
@@ -142,36 +183,78 @@ public class BusinessSetupController : ControllerBase
         }
     }
 
+    private static OutletDto MapOutlet(OutletReadModel outlet) => new()
+    {
+        Id = outlet.Id,
+        Name = outlet.Name,
+        Address = outlet.Address,
+        ContactNumber = outlet.ContactNumber,
+        ManagerId = outlet.ManagerId,
+        ManagerName = outlet.ManagerName,
+        UserCount = outlet.UserCount,
+        CreatedAt = outlet.CreatedAt,
+        UpdatedAt = outlet.UpdatedAt
+    };
+
     // ── Warehouses ─────────────────────────────────────────────────────────────
 
     [HttpGet("warehouses")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<WarehouseDto>>>> GetWarehouses([FromRoute] long businessId)
+    public async Task<ActionResult<ApiResponse<IEnumerable<WarehouseDto>>>> GetWarehouses(
+        [FromRoute] long businessId,
+        CancellationToken cancellationToken)
     {
-        var warehouses = await _warehouseService.GetByBusinessIdAsync(businessId);
-        return Ok(ApiResponse<IEnumerable<WarehouseDto>>.SuccessResponse(warehouses, "Warehouses retrieved successfully"));
+        var warehouses = await _sender.Send(new GetBusinessWarehousesQuery(businessId), cancellationToken);
+        var dtos = warehouses.Select(warehouse => new WarehouseDto
+        {
+            Id = warehouse.Id,
+            Name = warehouse.Name,
+            Address = warehouse.Address,
+            Capacity = warehouse.Capacity,
+            ManagerId = warehouse.ManagerId,
+            ManagerName = warehouse.ManagerName,
+            PurchaseOrderCount = warehouse.PurchaseOrderCount,
+            CreatedAt = warehouse.CreatedAt,
+            UpdatedAt = warehouse.UpdatedAt
+        });
+        return Ok(ApiResponse<IEnumerable<WarehouseDto>>.SuccessResponse(dtos, "Warehouses retrieved successfully"));
     }
 
     [HttpPost("warehouses")]
     public async Task<ActionResult<ApiResponse<WarehouseDto>>> CreateWarehouse(
         [FromRoute] long businessId,
-        [FromBody] CreateWarehouseDto dto)
+        [FromBody] CreateWarehouseDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var warehouse = await _warehouseService.CreateForBusinessAsync(businessId, dto);
+            var result = await _sender.Send(
+                new CreateBusinessWarehouseCommand(
+                    businessId,
+                    dto.Name,
+                    dto.Address,
+                    dto.Capacity,
+                    dto.ManagerId),
+                cancellationToken);
+            var warehouse = MapWarehouse(result);
+            _logger.LogInformation(
+                "Business setup: Warehouse created for business {BusinessId}: ID={Id}, Name={Name}",
+                businessId,
+                warehouse.Id,
+                warehouse.Name);
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Create,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Warehouse '{warehouse.Name}' created for business {businessId}",
-                PrimaryEntity = ("Warehouse", warehouse.Id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Warehouse", warehouse.Id.ToString(), AuditOperationType.Insert,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Create,
+                    AuditModule.BusinessSetup,
+                    $"Warehouse '{warehouse.Name}' created for business {businessId}",
+                    "Warehouse",
+                    warehouse.Id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Warehouse",
+                        warehouse.Id.ToString(),
+                        AuditOperationType.Insert,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetWarehouses),
@@ -188,24 +271,39 @@ public class BusinessSetupController : ControllerBase
     public async Task<ActionResult<ApiResponse<WarehouseDto>>> UpdateWarehouse(
         [FromRoute] long businessId,
         [FromRoute] long id,
-        [FromBody] UpdateWarehouseDto dto)
+        [FromBody] UpdateWarehouseDto dto,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var warehouse = await _warehouseService.UpdateForBusinessAsync(businessId, id, dto);
+            var result = await _sender.Send(
+                new UpdateBusinessWarehouseCommand(
+                    businessId,
+                    id,
+                    dto.Name,
+                    dto.Address,
+                    dto.Capacity,
+                    dto.ManagerId),
+                cancellationToken);
+            var warehouse = MapWarehouse(result);
+            _logger.LogInformation(
+                "Business setup: Warehouse updated for business {BusinessId}: ID={Id}",
+                businessId,
+                warehouse.Id);
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Update,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Warehouse '{warehouse.Name}' updated for business {businessId}",
-                PrimaryEntity = ("Warehouse", warehouse.Id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Warehouse", warehouse.Id.ToString(), AuditOperationType.Update,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Update,
+                    AuditModule.BusinessSetup,
+                    $"Warehouse '{warehouse.Name}' updated for business {businessId}",
+                    "Warehouse",
+                    warehouse.Id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Warehouse",
+                        warehouse.Id.ToString(),
+                        AuditOperationType.Update,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return Ok(ApiResponse<WarehouseDto>.SuccessResponse(warehouse, "Warehouse updated successfully"));
         }
@@ -220,26 +318,34 @@ public class BusinessSetupController : ControllerBase
     [HttpDelete("warehouses/{id:long}")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteWarehouse(
         [FromRoute] long businessId,
-        [FromRoute] long id)
+        [FromRoute] long id,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var deleted = await _warehouseService.DeleteForBusinessAsync(businessId, id);
+            var deleted = await _sender.Send(
+                new DeleteBusinessWarehouseCommand(businessId, id),
+                cancellationToken);
             if (!deleted)
                 return NotFound(new ApiResponse<object> { Success = false, Message = $"Warehouse {id} not found in business {businessId}" });
 
-            await _auditSvc.RecordAsync(new AuditEventInput
-            {
-                ActionType = AuditActionType.Delete,
-                Module = AuditModule.BusinessSetup,
-                Summary = $"Warehouse {id} deleted from business {businessId}",
-                PrimaryEntity = ("Warehouse", id.ToString()),
-                Entities =
-                [
-                    new AuditEntityInput("Warehouse", id.ToString(), AuditOperationType.Delete,
-                        metadata: $"{{\"businessId\":{businessId}}}")
-                ]
-            });
+            _logger.LogInformation(
+                "Business setup: Warehouse deleted from business {BusinessId}: ID={Id}",
+                businessId,
+                id);
+            await _sender.Send(
+                new RecordAuditEventCommand(new AuditEventWriteRequest(
+                    AuditActionType.Delete,
+                    AuditModule.BusinessSetup,
+                    $"Warehouse {id} deleted from business {businessId}",
+                    "Warehouse",
+                    id.ToString(),
+                    [new AuditEventEntityWriteRequest(
+                        "Warehouse",
+                        id.ToString(),
+                        AuditOperationType.Delete,
+                        $"{{\"businessId\":{businessId}}}")])),
+                cancellationToken);
 
             return Ok(ApiResponse<object>.SuccessResponse("Warehouse deleted successfully"));
         }
@@ -248,4 +354,17 @@ public class BusinessSetupController : ControllerBase
             return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
         }
     }
+
+    private static WarehouseDto MapWarehouse(WarehouseReadModel warehouse) => new()
+    {
+        Id = warehouse.Id,
+        Name = warehouse.Name,
+        Address = warehouse.Address,
+        Capacity = warehouse.Capacity,
+        ManagerId = warehouse.ManagerId,
+        ManagerName = warehouse.ManagerName,
+        PurchaseOrderCount = warehouse.PurchaseOrderCount,
+        CreatedAt = warehouse.CreatedAt,
+        UpdatedAt = warehouse.UpdatedAt
+    };
 }

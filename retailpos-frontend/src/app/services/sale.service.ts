@@ -2,7 +2,13 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { CreateSaleDto, SaleDto, SaleListDto, SaleSummaryDto, VoidSaleDto } from '../models/sale.model';
+import {
+  CreateSaleDto,
+  ReceiptPrintAttemptDto,
+  SaleListDto,
+  SaleSummaryDto,
+  VoidSaleDto,
+} from '../models/sale.model';
 
 @Injectable({
   providedIn: 'root'
@@ -101,5 +107,19 @@ export class SaleService {
   /** Reprint sale receipt payload */
   reprintSaleReceipt(id: number): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/${id}/reprint`, {});
+  }
+
+  getReceiptDocument(id: number, mode: string = '80mm'): Observable<any> {
+    const params = new HttpParams().set('mode', mode);
+    return this.http.get<any>(`${this.apiUrl}/${id}/receipt-document`, { params });
+  }
+
+  getReceiptPdf(id: number, mode: string = '80mm'): Observable<Blob> {
+    const params = new HttpParams().set('mode', mode);
+    return this.http.get(`${this.apiUrl}/${id}/receipt-pdf`, { params, responseType: 'blob' });
+  }
+
+  registerReceiptPrintAttempt(id: number, dto: ReceiptPrintAttemptDto): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/${id}/receipt-print-attempt`, dto);
   }
 }

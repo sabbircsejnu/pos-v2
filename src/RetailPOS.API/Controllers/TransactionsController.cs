@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using RetailPOS.API.DTOs.Transaction;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
+using RetailPOS.Application.Transactions.Queries;
+using MediatR;
 
 namespace RetailPOS.API.Controllers;
 
@@ -11,12 +13,12 @@ namespace RetailPOS.API.Controllers;
 [Authorize(Policy = "transactions.view")]
 public class TransactionsController : ControllerBase
 {
-    private readonly ITransactionService _transactionService;
+    private readonly ISender _sender;
     private readonly ILogger<TransactionsController> _logger;
 
-    public TransactionsController(ITransactionService transactionService, ILogger<TransactionsController> logger)
+    public TransactionsController(ISender sender, ILogger<TransactionsController> logger)
     {
-        _transactionService = transactionService;
+        _sender = sender;
         _logger = logger;
     }
 
@@ -26,33 +28,43 @@ public class TransactionsController : ControllerBase
         [FromQuery] long? accountId,
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
-        [FromQuery] string? type)
+        [FromQuery] string? type,
+        CancellationToken cancellationToken = default)
     {
-        var searchDto = new TransactionSearchDto
-        {
-            AccountId = accountId,
-            StartDate = startDate,
-            EndDate = endDate,
-            Type = type
-        };
-        var result = await _transactionService.SearchAsync(searchDto);
-        return Ok(ApiResponse<TransactionListDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new SearchTransactionsQuery(accountId, startDate, endDate, type, 1, 20),
+            cancellationToken);
+        return Ok(ApiResponse<TransactionListDto>.SuccessResponse(MapSearchResult(result)));
     }
 
     /// <summary>Paginated transaction search</summary>
     [HttpPost("search")]
-    public async Task<ActionResult<ApiResponse<TransactionListDto>>> Search([FromBody] TransactionSearchDto searchDto)
+    public async Task<ActionResult<ApiResponse<TransactionListDto>>> Search(
+        [FromBody] TransactionSearchDto searchDto,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _transactionService.SearchAsync(searchDto);
-        return Ok(ApiResponse<TransactionListDto>.SuccessResponse(result));
+        var result = await _sender.Send(
+            new SearchTransactionsQuery(
+                searchDto.AccountId,
+                searchDto.StartDate,
+                searchDto.EndDate,
+                searchDto.Type,
+                searchDto.PageNumber,
+                searchDto.PageSize),
+            cancellationToken);
+        return Ok(ApiResponse<TransactionListDto>.SuccessResponse(MapSearchResult(result)));
     }
 
     /// <summary>Get transaction by ID</summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<TransactionDto>>> GetById(long id)
+    public async Task<ActionResult<ApiResponse<TransactionDto>>> GetById(
+        long id,
+        CancellationToken cancellationToken = default)
     {
-        var transaction = await _transactionService.GetByIdAsync(id);
-        return Ok(ApiResponse<TransactionDto>.SuccessResponse(transaction));
+        var transaction = await _sender.Send(
+            new GetTransactionByIdQuery(id),
+            cancellationToken);
+        return Ok(ApiResponse<TransactionDto>.SuccessResponse(MapTransaction(transaction)));
     }
 
     /// <summary>Create a new transaction and update account balance</summary>
@@ -60,18 +72,43 @@ public class TransactionsController : ControllerBase
     [Authorize(Policy = "transactions.create")]
     public async Task<ActionResult<ApiResponse<TransactionDto>>> Create([FromBody] CreateTransactionDto dto)
     {
-        var transaction = await _transactionService.CreateAsync(dto);
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = transaction.Id },
-            ApiResponse<TransactionDto>.SuccessResponse(transaction, "Transaction created successfully"));
+        _logger.LogWarning("Blocked legacy Transaction create request. Journal Engine is authoritative.");
+        return Conflict(ApiResponse<TransactionDto>.ErrorResponse("Legacy Transaction writes are disabled. Use Accounting Journals and the Journal Engine."));
     }
 
     /// <summary>Get all transactions for a specific account (ledger view)</summary>
     [HttpGet("ledger")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<TransactionDto>>>> GetLedger([FromQuery] long accountId)
+    public async Task<ActionResult<ApiResponse<IEnumerable<TransactionDto>>>> GetLedger(
+        [FromQuery] long accountId,
+        CancellationToken cancellationToken = default)
     {
-        var transactions = await _transactionService.GetLedgerAsync(accountId);
-        return Ok(ApiResponse<IEnumerable<TransactionDto>>.SuccessResponse(transactions));
+        var transactions = await _sender.Send(
+            new GetAccountTransactionLedgerQuery(accountId),
+            cancellationToken);
+        return Ok(ApiResponse<IEnumerable<TransactionDto>>.SuccessResponse(
+            transactions.Select(MapTransaction)));
     }
+
+    private static TransactionListDto MapSearchResult(
+        RetailPOS.Application.Transactions.TransactionListReadModel result) => new()
+    {
+        Transactions = result.Transactions.Select(MapTransaction).ToList(),
+        TotalCount = result.TotalCount,
+        PageNumber = result.PageNumber,
+        PageSize = result.PageSize
+    };
+
+    private static TransactionDto MapTransaction(
+        RetailPOS.Application.Transactions.TransactionReadModel transaction) => new()
+    {
+        Id = transaction.Id,
+        AccountId = transaction.AccountId,
+        AccountName = transaction.AccountName,
+        Amount = transaction.Amount,
+        Type = transaction.Type,
+        Description = transaction.Description,
+        TransactionDate = transaction.TransactionDate,
+        ReferenceType = transaction.ReferenceType,
+        ReferenceId = transaction.ReferenceId
+    };
 }

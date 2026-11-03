@@ -1,0 +1,250 @@
+<div class="row">
+  <div class="col-sm-12">
+    <div class="email-page" [ngClass]="{ 'mini-list': mailListHight }">
+      <mat-drawer-container class="email-tabs">
+        <mat-drawer #mail class="email-filter" [mode]="modeValue" [opened]="status">
+          <app-card [showHeader]="false" [padding]="0">
+            <div class="p-20">
+              <div class="grid">
+                <button mat-flat-button color="primary" (click)="composeMail()">
+                  <div class="flex align-item-center">
+                    <i class="ti ti-circle-plus f-18 m-r-10"></i>
+                    Compose
+                  </div>
+                </button>
+              </div>
+            </div>
+            <app-scrollbar [customStyle]="{ height: 'calc(100vh - 250px)', position: 'relative' }">
+              <div class="p-20">
+                <mat-tab-group (selectedIndexChange)="tabChanged($event)" class="email-column-item">
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-inbox"></i>
+                        Inbox
+                      </div>
+                      <div class="avatar avatar-xs">4</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-send"></i>
+                        Sent
+                      </div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-file-text"></i>
+                        Draft
+                      </div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-alert-triangle"></i>
+                        Spam
+                      </div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-trash"></i>
+                        Trash
+                      </div>
+                      <div class="avatar avatar-xs">2</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="text-start text-muted">Filter</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-star"></i>
+                        Starred
+                      </div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-flag-3"></i>
+                        Important
+                      </div>
+                      <div class="avatar avatar-xs">2</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="text-start text-muted">Label</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-flag-3 text-primary-500"></i>
+                        Promotions
+                      </div>
+                      <div class="avatar avatar-xs">3</div>
+                    </ng-template>
+                  </mat-tab>
+                  <mat-tab>
+                    <ng-template mat-tab-label>
+                      <div class="flex align-item-center justify-content-between">
+                        <i class="ti ti-flag-3 text-warning-500"></i>
+                        Forums
+                      </div>
+                      <div class="avatar avatar-xs">1</div>
+                    </ng-template>
+                  </mat-tab>
+                </mat-tab-group>
+              </div>
+            </app-scrollbar>
+          </app-card>
+        </mat-drawer>
+        <mat-drawer-content class="p-l-25">
+          <div class="mail-content-header">
+            <ul class="list-inline more-options">
+              <li class="list-inline-item">
+                <a class="avatar avatar-s bg-accent-200 text-muted" (click)="mail.toggle()">
+                  <i class="ti ti-menu-2 f-18"></i>
+                </a>
+              </li>
+              <li class="list-inline-item">
+                <a class="avatar avatar-s bg-accent-200 text-muted" (click)="onClick()">
+                  <i class="ti ti-arrows-vertical f-18"></i>
+                </a>
+              </li>
+              <li class="list-inline-item">
+                <a class="avatar avatar-s bg-accent-200 text-muted" [matMenuTriggerFor]="menu">
+                  <i class="ti ti-dots f-18"></i>
+                </a>
+                <mat-menu #menu="matMenu">
+                  <button mat-menu-item>Name</button>
+                  <button mat-menu-item>Date</button>
+                  <button mat-menu-item>Ratting</button>
+                  <button mat-menu-item>unread</button>
+                </mat-menu>
+              </li>
+            </ul>
+            <ul class="list-inline search-bar">
+              <li class="list-inline-item">
+                <mat-form-field appearance="outline">
+                  <input matInput placeholder="Placeholder" />
+                  <mat-icon matSuffix>search</mat-icon>
+                </mat-form-field>
+              </li>
+              <li class="list-inline-item">
+                <mat-paginator [length]="100" [pageSizeOptions]="[10, 50, 100]" aria-label="Select page"></mat-paginator>
+              </li>
+            </ul>
+          </div>
+          @if (selectedTabIndex === 0) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <div class="flex align-item-center">
+                      <i class="ti ti-user f-18 m-r-10"></i>
+                      Primary
+                    </div>
+                  </ng-template>
+                  <app-mail-content></app-mail-content>
+                </mat-tab>
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <div class="flex align-item-center">
+                      <i class="ti ti-file-text f-18 m-r-10"></i>
+                      Promotions
+                    </div>
+                  </ng-template>
+                  <app-mail-content [common]="false" [promotion]="true"></app-mail-content>
+                </mat-tab>
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <div class="flex align-item-center">
+                      <i class="ti ti-id f-18 m-r-10"></i>
+                      Social
+                    </div>
+                  </ng-template>
+                  <app-mail-content></app-mail-content>
+                </mat-tab>
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <div class="flex align-item-center">
+                      <i class="ti ti-lock f-18 m-r-10"></i>
+                      Updates
+                    </div>
+                  </ng-template>
+                  <app-mail-content></app-mail-content>
+                </mat-tab>
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <div class="flex align-item-center">
+                      <i class="ti ti-users f-18 m-r-10"></i>
+                      Announcement
+                    </div>
+                  </ng-template>
+                  <app-mail-content></app-mail-content>
+                </mat-tab>
+              </mat-tab-group>
+            </app-card>
+          }
+          @if (selectedTabIndex === 1) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 2) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 3) {
+            <app-card [showHeader]="false" cardClass="spam-section m-b-0">
+              <div class="row justify-content-center align-item-center">
+                <div class="col-md-8 col-sm-10 text-center">
+                  <img src="assets/images/application/img-empty-mail.png" alt="imag" class="img-fluid m-b-20" />
+                  <h2>There is No Mail</h2>
+                  <p class="m-b-0 text-muted">When You have message that will Display here</p>
+                </div>
+              </div>
+            </app-card>
+          }
+          @if (selectedTabIndex === 4) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 6) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content [star]="true" [unStar]="false"></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 7) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content [important]="true" [unImportant]="false"></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 9) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content [common]="false" [promotion]="true"></app-mail-content>
+            </app-card>
+          }
+          @if (selectedTabIndex === 10) {
+            <app-card [showHeader]="false" cardClass="m-b-0">
+              <app-mail-content [common]="false" [forums]="true"></app-mail-content>
+            </app-card>
+          }
+        </mat-drawer-content>
+      </mat-drawer-container>
+    </div>
+  </div>
+</div>

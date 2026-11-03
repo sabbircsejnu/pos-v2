@@ -16,4 +16,8 @@ public class ProductSearchDto
     public int PageSize { get; set; } = 20;
     public string SortBy { get; set; } = "Name";
     public string SortOrder { get; set; } = "asc";
+    /// <summary>Optionally restrict stock to one authorized outlet; mutually exclusive with WarehouseId.</summary>
+    public long? OutletId { get; set; }
+    /// <summary>Optionally restrict stock to one authorized warehouse; mutually exclusive with OutletId.</summary>
+    public long? WarehouseId { get; set; }
 }

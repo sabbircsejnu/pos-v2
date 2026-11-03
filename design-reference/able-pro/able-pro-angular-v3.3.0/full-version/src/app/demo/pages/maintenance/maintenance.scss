@@ -1,0 +1,18 @@
+@import '../../../@theme/styles/theme-palette-colors.scss';
+
+.maintenance-block {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+
+  ::ng-deep.dark & {
+    color: $white;
+  }
+
+  .container {
+    display: block;
+    width: 100%;
+  }
+}

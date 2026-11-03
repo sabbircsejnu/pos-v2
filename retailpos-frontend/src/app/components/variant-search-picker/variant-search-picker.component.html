@@ -1,7 +1,7 @@
 <div class="relative">
-  <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">{{ label }}</label>
-  <div class="pointer-events-none absolute left-3 top-[2.15rem] flex items-center text-slate-400">
-    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <label for="variant-input-shared-picker" class="mb-1 block text-xs font-medium uppercase tracking-wide text-rp-ink-secondary">{{ label }}</label>
+  <div class="pointer-events-none absolute left-3 top-[2.15rem] flex items-center text-rp-ink-secondary">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
     </svg>
   </div>
@@ -9,63 +9,81 @@
   <input
     id="variant-input-shared-picker"
     type="text"
+    role="combobox"
+    aria-autocomplete="list"
+    aria-controls="variant-picker-listbox"
+    autocomplete="off"
+    [attr.aria-expanded]="results().length > 0 && inputFocused()"
+    [attr.aria-activedescendant]="activeOptionId()"
     [value]="getInputValue()"
     (input)="onInput($any($event.target).value)"
     (focus)="onFocus()"
     (blur)="onBlur()"
+    (keydown)="onKeydown($event)"
     [placeholder]="placeholder"
-    class="h-11 w-full rounded-md border border-slate-300 py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+    class="ui-control h-11 pl-10 pr-10"
     [disabled]="disabled" />
+
+  @if (inputFocused()) {
+    <span class="sr-only" role="status">{{ searching() ? 'Searching' : results().length + ' results available' }}</span>
+  }
 
   @if (selectedVariant && !inputFocused()) {
     <button
       type="button"
-      class="absolute right-2 top-[2.1rem] inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
+      class="absolute right-2 top-[2.1rem] inline-flex h-7 w-7 items-center justify-center rounded-md border border-rp-border text-rp-ink-secondary hover:bg-rp-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-rp-primary"
       (click)="clearSelection($event)"
       title="Clear selection"
+      aria-label="Clear selection"
       [disabled]="disabled">
-      <i class="fas fa-times text-xs"></i>
+      <i class="fas fa-times text-xs" aria-hidden="true"></i>
     </button>
   }
 
   @if (searching() && results().length === 0) {
     <div class="absolute right-3 top-[2.35rem]">
-      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-slate-900"></div>
+      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-rp-primary"></div>
     </div>
   }
 
   @if (results().length > 0 && inputFocused()) {
-    <div class="fixed z-[9999] max-h-60 overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl"
+    <div class="fixed z-[9999] max-h-60 overflow-hidden rounded-rp-control border border-rp-border-control bg-rp-card shadow-rp-popover"
          [style.top.px]="dropdownPosition()?.top || 0"
          [style.left.px]="dropdownPosition()?.left || 0"
          [style.width.px]="dropdownPosition()?.width || 400">
-      <div class="max-h-52 overflow-y-auto" (scroll)="onScroll($event)">
-        @for (variant of results(); track variant.id) {
+      <div id="variant-picker-listbox" role="listbox" [attr.aria-label]="label" class="max-h-52 overflow-y-auto" (scroll)="onScroll($event)">
+        @for (variant of results(); track variant.id; let i = $index) {
           <div
+            role="option"
+            [id]="'variant-picker-option-' + i"
+            [attr.aria-disabled]="isExistingVariant(variant.id) ? 'true' : null"
             (click)="selectVariant(variant)"
+            (mouseenter)="activeIndex.set(i)"
             [ngClass]="isExistingVariant(variant.id)
-              ? 'flex cursor-not-allowed items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 opacity-70 last:border-b-0'
-              : 'flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 hover:bg-slate-50 last:border-b-0'">
+              ? 'flex cursor-not-allowed items-center gap-2 border-b border-rp-border bg-rp-muted px-3 py-2 opacity-70 last:border-b-0'
+              : (i === activeIndex()
+                  ? 'flex cursor-pointer items-center gap-2 border-b border-rp-border bg-rp-hover px-3 py-2 last:border-b-0'
+                  : 'flex cursor-pointer items-center gap-2 border-b border-rp-border px-3 py-2 hover:bg-rp-hover last:border-b-0')">
             @if (variant.primaryImageThumb) {
-              <img [src]="resolveImage(variant.primaryImageThumb)" [alt]="variant.productName" loading="lazy" decoding="async" class="h-6 w-6 flex-shrink-0 rounded border border-slate-200 object-cover" />
+              <img [src]="resolveImage(variant.primaryImageThumb)" [alt]="variant.productName" loading="lazy" decoding="async" class="h-6 w-6 flex-shrink-0 rounded border border-rp-border object-cover" />
             } @else {
-              <div class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-slate-100">
-                <i class="fas fa-box text-[10px] text-slate-300"></i>
+              <div class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-rp-muted">
+                <i class="fas fa-box text-[10px] text-rp-ink-secondary" aria-hidden="true"></i>
               </div>
             }
 
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <div class="truncate text-sm font-medium text-slate-900">{{ variant.productName }} - {{ variant.name }}</div>
+                <div class="truncate text-sm font-medium text-rp-ink">{{ variant.productName }}</div>
                 @if (isExistingVariant(variant.id)) {
-                  <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Already Added</span>
+                  <span class="inline-flex items-center rounded-full bg-rp-warning-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rp-warning-fg">Already Added</span>
                 }
               </div>
-              <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+              <div class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-rp-ink-secondary">
+                @if (getFormattedVariantDisplay(variant)) { <span>Variant: {{ getFormattedVariantDisplay(variant) }}</span> }
                 @if (variant.productCode) { <span>Main Code: {{ variant.productCode }}</span> }
                 @if (variant.sku) { <span>SKU: {{ variant.sku }}</span> }
                 @if (variant.barcode) { <span>Barcode: {{ variant.barcode }}</span> }
-                @if (variant.attributes) { <span>{{ variant.attributes }}</span> }
                 @if (variant.stockQuantity !== undefined && variant.stockQuantity !== null) { <span>Current Stock: {{ variant.stockQuantity }}</span> }
               </div>
             </div>
@@ -73,11 +91,11 @@
         }
 
         @if (hasMore()) {
-          <div class="border-t border-slate-100 px-3 py-2 text-center text-xs text-slate-500">Scroll for more...</div>
+          <div class="border-t border-rp-border px-3 py-2 text-center text-xs text-rp-ink-secondary">Scroll for more...</div>
         }
         @if (searching()) {
-          <div class="border-t border-slate-100 px-3 py-2 text-center text-slate-500">
-            <div class="inline-block h-4 w-4 animate-spin rounded-full border-b-2 border-slate-900"></div>
+          <div class="border-t border-rp-border px-3 py-2 text-center text-rp-ink-secondary">
+            <div class="inline-block h-4 w-4 animate-spin rounded-full border-b-2 border-rp-primary" aria-hidden="true"></div>
             <span class="ml-2 text-sm">Loading...</span>
           </div>
         }

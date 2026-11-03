@@ -1,0 +1,111 @@
+<div class="auth-main">
+  <div class="auth-wrapper version-1">
+    <div class="auth-form">
+      <div class="auth-background">
+        <div class="yellow-circle"></div>
+        <div class="red-circle"></div>
+      </div>
+      @if (!this.authenticationService.isLoggedIn()) {
+        <ul class="admin-role">
+          <div class="row">
+            @for (role of roles; track role.role) {
+              <div class="col-sm-6">
+                <a href="javascript:" class="role-tab" [class.active]="selectedRole === role" (click)="onSelectRole(role)">
+                  {{ role.name }}
+                </a>
+              </div>
+            }
+          </div>
+        </ul>
+      }
+      <div class="main-form">
+        <app-card [showHeader]="false" class="auth-form-card {{ this.authenticationService.isLoggedIn() ? '' : 'user-role' }}" padding="40">
+          <div class="text-center">
+            <a href="javascript:">
+              <img src="assets/images/logo-dark.svg" alt="logo" />
+            </a>
+            <div class="login-with">
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/facebook.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Facebook</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/twitter.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Twitter</span>
+                </div>
+              </button>
+              <button mat-stroked-button class="m-t-10 text-muted">
+                <div class="flex">
+                  <img src="assets/images/authentication/google.svg" alt="facebook" />
+                  <span class="mat-body p-l-10">Sign In with Google</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="separator">
+            <span>OR</span>
+          </div>
+          <div class="text-center m-b-25 f-20 f-w-500">Login With Your Email</div>
+          <form (ngSubmit)="onSubmit()" class="text-start">
+            <label for="name" class="f-w-500 text-start">Enter Username</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              <input type="text" matInput [field]="loginForm.email" placeholder="Email Address" />
+              @if (submitted && loginForm.email().errors()) {
+                <mat-hint class="text-warn-500">
+                  @if (loginForm.email().errors().required) {
+                    <div>Email is required and must be valid</div>
+                  }
+                </mat-hint>
+              }
+            </mat-form-field>
+            <label for="name" class="f-w-500 text-start">Enter Your Password</label>
+            <mat-form-field appearance="outline" class="w-100 m-t-5">
+              @if (hide) {
+                <input type="password" id="password" matInput [field]="loginForm.password" placeholder="Enter Password" />
+              } @else {
+                <input type="text" id="password" matInput [field]="loginForm.password" placeholder="Enter Password" />
+              }
+              @if (submitted && loginForm.password().errors()) {
+                <mat-hint class="text-warn-500">
+                  @if (loginForm.password().errors().required) {
+                    <div>Password is required</div>
+                  }
+                </mat-hint>
+              }
+              <button type="button" mat-icon-button matSuffix (click)="hide = !hide">
+                <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+            </mat-form-field>
+            <div class="check-me">
+              <mat-checkbox class="float-start" checked color="primary">Remember me?</mat-checkbox>
+              <a
+                class="f-w-400 text-primary-500 m-b-0"
+                [routerLink]="[this.authenticationService.isLoggedIn() ? '/authentication-1/forgot-password' : '/forgot-password']"
+              >
+                Forgot Password
+              </a>
+            </div>
+            <div class="grid">
+              <button type="submit" mat-flat-button color="primary" class="b-rad-20 m-t-15">Login</button>
+            </div>
+            @if (error) {
+              <div class="bg-warn-50 text-warn-500 p-10 m-t-15 mb-0">{{ error }}</div>
+            }
+          </form>
+          <div class="check-me m-t-20">
+            <div class="text-muted">Don't have an Account?</div>
+            <a
+              [routerLink]="[this.authenticationService.isLoggedIn() ? '/authentication-1/register' : '/register']"
+              class="text-primary-500"
+            >
+              Create Account
+            </a>
+          </div>
+        </app-card>
+      </div>
+    </div>
+  </div>
+</div>

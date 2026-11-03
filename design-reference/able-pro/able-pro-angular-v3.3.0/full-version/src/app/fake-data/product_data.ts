@@ -1,0 +1,80 @@
+export const productData = [
+  {
+    img: 'assets/images/e-commerce/prod-1.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Active',
+    price: 98,
+    sales: '+20.6',
+    status_type: 'bg-success-500',
+    color: 'text-success-500',
+    icon: 'ti ti-arrow-up',
+    rating: '4.5',
+    total_reviewer: 65
+  },
+  {
+    img: 'assets/images/e-commerce/prod-2.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Pending',
+    price: 96,
+    sales: '-10.6',
+    status_type: 'bg-warn-500',
+    color: 'text-warn-500',
+    icon: 'ti ti-arrow-down',
+    rating: '2.5',
+    total_reviewer: 50
+  },
+  {
+    img: 'assets/images/e-commerce/prod-3.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Close',
+    price: 91,
+    sales: '20.6',
+    status_type: 'bg-accent-500',
+    color: 'text-warn-500',
+    icon: 'ti ti-arrow-down',
+    rating: '4.5',
+    total_reviewer: 55
+  },
+  {
+    img: 'assets/images/e-commerce/prod-4.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Active',
+    price: 98,
+    sales: '-15.4',
+    status_type: 'bg-success-500',
+    color: 'text-success-500',
+    icon: 'ti ti-arrow-up',
+    rating: '3.5',
+    total_reviewer: 60
+  },
+  {
+    img: 'assets/images/e-commerce/prod-3.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Close',
+    price: 91,
+    sales: '20.6',
+    status_type: 'bg-accent-1000',
+    color: 'text-warn-500',
+    icon: 'ti ti-arrow-down',
+    rating: '4.5',
+    total_reviewer: 55
+  },
+  {
+    img: 'assets/images/e-commerce/prod-4.png',
+    name: 'Foundations Matte Flip Flop',
+    text: 'Leather panels. Laces. Rounded toe',
+    status: 'Active',
+    price: 98,
+    sales: '-15.4',
+    status_type: 'bg-success-500',
+    color: 'text-success-500',
+    icon: 'ti ti-arrow-up',
+    rating: '3.5',
+    total_reviewer: 60
+  }
+];

@@ -1,0 +1,310 @@
+<div class="row">
+  @for (summary of dashboard_summary; track summary) {
+    <div class="col-lg-3 col-md-6">
+      <app-card [showHeader]="false" [padding]="20">
+        <div class="flex align-item-center">
+          <div class="flex-shrink-0">
+            <div class="avatar avatar-s {{ summary.background }}">
+              <svg class="pc-icon">
+                <use attr.xlink:href="assets/fonts/custom-icon.svg{{ summary.icon }}"></use>
+              </svg>
+            </div>
+          </div>
+          <div class="flex-grow-1 m-l-15">
+            <p class="m-b-5 f-w-500">{{ summary.title }}</p>
+            <div class="flex align-item-center justify-content-between">
+              <div class="f-16 f-w-600">{{ summary.value }}</div>
+              <span class="{{ summary.color }}">{{ summary.percentage }}</span>
+            </div>
+          </div>
+        </div>
+      </app-card>
+    </div>
+  }
+  <div class="col-lg-7 col-md-12">
+    <app-statistics-chart [height]="250" />
+  </div>
+  <div class="col-lg-5 col-md-12">
+    <app-invites-goal-chart />
+  </div>
+  <div class="col-lg-5 col-md-12">
+    <app-card cardTitle="Upcoming Course" [padding]="0" cardClass="upcoming-course">
+      <ul class="list-group list-group-flush">
+        @for (item of course_list; track item) {
+          <li class="list-group-item">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0 flex">
+                <img src="{{ item.image }}" alt="img" class="wid-40" />
+              </div>
+              <div class="flex-grow-1 m-x-15">{{ item.title }}</div>
+              <div class="flex-shrink-0">
+                <a href="javascript:" class="avatar avatar-s hover text-accent-500">
+                  <i class="ti ti-chevron-right f-20"></i>
+                </a>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-lg-7 col-md-12">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-16 f-w-600">Courses</div>
+        <a class="text-primary-500">View Report</a>
+      </div>
+      <div class="f-24 f-w-600">$7,860</div>
+      <p class="flex align-item-center text-success-500 m-b-0">
+        <i class="ti ti-arrow-narrow-up m-r-5"></i>
+        2.1%
+      </p>
+      <p class="text-muted">Sales from 1-12 Dec, 2023</p>
+      <app-course-report-bar-chart />
+    </app-card>
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-card [showHeader]="false" [padding]="20">
+      <p class="text-muted m-b-5">Total Revenue</p>
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-24 f-w-600 m-b-0">7,265</div>
+        <p class="flex align-item-center text-success-500 m-b-0">
+          +11.02%
+          <i class="ti ti-arrow-up-right text-success-500"></i>
+        </p>
+      </div>
+      <app-total-revenue-line-chart [values]="[20, 10, 18, 12, 25, 10, 20]" [color]="['#52c41a']" />
+    </app-card>
+    <app-card [showHeader]="false" [padding]="20">
+      <p class="text-muted m-b-5">Total Subscription</p>
+      <div class="flex align-item-center justify-content-between">
+        <div class="f-24 f-w-600 m-b-0">5,326</div>
+        <p class="flex align-item-center text-success-500 m-b-0">
+          +12.02%
+          <i class="ti ti-arrow-down-right text-success-500"></i>
+        </p>
+      </div>
+      <app-total-revenue-line-chart [values]="[20, 10, 25, 18, 18, 10, 12]" [color]="['#ff4d4f']" />
+    </app-card>
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600 m-b-0">Student States</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <app-student-states-chart />
+    </app-card>
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600 m-b-0">Student Queries</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <ul class="list-group list-group-flush">
+        @for (list of queriesList; track list; let last = $last, first = $first) {
+          <li class="list-group-item p-x-0 p-y-10" [ngClass]="{ 'p-b-0': last, 'p-t-0': first }">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <img src="{{ list.image }}" alt="img" class="wid-40 border-50" />
+              </div>
+              <div class="flex-grow-1 m-x-15">
+                {{ list.title }}
+              </div>
+              <div class="flex-shrink-0">
+                <a href="javascript:" class="avatar avatar-xs hover text-accent-500 m-r-10">
+                  <i class="ti ti-eye f-20"></i>
+                </a>
+                <a href="javascript:" class="avatar avatar-xs hover text-accent-500">
+                  <i class="ti ti-trash f-20"></i>
+                </a>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-lg-8 col-md-12">
+    <app-activity-line-chart />
+  </div>
+  <div class="col-lg-4 col-md-12">
+    <mat-card class="demo-inline-calendar-card">
+      <mat-calendar [(selected)]="selected"></mat-calendar>
+    </mat-card>
+  </div>
+  <div class="col-lg-6 col-md-12">
+    <app-card cardTitle="Activity" padding="0">
+      <ng-template #headerOptionsTemplate>
+        <a href="javascript:" class="text-primary-500">View All</a>
+      </ng-template>
+      <div class="m-b-5 table-responsive">
+        <table mat-table [dataSource]="activitySource" class="mat-elevation-z8 monthly-table">
+          <ng-container matColumnDef="Name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell class="text-nowrap" *matCellDef="let element">
+              <div class="flex align-item-center">
+                <div class="flex-shrink-0">
+                  <img src="{{ element.image }}" alt="user image" class="img-radius wid-40 border-50" />
+                </div>
+                <div class="flex-grow-1 m-l-15">
+                  <div>{{ element.name }}</div>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Qualification">
+            <th mat-header-cell *matHeaderCellDef>Qualification</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.qualification }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Rating">
+            <th mat-header-cell *matHeaderCellDef>Rating</th>
+            <td mat-cell class="text-nowrap f-w-600" *matCellDef="let element">
+              <i class="fas fa-star text-warning-500"></i>
+              {{ element.rating }}
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="activity"></tr>
+          <tr mat-row *matRowDef="let row; columns: activity"></tr>
+        </table>
+      </div>
+    </app-card>
+  </div>
+  <div class="col-lg-6 col-md-12">
+    <app-card cardTitle="Upcoming Course" [padding]="0" cardClass="upcoming-course">
+      <ul class="list-group list-group-flush">
+        @for (item of trendingCourse; track item) {
+          <li class="list-group-item">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0 flex">
+                <img src="{{ item.image }}" alt="img" class="wid-40" />
+              </div>
+              <div class="flex-grow-1 m-x-15">{{ item.title }}</div>
+              <div class="flex-shrink-0">
+                <a href="javascript:" class="avatar avatar-s hover text-accent-500">
+                  <i class="ti ti-chevron-right f-20"></i>
+                </a>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-card [showHeader]="false">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600 m-b-0">Visitors</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <app-visitors-bar-chart />
+    </app-card>
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-earning-courses-line-chart />
+  </div>
+  <div class="col-lg-4 col-md-6">
+    <app-card [showHeader]="false" cardClass="notificationCard">
+      <div class="flex align-item-center justify-content-between m-b-15">
+        <div class="f-16 f-w-600">Notifications</div>
+        <a [matMenuTriggerFor]="menu" class="avatar avatar-s hover"><i class="ti ti-dots-vertical f-18"></i></a>
+        <mat-menu #menu="matMenu">
+          <a mat-menu-item>Today</a>
+          <a mat-menu-item>Weekly</a>
+          <a mat-menu-item>Monthly</a>
+        </mat-menu>
+      </div>
+      <ul class="list-group list-group-flush">
+        @for (list of notificationList; track list) {
+          <li class="list-group-item p-x-0 p-t-10 p-b-0">
+            <div class="flex align-item-center">
+              <div class="flex-shrink-0">
+                <img src="{{ list.image }}" alt="img" class="wid-40 border-50" />
+              </div>
+              <div class="flex-grow-1 m-x-15">
+                <div class="">{{ list.title }}</div>
+                <p class="m-b-0 text-muted">{{ list.time }}</p>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </app-card>
+  </div>
+  <div class="col-12">
+    <app-card cardTitle="Course States" padding="0">
+      <ng-template #headerOptionsTemplate>
+        <a href="javascript:" class="text-primary-500">View All</a>
+      </ng-template>
+      <div class="m-b-5 table-responsive">
+        <table mat-table [dataSource]="courseSource" class="mat-elevation-z8 monthly-table">
+          <ng-container matColumnDef="Name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell class="text-nowrap" *matCellDef="let element">
+              {{ element.name }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Teacher">
+            <th mat-header-cell *matHeaderCellDef>Teacher</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.teacher }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Rating">
+            <th mat-header-cell *matHeaderCellDef>Rating</th>
+            <td mat-cell class="text-nowrap f-w-600" *matCellDef="let element">
+              <i class="fas fa-star text-warning-500"></i>
+              {{ element.rating }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Earning">
+            <th mat-header-cell *matHeaderCellDef>Earning</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.earning }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Sale">
+            <th mat-header-cell *matHeaderCellDef>Sale</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              {{ element.sale }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="Action">
+            <th mat-header-cell *matHeaderCellDef>Action</th>
+            <td mat-cell *matCellDef="let element" class="text-nowrap">
+              <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                <i class="ti ti-eye f-20"></i>
+              </a>
+              <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                <i class="ti ti-edit f-20"></i>
+              </a>
+              <a href="javascript:" class="avatar avatar-xs text-accent-500">
+                <i class="ti ti-trash f-20"></i>
+              </a>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="courseStates"></tr>
+          <tr mat-row *matRowDef="let row; columns: courseStates"></tr>
+        </table>
+      </div>
+    </app-card>
+  </div>
+</div>
