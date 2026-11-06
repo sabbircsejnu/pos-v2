@@ -1,11 +1,13 @@
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, Injector, inject, signal } from '@angular/core';
-import { Observable, distinctUntilChanged, map, switchMap, of, catchError, tap } from 'rxjs';
+import { Observable, distinctUntilChanged, map, skip, switchMap, of, catchError, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AlertService } from './alert.service';
 
 export type CompanyDateFormat = 'dd/MM/yyyy' | 'MM/dd/yyyy' | 'yyyy-MM-dd';
+
+const DEFAULT_TIME_ZONE = 'Asia/Dhaka';
 
 export function normalizeDateFormat(value: string): CompanyDateFormat {
   switch (value.toLowerCase()) {
@@ -25,6 +27,8 @@ export class CompanyDateService {
   private readonly injector = inject(Injector);
   private readonly alerts = inject(AlertService);
   readonly dateFormat = signal<CompanyDateFormat>('dd/MM/yyyy');
+  /** Business time zone. Comes from /settings/formatting, which any signed-in user may read. */
+  readonly timeZone = signal(DEFAULT_TIME_ZONE);
 
   connect(users: Observable<{ id: number | string } | null>): void {
     users.pipe(
@@ -32,6 +36,7 @@ export class CompanyDateService {
       distinctUntilChanged(),
       switchMap(id => {
         this.dateFormat.set('dd/MM/yyyy');
+        this.timeZone.set(DEFAULT_TIME_ZONE);
         return id === null ? of(null) : this.load().pipe(catchError(() => {
           this.alerts.warning('Company date settings could not be loaded. Dates temporarily use dd/MM/yyyy.');
           return of(null);
@@ -40,13 +45,23 @@ export class CompanyDateService {
     ).subscribe();
   }
 
-  load(): Observable<{ data: { dateFormat: string } }> {
-    return this.injector.get(HttpClient).get<{ data: { dateFormat: string } }>(`${environment.apiUrl}/settings/formatting`)
-      .pipe(tap(response => this.setFormat(response.data.dateFormat)));
+  load(): Observable<{ data: { dateFormat: string; timeZone?: string } }> {
+    return this.injector.get(HttpClient).get<{ data: { dateFormat: string; timeZone?: string } }>(`${environment.apiUrl}/settings/formatting`)
+      .pipe(tap(response => {
+        this.setFormat(response.data.dateFormat);
+        this.setTimeZone(response.data.timeZone);
+      }));
   }
 
   setFormat(value: string): void {
     this.dateFormat.set(normalizeDateFormat(value));
+  }
+
+  setTimeZone(value: string | null | undefined): void {
+    const timeZone = value?.trim();
+    if (timeZone) {
+      this.timeZone.set(timeZone);
+    }
   }
 
   format(value: string | number | Date | null | undefined, withTime = false, timezone?: string, locale = 'en-US'): string {
@@ -67,6 +82,29 @@ export class CompanyDateService {
       return date + (withTime ? ` ${part('hour')}:${part('minute')}:${part('second')}` : '');
     }
     return formatDate(value, `${pattern}${withTime ? ' HH:mm:ss' : ''}`, locale, timezone);
+  }
+
+  /** Today as yyyy-MM-dd in the Company time zone, optionally offset by whole days. */
+  todayIso(offsetDays = 0): string {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: this.timeZone(), year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    if (!offsetDays) return today;
+    const [year, month, day] = today.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + offsetDays)).toISOString().slice(0, 10);
+  }
+
+  firstOfMonthIso(): string {
+    return `${this.todayIso().slice(0, 8)}01`;
+  }
+
+  /** The zone belongs to the Business, so a Super Admin's Business switch has to refresh it. */
+  reloadOnBusinessChange(businessIds: Observable<number | null>): void {
+    businessIds.pipe(
+      distinctUntilChanged(),
+      skip(1),
+      switchMap(() => this.load().pipe(catchError(() => of(null))))
+    ).subscribe();
   }
 
   inputText(value: string, withTime: boolean): string {

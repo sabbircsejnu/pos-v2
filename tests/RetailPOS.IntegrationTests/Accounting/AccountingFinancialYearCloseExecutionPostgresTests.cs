@@ -22,6 +22,7 @@ public sealed class AccountingFinancialYearCloseExecutionPostgresTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.FinancialYearClosePrepare,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))
@@ -167,6 +168,7 @@ public sealed class AccountingFinancialYearCloseExecutionPostgresTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.FinancialYearClosePrepare,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))

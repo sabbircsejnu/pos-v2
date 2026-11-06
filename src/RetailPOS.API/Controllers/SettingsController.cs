@@ -43,13 +43,13 @@ public class SettingsController : ControllerBase
         return Ok(ApiResponse<CompanySettings>.SuccessResponse(settings));
     }
 
-    /// <summary>Gets the UI date format without exposing company administration settings.</summary>
+    /// <summary>Gets the UI date format and business time zone without exposing company administration settings.</summary>
     [HttpGet("formatting")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<UiFormattingSettings>>> GetFormatting(CancellationToken cancellationToken)
     {
         var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Company;
-        return Ok(ApiResponse<UiFormattingSettings>.SuccessResponse(new UiFormattingSettings(settings.DateFormat)));
+        return Ok(ApiResponse<UiFormattingSettings>.SuccessResponse(new UiFormattingSettings(settings.DateFormat, settings.TimeZone)));
     }
 
     /// <summary>Updates company settings.</summary>
@@ -59,12 +59,12 @@ public class SettingsController : ControllerBase
         [FromBody] CompanySettings settings,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new UpdateCompanySettingsCommand(settings), cancellationToken);
+        var result = await _sender.Send(new UpdateCompanySettingsCommand(settings, _businessScope.EffectiveBusinessId, TryGetCurrentUserId()), cancellationToken);
         return Ok(ApiResponse<SystemSettings>.SuccessResponse(result, "Company settings updated"));
     }
 
     /// <summary>Company-controlled presentation settings available to authenticated UI users.</summary>
-    public sealed record UiFormattingSettings(string DateFormat);
+    public sealed record UiFormattingSettings(string DateFormat, string TimeZone);
 
     /// <summary>Gets currency settings.</summary>
     [HttpGet("currency")]
@@ -127,11 +127,9 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets tax settings (Business-level).</summary>
     [HttpGet("tax")]
-    [Authorize]
+    [Authorize(Policy = LookupAuthorizationPolicies.TaxSettingsRead)]
     public async Task<ActionResult<ApiResponse<TaxSettings>>> GetTax(CancellationToken cancellationToken)
     {
-        if (!User.HasPermission("settings.view") && !User.HasPermission("sales.create"))
-            return Forbid();
         var settings = await _sender.Send(new GetBusinessPosSettingsQuery(_businessScope.RequireBusinessId()), cancellationToken);
         return Ok(ApiResponse<TaxSettings>.SuccessResponse(ToTaxSettings(settings)));
     }
@@ -304,18 +302,9 @@ public class SettingsController : ControllerBase
 
     /// <summary>Gets inventory settings.</summary>
     [HttpGet("inventory")]
+    [Authorize(Policy = LookupAuthorizationPolicies.InventorySettingsRead)]
     public async Task<ActionResult<ApiResponse<InventorySettings>>> GetInventory(CancellationToken cancellationToken)
     {
-        var canViewInventorySettings = User.HasPermission("settings.view")
-            || User.HasPermission("inventory.view")
-            || User.HasPermission("stock_adjustments.view")
-            || User.HasPermission("stock_adjustments.create");
-
-        if (!canViewInventorySettings)
-        {
-            return Forbid();
-        }
-
         var settings = (await _sender.Send(new GetSystemSettingsQuery(), cancellationToken)).Inventory;
         return Ok(ApiResponse<InventorySettings>.SuccessResponse(settings));
     }

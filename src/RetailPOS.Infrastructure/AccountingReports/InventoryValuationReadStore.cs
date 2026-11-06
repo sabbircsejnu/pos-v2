@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.AccountingReports.Abstractions;
 using RetailPOS.Application.AccountingReports.ReadModels;
@@ -6,7 +7,9 @@ using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.AccountingReports;
 
-public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
+public sealed class InventoryValuationReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones)
     : IInventoryValuationReadStore
 {
     public async Task<InventoryValuationReadModel> GetAsync(
@@ -14,6 +17,7 @@ public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
         long businessId,
         CancellationToken cancellationToken)
     {
+        filter = filter with { DateTo = filter.DateTo ?? await timeZones.GetTodayAsync(businessId, cancellationToken) };
         var configuration = await dbContext.AccountingConfigurations
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -24,7 +28,7 @@ public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
             throw new InvalidOperationException(
                 "COGS and Inventory accounts must be configured before running valuation reports.");
 
-        var asOf = (filter.DateTo ?? DateTime.UtcNow)
+        var asOf = filter.DateTo!.Value
             .Date
             .AddDays(1)
             .AddTicks(-1);
@@ -77,6 +81,7 @@ public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
             .ThenBy(movement => movement.MovementSequence)
             .ThenBy(movement => movement.Id)
             .ToListAsync(cancellationToken);
+        ApplyCostCorrections(movements);
         var unvalued = movements
             .Where(movement => !movement.IsCostValuationReliable)
             .Select(movement => new UnvaluedStockMovementReadModel(
@@ -125,6 +130,30 @@ public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
             asOf.Date);
     }
 
+    /// <summary>
+    /// An approved correction takes effect from its own business date, so a report as of an earlier date is unchanged.
+    /// The rows are untracked, so nothing here reaches the database. With no corrections this does nothing.
+    /// </summary>
+    private static void ApplyCostCorrections(List<StockLedger> movements)
+    {
+        var corrections = movements
+            .Where(movement => movement.ReferenceType == StockLedgerReferenceType.StockCostCorrection)
+            .ToList();
+        if (corrections.Count == 0)
+            return;
+
+        var byId = movements.ToDictionary(movement => movement.Id);
+        foreach (var correction in corrections)
+        {
+            if (!byId.TryGetValue(correction.ReferenceId, out var original))
+                continue;
+
+            original.UnitCost = correction.UnitCost;
+            original.MovementValue = correction.MovementValue;
+            original.IsCostValuationReliable = true;
+        }
+    }
+
     private static InventoryValuationRowReadModel ReplayPool(
         List<StockLedger> movements)
     {
@@ -170,7 +199,7 @@ public sealed class InventoryValuationReadStore(RetailPOSDbContext dbContext)
         IQueryable<JournalEntry> query,
         InventoryValuationFilter filter)
     {
-        var end = (filter.DateTo ?? DateTime.UtcNow)
+        var end = filter.DateTo!.Value
             .Date
             .AddDays(1)
             .AddTicks(-1);

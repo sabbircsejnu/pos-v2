@@ -42,10 +42,12 @@ public sealed class StockMovementReportReadStore(RetailPOSDbContext dbContext)
             return EmptyReport();
         }
 
-        var rangeEnd = filter.DateTo.HasValue
-            ? filter.DateTo.Value.Date.AddDays(1).AddTicks(-1)
-            : (DateTime?)null;
-        var ledgerQuery = dbContext.StockLedgers.AsNoTracking();
+        // Inclusive UTC instants: the query handler resolves calendar dates in the Company time zone.
+        var rangeEnd = filter.DateTo;
+        // A cost correction moves no stock, so it must not list a product that did not move.
+        var ledgerQuery = dbContext.StockLedgers
+            .AsNoTracking()
+            .Where(ledger => ledger.TransactionType != StockLedgerTransactionType.CostCorrection);
         if (filter.DateFrom.HasValue)
         {
             ledgerQuery = ledgerQuery.Where(ledger => ledger.CreatedAt >= filter.DateFrom.Value);

@@ -24,7 +24,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Category_Create_Expense_Submit_Approve_Lifecycle_Works()
     {
         await ResetAndSeedAsync();
-        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expenses.submit,accounting.expenses.approve");
+        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,accounting.expenses.submit,accounting.expenses.approve");
 
         var categoryResponse = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -52,7 +52,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
         var created = await ReadData<ExpenseResponse>(createResponse);
         Assert.NotNull(created);
         Assert.Equal(ExpenseStatuses.Draft, created!.Status);
-        Assert.Equal("EXP-000001", created.ExpenseNumber);
+        Assert.Matches(@"^\d{8}-OUT11-0001$", created.ExpenseNumber);
 
         var updateResponse = await client.PutAsJsonAsync(
             $"/api/accounting/expenses/{created.Id}",
@@ -133,7 +133,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     {
         await ResetAndSeedAsync();
         using var client = CreateClient(
-            "accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,expenses.view");
+            "accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,expenses.view");
 
         var categoryCreate = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -240,7 +240,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Category_Update_PreservesResponseAndBusinessActorAudit()
     {
         await ResetAndSeedAsync();
-        using var client = CreateClient("accounting.expenses.edit");
+        using var client = CreateClient("accounting.expenses.edit,accounting.expense_categories.manage");
 
         var createResponse = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -302,7 +302,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Approve_WithoutPermission_ReturnsForbidden()
     {
         await ResetAndSeedAsync();
-        using var fullClient = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expenses.submit,accounting.expenses.approve");
+        using var fullClient = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,accounting.expenses.submit,accounting.expenses.approve");
 
         var categoryResponse = await fullClient.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -342,7 +342,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Reject_UsesSubmittedEligibilityAndRecordsNormalizedReasonAudit()
     {
         await ResetAndSeedAsync();
-        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expenses.submit,accounting.expenses.reject");
+        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,accounting.expenses.submit,accounting.expenses.reject");
 
         var categoryResponse = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -399,7 +399,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Cancel_Draft_RecordsNormalizedReasonAndStatusAudit()
     {
         await ResetAndSeedAsync();
-        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expenses.cancel");
+        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,accounting.expenses.cancel");
 
         var categoryResponse = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -455,7 +455,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
     public async Task Delete_Draft_PreservesResponseAndDeletionAudit()
     {
         await ResetAndSeedAsync();
-        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,expenses.view,expenses.delete");
+        using var client = CreateClient("accounting.expenses.view,accounting.expenses.create,accounting.expenses.edit,accounting.expense_categories.manage,expenses.view,expenses.delete");
 
         var categoryResponse = await client.PostAsJsonAsync("/api/accounting/expenses/categories", new
         {
@@ -530,6 +530,8 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         });
+
+        db.UserOutletAssignments.Add(new UserOutletAssignment { UserId = 101, OutletId = 11, BusinessId = 1, IsPrimary = true });
 
         db.ChartAccounts.AddRange(
             Account(1001, "1000", "Cash", ChartAccountTypes.Asset, NormalBalanceTypes.Debit),
@@ -627,6 +629,7 @@ public class ExpenseWorkflowHttpTests : IClassFixture<RetailPosApiFactory>
             IsControlAccount = false,
             AllowManualPosting = true,
             IsActive = true,
+            IsExpensePaymentAccount = id is 1001 or 1021,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

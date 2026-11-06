@@ -98,7 +98,9 @@ public sealed class UserOutletAccessService(
             roleSwitch.EffectiveBusinessId,
             roleSwitch.EffectiveOutletId,
             HasWildcardPermission: !roleSwitch.IsRoleSwitched &&
-                httpContextAccessor.HttpContext?.User.HasPermission("*") == true);
+                httpContextAccessor.HttpContext?.User.HasPermission("*") == true,
+            EffectiveWarehouseId: roleSwitch.IsRoleSwitched ? roleSwitch.ActingWarehouseId : null,
+            IsContextSwitched: roleSwitch.IsRoleSwitched);
 
     private static AuthorizedLocationDto ToDto(AuthorizedLocationReadModel location) =>
         new() { Id = location.Id, Name = location.Name, Type = location.Type };

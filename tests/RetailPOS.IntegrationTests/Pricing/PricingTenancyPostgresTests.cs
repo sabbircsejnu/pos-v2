@@ -21,6 +21,7 @@ public sealed class PricingTenancyPostgresTests
         PostgresTestDatabase.RunAsync(
             InfrastructureTestSettings.RequireIsolatedPostgres(),
             PostgresTestDatabasePrefix.SaleCreation,
+            PostgresTestDatabaseStrategy.FreshMigration,
             operation);
 
     private static RetailPOSDbContext Context(PostgresTestDatabase database) =>

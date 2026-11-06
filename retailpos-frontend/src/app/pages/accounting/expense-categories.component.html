@@ -1,52 +1,126 @@
-<div class="container mx-auto p-6 space-y-6">
-  <div>
-    <h1 class="text-2xl font-semibold text-slate-900">Expense Categories</h1>
-    <p class="text-sm text-slate-600">Create and maintain expense categories that feed the accounting workflow.</p>
-  </div>
+<div class="flex flex-col gap-4 p-4 container mx-auto">
+  <app-ui-page-header
+    title="Expense Categories"
+    description="Each category decides which ledger account receives the debit when an expense is approved." />
 
-  <div class="grid gap-6" [ngClass]="{ 'lg:grid-cols-[0.9fr_1.1fr]': auth.hasPermission('accounting.expenses.edit') }">
-    @if (auth.hasPermission('accounting.expenses.edit')) {
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 class="text-lg font-semibold">{{ editingId() ? 'Edit Category' : 'Create Category' }}</h2>
-      <div class="mt-4 space-y-3">
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Category name</label>
-          <input type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="name" />
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Expense account ID</label>
-          <input type="number" class="w-full rounded-lg border border-slate-300 px-3 py-2" [(ngModel)]="expenseAccountId" />
-        </div>
-        <button type="button" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white" (click)="save()" [disabled]="isSaving()">
-          {{ isSaving() ? 'Saving…' : (editingId() ? 'Save Changes' : 'Create Category') }}
-        </button>
-      </div>
-    </div>
-    }
+  <div class="grid gap-4" [class.lg:grid-cols-2]="canManage">
+    @if (canManage) {
+      <app-ui-card [title]="editing() ? 'Edit category' : 'Create category'">
+        <form class="ui-form-stack" [formGroup]="form" (ngSubmit)="save()">
+          @if (formError()) {
+            <app-ui-alert variant="danger">{{ formError() }}</app-ui-alert>
+          }
 
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Existing categories</h2>
-        @if (auth.hasPermission('accounting.expenses.edit')) {
-        <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" (click)="startCreate()">New</button>
-        }
-      </div>
+          <app-ui-form-field label="Category name" [required]="true">
+            <input appUiControl type="text" formControlName="name" maxlength="120" />
+          </app-ui-form-field>
 
-      <div *ngIf="isLoading()" class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">Loading categories…</div>
-      <div *ngIf="!isLoading() && categories().length === 0" class="rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-500">No expense categories found.</div>
-      <div *ngIf="!isLoading() && categories().length > 0" class="space-y-3">
-        <div *ngFor="let category of categories()" class="rounded-lg border border-slate-200 p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3 class="font-semibold text-slate-900">{{ category.name }}</h3>
-              <p class="mt-1 text-sm text-slate-600">Expense account ID: {{ category.expenseAccountId }}</p>
-            </div>
-            @if (auth.hasPermission('accounting.expenses.edit')) {
-            <button type="button" class="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700" (click)="startEdit(category)">Edit</button>
+          <div>
+            <span class="label" id="expenseAccountLabel">Expense account <span aria-hidden="true">*</span></span>
+            @switch (accountsState()) {
+              @case ('loading') {
+                <app-ui-state kind="loading" title="Loading expense accounts" [compact]="true" />
+              }
+              @case ('error') {
+                <app-ui-state kind="error" title="Could not load expense accounts" [message]="accountsError() ?? ''" [compact]="true">
+                  <button appUiButton type="button" variant="outline" size="sm" (click)="loadAccounts()">Retry</button>
+                </app-ui-state>
+              }
+              @default {
+                @if (eligibleAccounts().length === 0 && !legacyAccount()) {
+                  <app-ui-state kind="empty" title="No eligible expense accounts"
+                                [message]="canViewChart
+                                  ? 'Create an operating expense account in Chart of Accounts, then return here.'
+                                  : 'Ask accounting to create an operating expense account in Chart of Accounts.'"
+                                [compact]="true" />
+                } @else {
+                  <app-searchable-dropdown
+                    #accountDropdown
+                    placeholder="Search by account code or name..."
+                    ariaLabel="Expense account"
+                    [selectedId]="selectedAccountId()"
+                    [disabled]="isSaving()"
+                    [clearable]="true"
+                    (onSearch)="onAccountSearch($event)"
+                    (onLoadMore)="onAccountSearch($event)"
+                    (onSelect)="onAccountSelect($event)"
+                    (cleared)="onAccountCleared()">
+                  </app-searchable-dropdown>
+                }
+              }
+            }
+            @if (form.controls.expenseAccountId.invalid && form.controls.expenseAccountId.touched) {
+              <p class="mt-1 text-sm" style="color: var(--rp-color-danger-700)" role="alert">Choose the expense account this category posts to.</p>
             }
           </div>
-        </div>
-      </div>
-    </div>
+
+          @if (isLegacySelection()) {
+            <app-ui-alert variant="info">
+              This saved account is no longer selectable for categories. You can keep it while editing other details, but it
+              cannot be chosen again, and the category cannot be reactivated on it.
+            </app-ui-alert>
+          }
+          @if (isRemapping()) {
+            <app-ui-alert variant="warning" title="This changes where future postings go">
+              Draft, submitted and rejected expenses in this category may post to the new account when they are approved.
+              Journals already posted do not change.
+            </app-ui-alert>
+          }
+
+          <label class="flex items-center gap-2 text-sm">
+            <input appUiControl type="checkbox" formControlName="isActive" />
+            <span>Active (available for new expenses)</span>
+          </label>
+          @if (isDeactivating()) {
+            <app-ui-alert variant="warning">
+              Pending expenses in this category cannot be approved while it is inactive. Reactivate it, or reject them and choose
+              another category. Existing history and reports keep the category name.
+            </app-ui-alert>
+          }
+
+          <div class="flex flex-wrap justify-end gap-2">
+            @if (editing()) {
+              <button appUiButton type="button" variant="outline" [disabled]="isSaving()" (click)="startCreate()">Cancel edit</button>
+            }
+            <button appUiButton type="submit" [loading]="isSaving()">{{ editing() ? 'Save changes' : 'Create category' }}</button>
+          </div>
+        </form>
+      </app-ui-card>
+    }
+
+    <app-ui-card title="Existing categories">
+      @switch (categoriesState()) {
+        @case ('loading') {
+          <app-ui-state kind="loading" title="Loading categories" [compact]="true" />
+        }
+        @case ('error') {
+          <app-ui-state kind="error" title="Could not load categories" [message]="categoriesError() ?? ''" [compact]="true">
+            <button appUiButton type="button" variant="outline" size="sm" (click)="loadCategories()">Retry</button>
+          </app-ui-state>
+        }
+        @default {
+          @if (categories().length === 0) {
+            <app-ui-state kind="empty" title="No expense categories yet" [compact]="true" />
+          } @else {
+            <ul class="flex flex-col gap-3">
+              @for (category of categories(); track category.id) {
+                <li class="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p class="font-semibold">{{ category.name }}</p>
+                    <p class="text-sm">{{ accountLabel(category) }}</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <app-ui-badge [variant]="category.isActive ? 'success' : 'neutral'">{{ category.isActive ? 'Active' : 'Inactive' }}</app-ui-badge>
+                    @if (canManage) {
+                      <button appUiButton type="button" variant="ghost" size="sm" [attr.aria-label]="'Edit category ' + category.name" (click)="startEdit(category)">Edit</button>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        }
+      }
+    </app-ui-card>
   </div>
 </div>

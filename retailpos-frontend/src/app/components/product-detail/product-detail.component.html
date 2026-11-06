@@ -58,7 +58,7 @@
                 [src]="activeImageUrl()!"
                 [alt]="product()!.name"
                 (click)="openLightbox()"
-                class="w-full aspect-square object-cover rounded cursor-zoom-in"
+                class="w-full aspect-square object-contain rounded cursor-zoom-in"
                 loading="lazy" />
             } @else {
               <div class="w-full aspect-square bg-gray-100 rounded flex items-center justify-center">

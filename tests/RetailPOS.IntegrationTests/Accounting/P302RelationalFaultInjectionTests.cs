@@ -16,6 +16,8 @@ using RetailPOS.Infrastructure.Grns;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Infrastructure.SupplierPayments;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class P302RelationalFaultInjectionTests : IDisposable
@@ -104,7 +106,8 @@ public class P302RelationalFaultInjectionTests : IDisposable
                     journalStore,
                     new JournalEntryReadStore(db)),
                 config,
-                new SupplierPayableRecognitionWriter(db)),
+                new SupplierPayableRecognitionWriter(db),
+                TestCompanySettings.Provider()),
             new GrnCompletionAuditWriterAdapter(audit),
             NullLogger<GrnCompletionStore>.Instance);
         var authorizer = new Mock<IGrnCompletionAuthorizer>();

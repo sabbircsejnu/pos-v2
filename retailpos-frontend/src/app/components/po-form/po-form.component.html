@@ -44,7 +44,7 @@
               }
             </button>
             @if (!isEditMode() && canPurchaseAndReceive()) {
-              <button type="button" (click)="purchaseAndReceive()" class="btn min-w-36 bg-emerald-600 text-white hover:bg-emerald-700" [disabled]="isSaving()">
+              <button type="button" (click)="purchaseAndReceive()" class="btn min-w-36 bg-emerald-600 text-white hover:bg-emerald-700" [disabled]="isSaving() || !canReceiveAtDestination()" [attr.title]="canReceiveAtDestination() ? null : 'You are not assigned to this location, so you cannot receive goods into it.'">
                 @if (isSaving()) {
                   <i class="fas fa-spinner fa-spin"></i>
                   Processing...

@@ -34,7 +34,7 @@ public sealed class StockTransferDispatchStore(
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            await DispatchTransferAsync(transfer, userId, DateTime.UtcNow, cancellationToken);
+            await DispatchTransferAsync(transfer, businessId, userId, DateTime.UtcNow, cancellationToken);
             dbContext.StockTransfers.Update(transfer);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -109,7 +109,7 @@ public sealed class StockTransferDispatchStore(
                     $"Cannot submit and dispatch transfer in status '{transfer.Status}'.");
             }
 
-            await DispatchTransferAsync(transfer, userId, timestamp, cancellationToken);
+            await DispatchTransferAsync(transfer, businessId, userId, timestamp, cancellationToken);
             dbContext.StockTransfers.Update(transfer);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -129,6 +129,7 @@ public sealed class StockTransferDispatchStore(
 
     private async Task DispatchTransferAsync(
         StockTransfer transfer,
+        long businessId,
         long? dispatchedBy,
         DateTime timestamp,
         CancellationToken cancellationToken)
@@ -151,6 +152,17 @@ public sealed class StockTransferDispatchStore(
                     + $"Available: {sourceInventory?.Quantity ?? 0}, Required: {transferQuantity}");
             }
 
+            var cost = await StockTransferCostFlow.ResolveDispatchCostAsync(
+                dbContext,
+                businessId,
+                item.VariantId,
+                transfer.FromLocationId,
+                fromLocationType,
+                sourceInventory.Quantity,
+                transferQuantity,
+                cancellationToken);
+            item.UnitCost = cost.UnitCost;
+
             sourceInventory.Quantity -= transferQuantity;
             var transactionType = transfer.TransferType.Equals(
                     StockTransfer.TransferTypeReturn,
@@ -158,20 +170,20 @@ public sealed class StockTransferDispatchStore(
                 ? StockLedgerTransactionType.ReturnTransferOut
                 : StockLedgerTransactionType.TransferOut;
 
-            stockLedger.WriteEntryWithValuation(
-                variantId: item.VariantId,
-                locationId: transfer.FromLocationId,
-                locationType: fromLocationType,
-                transactionType: transactionType,
+            StockTransferCostFlow.Write(
+                stockLedger,
+                cost,
+                item.VariantId,
+                transfer.FromLocationId,
+                fromLocationType,
+                transactionType,
                 qtyIn: 0,
                 qtyOut: transferQuantity,
                 balanceAfter: sourceInventory.Quantity,
-                referenceType: StockLedgerReferenceType.StockTransfer,
-                referenceId: transfer.Id,
-                remarks: $"Dispatched to {transfer.ToLocationType} {transfer.ToLocationId}",
-                createdBy: dispatchedBy ?? transfer.CreatedBy,
-                createdAt: timestamp,
-                unitCost: item.UnitCost);
+                transfer.Id,
+                $"Dispatched to {transfer.ToLocationType} {transfer.ToLocationId}",
+                dispatchedBy ?? transfer.CreatedBy,
+                timestamp);
         }
 
         transfer.Status = StockTransfer.StatusInTransit;

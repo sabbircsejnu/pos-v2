@@ -48,6 +48,24 @@ public sealed class BusinessAdministrationWriteStore(RetailPOSDbContext dbContex
         return true;
     }
 
+    public async Task<bool> UpdateReceiptFooterAsync(
+        long businessId,
+        bool showPoweredByOnReceipt,
+        string? poweredByText,
+        CancellationToken cancellationToken)
+    {
+        var business = await dbContext.Businesses
+            .FirstOrDefaultAsync(item => item.Id == businessId, cancellationToken);
+        if (business is null)
+            return false;
+
+        business.ShowPoweredByOnReceipt = showPoweredByOnReceipt;
+        business.PoweredByText = poweredByText;
+        business.UpdatedAt = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> UpsertFeatureSettingsAsync(
         long businessId,
         IReadOnlyList<BusinessFeatureSettingChange> features,

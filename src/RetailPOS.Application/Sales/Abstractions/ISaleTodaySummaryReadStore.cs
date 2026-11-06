@@ -5,7 +5,7 @@ namespace RetailPOS.Application.Sales.Abstractions;
 public interface ISaleTodaySummaryReadStore
 {
     Task<IReadOnlyList<SaleSummaryLineReadModel>> GetAsync(
-        long? outletId,
+        SaleReadScope scope,
         DateTime startUtc,
         DateTime endExclusiveUtc,
         CancellationToken cancellationToken);

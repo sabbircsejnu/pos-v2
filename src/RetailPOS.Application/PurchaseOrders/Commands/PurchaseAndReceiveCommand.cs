@@ -1,5 +1,6 @@
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
+using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.ReadModels;
 
@@ -32,7 +33,7 @@ public sealed class PurchaseAndReceiveCommandHandler(
     IPurchaseAndReceiveStore store,
     IPurchaseOrderReadStore readStore,
     IPurchaseOrderTenantScope tenantScope,
-    IPurchaseOrderLocationAuthorizer locationAuthorizer)
+    IGrnReceiptLocationAuthorizer locationAuthorizer)
     : IRequestHandler<PurchaseAndReceiveCommand, PurchaseAndReceiveResultReadModel>
 {
     public async Task<PurchaseAndReceiveResultReadModel> Handle(

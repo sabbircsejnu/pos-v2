@@ -1,7 +1,7 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnInit, inject, signal  } from '@angular/core';
+import { Component, OnInit, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -10,7 +10,6 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ProductImageService } from '../../services/product-image.service';
 import { CurrencyService } from '../../services/currency.service';
-import { SettingsService } from '../../services/settings.service';
 import {
   PurchaseOrderForGrn,
   PurchaseOrderItemForGrn,
@@ -41,9 +40,9 @@ export class GrnCreateComponent implements OnInit {
   lineItems = signal<GrnLineItem[]>([]);
   selectedPoId = signal<number | null>(null);
   receivedDateTime = signal<string>('');
-  businessTimeZone = signal<string>('Asia/Dhaka');
   isLoadingPOs = signal(false);
   isSubmitting = signal(false);
+  private seededReceivedDateTime = '';
 
   constructor(
     private grnService: GrnService,
@@ -51,30 +50,23 @@ export class GrnCreateComponent implements OnInit {
     private location: Location,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
-    private currencyService: CurrencyService,
-    private settingsService: SettingsService
-  ) {}
-
-  ngOnInit(): void {
-    this.loadBusinessTimeZone();
-    this.receivedDateTime.set(this.toDateTimeLocalString(new Date(), this.businessTimeZone()));
-    this.loadPendingPOs();
+    private currencyService: CurrencyService
+  ) {
+    // After a page refresh the time zone can arrive once the page is showing, so the default time follows it.
+    // A time the user has already entered is theirs, and is kept.
+    effect(() => {
+      const timeZone = this.companyDates.timeZone();
+      untracked(() => {
+        if (this.receivedDateTime() === this.seededReceivedDateTime) {
+          this.seededReceivedDateTime = this.toDateTimeLocalString(new Date(), timeZone);
+          this.receivedDateTime.set(this.seededReceivedDateTime);
+        }
+      });
+    });
   }
 
-  private loadBusinessTimeZone(): void {
-    this.settingsService.getCompanySettings().subscribe({
-      next: (res) => {
-        const tz = res?.data?.timeZone;
-        if (typeof tz === 'string' && tz.trim()) {
-          this.businessTimeZone.set(tz.trim());
-        }
-
-        this.receivedDateTime.set(this.toDateTimeLocalString(new Date(), this.businessTimeZone()));
-      },
-      error: () => {
-        this.receivedDateTime.set(this.toDateTimeLocalString(new Date(), this.businessTimeZone()));
-      }
-    });
+  ngOnInit(): void {
+    this.loadPendingPOs();
   }
 
   loadPendingPOs(): void {
@@ -151,7 +143,7 @@ export class GrnCreateComponent implements OnInit {
 
     const dto: CreateGrnDto = {
       poId: +this.selectedPoId()!,
-      receivedDate: this.toUtcIsoString(this.receivedDateTime(), this.businessTimeZone()),
+      receivedDate: this.toUtcIsoString(this.receivedDateTime(), this.companyDates.timeZone()),
       items: this.lineItems().map(i => ({
         poItemId: i.id,
         receivedQty: i.receivedQty
@@ -181,7 +173,7 @@ export class GrnCreateComponent implements OnInit {
 
   formatDateTime(date: string): string {
     if (!date) return '-';
-    return this.companyDates.format(date, true, this.businessTimeZone());
+    return this.companyDates.format(date, true, this.companyDates.timeZone());
   }
 
   private toDateTimeLocalString(date: Date, timeZone: string): string {

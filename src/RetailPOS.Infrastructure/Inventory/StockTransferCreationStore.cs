@@ -52,7 +52,8 @@ public sealed class StockTransferCreationStore(
                 TransferQuantity = StockTransferWriteRules.ResolveTransferQuantity(item),
                 AcceptedQuantity = 0,
                 RejectedQuantity = 0,
-                UnitCost = item.UnitCost,
+                // Set from the source weighted average at dispatch. A client value is never trusted.
+                UnitCost = 0m,
                 Remarks = item.Remarks
             }).ToList()
         };

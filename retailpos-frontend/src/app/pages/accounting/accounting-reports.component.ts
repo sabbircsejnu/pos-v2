@@ -1,3 +1,4 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -20,9 +21,10 @@ const REPORT_VIEWS: readonly AccountingReportView[] = ['general-ledger', 'trial-
   styleUrls: ['./accounting-reports.component.css']
 })
 export class AccountingReportsComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   view = signal<AccountingReportView>('general-ledger');
-  fromDate = signal(new Date().toISOString().split('T')[0]);
-  toDate = signal(new Date().toISOString().split('T')[0]);
+  fromDate = signal(this.companyToday.todayIso());
+  toDate = signal(this.companyToday.todayIso());
   ledger = signal<any[]>([]);
   reportSummary = signal<any>(null);
   isLoading = signal(false);

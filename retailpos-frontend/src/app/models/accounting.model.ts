@@ -301,6 +301,8 @@ export interface ExpenseDto {
   expenseDate: string;
   outletId?: number;
   outletName?: string;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
   status: string;
   journalEntryId?: number;
   createdAt: string;
@@ -325,6 +327,72 @@ export interface ExpenseCategoryDto {
   isActive: boolean;
 }
 
+export interface ChartAccountRow {
+  id: number;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  parentAccountId?: number | null;
+  isControlAccount: boolean;
+  allowManualPosting: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  isExpensePaymentAccount: boolean;
+  normalBalanceType?: string;
+  isSystemAccount?: boolean;
+}
+
+export interface CreateChartAccountDto {
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  normalBalanceType: string;
+  parentAccountId: number | null;
+  isControlAccount: boolean;
+  allowManualPosting: boolean;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+/** Code, type and normal balance cannot change after creation, so the API does not accept them here. */
+export interface UpdateChartAccountDto {
+  accountName: string;
+  parentAccountId: number | null;
+  isControlAccount: boolean;
+  allowManualPosting: boolean;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface ExpensePaymentAccountDto {
+  id: number;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+}
+
+/** A ledger account an expense category may be mapped to. */
+export interface ExpenseAccountOptionDto {
+  id: number;
+  accountCode: string;
+  accountName: string;
+}
+
+export interface ExpensePaymentAccountFilter {
+  paymentSource?: string;
+  outletId?: number;
+  warehouseId?: number;
+}
+
+export interface ExpenseAttachmentDto {
+  id: number;
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  createdAt: string;
+  createdBy?: number | null;
+}
+
 export interface CreateExpenseDto {
   /** bank | petty_cash | pos_drawer (server-validated; a POS drawer expense needs an outlet). */
   paymentSource?: string;
@@ -337,6 +405,7 @@ export interface CreateExpenseDto {
   attachmentPath?: string;
   expenseDate: string;
   outletId?: number;
+  warehouseId?: number;
 }
 
 export interface UpdateExpenseDto {
@@ -350,6 +419,7 @@ export interface UpdateExpenseDto {
   attachmentPath?: string;
   expenseDate: string;
   outletId?: number;
+  warehouseId?: number;
 }
 
 export interface ApproveExpenseDto {

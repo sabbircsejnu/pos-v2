@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using MediatR;
 using RetailPOS.Application.Products.Commands;
 using RetailPOS.Application.Products.Queries;
@@ -7,7 +8,8 @@ using RetailPOS.Application.Products.Queries;
 namespace RetailPOS.API.Controllers;
 
 [ApiController]
-[Authorize(Policy = "products.view")]
+// Authenticated by default; each action declares its policy so editing a product implies reading that record.
+[Authorize]
 [Route("api/products/{productId:long}/images")]
 public class ProductImagesController : ControllerBase
 {
@@ -27,6 +29,7 @@ public class ProductImagesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductRecordRead)]
     public async Task<IActionResult> List(long productId, CancellationToken cancellationToken)
     {
         var images = await _sender.Send(new GetProductImagesQuery(productId), cancellationToken);

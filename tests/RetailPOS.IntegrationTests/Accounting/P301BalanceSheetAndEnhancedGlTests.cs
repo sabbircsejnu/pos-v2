@@ -9,6 +9,8 @@ using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 using RetailPOS.Infrastructure.AccountingReports;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class P301BalanceSheetAndEnhancedGlTests
@@ -258,7 +260,7 @@ public class P301BalanceSheetAndEnhancedGlTests
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(businessId);
         var handler = new GetBalanceSheetQueryHandler(
-            new BalanceSheetReadStore(db),
+            new BalanceSheetReadStore(db, TestCompanySettings.Provider()),
             tenantScope.Object);
         return handler.Handle(new GetBalanceSheetQuery(filter), CancellationToken.None);
     }
@@ -273,7 +275,7 @@ public class P301BalanceSheetAndEnhancedGlTests
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(businessId);
         var handler = new GetComparativeBalanceSheetQueryHandler(
-            new BalanceSheetReadStore(db),
+            new BalanceSheetReadStore(db, TestCompanySettings.Provider()),
             tenantScope.Object);
         return handler.Handle(
             new GetComparativeBalanceSheetQuery(filter, comparisonAsOfDate),
@@ -305,7 +307,7 @@ public class P301BalanceSheetAndEnhancedGlTests
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(businessId);
         var handler = new GetEnhancedGeneralLedgerQueryHandler(
-            new EnhancedGeneralLedgerReadStore(db),
+            new EnhancedGeneralLedgerReadStore(db, TestCompanySettings.Provider()),
             tenantScope.Object);
         return handler.Handle(
             new GetEnhancedGeneralLedgerQuery(new EnhancedGeneralLedgerFilter(

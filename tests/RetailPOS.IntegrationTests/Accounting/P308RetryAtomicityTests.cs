@@ -19,6 +19,8 @@ using RetailPOS.Infrastructure.Grns;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Infrastructure.SupplierPayments;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public sealed class P308RetryAtomicityTests : IDisposable
@@ -142,7 +144,8 @@ public sealed class P308RetryAtomicityTests : IDisposable
                     journalStore,
                     new JournalEntryReadStore(db)),
                 config.Object,
-                new SupplierPayableRecognitionWriter(db)),
+                new SupplierPayableRecognitionWriter(db),
+                TestCompanySettings.Provider()),
             new GrnCompletionAuditWriterAdapter(audit.Object),
             NullLogger<GrnCompletionStore>.Instance);
         var authorizer = new Mock<IGrnCompletionAuthorizer>();

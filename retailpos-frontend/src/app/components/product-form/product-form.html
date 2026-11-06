@@ -84,7 +84,7 @@
 
         <app-ui-card title="Classification" subtitle="Organize products by category and prepare future-ready metadata.">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <app-ui-form-field label="Category" [required]="true" [error]="errors()['categoryId']">
+            <app-ui-form-field label="Category" [required]="true" [error]="errors()['categoryId'] || categoriesLoadError()">
               <select appUiControl [(ngModel)]="categoryId" name="categoryId">
                 <option [ngValue]="0">Select a category</option>
                 @for (category of categories(); track category.id) {
@@ -183,7 +183,7 @@
         </app-ui-card>
 
         <app-ui-card title="Media" subtitle="Upload images, set primary media, and maintain gallery quality.">
-          <app-product-image-uploader [productId]="productId()"></app-product-image-uploader>
+          <app-product-image-uploader [productId]="productId()" [canEdit]="canEditImages()"></app-product-image-uploader>
         </app-ui-card>
 
         <app-ui-card title="Inventory" subtitle="Future-ready stock setup for warehouse-driven workflows.">

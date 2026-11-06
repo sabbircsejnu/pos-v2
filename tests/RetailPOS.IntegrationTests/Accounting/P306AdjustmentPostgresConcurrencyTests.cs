@@ -25,6 +25,7 @@ public sealed class P306AdjustmentPostgresConcurrencyTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.StatementAdjustmentReversal,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))

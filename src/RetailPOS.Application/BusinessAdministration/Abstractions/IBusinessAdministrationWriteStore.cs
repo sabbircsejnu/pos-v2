@@ -33,6 +33,12 @@ public interface IBusinessAdministrationWriteStore
         int? maxUsers,
         CancellationToken cancellationToken);
 
+    Task<bool> UpdateReceiptFooterAsync(
+        long businessId,
+        bool showPoweredByOnReceipt,
+        string? poweredByText,
+        CancellationToken cancellationToken);
+
     Task<bool> UpsertFeatureSettingsAsync(
         long businessId,
         IReadOnlyList<BusinessFeatureSettingChange> features,

@@ -6,7 +6,7 @@ using RetailPOS.Application.Settings.Abstractions;
 
 namespace RetailPOS.Infrastructure.Settings;
 
-public sealed class JsonSystemSettingsStore : ISystemSettingsStore
+public sealed class JsonSystemSettingsStore : ISystemSettingsStore, ICompanyTimeZoneSnapshot
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -31,6 +31,17 @@ public sealed class JsonSystemSettingsStore : ISystemSettingsStore
 
     public Task<SystemSettings> GetAsync(CancellationToken cancellationToken) =>
         LoadSettingsAsync(cancellationToken);
+
+    public string GetCompanyTimeZoneId()
+    {
+        if (_cachedSettings is not null)
+            return _cachedSettings.Company.TimeZone;
+
+        return File.Exists(_settingsFilePath)
+            ? (JsonSerializer.Deserialize<SystemSettings>(File.ReadAllText(_settingsFilePath), JsonOptions)
+                ?? new SystemSettings()).Company.TimeZone
+            : new SystemSettings().Company.TimeZone;
+    }
 
     public Task<SystemSettings> UpdateCompanyAsync(
         CompanySettings settings,

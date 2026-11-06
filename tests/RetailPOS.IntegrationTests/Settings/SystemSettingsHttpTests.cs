@@ -48,8 +48,9 @@ public sealed class SystemSettingsHttpTests : IClassFixture<RetailPosApiFactory>
         using (var body = await JsonDocument.ParseAsync(await formatting.Content.ReadAsStreamAsync()))
         {
             var data = body.RootElement.GetProperty("data");
-            Assert.Single(data.EnumerateObject());
+            Assert.Equal(["dateFormat", "timeZone"], data.EnumerateObject().Select(property => property.Name).Order());
             Assert.False(string.IsNullOrWhiteSpace(data.GetProperty("dateFormat").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(data.GetProperty("timeZone").GetString()));
         }
         using var currencyWithoutPermission = await noPermissions.GetAsync("/api/settings/currency");
         Assert.Equal(HttpStatusCode.OK, currencyWithoutPermission.StatusCode);

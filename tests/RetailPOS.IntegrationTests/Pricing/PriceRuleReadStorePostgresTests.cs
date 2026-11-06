@@ -16,6 +16,7 @@ public sealed class PriceRuleReadStorePostgresTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.PricingRuleRead,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 var options = new DbContextOptionsBuilder<RetailPOSDbContext>()

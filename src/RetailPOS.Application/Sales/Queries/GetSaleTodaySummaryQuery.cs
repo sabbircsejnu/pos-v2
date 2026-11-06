@@ -1,3 +1,5 @@
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Sales.Abstractions;
@@ -8,19 +10,26 @@ namespace RetailPOS.Application.Sales.Queries;
 public sealed record GetSaleTodaySummaryQuery(long? OutletId)
     : IQuery<SaleTodaySummaryReadModel>;
 
-public sealed class GetSaleTodaySummaryQueryHandler(ISaleTodaySummaryReadStore store)
+public sealed class GetSaleTodaySummaryQueryHandler(
+    ISaleTodaySummaryReadStore store,
+    ISaleReadScopeProvider scopeProvider,
+    ICurrentCompanyTimeZone companyTimeZone)
     : IRequestHandler<GetSaleTodaySummaryQuery, SaleTodaySummaryReadModel>
 {
     public async Task<SaleTodaySummaryReadModel> Handle(
         GetSaleTodaySummaryQuery request,
         CancellationToken cancellationToken)
     {
-        var startUtc = DateTime.UtcNow.Date;
+        var scope = await scopeProvider.GetAsync(request.OutletId, cancellationToken);
+        var zone = await companyTimeZone.GetTimeZoneIdAsync(cancellationToken);
+        var today = CompanyDates.CalendarDateOf(DateTime.UtcNow, zone);
+        var (startUtc, endExclusiveUtc) = CompanyDates.DayWindow(today, today, zone);
         var lines = await store.GetAsync(
-            request.OutletId,
-            startUtc,
-            startUtc.AddDays(1),
+            scope,
+            startUtc!.Value,
+            endExclusiveUtc!.Value,
             cancellationToken);
+
         var paymentBreakdown = lines
             .GroupBy(sale => sale.PaymentMethod)
             .ToDictionary(

@@ -16,8 +16,8 @@ export interface ProductImage {
 }
 
 export const PRODUCT_IMAGE_RULES = {
-  minDim: 800,
-  maxDim: 1200,
+  minDim: 200,
+  maxPixels: 50_000_000,
   maxBytes: 5 * 1024 * 1024,
   allowedMimes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as string[],
   allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp'] as string[],

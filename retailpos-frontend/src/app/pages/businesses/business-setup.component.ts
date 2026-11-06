@@ -1,10 +1,14 @@
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BusinessService } from '../../services/business.service';
+import { AuthService } from '../../services/auth.service';
+import { UiBadgeComponent } from '../../components/shared/ui/ui-badge.component';
+import { UiButtonComponent } from '../../components/shared/ui/ui-button.component';
+import { BusinessReceiptFooterFieldsComponent } from './business-receipt-footer-fields.component';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import {
@@ -20,14 +24,21 @@ type SetupTab = 'info' | 'owner' | 'outlets' | 'warehouses' | 'settings';
 @Component({
   selector: 'app-business-setup',
   standalone: true,
-  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule],
+  imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule, BusinessReceiptFooterFieldsComponent, UiButtonComponent, UiBadgeComponent],
   templateUrl: './business-setup.component.html'
 })
 export class BusinessSetupComponent implements OnInit {
+  private readonly authService = inject(AuthService);
+
   businessId = signal<number>(0);
   business = signal<BusinessSummaryDto | null>(null);
   activeTab = signal<SetupTab>('info');
   isLoading = signal(false);
+
+  // Settings tab: platform-controlled receipt footer
+  showPoweredBy = signal(false);
+  poweredByText = signal('');
+  receiptFooterSaving = signal(false);
 
   // Owner tab
   resetToken = signal<string | null>(null);
@@ -79,6 +90,8 @@ export class BusinessSetupComponent implements OnInit {
       next: (res) => {
         this.business.set(res.data ?? null);
         if (res.data) {
+          this.showPoweredBy.set(!!res.data.showPoweredByOnReceipt);
+          this.poweredByText.set(res.data.poweredByText ?? '');
           this.subscriptionForm.set({
             subscriptionPlan: res.data.subscriptionPlan,
             trialEndsAt: res.data.trialEndsAt,
@@ -317,6 +330,39 @@ export class BusinessSetupComponent implements OnInit {
       },
       error: (err) => {
         this.settingsLoading.set(false);
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+      }
+    });
+  }
+
+  /** From the last saved values, not the form: what receipts print right now. */
+  receiptFooterPrints(): boolean {
+    const saved = this.business();
+    return !!saved?.showPoweredByOnReceipt && !!saved.poweredByText?.trim();
+  }
+
+  get canManagePoweredBy(): boolean {
+    return this.authService.isSuperAdmin();
+  }
+
+  saveReceiptFooter(): void {
+    if (this.receiptFooterSaving() || !this.canManagePoweredBy) return;
+    this.receiptFooterSaving.set(true);
+    this.businessService.updateReceiptFooter(this.businessId(), {
+      showPoweredByOnReceipt: this.showPoweredBy(),
+      poweredByText: this.poweredByText().trim() || null
+    }).subscribe({
+      next: (res) => {
+        this.receiptFooterSaving.set(false);
+        this.business.set(res.data ?? null);
+        this.showPoweredBy.set(!!res.data?.showPoweredByOnReceipt);
+        this.poweredByText.set(res.data?.poweredByText ?? '');
+        this.alertService.success(this.receiptFooterPrints()
+          ? 'Receipt footer saved. It now prints on receipts.'
+          : 'Receipt footer saved. It does not print on receipts.');
+      },
+      error: (err) => {
+        this.receiptFooterSaving.set(false);
         this.alertService.error(this.errorHandler.extractErrorMessage(err));
       }
     });

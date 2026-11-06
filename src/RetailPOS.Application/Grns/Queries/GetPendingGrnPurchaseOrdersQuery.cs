@@ -10,14 +10,14 @@ public sealed record GetPendingGrnPurchaseOrdersQuery
 
 public sealed class GetPendingGrnPurchaseOrdersQueryHandler(
     IPendingGrnPurchaseOrderReadStore store,
-    IGrnTenantScope tenantScope)
+    IGrnReadScopeProvider scopeProvider)
     : IRequestHandler<GetPendingGrnPurchaseOrdersQuery, IReadOnlyList<PendingGrnPurchaseOrderReadModel>>
 {
     public async Task<IReadOnlyList<PendingGrnPurchaseOrderReadModel>> Handle(
         GetPendingGrnPurchaseOrdersQuery request,
         CancellationToken cancellationToken)
     {
-        var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
-        return await store.FindPendingAsync(businessId, cancellationToken);
+        var scope = await scopeProvider.GetAsync(cancellationToken);
+        return await store.FindPendingAsync(scope, cancellationToken);
     }
 }

@@ -126,21 +126,15 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
 
   // ── Filters ────────────────────────────────────────────────────────
 
-  private fmt(d: Date): string {
-    return d.toISOString().substring(0, 10);
-  }
-
   setThisMonth(): void {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    this.dateFrom.set(this.fmt(start));
-    this.dateTo.set(this.fmt(new Date()));
+    this.dateFrom.set(this.companyDates.firstOfMonthIso());
+    this.dateTo.set(this.companyDates.todayIso());
   }
 
   /**
    * Populate the location dropdown from the authorization payload.
    * - Single authorized outlet → auto-select.
-   * - Multiple → default to the user's home outlet.
+   * - Multiple → default to the user's home outlet, or their default location (e.g. warehouse-only users).
    * - BusinessOwner → all outlets/warehouses, default = active outlet (or "All").
    */
   private applyAuthorizedLocations(): void {
@@ -159,6 +153,11 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
       defaultKey = `${merged[0].type}:${merged[0].id}`;
     } else if (auth.defaultOutletId) {
       const match = merged.find(l => l.type === 'outlet' && l.id === auth.defaultOutletId);
+      if (match) defaultKey = `${match.type}:${match.id}`;
+    }
+    if (!defaultKey && !auth.isBusinessOwner) {
+      const match = merged.find(l => l.type === auth.defaultLocationType && l.id === auth.defaultLocationId)
+        ?? merged[0];
       if (match) defaultKey = `${match.type}:${match.id}`;
     }
 
@@ -358,8 +357,12 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
   // ── Display helpers ───────────────────────────────────────────────
 
   formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return this.companyDates.format(d, true);
+    return this.companyDates.format(new Date(dateStr), true, this.companyDates.timeZone());
+  }
+
+  /** The report's From/To are calendar dates, whatever time part the API serialises with them. */
+  formatCalendarDate(dateStr?: string): string {
+    return dateStr ? this.companyDates.format(dateStr.slice(0, 10)) : '—';
   }
 
   formatAttributes(json?: string): string {
@@ -384,6 +387,11 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
       case 'adjustment':    return 'Stock Adjustment';
       case 'transfer_in':   return 'Transfer In';
       case 'transfer_out':  return 'Transfer Out';
+      case 'return_transfer_in':  return 'Return Transfer In';
+      case 'return_transfer_out': return 'Return Transfer Out';
+      case 'transfer_rejection':  return 'Transfer Rejected';
+      case 'transfer_discrepancy': return 'Transfer Discrepancy';
+      case 'cost_correction': return 'Cost Correction';
       default:              return type;
     }
   }
@@ -393,11 +401,14 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
       case 'grn':
       case 'transfer_in':
       case 'return':
+      case 'return_transfer_in':
         return 'bg-green-100 text-green-800';
       case 'sale':
       case 'transfer_out':
+      case 'return_transfer_out':
         return 'bg-red-100 text-red-800';
       case 'adjustment':
+      case 'transfer_discrepancy':
         return 'bg-yellow-100 text-yellow-800';
       case 'exchange':
         return 'bg-blue-100 text-blue-800';
@@ -411,7 +422,7 @@ export class StockTransactionReportComponent implements OnInit, OnDestroy {
       case 'sale':              return `/sales/${id}`;
       case 'grn':               return `/grn/${id}`;
       case 'stock_transfer':    return `/stock-transfers/${id}`;
-      case 'stock_adjustment':  return `/stock-adjustments`;
+      case 'stock_adjustment':  return `/stock-adjustments/${id}`;
       default:                  return null;
     }
   }

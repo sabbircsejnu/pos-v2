@@ -8,7 +8,9 @@ public sealed record StockTransferReceiveItemInput(
     long VariantId,
     int AcceptedQuantity,
     int RejectedQuantity,
-    string? Remarks);
+    string? Remarks,
+    int MissingQuantity = 0,
+    int DamagedQuantity = 0);
 
 public sealed record StockTransferReceiveResult(
     long TransferId,

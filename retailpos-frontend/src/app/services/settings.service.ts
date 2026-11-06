@@ -30,14 +30,15 @@ export class SettingsService {
     this.isLoading.set(true);
     return this.http.get<any>(this.settingsUrl).pipe(
       tap({
-        next: (res) => { this.allSettings.set(res.data); this.dates.setFormat(res.data.company.dateFormat); this.isLoading.set(false); },
+        next: (res) => {
+          this.allSettings.set(res.data);
+          this.dates.setFormat(res.data.company.dateFormat);
+          this.dates.setTimeZone(res.data.company.timeZone);
+          this.isLoading.set(false);
+        },
         error: () => this.isLoading.set(false)
       })
     );
-  }
-
-  getCompanySettings(): Observable<any> {
-    return this.http.get<any>(`${this.settingsUrl}/company`);
   }
 
   getCurrencySettings(): Observable<any> {
@@ -71,7 +72,10 @@ export class SettingsService {
 
   updateCompanySettings(dto: CompanySettings): Observable<any> {
     return this.http.put<any>(`${this.settingsUrl}/company`, dto).pipe(
-      tap(response => this.dates.setFormat(response.data?.company?.dateFormat ?? dto.dateFormat))
+      tap(response => {
+        this.dates.setFormat(response.data?.company?.dateFormat ?? dto.dateFormat);
+        this.dates.setTimeZone(response.data?.company?.timeZone ?? dto.timeZone);
+      })
     );
   }
 

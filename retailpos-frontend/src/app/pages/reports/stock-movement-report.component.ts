@@ -1,5 +1,5 @@
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -10,6 +10,7 @@ import { CategoryService } from '../../services/category.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { CompanyDateService } from '../../services/company-date.service';
 
 @Component({
   selector: 'app-stock-movement-report',
@@ -19,6 +20,7 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./stock-movement-report.component.css']
 })
 export class StockMovementReportComponent implements OnInit, OnDestroy {
+  private readonly companyDates = inject(CompanyDateService);
   // ── Filters ───────────────────────────────────────────────────────────────
   outletId    = signal<number | null>(null);
   warehouseId = signal<number | null>(null);
@@ -79,29 +81,26 @@ export class StockMovementReportComponent implements OnInit, OnDestroy {
   );
 
   // ── Date helpers ──────────────────────────────────────────────────────────
-  private fmt(d: Date): string { return d.toISOString().substring(0, 10); }
-
   setToday(): void {
-    const t = this.fmt(new Date());
-    this.dateFrom.set(t); this.dateTo.set(t);
+    const today = this.companyDates.todayIso();
+    this.dateFrom.set(today); this.dateTo.set(today);
   }
 
   setThisMonth(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getFullYear(), now.getMonth(), 1)));
-    this.dateTo.set(this.fmt(now));
+    this.dateFrom.set(this.companyDates.firstOfMonthIso());
+    this.dateTo.set(this.companyDates.todayIso());
   }
 
   setLastMonth(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
-    this.dateTo.set(this.fmt(new Date(now.getFullYear(), now.getMonth(), 0)));
+    const today = this.companyDates.todayIso();
+    const lastDay = this.companyDates.todayIso(-Number(today.slice(8)));
+    this.dateFrom.set(`${lastDay.slice(0, 8)}01`);
+    this.dateTo.set(lastDay);
   }
 
   setLast30Days(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getTime() - 30 * 86400000)));
-    this.dateTo.set(this.fmt(now));
+    this.dateFrom.set(this.companyDates.todayIso(-30));
+    this.dateTo.set(this.companyDates.todayIso());
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────

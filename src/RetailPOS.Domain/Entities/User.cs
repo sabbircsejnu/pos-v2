@@ -5,6 +5,10 @@ public class User
     public const string InventoryAccessAssignedOnly = "assigned_only";
     public const string InventoryAccessSpecific = "specific_locations";
     public const string InventoryAccessAll = "all_locations";
+    public const string ContextLocationSelected = "selected";
+    public const string ContextLocationAll = "all";
+    public const string ContextRoleMapped = "mapped";
+    public const string ContextRoleAll = "all";
 
     public long Id { get; set; }
     public long? BusinessId { get; set; }
@@ -15,6 +19,9 @@ public class User
     public long? OutletId { get; set; }
     public string PermissionOverrides { get; set; } = "[]";
     public string InventoryLocationAccessScope { get; set; } = InventoryAccessAssignedOnly;
+    public bool ContextSwitchEnabled { get; set; }
+    public string ContextLocationScope { get; set; } = ContextLocationSelected;
+    public string ContextRoleScope { get; set; } = ContextRoleMapped;
     public bool IsActive { get; set; } = true;
     public bool MustResetPassword { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -28,6 +35,7 @@ public class User
     public virtual ICollection<UserRefreshToken> RefreshTokens { get; set; } = new List<UserRefreshToken>();
     public virtual ICollection<UserWarehouseAssignment> WarehouseAssignments { get; set; } = new List<UserWarehouseAssignment>();
     public virtual ICollection<UserOutletAssignment> OutletAssignments { get; set; } = new List<UserOutletAssignment>();
+    public virtual ICollection<UserContextRole> ContextRoles { get; set; } = new List<UserContextRole>();
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
     public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
     public virtual ICollection<Grn> Grns { get; set; } = new List<Grn>();

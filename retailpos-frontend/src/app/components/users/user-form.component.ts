@@ -7,7 +7,14 @@ import { RoleService } from '../../services/role.service';
 import { OutletService } from '../../services/outlet.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { CreateUserDto, UpdateUserDto, InventoryLocationAccessScope } from '../../models/user.model';
+import { AuthService } from '../../services/auth.service';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  InventoryLocationAccessScope,
+  UserContextAccess,
+  UserContextRoleOption
+} from '../../models/user.model';
 import { Role } from '../../models/role.model';
 import { Outlet } from '../../models/outlet.model';
 import { Warehouse } from '../../models/warehouse.model';
@@ -21,13 +28,23 @@ import { Warehouse } from '../../models/warehouse.model';
 })
 export class UserFormComponent implements OnInit {
   readonly backdatedPermissionKey = 'sales.backdate';
-  readonly wizardSteps = [
+  private readonly baseWizardSteps = [
     { title: 'Basic Information', subtitle: 'Identity, role, and active state' },
     { title: 'Permissions', subtitle: 'Role and user-level permission overrides' },
     { title: 'Inventory Location Access', subtitle: 'Access scope for locations' },
     { title: 'Default Inventory Location', subtitle: 'Starting location for operations' },
     { title: 'Outlet/Warehouse Assignments', subtitle: 'Assigned outlets and warehouses' }
   ];
+  private readonly contextWizardStep = {
+    title: 'Context Switching',
+    subtitle: 'Roles and locations this user may switch to'
+  };
+
+  get wizardSteps(): { title: string; subtitle: string }[] {
+    return this.showContextStep()
+      ? [...this.baseWizardSteps, this.contextWizardStep]
+      : this.baseWizardSteps;
+  }
 
   private fb = inject(FormBuilder);
   private router = inject(Router);
@@ -38,6 +55,7 @@ export class UserFormComponent implements OnInit {
   private outletService = inject(OutletService);
   private warehouseService = inject(WarehouseService);
   private errorHandler = inject(ErrorHandlerService);
+  private authService = inject(AuthService);
 
   userForm!: FormGroup;
   isEditMode = signal(false);
@@ -54,6 +72,11 @@ export class UserFormComponent implements OnInit {
   showConfirmPassword = signal(false);
   selectedInventoryScope = signal<InventoryLocationAccessScope>('assigned_only');
   editingBusinessId = signal<number | null>(null);
+  contextRoleOptions = signal<UserContextRoleOption[]>([]);
+
+  // Usability only: the server re-checks both permissions on save.
+  readonly canManageContextAccess = this.authService.hasPermission('users.context_access.manage');
+  readonly canGrantAllContextAccess = this.authService.hasPermission('users.context_access.grant_all');
 
   isAssignedOnlyScope = computed(() => this.selectedInventoryScope() === 'assigned_only');
   isSpecificScope = computed(() => this.selectedInventoryScope() === 'specific_locations');
@@ -65,6 +88,9 @@ export class UserFormComponent implements OnInit {
     this.loadPermissionCatalog();
     this.loadOutlets();
     this.loadWarehouses();
+    if (this.canManageContextAccess) {
+      this.loadContextRoleOptions();
+    }
     
     // Watch for role changes to update signal and validators
     if (this.userForm) {
@@ -102,6 +128,10 @@ export class UserFormComponent implements OnInit {
       defaultLocationType: ['outlet'],
       defaultLocationId: [null],
       inventoryLocationAccessScope: ['assigned_only', Validators.required],
+      contextSwitchEnabled: [false],
+      contextLocationScope: ['selected'],
+      contextRoleScope: ['mapped'],
+      contextRoleIds: [[]],
       isActive: [true]
     });
   }
@@ -179,6 +209,51 @@ export class UserFormComponent implements OnInit {
     });
   }
 
+  loadContextRoleOptions(businessId?: number | null): void {
+    this.userService.getContextRoleOptions(businessId).subscribe({
+      next: (roles) => this.contextRoleOptions.set(roles),
+      error: () => this.contextRoleOptions.set([])
+    });
+  }
+
+  /** Owners already have this access, and platform administrators never switch into a business. */
+  showContextStep(): boolean {
+    if (!this.canManageContextAccess) {
+      return false;
+    }
+
+    const roleId = this.userForm?.get('roleId')?.value;
+    const roleName = this.roles().find(role => role.id === roleId)?.name;
+    return roleName !== 'BusinessOwner' && roleName !== 'Super Admin';
+  }
+
+  isContextRoleSelected(roleId: number): boolean {
+    return (this.userForm.get('contextRoleIds')?.value || []).includes(roleId);
+  }
+
+  toggleContextRole(roleId: number): void {
+    const selected: number[] = this.userForm.get('contextRoleIds')?.value || [];
+    this.userForm.patchValue({
+      contextRoleIds: selected.includes(roleId)
+        ? selected.filter(id => id !== roleId)
+        : [...selected, roleId]
+    });
+  }
+
+  private contextAccessPayload(): UserContextAccess | undefined {
+    if (!this.showContextStep()) {
+      return undefined;
+    }
+
+    const value = this.userForm.value;
+    return {
+      enabled: !!value.contextSwitchEnabled,
+      locationScope: value.contextLocationScope,
+      roleScope: value.contextRoleScope,
+      roleIds: value.contextRoleScope === 'mapped' ? (value.contextRoleIds || []) : []
+    };
+  }
+
   loadUser(id: number): void {
     this.isLoading.set(true);
     this.userService.getUserById(id).subscribe({
@@ -202,10 +277,17 @@ export class UserFormComponent implements OnInit {
           userPermissions: user.userPermissions || user.permissions || [],
           warehouseIds: warehouseIds,
           defaultLocationType: user.defaultLocationType || (user.outletId ? 'outlet' : (warehouseIds.length > 0 ? 'warehouse' : 'outlet')),
-          defaultLocationId: user.defaultLocationId || user.outletId || warehouseIds[0] || null,
+          defaultLocationId: user.defaultLocationId || user.outletId || null,
           inventoryLocationAccessScope: user.inventoryLocationAccessScope || 'assigned_only',
+          contextSwitchEnabled: user.contextAccess?.enabled ?? false,
+          contextLocationScope: user.contextAccess?.locationScope ?? 'selected',
+          contextRoleScope: user.contextAccess?.roleScope ?? 'mapped',
+          contextRoleIds: user.contextAccess?.roleIds ?? [],
           isActive: user.isActive
         });
+        if (this.canManageContextAccess && this.authService.isSuperAdmin()) {
+          this.loadContextRoleOptions(user.businessId);
+        }
 
         this.selectedInventoryScope.set((user.inventoryLocationAccessScope as InventoryLocationAccessScope) || 'assigned_only');
         this.updateFieldValidators();
@@ -241,16 +323,11 @@ export class UserFormComponent implements OnInit {
     const warehouseIds: number[] = this.userForm.get('warehouseIds')?.value || [];
     const defaultLocationType: 'outlet' | 'warehouse' = this.userForm.get('defaultLocationType')?.value || 'outlet';
     const defaultLocationId: number | null = this.userForm.get('defaultLocationId')?.value;
-    const outletId: number | null = defaultLocationType === 'outlet' ? defaultLocationId : null;
     const accessScope: InventoryLocationAccessScope = this.userForm.get('inventoryLocationAccessScope')?.value || 'assigned_only';
 
-    if (!defaultLocationId) {
-      this.error.set('Default inventory location is required.');
-      return;
-    }
-
-    if (accessScope === 'assigned_only' && defaultLocationType === 'warehouse' && warehouseIds.length === 0) {
-      this.error.set('Assigned Location Only requires at least one assigned warehouse when default location type is warehouse.');
+    const hasDefaultOutlet = defaultLocationType === 'outlet' && !!defaultLocationId;
+    if (accessScope === 'assigned_only' && !hasDefaultOutlet && warehouseIds.length === 0) {
+      this.error.set('Assigned Location Only requires a default outlet or at least one assigned warehouse.');
       return;
     }
 
@@ -259,15 +336,32 @@ export class UserFormComponent implements OnInit {
       return;
     }
 
-    if (accessScope === 'specific_locations') {
-      const defaultInAssigned = defaultLocationType === 'outlet'
-        ? outletIds.includes(defaultLocationId)
-        : warehouseIds.includes(defaultLocationId);
+    if (defaultLocationId) {
+      const assignedOfType = defaultLocationType === 'outlet' ? outletIds : warehouseIds;
 
-      if (!defaultInAssigned) {
+      // A default warehouse is stored as the primary warehouse assignment, in every scope.
+      if (defaultLocationType === 'warehouse' && !assignedOfType.includes(defaultLocationId)) {
+        this.error.set('Select the default warehouse under Warehouse Assignments as well.');
+        return;
+      }
+
+      const mustBeAssigned = accessScope === 'specific_locations'
+        || (accessScope === 'assigned_only' && assignedOfType.length > 0);
+      if (mustBeAssigned && !assignedOfType.includes(defaultLocationId)) {
         this.error.set('For this scope, default inventory location should be one of the assigned locations.');
         return;
       }
+    }
+
+    // An empty selection is never "all locations", so it would leave nothing to switch to.
+    const context = this.contextAccessPayload();
+    if (context?.enabled
+      && context.locationScope === 'selected'
+      && outletIds.length === 0
+      && warehouseIds.length === 0
+      && !hasDefaultOutlet) {
+      this.error.set('Selected Locations needs at least one assigned outlet or warehouse to switch to.');
+      return;
     }
 
     this.isLoading.set(true);
@@ -313,6 +407,7 @@ export class UserFormComponent implements OnInit {
       defaultLocationId: formValue.defaultLocationId || undefined,
       inventoryLocationAccessScope: formValue.inventoryLocationAccessScope,
       userPermissions: formValue.userPermissions || [],
+      contextAccess: this.contextAccessPayload(),
       isActive: formValue.isActive
     };
 
@@ -350,6 +445,7 @@ export class UserFormComponent implements OnInit {
       defaultLocationId: formValue.defaultLocationId || undefined,
       inventoryLocationAccessScope: formValue.inventoryLocationAccessScope,
       userPermissions: formValue.userPermissions || [],
+      contextAccess: this.contextAccessPayload(),
       isActive: formValue.isActive
     };
 

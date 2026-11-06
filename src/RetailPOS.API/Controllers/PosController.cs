@@ -8,6 +8,8 @@ using RetailPOS.API.Services;
 using RetailPOS.Application.Pos.Queries;
 using RetailPOS.Application.Pos.ReadModels;
 using RetailPOS.Application.Pos.Commands;
+using RetailPOS.Application.Customers.Commands;
+using RetailPOS.Application.Customers.Queries;
 
 namespace RetailPOS.API.Controllers;
 
@@ -21,6 +23,10 @@ namespace RetailPOS.API.Controllers;
 //   • POS-role clarity — endpoints named and scoped for POS terminal use
 //
 // Endpoint map:
+//   GET  /api/pos/catalogue   – sellable variant browser (Business-scoped, outlet stock)
+//   GET  /api/pos/categories  – active categories for the POS filter
+//   GET  /api/pos/customers/search – minimal customer picker for checkout (name/phone)
+//   POST /api/pos/customers   – Quick Customer from checkout (name + phone)
 //   GET  /api/pos/lookup      – barcode / SKU / variantId scan → product + price + stock hint
 //   GET  /api/pos/stock-hint  – per-variant stock availability check (display, not gating)
 //   POST /api/pos/cart-prices – batch price calculation for active cart lines
@@ -170,6 +176,139 @@ public class PosController : ControllerBase
                 Code = terminal.Code,
                 IsDefault = terminal.IsDefault
             }).ToList()));
+    }
+
+    // ── GET /api/pos/catalogue ────────────────────────────────────────────────
+
+    /// <summary>
+    /// POS product browser: sellable (active) variants of the caller's Business with stock at the
+    /// requested outlet. Authorized by sales.create like every POS read, so a seller never needs the
+    /// Product Management permission. ListPrice is a display hint; the cart re-prices server-side.
+    ///
+    /// Query parameters:
+    ///   outletId   – optional; authorized like /lookup and used for the stock quantity
+    ///   categoryId – optional category filter
+    ///   q          – optional name / SKU / barcode / product-code search
+    ///   limit      – 1..500 (default 200)
+    /// </summary>
+    [HttpGet("catalogue")]
+    [ProducesResponseType(typeof(ApiResponse<List<PosCatalogueItemDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<PosCatalogueItemDto>>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<List<PosCatalogueItemDto>>), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<List<PosCatalogueItemDto>>>> Catalogue(
+        [FromQuery] long?   outletId   = null,
+        [FromQuery] long?   categoryId = null,
+        [FromQuery] string? q          = null,
+        [FromQuery] int     limit      = 200,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit < 1 || limit > 500)
+            return BadRequest(ApiResponse<List<PosCatalogueItemDto>>.ErrorResponse("limit must be between 1 and 500."));
+
+        if (outletId.HasValue)
+        {
+            try
+            {
+                outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    ApiResponse<List<PosCatalogueItemDto>>.ErrorResponse(ex.Message));
+            }
+        }
+
+        var items = await _sender.Send(
+            new GetPosCatalogueQuery(new PosCatalogueCriteria(q, categoryId, outletId, limit)),
+            cancellationToken);
+        return Ok(ApiResponse<List<PosCatalogueItemDto>>.SuccessResponse(items
+            .Select(item => new PosCatalogueItemDto
+            {
+                VariantId = item.VariantId,
+                ProductId = item.ProductId,
+                ProductName = item.ProductName,
+                VariantName = item.VariantName,
+                ProductCode = item.ProductCode,
+                Sku = item.Sku,
+                Barcode = item.Barcode,
+                Attributes = item.Attributes,
+                CategoryId = item.CategoryId,
+                CategoryName = item.CategoryName,
+                ListPrice = item.ListPrice,
+                PrimaryImageThumb = item.PrimaryImageThumb,
+                StockQty = item.StockQty
+            })
+            .ToList()));
+    }
+
+    // ── GET /api/pos/categories ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Active categories of the caller's Business for the POS category filter. Authorized by
+    /// sales.create; Category Management (categories.view) is not required.
+    /// </summary>
+    [HttpGet("categories")]
+    [ProducesResponseType(typeof(ApiResponse<List<PosCategoryDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<List<PosCategoryDto>>>> Categories(
+        CancellationToken cancellationToken = default)
+    {
+        var categories = await _sender.Send(new GetPosCategoriesQuery(), cancellationToken);
+        return Ok(ApiResponse<List<PosCategoryDto>>.SuccessResponse(categories
+            .Select(category => new PosCategoryDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                ParentCategoryId = category.ParentCategoryId,
+                DisplayOrder = category.DisplayOrder
+            })
+            .ToList()));
+    }
+
+    // ── GET /api/pos/customers/search ─────────────────────────────────────────
+
+    /// <summary>
+    /// Customer picker for POS Checkout. Authorized by sales.create; Customer Management (customers.view)
+    /// is not required. Business-scoped, active-only, 10-row search by name or phone (never email) that returns
+    /// only what checkout needs (no email, loyalty balance, purchase totals or creation date).
+    /// </summary>
+    [HttpGet("customers/search")]
+    [ProducesResponseType(typeof(ApiResponse<List<PosCustomerLookupDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<List<PosCustomerLookupDto>>>> SearchCustomers(
+        [FromQuery] string? q,
+        CancellationToken cancellationToken = default)
+    {
+        var customers = await _sender.Send(new PosQuickSearchCustomersQuery(q ?? string.Empty), cancellationToken);
+        return Ok(ApiResponse<List<PosCustomerLookupDto>>.SuccessResponse(customers
+            .Select(customer => new PosCustomerLookupDto
+            {
+                Id = customer.Id,
+                Name = customer.Name ?? string.Empty,
+                Phone = customer.Phone
+            })
+            .ToList()));
+    }
+
+    // ── POST /api/pos/customers ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Quick Customer from POS Checkout. Authorized by sales.create; Customer Management (customers.create) is not
+    /// required. Reuses the customer creation use case: the Business comes from the server-side scope, the phone is
+    /// normalized and unique per Business (409 CUSTOMER_PHONE_EXISTS with the existing customer's id, name and phone,
+    /// also for a concurrent duplicate), and no loyalty points are granted or redeemed.
+    /// </summary>
+    [HttpPost("customers")]
+    [ProducesResponseType(typeof(ApiResponse<PosCustomerLookupDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<PosCustomerLookupDto>>> CreateCustomer(
+        [FromBody] CreatePosCustomerDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var customer = await _sender.Send(new CreateCustomerCommand(dto.Name, dto.Phone, null), cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, ApiResponse<PosCustomerLookupDto>.SuccessResponse(
+            new PosCustomerLookupDto { Id = customer.Id, Name = customer.Name ?? string.Empty, Phone = customer.Phone },
+            "Customer created"));
     }
 
     // ── GET /api/pos/lookup ───────────────────────────────────────────────────

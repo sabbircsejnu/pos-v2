@@ -64,38 +64,62 @@
           <p class="mt-1 text-xs text-gray-500">{{ selectedSource().description }}</p>
         </div>
 
-        <!-- Payment Account -->
+        <!-- Payment Account: where the money comes from; the category above decides which ledger the expense hits. -->
         <div class="mb-4">
-          <label for="paymentAccountId" class="label">Payment Account <span class="text-red-500">*</span></label>
-          @if (paymentAccounts(); as accounts) {
-            <app-searchable-dropdown
-              #accountDropdown
-              placeholder="Search cash, bank or liability account..."
-              ariaLabel="Payment account"
-              [selectedId]="expenseForm.value.paymentAccountId"
-              [disabled]="isSubmitting()"
-              [clearable]="true"
-              (onSearch)="onAccountSearch($event)"
-              (onLoadMore)="onAccountSearch($event)"
-              (onSelect)="onAccountSelect($event)"
-              (cleared)="onAccountCleared()">
-            </app-searchable-dropdown>
-          } @else {
-            <input type="number" id="paymentAccountId" formControlName="paymentAccountId" class="input"
-                   min="1" placeholder="Chart account ID (account list unavailable)"
-                   [class.border-red-500]="isFieldInvalid('paymentAccountId')" />
-            <p class="mt-1 text-xs text-gray-500">The account list could not be loaded for your role; enter the account ID. The server validates it.</p>
+          <label class="label" id="paymentAccountLabel">Payment Account <span class="text-red-500">*</span></label>
+          @switch (accountsState()) {
+            @case ('loading') {
+              <app-ui-state kind="loading" title="Loading payment accounts" [compact]="true" />
+            }
+            @case ('error') {
+              <app-ui-state kind="error" title="Could not load payment accounts" [message]="accountsError() ?? ''" [compact]="true">
+                <button appUiButton variant="outline" size="sm" (click)="loadPaymentAccounts()">Retry</button>
+              </app-ui-state>
+            }
+            @default {
+              @if (paymentAccounts().length === 0) {
+                <app-ui-state kind="empty" title="No payment account for this source"
+                              [message]="emptyAccountsMessage()" [compact]="true" />
+              } @else {
+                <app-searchable-dropdown
+                  #accountDropdown
+                  placeholder="Search payment accounts..."
+                  ariaLabel="Payment account"
+                  [selectedId]="expenseForm.value.paymentAccountId"
+                  [disabled]="isSubmitting() || isDrawerAccountFixed()"
+                  [clearable]="!isDrawerAccountFixed()"
+                  (onSearch)="onAccountSearch($event)"
+                  (onLoadMore)="onAccountSearch($event)"
+                  (onSelect)="onAccountSelect($event)"
+                  (cleared)="onAccountCleared()">
+                </app-searchable-dropdown>
+              }
+            }
+          }
+          @if (isDrawerAccountFixed()) {
+            <p class="mt-1 text-xs text-gray-500">The outlet's cash account, set in Accounting Configuration.</p>
+          }
+          @if (paymentAccountNotice()) {
+            <p class="mt-1 text-sm text-red-600" role="alert">{{ paymentAccountNotice() }}</p>
           }
           @if (isFieldInvalid('paymentAccountId')) {
             <p class="mt-1 text-sm text-red-600">Payment account is required</p>
           }
         </div>
 
-        <!-- Reference Number -->
+        <!-- Expense Reference: issued by the server and never edited. -->
         <div class="mb-4">
-          <label for="referenceNumber" class="label">Reference Number</label>
+          <app-ui-form-field label="Expense Reference"
+                             [hint]="isEditMode() ? 'Issued when the expense was created; it cannot change.' : 'Generated when you save.'">
+            <input appUiControl type="text" [value]="expenseNumber() ?? 'Generated on save'" readonly aria-readonly="true" />
+          </app-ui-form-field>
+        </div>
+
+        <!-- External Reference -->
+        <div class="mb-4">
+          <label for="referenceNumber" class="label">External Reference</label>
           <input type="text" id="referenceNumber" formControlName="referenceNumber" class="input"
-                 placeholder="Invoice, receipt, or external reference" />
+                 placeholder="Supplier invoice or receipt number" />
         </div>
 
         <!-- Expense Date -->
@@ -115,21 +139,48 @@
                     placeholder="Optional notes about this expense"></textarea>
         </div>
 
-        <!-- Outlet: required for a POS drawer expense (the drawer of that outlet pays it). -->
-        <div class="mb-6">
-          <label for="outletId" class="label">Outlet
-            @if (isDrawerSource()) { <span class="text-red-500">*</span> } @else { <span class="text-xs text-gray-400">(optional)</span> }
-          </label>
-          <select id="outletId" formControlName="outletId" class="input"
-                  [class.border-red-500]="isDrawerSource() && expenseForm.get('outletId')?.touched && !expenseForm.value.outletId">
-            <option [ngValue]="null">{{ isDrawerSource() ? 'Select the paying outlet' : 'Not outlet-specific' }}</option>
-            @for (outlet of outlets(); track outlet.id) {
-              <option [ngValue]="outlet.id">{{ outlet.name }}</option>
+        <!-- Location: only what the user's assignments allow. A POS drawer expense needs the paying outlet. -->
+        <div class="mb-4 ui-form-stack">
+          @if (locationsState() === 'loading') {
+            <app-ui-state kind="loading" title="Loading your locations" [compact]="true" />
+          } @else if (locationsState() === 'error') {
+            <app-ui-state kind="error" title="Could not load your locations" [message]="locationsError() ?? ''" [compact]="true">
+              <button appUiButton variant="outline" size="sm" (click)="loadLocations()">Retry</button>
+            </app-ui-state>
+          } @else if (hasNoEligibleLocation()) {
+            <app-ui-alert variant="warning" title="No location available">
+              You are not assigned to an outlet or warehouse, so you cannot record an expense. Ask an administrator to assign you.
+            </app-ui-alert>
+          } @else {
+            <app-ui-form-field label="Location Type" [required]="true">
+              <select appUiControl id="locationType" formControlName="locationType" (change)="onLocationTypeChange()">
+                <option value="">Select a location type</option>
+                @for (option of locationTypeOptions(); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            </app-ui-form-field>
+            @if (locationType() === 'outlet' || locationType() === 'warehouse') {
+              <app-ui-form-field [label]="locationType() === 'outlet' ? 'Outlet' : 'Warehouse'" [required]="true"
+                                 [hint]="isLocationLocked() ? 'Fixed for this expense.' : ''">
+                <select appUiControl id="locationId" formControlName="locationId" (change)="onLocationChange()">
+                  <option [ngValue]="null">Select...</option>
+                  @for (location of locationOptions(); track location.id) {
+                    <option [ngValue]="location.id">{{ location.name }}</option>
+                  }
+                </select>
+              </app-ui-form-field>
             }
-          </select>
-          @if (isDrawerSource()) {
-            <p class="mt-1 text-xs text-gray-500">After approval, record the payout from that outlet's open cash session ("Pay from drawer" in the expense list).</p>
+            @if (isDrawerSource()) {
+              <p class="mt-1 text-xs text-gray-500">After approval, record the payout from that outlet's open cash session ("Pay from drawer" in the expense list).</p>
+            }
           }
+        </div>
+
+        <!-- Attachments -->
+        <div class="mb-6">
+          <span class="label">Attachments</span>
+          <app-expense-attachments #attachments [expenseId]="expenseId()" [editable]="true" />
         </div>
 
         <!-- Actions -->
@@ -137,7 +188,7 @@
           <button type="button" (click)="onCancel()" class="btn btn-outline" [disabled]="isSubmitting()">
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary" [disabled]="isSubmitting()">
+          <button type="submit" class="btn btn-primary" [disabled]="isSubmitting() || hasNoEligibleLocation()">
             @if (isSubmitting()) { <i class="fas fa-spinner fa-spin mr-1"></i> }
             {{ isEditMode() ? 'Update Expense' : 'Save Expense' }}
           </button>

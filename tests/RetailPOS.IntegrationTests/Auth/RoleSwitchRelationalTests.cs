@@ -7,9 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RetailPOS.Application.Authentication.Abstractions;
 using RetailPOS.Application.Authentication.Commands;
+using RetailPOS.Application.Authentication.Context;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Authentication;
 using RetailPOS.Infrastructure.Data;
+using RetailPOS.Infrastructure.Identity;
 
 namespace RetailPOS.Tests.Auth;
 
@@ -54,7 +56,7 @@ public sealed class RoleSwitchRelationalTests
         var issuer = new AuthenticationCredentialsIssuer(
             new JwtAuthenticationTokenService(settings),
             settings);
-        var switchHandler = new SwitchRoleCommandHandler(store, issuer);
+        var switchHandler = new SwitchRoleCommandHandler(store, issuer, new UserContextPolicy(store, new UserOutletAccessStore(db)));
         var switched = await switchHandler.Handle(
             new SwitchRoleCommand(user.Id, "cashier", outlet.Id),
             CancellationToken.None);
@@ -165,7 +167,7 @@ public sealed class RoleSwitchRelationalTests
         var issuer = new AuthenticationCredentialsIssuer(
             new JwtAuthenticationTokenService(settings),
             settings);
-        var handler = new SwitchRoleCommandHandler(store, issuer);
+        var handler = new SwitchRoleCommandHandler(store, issuer, new UserContextPolicy(store, new UserOutletAccessStore(db)));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(new SwitchRoleCommand(owner.Id, " ", null), CancellationToken.None));

@@ -328,6 +328,19 @@
     @if (activeTab() === 'settings') {
       <div class="space-y-6">
 
+        @if (canManagePoweredBy) {
+          <app-business-receipt-footer-fields [(show)]="showPoweredBy" [(text)]="poweredByText">
+            <button appUiButton type="button" [loading]="receiptFooterSaving()" (click)="saveReceiptFooter()">
+              {{ receiptFooterSaving() ? 'Saving...' : 'Save Receipt Footer' }}
+            </button>
+            <div>
+              <app-ui-badge id="receipt-footer-status" [variant]="receiptFooterPrints() ? 'success' : 'neutral'">
+                {{ receiptFooterPrints() ? 'Saved: printing on receipts' : 'Saved: not printing on receipts' }}
+              </app-ui-badge>
+            </div>
+          </app-business-receipt-footer-fields>
+        }
+
         <!-- Subscription -->
         <div class="bg-white border rounded-lg p-6 space-y-4">
           <h2 class="text-lg font-semibold text-gray-800">Subscription & Limits</h2>

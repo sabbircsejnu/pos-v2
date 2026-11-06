@@ -1,0 +1,153 @@
+/*
+ * Printed document, not app UI: it reproduces the legacy 80 mm thermal invoice, so it deliberately uses
+ * physical sizes and fixed print colours instead of the --rp-* design tokens.
+ */
+:host {
+  display: block;
+}
+
+.thermal-receipt {
+  box-sizing: border-box;
+  width: 80mm;
+  padding: 2mm 4mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, "Liberation Sans", Helvetica, sans-serif;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.tr-center {
+  text-align: center;
+}
+
+.tr-logo {
+  display: block;
+  max-width: 130px;
+  max-height: 52px;
+  margin: 0 auto 4px;
+  object-fit: contain;
+}
+
+.tr-business {
+  margin: 0;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tr-line {
+  margin: 0;
+}
+
+.tr-multiline {
+  white-space: pre-line;
+}
+
+.tr-strong {
+  font-weight: 700;
+}
+
+.tr-identity {
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 2px 6px;
+  border: 1px solid #000;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tr-title {
+  margin: 12px 0 5px;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tr-section {
+  margin: 0;
+  padding: 5px 0;
+  border-top: 1px dashed #000;
+}
+
+.tr-meta {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  row-gap: 1px;
+}
+
+.tr-meta dt {
+  font-weight: 400;
+}
+
+.tr-meta dd {
+  margin: 0;
+}
+
+.tr-meta dd::before {
+  content: ":\00a0\00a0\00a0";
+}
+
+.tr-items {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tr-items th {
+  padding: 0 0 3px;
+  font-weight: 700;
+  text-align: left;
+}
+
+/* A single spanning cell, so the dashes run unbroken across the columns. */
+.tr-items .tr-rule {
+  padding: 0;
+  border-top: 1px dashed #000;
+}
+
+.tr-items td {
+  padding: 3px 0 0;
+  vertical-align: top;
+}
+
+.tr-items .tr-qty {
+  width: 28px;
+  text-align: center;
+}
+
+.tr-items .tr-num {
+  padding-left: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tr-items .tr-price {
+  width: 48px;
+}
+
+.tr-items .tr-percent {
+  width: 32px;
+}
+
+.tr-items .tr-total {
+  width: 54px;
+}
+
+.tr-qty-value {
+  color: #00008b;
+  font-weight: 700;
+}
+
+.tr-note {
+  margin: 6px 0 0;
+  font-size: 9.5px;
+  font-style: italic;
+}
+
+.tr-amounts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

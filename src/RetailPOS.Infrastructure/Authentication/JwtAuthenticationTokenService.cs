@@ -62,6 +62,20 @@ public sealed class JwtAuthenticationTokenService(IOptions<JwtTokenSettings> set
             {
                 claims.Add(new Claim(AuthenticationClaimNames.ActingOutletName, acting.ActingOutletName));
             }
+            if (!string.IsNullOrEmpty(acting.ActingLocationType))
+            {
+                claims.Add(new Claim(AuthenticationClaimNames.ActingLocationType, acting.ActingLocationType));
+            }
+            if (acting.ActingWarehouseId.HasValue)
+            {
+                claims.Add(new Claim(
+                    AuthenticationClaimNames.ActingWarehouseId,
+                    acting.ActingWarehouseId.Value.ToString()));
+            }
+            if (!string.IsNullOrEmpty(acting.ActingWarehouseName))
+            {
+                claims.Add(new Claim(AuthenticationClaimNames.ActingWarehouseName, acting.ActingWarehouseName));
+            }
 
             claims.AddRange(acting.ActingPermissions.Select(permission => new Claim("permission", permission)));
         }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Authentication.Abstractions;
+using RetailPOS.Application.Authentication.Context;
 using RetailPOS.Application.Authentication.Contracts;
 using RetailPOS.Core.Entities;
 
@@ -23,7 +24,8 @@ public sealed class RefreshTokenCommandHandler(
     IAuthenticationTokenService tokenService,
     IAuthenticationProfileStore profileStore,
     IAuthenticationCredentialsIssuer credentialsIssuer,
-    IRefreshTokenStore refreshTokenStore)
+    IRefreshTokenStore refreshTokenStore,
+    UserContextPolicy contextPolicy)
     : IRequestHandler<RefreshTokenCommand, AuthenticationResult>
 {
     public async Task<AuthenticationResult> Handle(
@@ -44,11 +46,16 @@ public sealed class RefreshTokenCommandHandler(
         if (profile is null || !profile.IsActive)
             throw new UnauthorizedAccessException("User not found or inactive");
 
-        var permissions = LoginCommandHandler.BuildEffectivePermissions(
-            profile.RolePermissions,
-            profile.PermissionOverrides);
+        // A switched context survives refresh only while it is still authorized; otherwise the user
+        // falls back to their own context.
+        var acting = await RevalidateActingContextAsync(principal, profile.Id, cancellationToken);
+        IReadOnlyList<string> permissions = acting is not null
+            ? acting.Permissions
+            : LoginCommandHandler.BuildEffectivePermissions(
+                profile.RolePermissions,
+                profile.PermissionOverrides);
         var now = DateTime.UtcNow;
-        var credentials = credentialsIssuer.IssueForRefresh(profile, permissions);
+        var credentials = credentialsIssuer.IssueForRefresh(profile, permissions, acting?.ToClaims());
         var rotationResult = await refreshTokenStore.RotateAsync(
             profile.Id,
             request.RefreshToken,
@@ -79,17 +86,50 @@ public sealed class RefreshTokenCommandHandler(
                 profile.BusinessId,
                 profile.Name,
                 profile.Email,
-                profile.RoleName,
+                acting?.Role.Name ?? profile.RoleName,
                 permissions,
-                profile.OutletId,
-                profile.OutletName,
+                acting is not null ? acting.OutletId : profile.OutletId,
+                acting is not null ? acting.OutletName : profile.OutletName,
                 profile.RoleName,
                 string.Equals(
                     profile.RoleName,
                     SystemRoleNames.BusinessOwner,
                     StringComparison.OrdinalIgnoreCase),
-                profile.MustResetPassword));
+                profile.MustResetPassword,
+                acting?.Role.Name,
+                acting?.OutletId,
+                acting?.OutletName,
+                acting is not null,
+                acting?.LocationType,
+                acting?.WarehouseId,
+                acting?.WarehouseName));
     }
+
+    private Task<ResolvedUserContext?> RevalidateActingContextAsync(
+        ClaimsPrincipal principal,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(
+                principal.FindFirst(AuthenticationClaimNames.IsRoleSwitched)?.Value,
+                "true",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<ResolvedUserContext?>(null);
+        }
+
+        var outletId = ParseClaim(principal, AuthenticationClaimNames.ActingOutletId);
+        return contextPolicy.RevalidateAsync(
+            userId,
+            principal.FindFirst(AuthenticationClaimNames.ActingRoleName)?.Value,
+            principal.FindFirst(AuthenticationClaimNames.ActingLocationType)?.Value
+                ?? (outletId.HasValue ? UserContextLocationTypes.Outlet : null),
+            outletId ?? ParseClaim(principal, AuthenticationClaimNames.ActingWarehouseId),
+            cancellationToken);
+    }
+
+    private static long? ParseClaim(ClaimsPrincipal principal, string claimType) =>
+        long.TryParse(principal.FindFirst(claimType)?.Value, out var value) ? value : null;
 }
 
 public sealed class LogoutCommand : ICommand<bool>

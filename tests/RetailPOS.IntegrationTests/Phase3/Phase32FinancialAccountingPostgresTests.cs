@@ -477,7 +477,7 @@ public sealed partial class SaleFinancialPostingPostgresTests
                 new CashSessionMovementRecorder(db, new CashSessionStore(db), Events(db), TimeProvider.System))
             : new NoCashRefunds();
         var handler = new VoidSaleCommandHandler(
-            new SaleVoidStore(db), new SaleReadStore(db), authorizer.Object,
+            new SaleVoidStore(db), new SaleReadStore(db, TestCompanySettings.Provider()), authorizer.Object,
             SaleCreationCommandTestFactory.FinancialPostings(db, clock),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
                 db, NullLogger<RetailPOS.Infrastructure.ReadStores.StockLedgerWriter>.Instance)),
@@ -493,7 +493,7 @@ public sealed partial class SaleFinancialPostingPostgresTests
         authorizer.Setup(a => a.AuthorizeAsync(It.IsAny<long>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var cache = new Mock<ISaleRefundCacheInvalidator>();
         var handler = new RefundSaleCommandHandler(
-            new SaleVoidStore(db), new SaleReadStore(db), authorizer.Object,
+            new SaleVoidStore(db), new SaleReadStore(db, TestCompanySettings.Provider()), authorizer.Object,
             SaleCreationCommandTestFactory.FinancialPostings(db),
             new SaleRefundStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
                 db, NullLogger<RetailPOS.Infrastructure.ReadStores.StockLedgerWriter>.Instance)),

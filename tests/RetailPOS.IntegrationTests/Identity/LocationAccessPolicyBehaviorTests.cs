@@ -23,7 +23,8 @@ public sealed class LocationAccessPolicyBehaviorTests
     public static TheoryData<LocationAccessPolicy> Step5Policies => new()
     {
         LocationAccessPolicy.StockCountOperation,
-        LocationAccessPolicy.StockTransferSource
+        LocationAccessPolicy.StockTransferSource,
+        LocationAccessPolicy.ExpenseOperation
     };
 
     [Fact]
@@ -222,6 +223,21 @@ public sealed class LocationAccessPolicyBehaviorTests
     {
         Assert.Equal(expected, LocationAccessPolicies.TryParse(value, out var parsed));
         Assert.Equal(policy, parsed);
+    }
+
+    [Fact]
+    public async Task ExpenseOperation_GrantsNothingFromADefaultOutlet_AndEverythingOnlyToOwners()
+    {
+        var (service, _) = await CreateAsync();
+        const LocationAccessPolicy policy = LocationAccessPolicy.ExpenseOperation;
+
+        var none = await service.GetAuthorizedLocationsAsync(Context(NoAssignmentUser), policy);
+        Assert.Empty(none.Outlets);
+        Assert.Empty(none.Warehouses);
+
+        var owner = await service.GetAuthorizedLocationsAsync(new UserOutletAccessContext(OwnerUser, false, true, Business, null), policy);
+        Assert.True(owner.IsGlobalAccess);
+        Assert.Equal([201L, 202L], owner.Warehouses.Select(l => l.Id));
     }
 
     private static UserOutletAccessContext Context(long userId, long? outletId = null) =>

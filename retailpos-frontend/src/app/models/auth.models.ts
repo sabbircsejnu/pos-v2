@@ -14,13 +14,34 @@ export interface User {
   actingRoleName?: string;
   actingOutletId?: number;
   actingOutletName?: string;
+  actingLocationType?: ActingLocationType | null;
+  actingWarehouseId?: number;
+  actingWarehouseName?: string;
   isRoleSwitched?: boolean;
   isBusinessOwner?: boolean;
 }
 
+export type ActingLocationType = 'outlet' | 'warehouse' | 'all';
+
 export interface RoleSwitchRequest {
   actingRole: string;
   actingOutletId?: number;
+  actingLocationType?: ActingLocationType;
+  actingLocationId?: number;
+}
+
+export interface UserContextOption {
+  id: number;
+  name: string;
+}
+
+/** Filtered by the server to what the caller may switch to. */
+export interface UserContextOptions {
+  canSwitch: boolean;
+  allowAllLocations: boolean;
+  roles: UserContextOption[];
+  outlets: UserContextOption[];
+  warehouses: UserContextOption[];
 }
 
 export interface LoginRequest {

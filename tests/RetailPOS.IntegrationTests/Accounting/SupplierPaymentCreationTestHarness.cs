@@ -14,6 +14,8 @@ using Moq;
 using RetailPOS.Application.AccountingJournals.Commands;
 using RetailPOS.Application.AccountingJournals.Queries;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 internal static class SupplierPaymentCreationTestHarness
@@ -200,7 +202,7 @@ internal static class SupplierPaymentCreationTestHarness
     {
         var createHandler = new CreateOrGetSystemJournalDraftCommandHandler(journalStore);
         var postHandler = new PostJournalEntryCommandHandler(journalStore);
-        var reverseHandler = new ReverseJournalEntryCommandHandler(journalStore);
+        var reverseHandler = new ReverseJournalEntryCommandHandler(journalStore, TestCompanySettings.Provider());
         var sender = new Mock<ISender>();
         sender.Setup(value => value.Send(
                 It.IsAny<CreateOrGetSystemJournalDraftCommand>(),

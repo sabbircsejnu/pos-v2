@@ -10,6 +10,7 @@ namespace RetailPOS.Infrastructure.StockTransfers;
 public sealed class StockTransferReceiveStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
+    IStockTransferReceiptAuditWriter auditWriter,
     ILogger<StockTransferReceiveStore> logger)
     : IStockTransferReceiveStore
 {
@@ -45,95 +46,143 @@ public sealed class StockTransferReceiveStore(
             }
 
             var normalizedToType = NormalizeLocationType(transfer.ToLocationType);
-            var requestedLines = input?.Items?.ToDictionary(item => item.VariantId);
-            var totalAccepted = 0;
-            var totalRejected = 0;
+            var requestedLines = ResolveRequestedLines(transfer, input);
+            var isSystemReturn = transfer.OriginalTransferId.HasValue;
+            var totals = new ReceiptTotals();
+            var auditLines = new List<StockTransferReceiptAuditLine>();
 
             foreach (var item in transfer.Items)
             {
-                var destinationInventory = await dbContext.Inventories.FirstOrDefaultAsync(
-                    inventory => inventory.VariantId == item.VariantId
-                        && inventory.LocationId == transfer.ToLocationId
-                        && inventory.LocationType.ToLower() == normalizedToType,
+                var dispatched = ResolveTransferQuantity(item);
+                var line = requestedLines is null
+                    ? new StockTransferReceiveItemInput(item.VariantId, dispatched, 0, item.Remarks)
+                    : requestedLines[item.VariantId];
+                ValidateReconciliation(item.VariantId, dispatched, line, isSystemReturn);
+
+                item.AcceptedQuantity = line.AcceptedQuantity;
+                item.RejectedQuantity = line.RejectedQuantity;
+                item.MissingQuantity = line.MissingQuantity;
+                item.DamagedQuantity = line.DamagedQuantity;
+                item.Remarks = line.Remarks;
+                totals.Add(line);
+
+                var inventory = await dbContext.Inventories.FirstOrDefaultAsync(
+                    row => row.VariantId == item.VariantId
+                        && row.LocationId == transfer.ToLocationId
+                        && row.LocationType.ToLower() == normalizedToType,
                     cancellationToken);
 
-                if (destinationInventory is null)
+                if (line.AcceptedQuantity > 0)
                 {
-                    destinationInventory = new Inventory
+                    if (inventory is null)
                     {
-                        VariantId = item.VariantId,
-                        LocationId = transfer.ToLocationId,
-                        LocationType = normalizedToType,
-                        Quantity = 0
-                    };
-                    dbContext.Inventories.Add(destinationInventory);
-                }
-
-                var transferQuantity = ResolveTransferQuantity(item);
-                var acceptedQuantity = transferQuantity;
-                var rejectedQuantity = 0;
-                var remarks = item.Remarks;
-
-                if (requestedLines is not null
-                    && requestedLines.TryGetValue(item.VariantId, out var receiveLine))
-                {
-                    acceptedQuantity = receiveLine.AcceptedQuantity;
-                    rejectedQuantity = receiveLine.RejectedQuantity;
-                    remarks = receiveLine.Remarks;
-
-                    if (acceptedQuantity < 0 || rejectedQuantity < 0)
-                    {
-                        throw new InvalidOperationException(
-                            "Accepted and rejected quantities cannot be negative.");
+                        inventory = new Inventory
+                        {
+                            VariantId = item.VariantId,
+                            LocationId = transfer.ToLocationId,
+                            LocationType = normalizedToType,
+                            Quantity = 0
+                        };
+                        dbContext.Inventories.Add(inventory);
                     }
 
-                    if (acceptedQuantity + rejectedQuantity > transferQuantity)
-                    {
-                        throw new InvalidOperationException(
-                            $"Accepted + rejected quantities exceed transfer quantity for variant {item.VariantId}. "
-                            + $"Transfer: {transferQuantity}, Accepted: {acceptedQuantity}, Rejected: {rejectedQuantity}");
-                    }
+                    inventory.Quantity += line.AcceptedQuantity;
+                    var cost = await StockTransferCostFlow.ResolveReceiptCostAsync(
+                        dbContext,
+                        businessId,
+                        transfer,
+                        item,
+                        line.AcceptedQuantity,
+                        cancellationToken);
+                    StockTransferCostFlow.Write(
+                        stockLedger,
+                        cost,
+                        item.VariantId,
+                        transfer.ToLocationId,
+                        normalizedToType,
+                        transfer.TransferType.Equals(
+                            StockTransfer.TransferTypeReturn,
+                            StringComparison.OrdinalIgnoreCase)
+                            ? StockLedgerTransactionType.ReturnTransferIn
+                            : StockLedgerTransactionType.TransferIn,
+                        qtyIn: line.AcceptedQuantity,
+                        qtyOut: 0,
+                        balanceAfter: inventory.Quantity,
+                        transfer.Id,
+                        $"Received from {transfer.FromLocationType} {transfer.FromLocationId}",
+                        receivedBy ?? transfer.CreatedBy);
+                }
+                else if (line.RejectedQuantity + line.MissingQuantity + line.DamagedQuantity > 0)
+                {
+                    StockTransferWriteRules.ClaimForEvidenceOnlyMovement(dbContext, inventory);
                 }
 
-                item.AcceptedQuantity = acceptedQuantity;
-                item.RejectedQuantity = rejectedQuantity;
-                item.Remarks = remarks;
-                destinationInventory.Quantity += acceptedQuantity;
-                totalAccepted += acceptedQuantity;
-                totalRejected += rejectedQuantity;
+                if (line.RejectedQuantity > 0)
+                {
+                    WriteEvidence(
+                        transfer,
+                        item,
+                        normalizedToType,
+                        inventory,
+                        StockLedgerTransactionType.TransferRejection,
+                        $"Rejected {line.RejectedQuantity}; awaiting return to source. {line.Remarks}".TrimEnd(),
+                        receivedBy);
+                }
 
-                var transactionType = transfer.TransferType.Equals(
-                    StockTransfer.TransferTypeReturn,
-                    StringComparison.OrdinalIgnoreCase)
-                    ? StockLedgerTransactionType.ReturnTransferIn
-                    : StockLedgerTransactionType.TransferIn;
+                if (line.MissingQuantity + line.DamagedQuantity > 0)
+                {
+                    WriteEvidence(
+                        transfer,
+                        item,
+                        normalizedToType,
+                        inventory,
+                        StockLedgerTransactionType.TransferDiscrepancy,
+                        $"Missing {line.MissingQuantity}, damaged {line.DamagedQuantity}. {line.Remarks}",
+                        receivedBy);
+                }
 
-                stockLedger.WriteEntryWithValuation(
-                    variantId: item.VariantId,
-                    locationId: transfer.ToLocationId,
-                    locationType: normalizedToType,
-                    transactionType: transactionType,
-                    qtyIn: acceptedQuantity,
-                    qtyOut: 0,
-                    balanceAfter: destinationInventory.Quantity,
-                    referenceType: StockLedgerReferenceType.StockTransfer,
-                    referenceId: transfer.Id,
-                    remarks: $"Received from {transfer.FromLocationType} {transfer.FromLocationId}",
-                    createdBy: receivedBy ?? transfer.CreatedBy,
-                    unitCost: item.UnitCost);
+                if (line.AcceptedQuantity != dispatched)
+                {
+                    auditLines.Add(new StockTransferReceiptAuditLine(
+                        item.VariantId,
+                        dispatched,
+                        line.AcceptedQuantity,
+                        line.RejectedQuantity,
+                        line.MissingQuantity,
+                        line.DamagedQuantity,
+                        line.Remarks));
+                }
             }
 
-            transfer.Status = ResolveReceiveStatus(totalAccepted, totalRejected);
+            transfer.Status = totals.ResolveStatus();
             transfer.ReceivedBy = receivedBy ?? transfer.UpdatedBy ?? transfer.CreatedBy;
             transfer.ReceivedAt = DateTime.UtcNow;
             transfer.Notes = string.IsNullOrWhiteSpace(input?.Notes) ? transfer.Notes : input!.Notes;
             transfer.UpdatedBy = transfer.ReceivedBy;
             transfer.UpdatedAt = DateTime.UtcNow;
 
-            if (totalRejected > 0)
-                await CreateReturnTransferForRejectedAsync(transfer, transfer.ReceivedBy, cancellationToken);
+            await StockTransferWriteRules.CreateSystemReturnAsync(
+                dbContext,
+                transfer,
+                transfer.ReceivedBy,
+                cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (auditLines.Count > 0)
+            {
+                await auditWriter.RecordAsync(
+                    new StockTransferReceiptAudit(
+                        transfer.Id,
+                        transfer.TransferNo,
+                        transfer.Status,
+                        transfer.ToLocationId,
+                        normalizedToType,
+                        transfer.ReceivedBy,
+                        input?.Notes,
+                        auditLines),
+                    cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
             logger.LogInformation(
                 "Stock transfer {TransferId} received; destination stock updated",
@@ -152,69 +201,93 @@ public sealed class StockTransferReceiveStore(
         }
     }
 
-    private async Task CreateReturnTransferForRejectedAsync(
-        StockTransfer rejectedTransfer,
-        long? createdBy,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// No lines means the whole transfer was accepted. Once lines are sent, every transfer line must be accounted for.
+    /// </summary>
+    private static Dictionary<long, StockTransferReceiveItemInput>? ResolveRequestedLines(
+        StockTransfer transfer,
+        StockTransferReceiveInput? input)
     {
-        var returnItems = rejectedTransfer.Items
-            .Select(item => new
-            {
-                item.VariantId,
-                Quantity = item.RejectedQuantity > 0
-                    ? item.RejectedQuantity
-                    : ResolveTransferQuantity(item)
-            })
-            .Where(item => item.Quantity > 0)
-            .ToArray();
+        if (input?.Items is not { Count: > 0 })
+            return null;
 
-        if (returnItems.Length == 0)
-            return;
-
-        var now = DateTime.UtcNow;
-        var maxId = await dbContext.StockTransfers
-            .MaxAsync(candidate => (long?)candidate.Id, cancellationToken) ?? 0;
-        var returnTransfer = new StockTransfer
+        var lines = new Dictionary<long, StockTransferReceiveItemInput>();
+        foreach (var line in input.Items)
         {
-            TransferNo = $"TRF-{now.Year}-{(maxId + 1):D5}",
-            TransferType = StockTransfer.TransferTypeReturn,
-            FromLocationId = rejectedTransfer.ToLocationId,
-            FromLocationType = rejectedTransfer.ToLocationType,
-            ToLocationId = rejectedTransfer.FromLocationId,
-            ToLocationType = rejectedTransfer.FromLocationType,
-            TransferDate = now,
-            Status = StockTransfer.StatusDraft,
-            CreatedBy = createdBy,
-            CreatedAt = now,
-            Notes = $"Auto-created return transfer for rejected transfer #{rejectedTransfer.TransferNo ?? rejectedTransfer.Id.ToString()}.",
-            Items = returnItems.Select(item => new StockTransferItem
-            {
-                VariantId = item.VariantId,
-                Quantity = item.Quantity,
-                RequestedQuantity = item.Quantity,
-                TransferQuantity = item.Quantity,
-                AcceptedQuantity = 0,
-                RejectedQuantity = 0,
-                UnitCost = 0m
-            }).ToList()
-        };
+            if (!lines.TryAdd(line.VariantId, line))
+                throw new InvalidOperationException($"Variant {line.VariantId} appears more than once in this receipt.");
+        }
 
-        dbContext.StockTransfers.Add(returnTransfer);
+        var expected = transfer.Items.Select(item => item.VariantId).ToHashSet();
+        foreach (var variantId in lines.Keys.Where(variantId => !expected.Contains(variantId)))
+            throw new InvalidOperationException($"Variant {variantId} is not part of this transfer.");
+
+        foreach (var variantId in expected.Where(variantId => !lines.ContainsKey(variantId)))
+            throw new InvalidOperationException($"Every transfer line must be accounted for. Missing variant {variantId}.");
+
+        return lines;
     }
+
+    private static void ValidateReconciliation(
+        long variantId,
+        int dispatched,
+        StockTransferReceiveItemInput line,
+        bool isSystemReturn)
+    {
+        if (line.AcceptedQuantity < 0
+            || line.RejectedQuantity < 0
+            || line.MissingQuantity < 0
+            || line.DamagedQuantity < 0)
+        {
+            throw new InvalidOperationException(
+                "Accepted, rejected, missing and damaged quantities cannot be negative.");
+        }
+
+        var recorded = line.AcceptedQuantity + line.RejectedQuantity + line.MissingQuantity + line.DamagedQuantity;
+        if (recorded != dispatched)
+        {
+            throw new InvalidOperationException(
+                $"Accepted + rejected + missing + damaged quantities must equal the dispatched quantity for variant {variantId}. "
+                + $"Dispatched: {dispatched}, Recorded: {recorded}");
+        }
+
+        if (isSystemReturn && line.RejectedQuantity > 0)
+        {
+            throw new InvalidOperationException(
+                "A return of rejected stock cannot be rejected again. Record any units not received as missing or damaged.");
+        }
+
+        if (line.MissingQuantity + line.DamagedQuantity > 0 && string.IsNullOrWhiteSpace(line.Remarks))
+        {
+            throw new InvalidOperationException(
+                $"A reason is required for missing or damaged units of variant {variantId}.");
+        }
+    }
+
+    private void WriteEvidence(
+        StockTransfer transfer,
+        StockTransferItem item,
+        string locationType,
+        Inventory? inventory,
+        string transactionType,
+        string remarks,
+        long? actorId) =>
+        stockLedger.WriteEntryWithValuation(
+            variantId: item.VariantId,
+            locationId: transfer.ToLocationId,
+            locationType: locationType,
+            transactionType: transactionType,
+            qtyIn: 0,
+            qtyOut: 0,
+            balanceAfter: inventory?.Quantity ?? 0,
+            referenceType: StockLedgerReferenceType.StockTransfer,
+            referenceId: transfer.Id,
+            remarks: remarks.Length > 500 ? remarks[..500] : remarks,
+            createdBy: actorId ?? transfer.CreatedBy,
+            unitCost: item.UnitCost);
 
     private static int ResolveTransferQuantity(StockTransferItem item) =>
         item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
-
-    private static string ResolveReceiveStatus(int totalAccepted, int totalRejected)
-    {
-        if (totalAccepted > 0 && totalRejected > 0)
-            return StockTransfer.StatusPartiallyReceived;
-
-        if (totalAccepted == 0 && totalRejected > 0)
-            return StockTransfer.StatusRejected;
-
-        return StockTransfer.StatusReceived;
-    }
 
     private static string NormalizeLocationType(string locationType)
     {
@@ -226,5 +299,29 @@ public sealed class StockTransferReceiveStore(
             throw new InvalidOperationException($"Invalid location type '{locationType}'.");
 
         return normalized;
+    }
+
+    private sealed class ReceiptTotals
+    {
+        private int _accepted;
+        private int _rejected;
+        private int _discrepancy;
+
+        public void Add(StockTransferReceiveItemInput line)
+        {
+            _accepted += line.AcceptedQuantity;
+            _rejected += line.RejectedQuantity;
+            _discrepancy += line.MissingQuantity + line.DamagedQuantity;
+        }
+
+        public string ResolveStatus()
+        {
+            if (_rejected == 0 && _discrepancy == 0)
+                return StockTransfer.StatusReceived;
+
+            return _accepted == 0 && _rejected > 0
+                ? StockTransfer.StatusRejected
+                : StockTransfer.StatusPartiallyReceived;
+        }
     }
 }

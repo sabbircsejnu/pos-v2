@@ -1,0 +1,25 @@
+{
+  "feature": "owner-dashboards",
+  "updated": "2026-11-06",
+  "phase": "complete-awaiting-signoff",
+  "completed": [
+    "OD-00",
+    "OD-01",
+    "OD-02",
+    "OD-03",
+    "OD-04",
+    "OD-05",
+    "OD-06",
+    "OD-07",
+    "OD-08",
+    "OD-09",
+    "OD-10"
+  ],
+  "inProgress": [],
+  "pending": [],
+  "notes": [
+    "Permission model per SRS 2.1: dashboard.sales_finance.view and dashboard.inventory_intelligence.view; business-wide reads.",
+    "No migration, no seeding, no new package.",
+    "Use List<long>, never arrays, in EF Contains. Build with -c Release if bin/Debug is locked."
+  ]
+}

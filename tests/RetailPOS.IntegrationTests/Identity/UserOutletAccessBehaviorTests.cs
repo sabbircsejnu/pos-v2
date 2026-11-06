@@ -53,7 +53,10 @@ public sealed class UserOutletAccessBehaviorTests
         Assert.Equal("outlet", resolvedMultipleOutlets.LocationType);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.ResolveAndAuthorizeLocationAsync(context, 7003, "outlet"));
-        Assert.Equal(7001, await service.EnforceWriteOutletAsync(context, null));
+        // Several authorized outlets and no default: the caller must choose; no outlet is guessed.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.EnforceWriteOutletAsync(context, null));
+        Assert.Equal(7002, await service.EnforceWriteOutletAsync(context, 7002));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.EnforceWriteOutletAsync(context, 7004));
         Assert.Equal(
@@ -61,6 +64,76 @@ public sealed class UserOutletAccessBehaviorTests
             await service.EnforceWriteLocationAsync(context, 8001, "WAREHOUSE"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.EnforceWriteLocationAsync(context, 8002, "warehouse"));
+    }
+
+    [Theory]
+    [InlineData(User.InventoryAccessAssignedOnly)]
+    [InlineData(User.InventoryAccessSpecific)]
+    public async Task WarehouseOnlyUser_CanOperateOnAssignedWarehouse_ButHasNoOutletContext(string scope)
+    {
+        await using var db = CreateDbContext();
+        db.Users.Add(new User { Id = 7801, BusinessId = 1, InventoryLocationAccessScope = scope });
+        db.Outlets.Add(new Outlet { Id = 7101, BusinessId = 1, Name = "Outlet" });
+        db.Warehouses.AddRange(
+            new Warehouse { Id = 8101, BusinessId = 1, Name = "Assigned warehouse" },
+            new Warehouse { Id = 8102, BusinessId = 2, Name = "Foreign warehouse" });
+        db.UserWarehouseAssignments.Add(
+            new UserWarehouseAssignment { Id = 11, UserId = 7801, WarehouseId = 8101, BusinessId = 1, IsPrimary = true });
+        await db.SaveChangesAsync();
+
+        var service = new UserOutletAccess(new UserOutletAccessStore(db));
+        var context = new UserOutletAccessContext(7801, false, false, 1, null);
+
+        Assert.Equal(
+            (8101L, "warehouse"),
+            await service.EnforceWriteLocationAsync(context, LocationAccessPolicy.StockTransferSource, 8101, "warehouse"));
+        Assert.Equal(
+            (8101L, "warehouse"),
+            await service.EnforceWriteLocationAsync(context, LocationAccessPolicy.StockCountOperation, 8101, "warehouse"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.EnforceWriteLocationAsync(context, 8102, "warehouse"));
+
+        // POS cash session and checkout resolve through this gate: no authorized outlet, no operation.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.EnforceWriteOutletAsync(context, null));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.EnforceWriteOutletAsync(context, 7101));
+    }
+
+    [Fact]
+    public async Task EnforceWriteOutlet_WithoutRequest_UsesAuthorizedDefaultOrOnlyOutlet()
+    {
+        await using var db = CreateDbContext();
+        db.Users.AddRange(
+            new User { Id = 7811, BusinessId = 1, OutletId = 7202, InventoryLocationAccessScope = User.InventoryAccessSpecific },
+            new User { Id = 7812, BusinessId = 1, InventoryLocationAccessScope = User.InventoryAccessSpecific });
+        db.Outlets.AddRange(
+            new Outlet { Id = 7201, BusinessId = 1, Name = "A outlet" },
+            new Outlet { Id = 7202, BusinessId = 1, Name = "B outlet" });
+        db.UserOutletAssignments.AddRange(
+            new UserOutletAssignment { Id = 21, UserId = 7811, OutletId = 7201, BusinessId = 1, IsPrimary = true },
+            new UserOutletAssignment { Id = 22, UserId = 7811, OutletId = 7202, BusinessId = 1 },
+            new UserOutletAssignment { Id = 23, UserId = 7812, OutletId = 7201, BusinessId = 1, IsPrimary = true });
+        await db.SaveChangesAsync();
+
+        var service = new UserOutletAccess(new UserOutletAccessStore(db));
+
+        Assert.Equal(7202, await service.EnforceWriteOutletAsync(new UserOutletAccessContext(7811, false, false, 1, null), null));
+        Assert.Equal(7201, await service.EnforceWriteOutletAsync(new UserOutletAccessContext(7812, false, false, 1, null), null));
+    }
+
+    [Fact]
+    public async Task EnforceWriteOutlet_WithForeignStoredDefault_DoesNotAuthorizeIt()
+    {
+        await using var db = CreateDbContext();
+        db.Users.Add(new User { Id = 7821, BusinessId = 1, OutletId = 7301, InventoryLocationAccessScope = User.InventoryAccessAssignedOnly });
+        db.Outlets.Add(new Outlet { Id = 7301, BusinessId = 2, Name = "Foreign outlet" });
+        await db.SaveChangesAsync();
+
+        var service = new UserOutletAccess(new UserOutletAccessStore(db));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.EnforceWriteOutletAsync(new UserOutletAccessContext(7821, false, false, 1, null), null));
     }
 
     [Fact]

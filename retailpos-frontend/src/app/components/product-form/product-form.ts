@@ -66,6 +66,7 @@ export class ProductForm implements OnInit {
   
   // Categories
   categories = signal<Category[]>([]);
+  categoriesLoadError = signal('');
   
   // Validation
   errors = signal<{[key: string]: string}>({});
@@ -76,6 +77,8 @@ export class ProductForm implements OnInit {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   private injector = inject(Injector);
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
+  /** Product image upload/replace/delete requires products.edit, also on Create (the upload follows the first save). */
+  canEditImages = computed(() => this.auth.hasPermission('products.edit'));
 
   readonly setupChecklist = computed(() => {
     const basic = !!this.name().trim() && !!this.productCode().trim();
@@ -147,9 +150,17 @@ export class ProductForm implements OnInit {
   }
 
   loadCategories(): void {
+    this.categoriesLoadError.set('');
     this.categoryService.getAllCategories().subscribe({
       next: (response: any) => {
         this.categories.set(response.data || []);
+      },
+      // 403 is an access-denied outcome (the error interceptor shows the notice and never signs out).
+      error: (error: { status?: number }) => {
+        this.categories.set([]);
+        this.categoriesLoadError.set(error?.status === 403
+          ? 'You do not have access to the category list.'
+          : 'Categories could not be loaded. Please try again.');
       }
     });
   }
@@ -304,7 +315,7 @@ export class ProductForm implements OnInit {
           return;
         }
         this.productId.set(newId);
-        const pendingFiles = this.imageUploader?.getPendingFiles() ?? [];
+        const pendingFiles = this.canEditImages() ? this.imageUploader?.getPendingFiles() ?? [] : [];
         if (pendingFiles.length === 0) {
           this.isSubmitting.set(false);
           this.router.navigate(['/products', 'edit', newId], {
@@ -339,7 +350,11 @@ export class ProductForm implements OnInit {
     const file = files[index];
     this.productImageService.upload(productId, file).subscribe({
       next: () => this.uploadPendingImages(productId, files, index + 1, failedNames),
-      error: () => this.uploadPendingImages(productId, files, index + 1, [...failedNames, file.name]),
+      error: (err) => {
+        const reason = err?.error?.message;
+        const failure = reason ? `${file.name} (${reason})` : file.name;
+        this.uploadPendingImages(productId, files, index + 1, [...failedNames, failure]);
+      },
     });
   }
 

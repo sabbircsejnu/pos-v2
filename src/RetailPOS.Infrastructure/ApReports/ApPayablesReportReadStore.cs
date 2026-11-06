@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.ApReports.Abstractions;
 using RetailPOS.Application.ApReports.ReadModels;
@@ -6,7 +7,9 @@ using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.ApReports;
 
-public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
+public sealed class ApPayablesReportReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones)
     : IApPayablesReportReadStore
 {
     public async Task<ApReconciliationReadModel> GetPayableReconciliationAsync(
@@ -14,7 +17,7 @@ public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
         long businessId,
         CancellationToken cancellationToken)
     {
-        var asOf = (filter.AsOfDate ?? DateTime.UtcNow).Date;
+        var asOf = (filter.AsOfDate ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var rows = await LoadRowsAsync(filter, businessId, asOf, cancellationToken);
         var account = await ResolveAccountAsync(
             "supplier_payable",
@@ -44,7 +47,7 @@ public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
         long businessId,
         CancellationToken cancellationToken)
     {
-        var asOf = (filter.AsOfDate ?? DateTime.UtcNow).Date;
+        var asOf = (filter.AsOfDate ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var advances = await dbContext.SupplierAdvances
             .AsNoTracking()
             .Where(advance => advance.BusinessId == businessId
@@ -101,7 +104,7 @@ public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
             throw new InvalidOperationException("SupplierId is required for a supplier statement.");
 
         var dateFrom = (filter.DateFrom ?? DateTime.MinValue).Date;
-        var dateTo = (filter.DateTo ?? DateTime.UtcNow).Date;
+        var dateTo = (filter.DateTo ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var payableRows = await LoadRowsAsync(filter, businessId, dateTo, cancellationToken);
         var supplier = await dbContext.Suppliers
             .AsNoTracking()
@@ -237,7 +240,7 @@ public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
         long businessId,
         CancellationToken cancellationToken)
     {
-        var asOf = (filter.AsOfDate ?? DateTime.UtcNow).Date;
+        var asOf = (filter.AsOfDate ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var rows = ApplyStatusFilter(
             await LoadRowsAsync(filter, businessId, asOf, cancellationToken),
             filter.Status);
@@ -254,7 +257,7 @@ public sealed class ApPayablesReportReadStore(RetailPOSDbContext dbContext)
         long businessId,
         CancellationToken cancellationToken)
     {
-        var asOf = (filter.AsOfDate ?? DateTime.UtcNow).Date;
+        var asOf = (filter.AsOfDate ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var rows = ApplyStatusFilter(
             await LoadRowsAsync(filter, businessId, asOf, cancellationToken),
             filter.Status);

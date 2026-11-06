@@ -24,7 +24,14 @@ public sealed record UserReadModel(
     IReadOnlyList<UserWarehouseAssignmentReadModel> WarehouseAssignments,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    UserContextAccessReadModel? ContextAccess = null);
+
+public sealed record UserContextAccessReadModel(
+    bool Enabled,
+    string LocationScope,
+    string RoleScope,
+    IReadOnlyList<long> RoleIds);
 
 public sealed record UserOutletAssignmentReadModel(
     long Id,

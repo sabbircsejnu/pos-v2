@@ -40,6 +40,7 @@ WITH additions AS (
         ('BusinessOwner', 'accounting.expenses.approve'),
         ('BusinessOwner', 'accounting.expenses.reject'),
         ('BusinessOwner', 'accounting.expenses.cancel'),
+        ('BusinessOwner', 'accounting.expense_categories.manage'),
         ('BusinessOwner', 'accounting.financial_years.view'),
         ('BusinessOwner', 'accounting.financial_years.manage'),
         ('BusinessOwner', 'accounting.financial_years.reopen'),

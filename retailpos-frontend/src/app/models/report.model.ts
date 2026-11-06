@@ -121,7 +121,9 @@ export type LocationAccessPolicy =
   | 'InventoryStockView'
   | 'StockCountOperation'
   | 'StockTransferSource'
-  | 'StockTransferDestination';
+  | 'StockTransferDestination'
+  | 'GrnView'
+  | 'ExpenseOperation';
 
 export interface AuthorizedOutletsDto {
   outlets: AuthorizedLocationDto[];

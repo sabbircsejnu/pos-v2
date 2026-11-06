@@ -13,4 +13,10 @@ public interface IBusinessTargetAccess
     /// administer that Business.
     /// </summary>
     long RequireTargetBusinessId(long targetBusinessId);
+
+    /// <summary>
+    /// Throws <see cref="UnauthorizedAccessException"/> unless the caller really is a Platform Super Admin acting as
+    /// one. A role-switched caller is refused, whichever role it switched to or from.
+    /// </summary>
+    void RequirePlatformSuperAdmin();
 }

@@ -119,6 +119,9 @@ public sealed class DrawerExpenseTests
 
         var facts = await new CashSessionStore(verify).GetFactsAsync(sessionId, CancellationToken.None);
         Assert.Equal(460m, CashSessionExpectedCashCalculator.Calculate(facts!, DateTime.UtcNow).ExpectedClosingCash);
+
+        // Approval already posted the ledger; the payout moves physical cash only, so it adds no second journal.
+        Assert.Equal(0, await verify.JournalEntries.CountAsync());
     });
 
     [Fact]

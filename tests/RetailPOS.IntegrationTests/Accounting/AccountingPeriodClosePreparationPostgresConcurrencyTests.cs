@@ -21,6 +21,7 @@ public sealed class AccountingPeriodClosePreparationPostgresConcurrencyTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.PeriodClosePrepare,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))

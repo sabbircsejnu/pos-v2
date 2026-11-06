@@ -1,5 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -17,9 +18,10 @@ type ProfitabilityView = 'business' | 'outlet' | 'product';
   templateUrl: './profitability-report.component.html'
 })
 export class ProfitabilityReportComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   readonly view = signal<ProfitabilityView>('business');
-  readonly fromDate = signal(new Date().toISOString().slice(0, 10));
-  readonly toDate = signal(new Date().toISOString().slice(0, 10));
+  readonly fromDate = signal(this.companyToday.todayIso());
+  readonly toDate = signal(this.companyToday.todayIso());
   readonly comparisonFromDate = signal('');
   readonly comparisonToDate = signal('');
   readonly outletId = signal<number | null>(null);

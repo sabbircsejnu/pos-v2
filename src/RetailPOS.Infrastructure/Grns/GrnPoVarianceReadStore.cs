@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.Grns.ReadModels;
 using RetailPOS.Infrastructure.Data;
-using RetailPOS.Infrastructure.PurchaseOrders;
 
 namespace RetailPOS.Infrastructure.Grns;
 
@@ -10,20 +9,16 @@ public sealed class GrnPoVarianceReadStore(RetailPOSDbContext dbContext) : IGrnP
 {
     public async Task<GrnPoVarianceReadModel?> FindByPurchaseOrderIdAsync(
         long purchaseOrderId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
-        var purchaseOrderQuery = dbContext.PurchaseOrders
+        var purchaseOrder = await dbContext.PurchaseOrders
             .AsNoTracking()
             .Include(order => order.Items)
                 .ThenInclude(item => item.Variant)
                     .ThenInclude(variant => variant.Product)
-            .AsQueryable();
-
-        if (businessId.HasValue)
-            purchaseOrderQuery = purchaseOrderQuery.WhereBusiness(businessId.Value);
-
-        var purchaseOrder = await purchaseOrderQuery.FirstOrDefaultAsync(
+            .WhereReadScope(scope)
+            .FirstOrDefaultAsync(
             order => order.Id == purchaseOrderId,
             cancellationToken);
         if (purchaseOrder is null)

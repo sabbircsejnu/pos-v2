@@ -114,6 +114,7 @@ public class StockTransferSubmitAndDispatchHttpTests : IClassFixture<RetailPosAp
     public async Task SubmitAndDispatch_AndReceive_PreserveTransferValuationMetadata()
     {
         await ResetAndSeedAsync();
+        await SeedSourceCostAsync(301, 11, "outlet", 10m);
         using var sourceClient = CreateClient(101, "stock_transfers.view,stock_transfers.create,stock_transfers.approve,stock_transfers.dispatch", "BusinessOwner");
         using var destinationClient = CreateClient(102, "stock_transfers.view,stock_transfers.receive", "Manager");
 
@@ -133,7 +134,7 @@ public class StockTransferSubmitAndDispatchHttpTests : IClassFixture<RetailPosAp
 
         var ledgerRows = db.StockLedgers
             .Where(x => x.ReferenceId == transferId && x.ReferenceType == StockLedgerReferenceType.StockTransfer)
-            .OrderBy(x => x.MovementSequence)
+            .OrderBy(x => x.Id)
             .ToList();
 
         Assert.Equal(2, ledgerRows.Count);
@@ -288,6 +289,18 @@ public class StockTransferSubmitAndDispatchHttpTests : IClassFixture<RetailPosAp
         client.DefaultRequestHeaders.Add("X-Test-Role", role);
         client.DefaultRequestHeaders.Add("X-Test-Permissions", permissions);
         return client;
+    }
+
+    /// <summary>Gives the source a real cost history: a transfer takes its cost from there, never from the client.</summary>
+    private async Task SeedSourceCostAsync(long variantId, long locationId, string locationType, decimal unitCost)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
+        var onHand = db.Inventories
+            .Where(row => row.VariantId == variantId && row.LocationId == locationId)
+            .Sum(row => row.Quantity);
+        db.StockLedgers.Add(StockCostTestData.Receipt(variantId, locationId, locationType, onHand, unitCost));
+        await db.SaveChangesAsync();
     }
 
     private async Task ResetAndSeedAsync()

@@ -2,7 +2,6 @@ using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.Grns.ReadModels;
-using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Money;
 
@@ -27,7 +26,7 @@ public sealed class CreateGrnCommandHandler(
     IGrnCreationStore creationStore,
     IGrnTenantScope tenantScope,
     IGrnCreationAuditWriter auditWriter,
-    IPurchaseOrderLocationAuthorizer locationAuthorizer)
+    IGrnReceiptLocationAuthorizer locationAuthorizer)
     : IRequestHandler<CreateGrnCommand, GrnReadModel>
 {
     public async Task<GrnReadModel> Handle(

@@ -6,6 +6,6 @@ public interface IGrnPoVarianceReadStore
 {
     Task<GrnPoVarianceReadModel?> FindByPurchaseOrderIdAsync(
         long purchaseOrderId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 }

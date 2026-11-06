@@ -1,5 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -16,14 +17,15 @@ import { CreateJournalEntryDto, JournalEntryAttachmentDto, JournalEntryLineDto, 
   styleUrls: ['./manual-journal-form.component.css']
 })
 export class ManualJournalFormComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   isEditMode = signal(false);
   journalId = signal<number | null>(null);
   isLoading = signal(false);
   isSubmitting = signal(false);
   description = signal('');
-  transactionDate = signal(new Date().toISOString().split('T')[0]);
-  postingDate = signal(new Date().toISOString().split('T')[0]);
-  businessDate = signal(new Date().toISOString().split('T')[0]);
+  transactionDate = signal(this.companyToday.todayIso());
+  postingDate = signal(this.companyToday.todayIso());
+  businessDate = signal(this.companyToday.todayIso());
   referenceNumber = signal('');
   referenceType = signal('');
   referenceId = signal('');

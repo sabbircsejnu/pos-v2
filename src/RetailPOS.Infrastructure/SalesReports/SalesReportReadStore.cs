@@ -1,3 +1,5 @@
+using RetailPOS.Application.Pos;
+using RetailPOS.Application.Settings;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.SalesReports;
 using RetailPOS.Application.SalesReports.Abstractions;
@@ -273,19 +275,21 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
         SalesReportFilter filter,
         CancellationToken cancellationToken)
     {
-        var grouped = await FilterSales(scope, filter)
-            .GroupBy(sale => sale.SaleDate.Date)
-            .Select(group => new
-            {
-                Date = group.Key,
-                TransactionCount = group.Count(),
-                Revenue = group.Sum(sale => sale.TotalAmount)
-            })
-            .OrderBy(item => item.Date)
+        var rows = await FilterSales(scope, filter)
+            .Select(sale => new { sale.SaleDate, sale.TotalAmount })
             .ToListAsync(cancellationToken);
+        var zone = CashSessionTime.ResolveEffectiveTimeZoneId(null, filter.TimeZoneId ?? string.Empty);
 
-        return grouped.Select(item =>
-            new DailySalesTrendReadModel(item.Date, item.TransactionCount, item.Revenue)).ToArray();
+        // Calendar days in the Company zone cannot be grouped by the UTC date in SQL.
+        return rows
+            .GroupBy(row => CompanyDates.DateFor(row.SaleDate, zone))
+            .OrderBy(group => group.Key)
+            .Select(group => new DailySalesTrendReadModel(
+                group.Key,
+                group.Count(),
+                group.Sum(row => row.TotalAmount)))
+            .ToArray();
+
     }
 
     private IQueryable<Core.Entities.Sale> FilterSales(

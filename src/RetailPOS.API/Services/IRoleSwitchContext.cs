@@ -4,8 +4,8 @@ namespace RetailPOS.API.Services;
 
 /// <summary>
 /// Session-scoped role-switch context. Reflects whether the current request is
-/// running under the user's real role or under a temporary acting role granted
-/// by a BusinessOwner. Backed entirely by JWT claims — no DB state.
+/// running under the user's real role or under a temporary acting role or location
+/// allowed by UserContextPolicy. Backed entirely by JWT claims — no DB state.
 /// </summary>
 public interface IRoleSwitchContext : IRoleGovernanceContext, IUserGovernanceContext
 {
@@ -16,6 +16,7 @@ public interface IRoleSwitchContext : IRoleGovernanceContext, IUserGovernanceCon
     string? ActingRoleName { get; }
     long? ActingOutletId { get; }
     string? ActingOutletName { get; }
+    long? ActingWarehouseId { get; }
 
     bool IsRoleSwitched { get; }
     bool IsBusinessOwner { get; }

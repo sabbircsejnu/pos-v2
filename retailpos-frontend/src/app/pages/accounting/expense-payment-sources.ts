@@ -9,8 +9,8 @@ export interface ExpensePaymentSourceOption extends DropdownOption {
 }
 
 export const EXPENSE_PAYMENT_SOURCES: readonly ExpensePaymentSourceOption[] = [
-  { id: 1, code: 'bank', name: 'Bank / other account', description: 'Paid outside the POS drawer; the drawer is not affected.' },
-  { id: 2, code: 'petty_cash', name: 'Petty cash', description: 'Needs independent approval; the POS drawer is not affected.' },
+  { id: 1, code: 'bank', name: 'Bank', description: 'Paid from a bank account; the POS drawer is not affected.' },
+  { id: 2, code: 'petty_cash', name: 'Petty cash', description: 'Paid from cash outside the POS drawer. Needs independent approval; the drawer is not affected.' },
   { id: 3, code: 'pos_drawer', name: 'POS cash drawer', description: 'Needs approval and an outlet. Cash leaves the drawer only when the payout is recorded at a terminal with an open session.' },
 ];
 
@@ -19,7 +19,7 @@ export function paymentSourceOption(code?: string | null): ExpensePaymentSourceO
 }
 
 export function paymentSourceLabel(code?: string | null): string {
-  return code ? paymentSourceOption(code).name : 'Bank / other account (legacy)';
+  return code ? paymentSourceOption(code).name : 'Bank (legacy)';
 }
 
 /**

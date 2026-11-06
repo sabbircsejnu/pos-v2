@@ -3,12 +3,14 @@ namespace RetailPOS.Core.Entities;
 public static class AccountingSequenceTypes
 {
     public const string Journal = "Journal";
+    public const string ExpenseReference = "ExpenseReference";
 }
 
 public static class AccountingSequenceResetPolicies
 {
     public const string Continuous = "Continuous";
     public const string PerFinancialYear = "PerFinancialYear";
+    public const string PerBusinessDay = "PerBusinessDay";
 }
 
 public class AccountingNumberSequence

@@ -111,29 +111,26 @@ export class ProductLedgerReportComponent implements OnInit, OnDestroy {
   canLoad    = computed(() => this.selectedProduct() !== null);
 
   // ── Date helpers ──────────────────────────────────────────────────────────
-  private fmt(d: Date): string { return d.toISOString().substring(0, 10); }
-
   setToday(): void {
-    const t = this.fmt(new Date());
-    this.dateFrom.set(t); this.dateTo.set(t);
+    const today = this.companyDates.todayIso();
+    this.dateFrom.set(today); this.dateTo.set(today);
   }
 
   setThisMonth(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getFullYear(), now.getMonth(), 1)));
-    this.dateTo.set(this.fmt(new Date()));
+    this.dateFrom.set(this.companyDates.firstOfMonthIso());
+    this.dateTo.set(this.companyDates.todayIso());
   }
 
   setLastMonth(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
-    this.dateTo.set(this.fmt(new Date(now.getFullYear(), now.getMonth(), 0)));
+    const today = this.companyDates.todayIso();
+    const lastDay = this.companyDates.todayIso(-Number(today.slice(8)));
+    this.dateFrom.set(`${lastDay.slice(0, 8)}01`);
+    this.dateTo.set(lastDay);
   }
 
   setLast30Days(): void {
-    const now = new Date();
-    this.dateFrom.set(this.fmt(new Date(now.getTime() - 30 * 86400000)));
-    this.dateTo.set(this.fmt(now));
+    this.dateFrom.set(this.companyDates.todayIso(-30));
+    this.dateTo.set(this.companyDates.todayIso());
   }
 
   // ── Product search ────────────────────────────────────────────────────────
@@ -273,6 +270,9 @@ export class ProductLedgerReportComponent implements OnInit, OnDestroy {
       case 'adjustment':   return 'badge-neutral';
       case 'transfer_in':  return 'badge-info';
       case 'transfer_out': return 'badge-secondary';
+      case 'return_transfer_in':  return 'badge-info';
+      case 'return_transfer_out': return 'badge-secondary';
+      case 'transfer_discrepancy': return 'badge-warning';
       default:             return 'badge-neutral';
     }
   }

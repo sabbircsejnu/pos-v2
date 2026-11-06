@@ -1436,6 +1436,7 @@ public sealed class PosLookupHttpTests : IClassFixture<RetailPosApiFactory>
                 PasswordHash = "x",
                 OutletId = 5001,
                 InventoryLocationAccessScope = User.InventoryAccessAssignedOnly,
+                ContextSwitchEnabled = true,
                 IsActive = true
             },
             new User
@@ -1449,6 +1450,8 @@ public sealed class PosLookupHttpTests : IClassFixture<RetailPosApiFactory>
                 InventoryLocationAccessScope = string.Empty,
                 IsActive = true
             });
+        // A non-owner's acting outlet is only honoured while it is still assigned.
+        db.UserOutletAssignments.Add(new UserOutletAssignment { UserId = 7001, OutletId = 5002, BusinessId = 1 });
         db.Products.AddRange(
             new Product
             {

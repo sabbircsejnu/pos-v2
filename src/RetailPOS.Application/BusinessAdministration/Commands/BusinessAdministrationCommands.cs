@@ -75,6 +75,35 @@ public sealed class UpdateBusinessSubscriptionCommandHandler(
     }
 }
 
+public sealed record UpdateBusinessReceiptFooterCommand(
+    long BusinessId,
+    bool ShowPoweredByOnReceipt,
+    string? PoweredByText) : ICommand<BusinessSummaryReadModel>;
+
+public sealed class UpdateBusinessReceiptFooterCommandHandler(
+    IBusinessAdministrationWriteStore store,
+    IBusinessTargetAccess targetAccess,
+    ISender sender)
+    : IRequestHandler<UpdateBusinessReceiptFooterCommand, BusinessSummaryReadModel>
+{
+    public async Task<BusinessSummaryReadModel> Handle(
+        UpdateBusinessReceiptFooterCommand request,
+        CancellationToken cancellationToken)
+    {
+        targetAccess.RequirePlatformSuperAdmin();
+        if (!await store.UpdateReceiptFooterAsync(
+                request.BusinessId,
+                request.ShowPoweredByOnReceipt,
+                BusinessReceiptFooterRules.NormalizePoweredByText(request.PoweredByText),
+                cancellationToken))
+            throw new KeyNotFoundException("Business not found.");
+
+        return await sender.Send(
+            new GetBusinessByIdQuery(request.BusinessId),
+            cancellationToken);
+    }
+}
+
 public sealed record UpsertBusinessFeatureSettingsCommand(
     long BusinessId,
     IReadOnlyList<BusinessFeatureSettingChange> Features)

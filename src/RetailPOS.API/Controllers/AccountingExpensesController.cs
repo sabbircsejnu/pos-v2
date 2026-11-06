@@ -3,6 +3,8 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Microsoft.Net.Http.Headers;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Accounting;
 using RetailPOS.API.DTOs.Expense;
 using RetailPOS.API.Models;
@@ -10,6 +12,7 @@ using RetailPOS.API.Services;
 using RetailPOS.Application.Expenses.Abstractions;
 using RetailPOS.Application.Expenses.Commands;
 using RetailPOS.Application.Expenses.Queries;
+using RetailPOS.Application.Identity.Permissions;
 
 namespace RetailPOS.API.Controllers;
 
@@ -28,8 +31,119 @@ public class AccountingExpensesController : ControllerBase
         _sender = sender;
     }
 
+    /// <summary>
+    /// Funding accounts selectable on an expense; needs no Chart of Accounts permission. Pass the payment source and
+    /// location to get only what that source may credit there.
+    /// </summary>
+    [HttpGet("payment-accounts")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseEntryWrite)]
+    public async Task<ActionResult<ApiResponse<List<ExpensePaymentAccountDto>>>> GetPaymentAccounts(
+        [FromQuery] string? paymentSource,
+        [FromQuery] long? outletId,
+        [FromQuery] long? warehouseId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetExpensePaymentAccountsQuery(_tenantAccess.RequireBusinessId(), paymentSource, outletId, warehouseId),
+            cancellationToken);
+        return Ok(ApiResponse<List<ExpensePaymentAccountDto>>.SuccessResponse(result.Select(ExpenseReadModelMapper.ToDto).ToList()));
+    }
+
+    /// <summary>Ledger accounts a category may be mapped to, for category managers who need no Chart of Accounts access.</summary>
+    [HttpGet("expense-accounts")]
+    [Authorize(Policy = PermissionCatalog.ExpenseCategoriesManage)]
+    public async Task<ActionResult<ApiResponse<List<ExpenseAccountOptionDto>>>> GetExpenseAccounts(
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetEligibleExpenseAccountsQuery(_tenantAccess.RequireBusinessId()),
+            cancellationToken);
+        return Ok(ApiResponse<List<ExpenseAccountOptionDto>>.SuccessResponse(result.Select(ExpenseReadModelMapper.ToDto).ToList()));
+    }
+
+    [HttpGet("{id:long}/attachments")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseEntryRead)]
+    public async Task<ActionResult<ApiResponse<List<ExpenseAttachmentDto>>>> GetAttachments(
+        long id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetExpenseAttachmentsQuery(_tenantAccess.RequireBusinessId(), id),
+            cancellationToken);
+        return Ok(ApiResponse<List<ExpenseAttachmentDto>>.SuccessResponse(result.Select(ExpenseReadModelMapper.ToDto).ToList()));
+    }
+
+    public sealed class UploadExpenseAttachmentRequest
+    {
+        public IFormFile File { get; set; } = default!;
+    }
+
+    [HttpPost("{id:long}/attachments")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseEntryWrite)]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ApiResponse<ExpenseAttachmentDto>>> UploadAttachment(
+        long id,
+        [FromForm] UploadExpenseAttachmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var actorUserId))
+        {
+            return Unauthorized(ApiResponse<ExpenseAttachmentDto>.ErrorResponse("User identity not found"));
+        }
+
+        await using var content = request.File.OpenReadStream();
+        var result = await _sender.Send(
+            new UploadExpenseAttachmentCommand(
+                _tenantAccess.RequireBusinessId(),
+                actorUserId,
+                id,
+                content,
+                request.File.FileName),
+            cancellationToken);
+        return Ok(ApiResponse<ExpenseAttachmentDto>.SuccessResponse(ExpenseReadModelMapper.ToDto(result), "Attachment uploaded"));
+    }
+
+    /// <summary>Streams an attachment through authorization; <paramref name="inline"/> asks the browser to preview it.</summary>
+    [HttpGet("{id:long}/attachments/{attachmentId:long}/content")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseEntryRead)]
+    public async Task<IActionResult> GetAttachmentContent(
+        long id,
+        long attachmentId,
+        [FromQuery] bool inline = false,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _sender.Send(
+            new GetExpenseAttachmentContentQuery(_tenantAccess.RequireBusinessId(), id, attachmentId),
+            cancellationToken);
+
+        Response.Headers.XContentTypeOptions = "nosniff";
+        Response.Headers.CacheControl = "private, no-store";
+        var disposition = new ContentDispositionHeaderValue(inline ? "inline" : "attachment");
+        disposition.SetHttpFileName(result.FileName);
+        Response.Headers.ContentDisposition = disposition.ToString();
+        return File(result.Content, result.ContentType);
+    }
+
+    [HttpDelete("{id:long}/attachments/{attachmentId:long}")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseEntryWrite)]
+    public async Task<ActionResult<ApiResponse>> DeleteAttachment(
+        long id,
+        long attachmentId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var actorUserId))
+        {
+            return Unauthorized(ApiResponse.ErrorResponse("User identity not found"));
+        }
+
+        await _sender.Send(
+            new DeleteExpenseAttachmentCommand(_tenantAccess.RequireBusinessId(), actorUserId, id, attachmentId),
+            cancellationToken);
+        return Ok(ApiResponse.SuccessResponse("Attachment removed"));
+    }
+
     [HttpGet("categories")]
-    [Authorize(Policy = "accounting.expenses.view")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ExpenseCategoryRead)]
     public async Task<ActionResult<ApiResponse<List<ExpenseCategoryDto>>>> GetCategories(
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
@@ -41,7 +155,7 @@ public class AccountingExpensesController : ControllerBase
     }
 
     [HttpPost("categories")]
-    [Authorize(Policy = "accounting.expenses.edit")]
+    [Authorize(Policy = PermissionCatalog.ExpenseCategoriesManage)]
     public async Task<ActionResult<ApiResponse<ExpenseCategoryDto>>> CreateCategory(
         [FromBody] UpsertExpenseCategoryDto dto,
         CancellationToken cancellationToken)
@@ -74,7 +188,7 @@ public class AccountingExpensesController : ControllerBase
     }
 
     [HttpPut("categories/{id:long}")]
-    [Authorize(Policy = "accounting.expenses.edit")]
+    [Authorize(Policy = PermissionCatalog.ExpenseCategoriesManage)]
     public async Task<ActionResult<ApiResponse<ExpenseCategoryDto>>> UpdateCategory(
         long id,
         [FromBody] UpsertExpenseCategoryDto dto,
@@ -113,6 +227,7 @@ public class AccountingExpensesController : ControllerBase
     public async Task<ActionResult<ApiResponse<ExpenseListDto>>> Search([FromQuery] string? category, [FromQuery] string? status,
         [FromQuery] long? outletId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate,
         [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] long? warehouseId = null,
         CancellationToken cancellationToken = default)
     {
         var result = await _sender.Send(
@@ -124,7 +239,8 @@ public class AccountingExpensesController : ControllerBase
                 startDate,
                 endDate,
                 pageNumber,
-                pageSize)),
+                pageSize,
+                warehouseId)),
             cancellationToken);
 
         return Ok(ApiResponse<ExpenseListDto>.SuccessResponse(ExpenseReadModelMapper.ToDto(result)));
@@ -145,7 +261,8 @@ public class AccountingExpensesController : ControllerBase
                 dto.StartDate,
                 dto.EndDate,
                 dto.PageNumber,
-                dto.PageSize)),
+                dto.PageSize,
+                dto.WarehouseId)),
             cancellationToken);
         return Ok(ApiResponse<ExpenseListDto>.SuccessResponse(ExpenseReadModelMapper.ToDto(result)));
     }
@@ -189,7 +306,8 @@ public class AccountingExpensesController : ControllerBase
                     dto.AttachmentPath,
                     dto.ExpenseDate,
                     dto.OutletId,
-                    dto.PaymentSource)),
+                    dto.PaymentSource,
+                    dto.WarehouseId)),
             cancellationToken);
         var result = await GetExpenseDtoAsync(expenseId, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, ApiResponse<ExpenseDto>.SuccessResponse(result, "Expense created successfully"));
@@ -226,7 +344,8 @@ public class AccountingExpensesController : ControllerBase
                     dto.AttachmentPath,
                     dto.ExpenseDate,
                     dto.OutletId,
-                    dto.PaymentSource)),
+                    dto.PaymentSource,
+                    dto.WarehouseId)),
             cancellationToken);
         var result = await GetExpenseDtoAsync(expenseId, cancellationToken);
         return Ok(ApiResponse<ExpenseDto>.SuccessResponse(result, "Expense updated successfully"));

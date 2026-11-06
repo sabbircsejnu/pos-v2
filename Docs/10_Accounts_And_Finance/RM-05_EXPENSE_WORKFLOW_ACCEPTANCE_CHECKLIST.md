@@ -81,3 +81,42 @@ Out-of-scope confirmation:
 
 1. RM-06 and later milestones were not implemented.
 2. RM-01 to RM-04 behavior remained protected by regression coverage.
+
+## 8) Update 2026-11-06 - Chart of Accounts and expense integration
+
+Approved decisions D1 to D5. This section supersedes the earlier text where they differ: FLOW-04's override now follows the eligibility rule below, and category writes moved from `accounting.expenses.edit` to `accounting.expense_categories.manage`. No schema migration or data change was involved.
+
+### Chart of Accounts access
+
+- The screen is `/accounting/chart-of-accounts` under Finance, on the existing `api/accounting/chart-accounts` API and `accounting.chart_accounts.*` permissions. The legacy `/accounts` page stays hidden, read-only and separate.
+- Operating expense accounts (Rent, Internet and so on) are created there by authorized users. They are not provisioned automatically, and the 26 default system accounts are unchanged.
+
+### Expense account eligibility (`ExpenseAccountEligibilityPolicy`)
+
+A newly chosen account must be in the current Business, active, Expense-type, not a control account, without active child accounts, and allow direct postings. A system account must also be on the explicit allowlist, which currently holds only `6310 Bank Fee Expense`. `4010 Sales Discounts`, `4020 Sales Returns` and the other system accounts cannot be newly chosen.
+
+The same rule serves the lookup, category create, category remap, category reactivation and an approval override to a different account. Compatibility: a category edit that keeps its account and does not reactivate the category is not re-judged, and approval using the category's saved mapping checks only that the account is in the Business, active and Expense-type. An existing mapping is never rewritten.
+
+Approval resolves the category's account at approval time, so remapping a category reaches its Draft, Submitted and Rejected expenses when they are approved. The remap is audited and the form warns about it. Approved expenses keep the account they posted to, and posted journals do not change.
+
+### Payment source and account (`ExpensePaymentAccountPolicy`)
+
+The model has no account subtype and no Cash Session ledger account, so accounts are classified from Accounting Configuration and the bank register for the expense's location:
+
+| Payment Source | Allowed credit account |
+|---|---|
+| `pos_drawer` | The outlet's Cash mapping, or the Business Cash mapping if the outlet has no override. An outlet is required. |
+| `petty_cash` | Business Cash or Petty Cash mappings, plus the outlet's overrides on an outlet expense |
+| `bank`, and legacy rows with no source | Business Bank mapping and Business-wide active bank register accounts, plus the outlet's Bank override and register accounts on an outlet expense |
+
+Create and edit also require the `IsExpensePaymentAccount` flag, except for the POS drawer's account, which configuration chooses. Approval applies the source rule but not the flag, so a flag change does not strand an expense. A flagged account that is not mapped or registered is offered for no source.
+
+An existing expense that disagrees is refused at approval with no journal. To correct it, reject it, edit the source or account, and submit it again. Approved expenses are never altered.
+
+An open Cash Session is required when the payout is recorded (`pay-from-drawer`), not at create or approval, as FR-EXP-APP-01 requires. Approval posts the journal; the payout records one cash movement and adds no journal.
+
+### Account deactivation (`ChartAccountDeactivationPolicy`)
+
+Every Active-to-Inactive change, through `PUT` or `POST .../deactivate`, uses one rule under a row lock. It is refused, with counts where available, while the account has active expense categories, active child accounts, any accounting configuration mapping, journal lines, active bank register links, or unapproved expenses, other income entries, supplier payments or supplier advances. System accounts cannot be deactivated. Reactivation goes through `PUT` and requires an active parent. Inactive accounts stay in historical ledgers and reports.
+
+Mapping a category takes a shared lock on the account row, so it cannot race a deactivation into an active category on an inactive account.

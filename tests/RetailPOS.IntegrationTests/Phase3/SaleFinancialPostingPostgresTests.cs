@@ -433,6 +433,7 @@ public sealed partial class SaleFinancialPostingPostgresTests
         PostgresTestDatabase.RunAsync(
             InfrastructureTestSettings.RequireIsolatedPostgres(),
             PostgresTestDatabasePrefix.MigrationBaseline,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 const string schemaState = """
@@ -549,7 +550,7 @@ public sealed partial class SaleFinancialPostingPostgresTests
         authorizer.Setup(a => a.AuthorizeWriteAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((long outlet, CancellationToken _) => outlet);
         var handler = new OpenCashSessionCommandHandler(
-            new CashSessionStore(db), authorizer.Object, settings.Object, Mock.Of<ICashSessionOpenAuditWriter>(),
+            new CashSessionStore(db), authorizer.Object, settings.Object, TestCompanySettings.Provider(), Mock.Of<ICashSessionOpenAuditWriter>(),
             Mock.Of<ICashSessionOpenedPublisher>(), Events(db), TimeProvider.System);
         return await handler.Handle(
             new OpenCashSessionCommand(outletId, terminalId, 100m, null, cashier, null), CancellationToken.None);
@@ -629,7 +630,7 @@ public sealed partial class SaleFinancialPostingPostgresTests
         cache.Setup(x => x.InvalidateStockAsync(It.IsAny<long>(), It.IsAny<long>())).Returns(Task.CompletedTask);
         var handler = new VoidSaleCommandHandler(
             new SaleVoidStore(db),
-            new SaleReadStore(db),
+            new SaleReadStore(db, TestCompanySettings.Provider()),
             authorizer.Object,
             SaleCreationCommandTestFactory.FinancialPostings(db),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(

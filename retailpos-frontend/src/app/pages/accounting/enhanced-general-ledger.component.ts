@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -12,7 +13,8 @@ import { EnhancedGeneralLedgerReport } from '../../models/accounting.model';
 
 @Component({ selector: 'app-enhanced-general-ledger', standalone: true, imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule], templateUrl: './enhanced-general-ledger.component.html' })
 export class EnhancedGeneralLedgerComponent implements OnInit {
-  readonly accountId = signal<number | null>(null); readonly dateFrom = signal(new Date().toISOString().slice(0, 10)); readonly dateTo = signal(new Date().toISOString().slice(0, 10));
+  private readonly companyToday = inject(CompanyDateService);
+  readonly accountId = signal<number | null>(null); readonly dateFrom = signal(this.companyToday.todayIso()); readonly dateTo = signal(this.companyToday.todayIso());
   readonly locationId = signal<number | null>(null); readonly locationType = signal<'outlet' | 'warehouse'>('outlet'); readonly accounts = signal<Array<{ id: number; accountCode: string; accountName: string }>>([]);
   readonly report = signal<EnhancedGeneralLedgerReport | null>(null); readonly isLoading = signal(false); readonly error = signal<string | null>(null);
   constructor(private route: ActivatedRoute, private accounting: AccountingService, private alerts: AlertService, private errors: ErrorHandlerService, private currency: CurrencyService) {}

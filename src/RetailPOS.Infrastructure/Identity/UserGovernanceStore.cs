@@ -95,6 +95,48 @@ public sealed class UserGovernanceStore(
                 && user.Role.Name.ToLower() == SystemRoleNames.SuperAdmin.ToLower(),
             cancellationToken);
 
+    public async Task<UserContextAccessReadModel?> FindContextAccessAsync(
+        long userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new UserContextAccessReadModel(
+                user.ContextSwitchEnabled,
+                user.ContextLocationScope,
+                user.ContextRoleScope,
+                user.ContextRoles.OrderBy(mapping => mapping.RoleId).Select(mapping => mapping.RoleId).ToArray()))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<string>> FindPermissionOverridesAsync(
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        var overrides = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.PermissionOverrides)
+            .FirstOrDefaultAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(overrides)
+            ? []
+            : JsonSerializer.Deserialize<List<string>>(overrides) ?? [];
+    }
+
+    public async Task<IReadOnlyList<UserGovernanceContextRole>> ListBusinessContextRolesAsync(
+        long businessId,
+        IReadOnlyCollection<string> defaultRoleNames,
+        CancellationToken cancellationToken)
+    {
+        var defaultNames = defaultRoleNames.Select(name => name.ToLower()).ToList();
+        return await dbContext.Roles
+            .AsNoTracking()
+            .Where(role => defaultNames.Contains(role.Name.ToLower())
+                || role.Users.Any(user => user.BusinessId == businessId))
+            .OrderBy(role => role.Name)
+            .Select(role => new UserGovernanceContextRole(role.Id, role.Name, role.Permissions))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<UserReadModel> CreateAsync(
         UserGovernanceProfile profile,
         string password,
@@ -157,9 +199,7 @@ public sealed class UserGovernanceStore(
         var (defaultLocationType, defaultLocationId) = ResolveDefaultLocation(
             profile.DefaultLocationType,
             profile.DefaultLocationId,
-            profile.OutletId,
-            outletIds,
-            warehouseIds);
+            profile.OutletId);
         var defaultOutletId = defaultLocationType == "outlet" ? defaultLocationId : null;
         AddDefaultLocationAssignment(accessScope, defaultLocationType, defaultLocationId, outletIds, warehouseIds);
         await ValidateDefaultLocationScopeAsync(
@@ -167,6 +207,7 @@ public sealed class UserGovernanceStore(
             defaultLocationType,
             defaultLocationId,
             cancellationToken);
+        ValidateDefaultLocationIsAssigned(role.Name, accessScope, defaultLocationType, defaultLocationId, profile);
         ValidateRoleAssignments(role.Name, defaultOutletId, warehouseIds);
 
         if (businessId.HasValue)
@@ -206,6 +247,7 @@ public sealed class UserGovernanceStore(
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync(cancellationToken);
         AddAssignments(user, outletIds, warehouseIds);
+        var contextAuditFields = await ApplyContextAccessAsync(user, profile.ContextAccess, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await WriteUserAuditAsync(
@@ -223,7 +265,8 @@ public sealed class UserGovernanceStore(
                 ("WarehouseAssignments", null, warehouseIds.ToArray()),
                 ("PermissionOverrides", null, user.PermissionOverrides),
                 ("InventoryLocationAccessScope", null, user.InventoryLocationAccessScope),
-                ("IsActive", null, user.IsActive)
+                ("IsActive", null, user.IsActive),
+                .. contextAuditFields
             ],
             cancellationToken);
 
@@ -269,9 +312,7 @@ public sealed class UserGovernanceStore(
         var (defaultLocationType, defaultLocationId) = ResolveDefaultLocation(
             profile.DefaultLocationType,
             profile.DefaultLocationId,
-            profile.OutletId,
-            outletIds,
-            warehouseIds);
+            profile.OutletId);
         var targetBusinessId = await ResolveUpdateBusinessIdAsync(
             user,
             profile,
@@ -322,6 +363,7 @@ public sealed class UserGovernanceStore(
             defaultLocationType,
             defaultLocationId,
             cancellationToken);
+        ValidateDefaultLocationIsAssigned(role.Name, accessScope, defaultLocationType, defaultLocationId, profile);
         ValidateRoleAssignments(role.Name, defaultOutletId, warehouseIds);
         ValidateInventoryAccessConfiguration(accessScope, defaultOutletId, outletIds, warehouseIds);
 
@@ -345,6 +387,7 @@ public sealed class UserGovernanceStore(
             .ToListAsync(cancellationToken);
         dbContext.UserWarehouseAssignments.RemoveRange(currentWarehouseAssignments);
         AddAssignments(user, outletIds, warehouseIds);
+        var contextAuditFields = await ApplyContextAccessAsync(user, profile.ContextAccess, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await WriteUserAuditAsync(
@@ -362,7 +405,8 @@ public sealed class UserGovernanceStore(
                 ("WarehouseAssignments", oldWarehouseAssignmentIds, warehouseIds.ToArray()),
                 ("PermissionOverrides", oldPermissionOverrides, user.PermissionOverrides),
                 ("InventoryLocationAccessScope", oldAccessScope, user.InventoryLocationAccessScope),
-                ("IsActive", oldIsActive, user.IsActive)
+                ("IsActive", oldIsActive, user.IsActive),
+                .. contextAuditFields
             ],
             cancellationToken);
 
@@ -506,6 +550,55 @@ public sealed class UserGovernanceStore(
                 new AuditEntityInput("User", user.Id.ToString(), operationType, fields)
             ]
         }, cancellationToken);
+
+    // Authorization and scope validation live in UserContextAccessRules; this only persists the result.
+    private async Task<IReadOnlyList<(string FieldName, object? OldValue, object? NewValue)>> ApplyContextAccessAsync(
+        User user,
+        UserContextAccessInput? input,
+        CancellationToken cancellationToken)
+    {
+        if (input is null)
+        {
+            return [];
+        }
+
+        var requestedRoleIds = input.RoleIds ?? [];
+        if (requestedRoleIds.Count > 0 && !user.BusinessId.HasValue)
+        {
+            throw new InvalidOperationException("BusinessId is required before saving context roles.");
+        }
+
+        var existing = await dbContext.UserContextRoles
+            .Where(mapping => mapping.UserId == user.Id)
+            .ToListAsync(cancellationToken);
+        var oldRoleIds = existing.Select(mapping => mapping.RoleId).OrderBy(id => id).ToArray();
+        IReadOnlyList<(string FieldName, object? OldValue, object? NewValue)> fields =
+        [
+            ("ContextSwitchEnabled", user.ContextSwitchEnabled, input.Enabled),
+            ("ContextLocationScope", user.ContextLocationScope, input.LocationScope),
+            ("ContextRoleScope", user.ContextRoleScope, input.RoleScope),
+            ("ContextRoleIds", oldRoleIds, requestedRoleIds.ToArray())
+        ];
+
+        user.ContextSwitchEnabled = input.Enabled;
+        user.ContextLocationScope = input.LocationScope ?? User.ContextLocationSelected;
+        user.ContextRoleScope = input.RoleScope ?? User.ContextRoleMapped;
+        dbContext.UserContextRoles.RemoveRange(existing.Where(mapping => !requestedRoleIds.Contains(mapping.RoleId)));
+        foreach (var mapping in existing)
+        {
+            mapping.BusinessId = user.BusinessId ?? mapping.BusinessId;
+        }
+
+        dbContext.UserContextRoles.AddRange(requestedRoleIds
+            .Where(roleId => !oldRoleIds.Contains(roleId))
+            .Select(roleId => new UserContextRole
+            {
+                UserId = user.Id,
+                RoleId = roleId,
+                BusinessId = user.BusinessId!.Value
+            }));
+        return fields;
+    }
 
     private void AddAssignments(User user, IReadOnlyList<long> outletIds, IReadOnlyList<long> warehouseIds)
     {
@@ -671,9 +764,7 @@ public sealed class UserGovernanceStore(
     private static (string? LocationType, long? LocationId) ResolveDefaultLocation(
         string? defaultLocationType,
         long? defaultLocationId,
-        long? legacyDefaultOutletId,
-        IReadOnlyCollection<long> outletIds,
-        IReadOnlyCollection<long> warehouseIds)
+        long? legacyDefaultOutletId)
     {
         var normalizedType = NormalizeDefaultLocationType(defaultLocationType);
         if (defaultLocationId.HasValue)
@@ -687,17 +778,8 @@ public sealed class UserGovernanceStore(
             return (normalizedType, defaultLocationId.Value);
         }
 
-        if (legacyDefaultOutletId.HasValue)
-        {
-            return ("outlet", legacyDefaultOutletId.Value);
-        }
-
-        if (outletIds.Count > 0)
-        {
-            return ("outlet", outletIds.First());
-        }
-
-        return warehouseIds.Count > 0 ? ("warehouse", warehouseIds.First()) : (null, null);
+        // No default is a valid choice: an assignment is never promoted to the user's default.
+        return legacyDefaultOutletId.HasValue ? ("outlet", legacyDefaultOutletId.Value) : (null, null);
     }
 
     private static string? NormalizeDefaultLocationType(string? locationType)
@@ -767,7 +849,19 @@ public sealed class UserGovernanceStore(
         List<long> outletIds,
         List<long> warehouseIds)
     {
-        if (accessScope == User.InventoryAccessAll || !locationId.HasValue)
+        if (!locationId.HasValue)
+        {
+            return;
+        }
+
+        // A default warehouse has no column of its own: it is read back as the primary assignment.
+        if (locationType == "warehouse" && warehouseIds.Remove(locationId.Value))
+        {
+            warehouseIds.Insert(0, locationId.Value);
+            return;
+        }
+
+        if (accessScope == User.InventoryAccessAll)
         {
             return;
         }
@@ -781,6 +875,38 @@ public sealed class UserGovernanceStore(
         {
             warehouseIds.Insert(0, locationId.Value);
         }
+    }
+
+    // Omitted collections are legacy callers that rely on the default being linked as an assignment;
+    // Assigned Location Only with no selection for that location type treats the default as the assignment.
+    private static void ValidateDefaultLocationIsAssigned(
+        string? roleName,
+        string accessScope,
+        string? locationType,
+        long? locationId,
+        UserGovernanceProfile profile)
+    {
+        if (!locationId.HasValue
+            || accessScope == User.InventoryAccessAll
+            || IsSuperAdmin(roleName)
+            || string.Equals(roleName, SystemRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var requested = locationType == "outlet" ? profile.OutletIds : profile.WarehouseIds;
+        if (requested is null || requested.Contains(locationId.Value))
+        {
+            return;
+        }
+
+        if (accessScope == User.InventoryAccessAssignedOnly && !requested.Any())
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Default {locationType} #{locationId.Value} must be one of the user's assigned locations.");
     }
 
     private static void ValidateInventoryAccessConfiguration(
@@ -838,12 +964,11 @@ public sealed class UserGovernanceStore(
         }
     }
 
+    // Outlet-bound selling roles only. Other roles, including custom ones, are governed by their
+    // permissions and location assignments and may work without any outlet.
     private static bool IsOutletRequired(string? roleName) =>
-        !string.IsNullOrWhiteSpace(roleName)
-        && !new[]
-        {
-            "Super Admin", "BusinessOwner", "BusinessAdmin", "AccountsAdmin", "WarehouseManager"
-        }.Contains(roleName, StringComparer.OrdinalIgnoreCase);
+        new[] { "OutletManager", "SalesPerson", "Salesman", "Cashier" }
+            .Contains(roleName, StringComparer.OrdinalIgnoreCase);
 
     private static bool IsWarehouseRequired(string? roleName) =>
         string.Equals(roleName, "WarehouseManager", StringComparison.OrdinalIgnoreCase);

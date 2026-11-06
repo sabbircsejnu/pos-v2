@@ -1,10 +1,11 @@
 {
   "Company": {
     "CompanyName": "Irani Mart",
+    "ConcernOf": "Ahir Borka Bazar",
     "Address": "Dhaka, Bangladesh",
     "Phone": "\u002B8801711000000",
     "Email": "info@iranimartbd.com",
-    "Website": "iranimartbd.com",
+    "Website": "www.iranimartbd.com",
     "TaxNumber": "",
     "LogoBase64": "",
     "Currency": "BDT",
@@ -29,7 +30,7 @@
   },
   "Receipt": {
     "Header": "Thank you for shopping!",
-    "Footer": "Please come again",
+    "Footer": "",
     "ShowLogo": true,
     "ShowBarcode": false,
     "ShowQr": false,

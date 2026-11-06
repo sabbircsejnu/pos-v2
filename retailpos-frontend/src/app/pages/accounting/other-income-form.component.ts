@@ -1,5 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -16,6 +17,7 @@ import { CreateOtherIncomeEntryDto, UpdateOtherIncomeEntryDto } from '../../mode
   styleUrls: ['./other-income-form.component.css']
 })
 export class OtherIncomeFormComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   incomeForm!: FormGroup;
   isEditMode = signal(false);
   incomeId = signal<number | null>(null);
@@ -51,7 +53,7 @@ export class OtherIncomeFormComponent implements OnInit {
       paymentAccountId: [null, Validators.required],
       referenceNumber: [''],
       description: [''],
-      incomeDate: [new Date().toISOString().split('T')[0], Validators.required],
+      incomeDate: [this.companyToday.todayIso(), Validators.required],
       outletId: [null]
     });
   }

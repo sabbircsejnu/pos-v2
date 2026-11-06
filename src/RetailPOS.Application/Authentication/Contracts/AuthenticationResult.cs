@@ -35,4 +35,7 @@ public sealed record AuthenticationUserProfile(
     string? ActingRoleName = null,
     long? ActingOutletId = null,
     string? ActingOutletName = null,
-    bool IsRoleSwitched = false);
+    bool IsRoleSwitched = false,
+    string? ActingLocationType = null,
+    long? ActingWarehouseId = null,
+    string? ActingWarehouseName = null);

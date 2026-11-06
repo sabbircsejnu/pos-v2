@@ -63,7 +63,10 @@ public sealed record StockTransferReadModel(
     long? CreatedBy,
     string? CreatorName,
     DateTime CreatedAt,
-    IReadOnlyList<StockTransferItemReadModel> Items);
+    IReadOnlyList<StockTransferItemReadModel> Items,
+    long? OriginalTransferId = null,
+    long? ReturnTransferId = null,
+    string? ReturnTransferNo = null);
 
 public sealed record StockTransferItemReadModel(
     long Id,
@@ -79,4 +82,8 @@ public sealed record StockTransferItemReadModel(
     int AcceptedQuantity,
     int RejectedQuantity,
     decimal UnitCost,
-    string? Remarks);
+    string? Remarks,
+    int MissingQuantity = 0,
+    int DamagedQuantity = 0,
+    int InTransitQuantity = 0,
+    int ReturnTransitQuantity = 0);

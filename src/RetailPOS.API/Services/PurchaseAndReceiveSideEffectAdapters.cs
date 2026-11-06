@@ -2,7 +2,10 @@ using RetailPOS.API.DTOs.Accounting;
 using RetailPOS.Application.AccountingJournals.Abstractions;
 using RetailPOS.Application.AccountingJournals.Commands;
 using RetailPOS.Application.Inventory.Abstractions;
+using RetailPOS.Application.Inventory.Costing;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Entities.Audit;
 using RetailPOS.Core.Money;
@@ -24,8 +27,27 @@ public sealed class PurchaseAndReceiveStockLedgerWriterAdapter(IStockLedgerWrite
         string referenceType,
         long referenceId,
         string remarks,
-        long? createdBy) =>
-        stockLedger.WriteEntry(
+        long? createdBy,
+        GrnLedgerCost cost)
+    {
+        if (cost.ZeroCostVerified)
+        {
+            stockLedger.WriteVerifiedZeroCostEntry(
+                variantId,
+                locationId,
+                locationType,
+                transactionType,
+                quantityIn,
+                quantityOut,
+                balanceAfter,
+                referenceType,
+                referenceId,
+                remarks,
+                createdBy);
+            return;
+        }
+
+        stockLedger.WriteEntryWithValuation(
             variantId,
             locationId,
             locationType,
@@ -36,12 +58,16 @@ public sealed class PurchaseAndReceiveStockLedgerWriterAdapter(IStockLedgerWrite
             referenceType,
             referenceId,
             remarks,
-            createdBy);
+            createdBy,
+            unitCost: cost.UnitCost,
+            movementValue: cost.MovementValue);
+    }
 }
 
 public sealed class PurchaseReceiptJournalPoster(
     ISender? sender = null,
-    IAccountingConfigurationService? accountingConfigurationService = null)
+    IAccountingConfigurationService? accountingConfigurationService = null,
+    ICompanyTimeZoneProvider? timeZones = null)
     : IPurchaseReceiptJournalPoster
 {
     public async Task PostAsync(
@@ -51,7 +77,7 @@ public sealed class PurchaseReceiptJournalPoster(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (sender is null || accountingConfigurationService is null)
+        if (sender is null || accountingConfigurationService is null || timeZones is null)
             return;
 
         var totalAmount = MonetaryRounding.ToCurrency(
@@ -63,6 +89,9 @@ public sealed class PurchaseReceiptJournalPoster(
         var payableAccountId = await ResolveRequiredPostingAccountAsync(PostingAccountSlots.SupplierPayable);
         var createdBy = grn.CreatedBy ?? purchaseOrder.CreatedBy ?? 0;
         cancellationToken.ThrowIfCancellationRequested();
+        var accountingDate = CompanyDates.DateFor(
+            grn.ReceivedDate,
+            await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken));
         var journalId = await sender.Send(
             new CreateOrGetSystemJournalDraftCommand(
                 businessId,
@@ -70,8 +99,8 @@ public sealed class PurchaseReceiptJournalPoster(
                 new ManualJournalDraftInput(
                     "PurchaseReceiptPosting",
                     grn.ReceivedDate,
-                    grn.ReceivedDate,
-                    grn.ReceivedDate.Date,
+                    accountingDate,
+                    accountingDate,
                     "Grn",
                     grn.Id.ToString(),
                     $"GRN-{grn.Id:D6}",

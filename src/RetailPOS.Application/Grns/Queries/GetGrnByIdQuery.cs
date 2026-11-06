@@ -9,15 +9,15 @@ public sealed record GetGrnByIdQuery(long GrnId) : IQuery<GrnReadModel>;
 
 public sealed class GetGrnByIdQueryHandler(
     IGrnReadStore store,
-    IGrnTenantScope tenantScope)
+    IGrnReadScopeProvider scopeProvider)
     : IRequestHandler<GetGrnByIdQuery, GrnReadModel>
 {
     public async Task<GrnReadModel> Handle(
         GetGrnByIdQuery request,
         CancellationToken cancellationToken)
     {
-        var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
-        return await store.FindByIdAsync(request.GrnId, businessId, cancellationToken)
+        var scope = await scopeProvider.GetAsync(cancellationToken);
+        return await store.FindByIdAsync(request.GrnId, scope, cancellationToken)
             ?? throw new KeyNotFoundException($"GRN with ID {request.GrnId} not found");
     }
 }

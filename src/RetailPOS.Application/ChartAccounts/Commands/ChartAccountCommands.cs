@@ -13,7 +13,8 @@ public sealed record CreateChartAccountCommand(
     bool AllowManualPosting,
     bool IsActive,
     int DisplayOrder,
-    long? ActorUserId) : IRequest<ChartAccountReadModel>;
+    long? ActorUserId,
+    bool IsExpensePaymentAccount = false) : IRequest<ChartAccountReadModel>;
 
 public sealed class CreateChartAccountCommandHandler(
     IChartAccountCommandStore commandStore,
@@ -38,7 +39,8 @@ public sealed record UpdateChartAccountCommand(
     bool AllowManualPosting,
     bool IsActive,
     int DisplayOrder,
-    long? ActorUserId) : IRequest<ChartAccountReadModel>;
+    long? ActorUserId,
+    bool? IsExpensePaymentAccount = null) : IRequest<ChartAccountReadModel>;
 
 public sealed class UpdateChartAccountCommandHandler(
     IChartAccountCommandStore commandStore,

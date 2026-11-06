@@ -102,14 +102,16 @@ public sealed record ExpenseApprovalJournalInput(
     string? ReferenceNumber,
     string Description,
     long? OutletId,
-    IReadOnlyList<ExpenseApprovalJournalLineInput> Lines);
+    IReadOnlyList<ExpenseApprovalJournalLineInput> Lines,
+    long? WarehouseId = null);
 
 public sealed record ExpenseApprovalJournalLineInput(
     long AccountId,
     string? Description,
     decimal DebitAmount,
     decimal CreditAmount,
-    long? OutletId);
+    long? OutletId,
+    long? WarehouseId = null);
 
 public sealed record ExpenseCreationInput(
     long ExpenseCategoryId,
@@ -125,7 +127,8 @@ public sealed record ExpenseCreationInput(
     string? AttachmentPath,
     DateTime ExpenseDate,
     long? OutletId,
-    string? PaymentSource = null);
+    string? PaymentSource = null,
+    long? WarehouseId = null);
 
 public sealed record ExpenseUpdateInput(
     long ExpenseCategoryId,
@@ -141,4 +144,5 @@ public sealed record ExpenseUpdateInput(
     string? AttachmentPath,
     DateTime ExpenseDate,
     long? OutletId,
-    string? PaymentSource = null);
+    string? PaymentSource = null,
+    long? WarehouseId = null);

@@ -8,6 +8,8 @@ using RetailPOS.Infrastructure.Data;
 using RetailPOS.Infrastructure.ApReports;
 using Xunit;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public sealed class P302ApReportServiceTests
@@ -176,7 +178,7 @@ public sealed class P302ApReportServiceTests
         ApReportFilterDto filter)
     {
         var handler = new GetApReconciliationQueryHandler(
-            new ApPayablesReportReadStore(db),
+            new ApPayablesReportReadStore(db, TestCompanySettings.Provider()),
             new TestApReportTenantScope(1));
         return handler.Handle(
             new GetApReconciliationQuery(ApReportReadModelMapper.ToApplicationFilter(filter)),
@@ -188,7 +190,7 @@ public sealed class P302ApReportServiceTests
         ApReportFilterDto filter)
     {
         var handler = new GetSupplierAdvanceReconciliationQueryHandler(
-            new ApPayablesReportReadStore(db),
+            new ApPayablesReportReadStore(db, TestCompanySettings.Provider()),
             new TestApReportTenantScope(1));
         return handler.Handle(
             new GetSupplierAdvanceReconciliationQuery(ApReportReadModelMapper.ToApplicationFilter(filter)),
@@ -200,7 +202,7 @@ public sealed class P302ApReportServiceTests
         ApReportFilterDto filter)
     {
         var handler = new GetApSubledgerQueryHandler(
-            new ApPayablesReportReadStore(db),
+            new ApPayablesReportReadStore(db, TestCompanySettings.Provider()),
             new TestApReportTenantScope(1));
         return handler.Handle(
             new GetApSubledgerQuery(ApReportReadModelMapper.ToApplicationFilter(filter)),
@@ -212,7 +214,7 @@ public sealed class P302ApReportServiceTests
         ApReportFilterDto filter)
     {
         var handler = new GetApAgingQueryHandler(
-            new ApPayablesReportReadStore(db),
+            new ApPayablesReportReadStore(db, TestCompanySettings.Provider()),
             new TestApReportTenantScope(1));
         return handler.Handle(
             new GetApAgingQuery(ApReportReadModelMapper.ToApplicationFilter(filter)),
@@ -224,7 +226,7 @@ public sealed class P302ApReportServiceTests
         ApReportFilterDto filter)
     {
         var handler = new GetSupplierStatementQueryHandler(
-            new ApPayablesReportReadStore(db),
+            new ApPayablesReportReadStore(db, TestCompanySettings.Provider()),
             new TestApReportTenantScope(1));
         return handler.Handle(
             new GetSupplierStatementQuery(ApReportReadModelMapper.ToApplicationFilter(filter)),

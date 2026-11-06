@@ -114,6 +114,10 @@
                       <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Transfer Qty</th>
                       <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Accepted Qty</th>
                       <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Rejected Qty</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Missing Qty</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Damaged Qty</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">In Transit</th>
+                      <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">Return Transit</th>
                       <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Barcode</th>
                     </tr>
                   </thead>
@@ -138,6 +142,10 @@
                         <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-slate-900">{{ getEffectiveTransferQty(item) }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-emerald-700">{{ item.acceptedQuantity || 0 }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-rose-700">{{ item.rejectedQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.missingQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.damagedQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.inTransitQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.returnTransitQuantity || 0 }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-center text-sm">
                           @if (auth.hasPermission('barcode.view')) {
                             <a
@@ -203,6 +211,19 @@
               }
             </div>
           </div>
+
+          @if (transfer()!.originalTransferId || transfer()!.returnTransferId) {
+            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+              <h2 class="text-base font-semibold text-indigo-900">Return Link</h2>
+              @if (transfer()!.originalTransferId) {
+                <p class="mt-1 text-sm text-indigo-800">Carries rejected units back. Source stock rises only when this return is received.</p>
+                <a [routerLink]="['/stock-transfers', transfer()!.originalTransferId]" class="mt-2 inline-block text-sm font-medium text-indigo-700 hover:underline">View original transfer</a>
+              } @else {
+                <p class="mt-1 text-sm text-indigo-800">Rejected units are returning on a linked transfer.</p>
+                <a [routerLink]="['/stock-transfers', transfer()!.returnTransferId]" class="mt-2 inline-block text-sm font-medium text-indigo-700 hover:underline">{{ transfer()!.returnTransferNo || 'View return transfer' }}</a>
+              }
+            </div>
+          }
 
           @if (hasRelatedRecords()) {
             <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
@@ -290,13 +311,13 @@
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[85vh] overflow-hidden">
       <div class="p-6 border-b border-gray-200">
         <h2 class="text-lg font-bold text-gray-900">Receive Transfer</h2>
-        <p class="text-sm text-gray-600 mt-1">Set accepted and rejected quantities for each item.</p>
+        <p class="text-sm text-gray-600 mt-1">Account for every unit dispatched. Accepted, rejected, missing and damaged must total the transfer quantity.</p>
       </div>
       <div class="p-6 overflow-y-auto max-h-[58vh]">
         <div class="space-y-3">
           @for (row of receiveItems(); track row.variantId; let i = $index) {
-            <div class="grid grid-cols-12 gap-3 p-3 bg-gray-50 rounded-lg">
-              <div class="col-span-4">
+            <div class="grid grid-cols-2 gap-3 rounded-lg bg-gray-50 p-3 md:grid-cols-6">
+              <div class="col-span-2 md:col-span-6">
                 <app-product-variant-cell
                   [productName]="row.productName"
                   [productCode]="row.productCode"
@@ -309,22 +330,37 @@
                   <div class="font-medium text-slate-700">SKU: {{ row.variantSku }}</div>
                 </div>
               </div>
-              <div class="col-span-2">
+              <div>
                 <label class="label">Transfer Qty</label>
                 <input class="input" type="number" [ngModel]="row.transferQuantity" disabled />
               </div>
-              <div class="col-span-2">
+              <div>
                 <label class="label">Accepted</label>
                 <input class="input" type="number" min="0" [max]="row.transferQuantity"
-                       [ngModel]="row.acceptedQuantity" (ngModelChange)="updateReceiveAccepted(i, $event)" />
+                       [ngModel]="row.acceptedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'acceptedQuantity', $event)" />
               </div>
-              <div class="col-span-2">
-                <label class="label">Rejected</label>
+              @if (!isSystemReturn()) {
+                <div>
+                  <label class="label">Rejected</label>
+                  <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                         [ngModel]="row.rejectedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'rejectedQuantity', $event)" />
+                </div>
+              }
+              <div>
+                <label class="label">Missing</label>
                 <input class="input" type="number" min="0" [max]="row.transferQuantity"
-                       [ngModel]="row.rejectedQuantity" (ngModelChange)="updateReceiveRejected(i, $event)" />
+                       [ngModel]="row.missingQuantity" (ngModelChange)="updateReceiveQuantity(i, 'missingQuantity', $event)" />
               </div>
-              <div class="col-span-2">
-                <label class="label">Remarks</label>
+              <div>
+                <label class="label">Damaged</label>
+                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                       [ngModel]="row.damagedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'damagedQuantity', $event)" />
+              </div>
+              <div class="col-span-2 md:col-span-1">
+                <label class="label">
+                  Remarks
+                  @if (row.missingQuantity + row.damagedQuantity > 0) { <span class="text-red-500">*</span> }
+                </label>
                 <input class="input" type="text" [ngModel]="row.remarks" (ngModelChange)="updateReceiveRemarks(i, $event)" />
               </div>
             </div>

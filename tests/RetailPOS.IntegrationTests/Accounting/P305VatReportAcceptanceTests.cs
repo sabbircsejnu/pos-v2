@@ -8,6 +8,8 @@ using RetailPOS.Infrastructure.AccountingReports;
 using RetailPOS.Infrastructure.Data;
 using Xunit;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public sealed class P305VatReportAcceptanceTests
@@ -55,6 +57,28 @@ public sealed class P305VatReportAcceptanceTests
     }
 
     [Fact]
+    public async Task AReceiptAndSaleJustAfterCompanyMidnight_FallInTheCompanyMonth()
+    {
+        await using var db = CreateDb();
+        SeedVat(db);
+        // 18:30 UTC on 31 March is 00:30 on 1 April in the Company zone, Asia/Dhaka.
+        var justAfterMidnight = new DateTime(2026, 3, 31, 18, 30, 0, DateTimeKind.Utc);
+        db.Sales.Add(new Sale { Id = 5, SaleNumber = "SALE-5", OutletId = 1, SaleDate = justAfterMidnight, Tax = 3m, TotalAmount = 33m, PaymentMethod = "cash", Status = "completed", CashierId = 1, Items = [new SaleItem { SaleId = 5, VariantId = 1, Quantity = 1, UnitPrice = 30, Subtotal = 30, TaxableAmount = 30, VatRate = 10, VatAmount = 3, TaxCode = "VAT", TaxInclusive = false }] });
+        db.PurchaseOrders.Add(new PurchaseOrder { Id = 6, PoNumber = "PO-6", SupplierId = 1, OutletId = 1, OrderDate = justAfterMidnight, Status = "received" });
+        db.PurchaseOrderItems.Add(new PurchaseOrderItem { Id = 6, PoId = 6, VariantId = 1, Quantity = 1, UnitPrice = 20 });
+        db.Grns.Add(new Grn { Id = 6, PoId = 6, ReceivedDate = justAfterMidnight, Status = "completed", Items = [new GrnItem { Id = 6, GrnId = 6, PoItemId = 6, ReceivedQty = 1, UnitCost = 20, TaxableAmount = 20, VatRate = 10, VatAmount = 2, TaxCode = "VAT" }] });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var march = await GetTransactionsAsync(db, new VatReportFilter(new DateTime(2026, 3, 1), new DateTime(2026, 3, 31)));
+        var april = await GetTransactionsAsync(db, new VatReportFilter(new DateTime(2026, 4, 1), new DateTime(2026, 4, 30)));
+
+        Assert.DoesNotContain(march, row => row.VatAmount is 3m or 2m);
+        Assert.Contains(april, row => row.VatAmount == 3m);
+        Assert.Contains(april, row => row.VatAmount == 2m);
+    }
+
+    [Fact]
     public async Task LegacyIncompleteSnapshotIsExcludedAndSurfaced()
     {
         await using var db = CreateDb();
@@ -88,25 +112,25 @@ public sealed class P305VatReportAcceptanceTests
     private static Task<VatSummaryReadModel> GetSummaryAsync(
         RetailPOSDbContext db,
         VatReportFilter filter) =>
-        new GetVatSummaryQueryHandler(new VatReportReadStore(db), TenantScope())
+        new GetVatSummaryQueryHandler(new VatReportReadStore(db, TestCompanySettings.Provider()), TenantScope())
             .Handle(new GetVatSummaryQuery(filter), CancellationToken.None);
 
     private static Task<VatReconciliationReadModel> GetReconciliationAsync(
         RetailPOSDbContext db,
         VatReportFilter filter) =>
-        new GetVatReconciliationQueryHandler(new VatReportReadStore(db), TenantScope())
+        new GetVatReconciliationQueryHandler(new VatReportReadStore(db, TestCompanySettings.Provider()), TenantScope())
             .Handle(new GetVatReconciliationQuery(filter), CancellationToken.None);
 
     private static Task<IReadOnlyList<VatTransactionReadModel>> GetTransactionsAsync(
         RetailPOSDbContext db,
         VatReportFilter filter) =>
-        new GetVatTransactionsQueryHandler(new VatReportReadStore(db), TenantScope())
+        new GetVatTransactionsQueryHandler(new VatReportReadStore(db, TestCompanySettings.Provider()), TenantScope())
             .Handle(new GetVatTransactionsQuery(filter), CancellationToken.None);
 
     private static Task<IReadOnlyList<VatExceptionReadModel>> GetExceptionsAsync(
         RetailPOSDbContext db,
         VatReportFilter filter) =>
-        new GetVatExceptionsQueryHandler(new VatReportReadStore(db), TenantScope())
+        new GetVatExceptionsQueryHandler(new VatReportReadStore(db, TestCompanySettings.Provider()), TenantScope())
             .Handle(new GetVatExceptionsQuery(filter), CancellationToken.None);
 
     private static IAccountingReportTenantScope TenantScope()

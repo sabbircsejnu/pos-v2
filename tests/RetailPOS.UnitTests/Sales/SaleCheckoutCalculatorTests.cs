@@ -195,6 +195,18 @@ public sealed class SaleCheckoutCalculatorTests
         Assert.Equal([0.02m, 0.02m, 0.01m], shares);
     }
 
+    [Fact]
+    public void InvoiceDiscount_OnEqualLines_SplitsEquallyWithTheRemainderCentOnTheFirstLine()
+    {
+        // The POS UI shows the same shares (pos-tax.ts allocateProportionally): 100 / 3 = 33.34 + 33.33 + 33.33.
+        var totals = SaleCheckoutCalculator.Calculate(
+            [Line(1, 1, 100m), Line(2, 1, 100m), Line(3, 1, 100m)], 100m, SaleTaxPolicy.None);
+
+        Assert.Equal(new[] { 33.34m, 33.33m, 33.33m }, totals.Lines.Select(line => line.InvoiceDiscountShare).ToArray());
+        Assert.All(totals.Lines, line => Assert.True(line.TaxableAmount >= 0m));
+        Assert.Equal(200m, totals.TotalAmount);
+    }
+
     private static SaleCheckoutLineInput Line(long variantId, int quantity, decimal unitPrice, decimal lineDiscount = 0m) =>
         new(variantId, quantity, unitPrice, lineDiscount);
 
@@ -237,6 +249,24 @@ public sealed class SalePaymentPlannerTests
         Assert.Null(plan.CashTendered);
         Assert.Null(plan.ChangeGiven);
         Assert.Null(plan.NetCashRetained);
+    }
+
+    [Fact]
+    public void PosTenderTableShapes_AreAcceptedByThePlanner()
+    {
+        // One method: PaymentMethod + CashTendered (cash) or no tender (card/mobile).
+        Assert.Equal(50m, Assert.Single(SalePaymentPlanner.Plan("cash", [], 150m, 100m)).ChangeGiven);
+        Assert.Null(Assert.Single(SalePaymentPlanner.Plan("card", [], null, 100m)).CashTendered);
+
+        // Several non-zero amounts: Payments[] with Tendered only on the cash row.
+        var plans = SalePaymentPlanner.Plan(
+            "cash",
+            [new SalePaymentInput("cash", 100m, 200m), new SalePaymentInput("card", 100m, null), new SalePaymentInput("mobile", 50m, null)],
+            null,
+            250m);
+        Assert.Equal(3, plans.Count);
+        Assert.Equal(100m, plans[0].ChangeGiven);
+        Assert.Equal(100m, plans[0].NetCashRetained);
     }
 
     [Fact]

@@ -14,7 +14,11 @@ public sealed record BusinessSummaryReadModel(
     long UserCount,
     long OutletCount,
     long WarehouseCount,
-    string? BusinessOwnerEmail);
+    string? BusinessOwnerEmail)
+{
+    public bool ShowPoweredByOnReceipt { get; init; }
+    public string? PoweredByText { get; init; }
+}
 
 public sealed record BusinessFeatureSettingReadModel(
     string FeatureKey,

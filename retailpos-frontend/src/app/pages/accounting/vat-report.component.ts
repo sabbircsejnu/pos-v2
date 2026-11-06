@@ -1,7 +1,8 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -19,8 +20,9 @@ import { VatReportFilter } from '../../models/accounting.model';
 <div *ngIf="mode === 'exceptions' && data.items?.length" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-900">Incomplete VAT snapshots are excluded from authoritative totals.</div>
 <div class="overflow-x-auto rounded-lg border bg-white"><table *ngIf="mode === 'details'" class="min-w-full text-sm"><thead class="bg-slate-50 text-left"><tr><th class="p-3">Date</th><th class="p-3">Source</th><th class="p-3">Reference</th><th class="p-3">Direction</th><th class="p-3">Rate</th><th class="p-3">Taxable</th><th class="p-3">VAT</th></tr></thead><tbody><tr *ngFor="let row of data" class="border-t"><td class="p-3">{{ row.postingDate | appDate }}</td><td class="p-3">{{ row.sourceType }}</td><td class="p-3">{{ row.sourceReference }}</td><td class="p-3">{{ row.vatDirection }}</td><td class="p-3">{{ row.vatRate || '-' }}</td><td class="p-3">{{ money(row.taxableAmount) }}</td><td class="p-3">{{ money(row.vatAmount) }}</td></tr></tbody></table><table *ngIf="mode === 'exceptions'" class="min-w-full text-sm"><tbody><tr *ngFor="let row of data.items" class="border-t"><td class="p-3">{{ row.postingDate | appDate }}</td><td class="p-3">{{ row.sourceType }}</td><td class="p-3">{{ row.sourceReference }}</td><td class="p-3">{{ row.reason }}</td></tr></tbody></table><p *ngIf="mode === 'details' && !data?.length || mode === 'exceptions' && !data?.items?.length" class="p-8 text-center text-slate-500">No records for the selected period.</p></div></ng-container></section>` })
 export class VatReportComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   readonly mode: string; readonly title: string;
-  dateFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10); dateTo = new Date().toISOString().slice(0, 10); direction = ''; data: any = null; loading = false; error: string | null = null;
+  dateFrom = this.companyToday.firstOfMonthIso(); dateTo = this.companyToday.todayIso(); direction = ''; data: any = null; loading = false; error: string | null = null;
   constructor(private route: ActivatedRoute, private accounting: AccountingService, private currency: CurrencyService, private errors: ErrorHandlerService) { this.mode = this.route.snapshot.data['reportType'] as string; this.title = this.route.snapshot.data['title'] as string; }
   ngOnInit(): void { this.load(); }
   load(): void { this.loading = true; this.error = null; const f: VatReportFilter = { dateFrom: this.dateFrom, dateTo: this.dateTo, vatDirection: this.direction || undefined }; const request: Observable<{ data: any }> = this.mode === 'summary' ? this.accounting.getVatSummary(f) : this.mode === 'details' ? this.accounting.getVatDetails(f) : this.mode === 'reconciliation' ? this.accounting.getVatReconciliation(f) : this.accounting.getVatExceptions(f); request.subscribe({ next: x => { this.data = x.data; this.loading = false; }, error: e => { this.error = this.errors.extractErrorMessage(e); this.loading = false; } }); }

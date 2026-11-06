@@ -11,6 +11,8 @@ public class StockTransferItem
     public int TransferQuantity { get; set; }
     public int AcceptedQuantity { get; set; }
     public int RejectedQuantity { get; set; }
+    public int MissingQuantity { get; set; }
+    public int DamagedQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public string? Remarks { get; set; }
 

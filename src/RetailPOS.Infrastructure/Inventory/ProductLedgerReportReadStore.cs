@@ -16,7 +16,10 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
     {
         var product = await dbContext.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == filter.ProductId, cancellationToken)
+            .FirstOrDefaultAsync(
+                item => item.Id == filter.ProductId
+                    && (!scope.BusinessId.HasValue || item.BusinessId == scope.BusinessId.Value),
+                cancellationToken)
             ?? throw new KeyNotFoundException($"Product {filter.ProductId} not found.");
 
         string? variantName = null;
@@ -57,10 +60,9 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
                 .ToListAsync(cancellationToken);
         }
 
+        // Inclusive UTC instants: the query handler resolves calendar dates in the Company time zone.
         var rangeStart = filter.DateFrom;
-        var rangeEnd = filter.DateTo.HasValue
-            ? filter.DateTo.Value.Date.AddDays(1).AddTicks(-1)
-            : (DateTime?)null;
+        var rangeEnd = filter.DateTo;
 
         var opening = 0;
         if (rangeStart.HasValue)
@@ -297,6 +299,11 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
         StockLedgerTransactionType.TransferIn => "Transfer In",
         StockLedgerTransactionType.TransferOut => "Transfer Out",
         StockLedgerTransactionType.Exchange => "Exchange",
+        StockLedgerTransactionType.ReturnTransferIn => "Return Transfer In",
+        StockLedgerTransactionType.ReturnTransferOut => "Return Transfer Out",
+        StockLedgerTransactionType.TransferRejection => "Transfer Rejected",
+        StockLedgerTransactionType.TransferDiscrepancy => "Transfer Discrepancy",
+        StockLedgerTransactionType.CostCorrection => "Cost Correction",
         _ => type
     };
 }

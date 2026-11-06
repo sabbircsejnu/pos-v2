@@ -44,7 +44,9 @@ public class BusinessesController : ControllerBase
                 request.CreateDefaultWarehouse,
                 request.DefaultWarehouseName,
                 request.WarehouseManagerName,
-                request.WarehouseManagerEmail),
+                request.WarehouseManagerEmail,
+                request.ShowPoweredByOnReceipt,
+                request.PoweredByText),
             cancellationToken);
         var response = new CreateBusinessResponseDto
         {
@@ -116,6 +118,23 @@ public class BusinessesController : ControllerBase
         return Ok(ApiResponse<BusinessSummaryDto>.SuccessResponse(
             MapBusinessSummary(updated),
             "Business subscription updated"));
+    }
+
+    [HttpPatch("{businessId:long}/receipt-footer")]
+    public async Task<ActionResult<ApiResponse<BusinessSummaryDto>>> UpdateReceiptFooter(
+        [FromRoute] long businessId,
+        [FromBody] UpdateBusinessReceiptFooterDto request,
+        CancellationToken cancellationToken)
+    {
+        var updated = await _sender.Send(
+            new UpdateBusinessReceiptFooterCommand(
+                businessId,
+                request.ShowPoweredByOnReceipt,
+                request.PoweredByText),
+            cancellationToken);
+        return Ok(ApiResponse<BusinessSummaryDto>.SuccessResponse(
+            MapBusinessSummary(updated),
+            "Business receipt footer updated"));
     }
 
     [HttpGet("{businessId:long}/features")]
@@ -196,6 +215,8 @@ public class BusinessesController : ControllerBase
             UserCount = business.UserCount,
             OutletCount = business.OutletCount,
             WarehouseCount = business.WarehouseCount,
-            BusinessOwnerEmail = business.BusinessOwnerEmail
+            BusinessOwnerEmail = business.BusinessOwnerEmail,
+            ShowPoweredByOnReceipt = business.ShowPoweredByOnReceipt,
+            PoweredByText = business.PoweredByText
         };
 }

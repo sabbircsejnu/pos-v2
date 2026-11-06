@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using Npgsql;
 
@@ -12,7 +13,7 @@ internal enum PostgresTestDatabasePrefix
     FinancialYearClosePrepare, StockAdjustmentApproval, StockAdjustmentReverse,
     StockTransferDispatch, StockRequisitionConversion, StockRequisitionLifecycle,
     PricingRuleRead, StockCountCreate, StockCountAdjustmentGeneration, PayrollAdjustment,
-    InventoryLocationAuthorization, MobileSalesDashboard
+    InventoryLocationAuthorization, MobileSalesDashboard, OwnerDashboard
 }
 
 internal sealed record PostgresTestDatabaseCandidate(
@@ -22,10 +23,20 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
 {
     private const string OwnershipCommentPrefix = "retailpos-test-owner";
     private const int IdentifierLimit = 63;
-    private const int MaxConcurrentDisposableDatabases = 2;
-    // Bound concurrent full-schema migrations to avoid exhausting PostgreSQL's shared lock table.
-    private static readonly SemaphoreSlim DisposableDatabaseSlots = new(
-        MaxConcurrentDisposableDatabases, MaxConcurrentDisposableDatabases);
+    private const int MaxConcurrentFreshMigrationDatabases = 2;
+    private const string MaxCloneDatabasesKey = "RETAILPOS_TEST_MAX_CLONE_DATABASES";
+    private const int DefaultMaxCloneDatabases = 4;
+    private const int MaxConcurrentLifecycleDatabases = 4;
+    // Each strategy has its own slots. Full-schema migrations stay bounded at 2 to avoid exhausting PostgreSQL's shared
+    // lock table; clones apply no migrations, and lifecycle databases are empty, so they no longer queue behind them.
+    private static readonly IReadOnlyDictionary<PostgresTestDatabaseStrategy, SemaphoreSlim> DatabaseSlots =
+        new Dictionary<PostgresTestDatabaseStrategy, SemaphoreSlim>
+        {
+            [PostgresTestDatabaseStrategy.FreshMigration] = new(MaxConcurrentFreshMigrationDatabases, MaxConcurrentFreshMigrationDatabases),
+            [PostgresTestDatabaseStrategy.TemplateClone] = new(MaxCloneDatabases(), MaxCloneDatabases()),
+            [PostgresTestDatabaseStrategy.Lifecycle] = new(MaxConcurrentLifecycleDatabases, MaxConcurrentLifecycleDatabases)
+        };
+    private static readonly ConcurrentDictionary<PostgresTestDatabaseStrategy, (int Count, long Milliseconds)> CreationStats = new();
     private static readonly string CurrentRunId =
         Guid.TryParseExact(Environment.GetEnvironmentVariable("RETAILPOS_TEST_RUN_ID"), "N", out var runId)
             ? runId.ToString("N") : Guid.NewGuid().ToString("N");
@@ -33,19 +44,38 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
     private readonly string _adminConnectionString;
     private readonly string _ownershipComment;
     private readonly SemaphoreSlim _disposeLock = new(1, 1);
+    private readonly SemaphoreSlim _slot;
     private bool _disposed;
     private int _databaseSlotReleased;
 
-    private PostgresTestDatabase(string name, string connectionString, string adminConnectionString, string marker)
+    static PostgresTestDatabase() =>
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Console.WriteLine($"RETAILPOS_TEST_DB_STATS|{DescribeCreationStats()}");
+
+    private PostgresTestDatabase(
+        string name, string connectionString, string adminConnectionString, string marker,
+        PostgresTestDatabaseStrategy strategy, SemaphoreSlim slot)
     {
         Name = name;
         ConnectionString = connectionString;
         _adminConnectionString = adminConnectionString;
         _ownershipComment = marker;
+        Strategy = strategy;
+        _slot = slot;
     }
 
     public string Name { get; }
     public string ConnectionString { get; }
+    public PostgresTestDatabaseStrategy Strategy { get; }
+
+    private static int MaxCloneDatabases() =>
+        int.TryParse(Environment.GetEnvironmentVariable(MaxCloneDatabasesKey), out var configured) && configured is > 0 and <= 32
+            ? configured
+            : DefaultMaxCloneDatabases;
+
+    /// <summary>Per-strategy count and total creation time (template build excluded) for this test process.</summary>
+    internal static string DescribeCreationStats() =>
+        string.Join("|", CreationStats.OrderBy(entry => entry.Key).Select(entry =>
+            $"{entry.Key}:count={entry.Value.Count},totalMs={entry.Value.Milliseconds},avgMs={(entry.Value.Count == 0 ? 0 : entry.Value.Milliseconds / entry.Value.Count)}"));
 
     internal static string CreateName(PostgresTestDatabasePrefix prefix)
     {
@@ -55,13 +85,24 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
         return $"{boundedPrefix}_{Guid.NewGuid():N}";
     }
 
-    public static async Task<PostgresTestDatabase> CreateAsync(
+    /// <summary>Creates a clone of the shared migrated template (<see cref="PostgresTestDatabaseStrategy.TemplateClone"/>).</summary>
+    public static Task<PostgresTestDatabase> CreateAsync(
         string baseConnectionString, PostgresTestDatabasePrefix prefix,
+        CancellationToken cancellationToken = default) =>
+        CreateAsync(baseConnectionString, prefix, PostgresTestDatabaseStrategy.TemplateClone, cancellationToken);
+
+    public static async Task<PostgresTestDatabase> CreateAsync(
+        string baseConnectionString, PostgresTestDatabasePrefix prefix, PostgresTestDatabaseStrategy strategy,
         CancellationToken cancellationToken = default)
     {
         // Single choke point: every PostgreSQL-backed test creates its database here, so no caller can reach Development.
         InfrastructureTestSettings.AssertNotDevelopmentPostgres(baseConnectionString);
-        await DisposableDatabaseSlots.WaitAsync(cancellationToken);
+        // The template is built (or found ready) before a slot is taken, so a first-time build never holds a slot.
+        var template = strategy == PostgresTestDatabaseStrategy.TemplateClone
+            ? (await PostgresTestTemplate.EnsureAsync(baseConnectionString, cancellationToken)).Name
+            : null;
+        var slot = DatabaseSlots[strategy];
+        await slot.WaitAsync(cancellationToken);
         var slotTransferred = false;
         try
         {
@@ -74,14 +115,20 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
             var databaseBuilder = new NpgsqlConnectionStringBuilder(baseConnectionString) { Database = name };
             var marker = $"{OwnershipCommentPrefix}:{CurrentRunId}:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:{Guid.NewGuid():N}";
             var database = new PostgresTestDatabase(name, databaseBuilder.ConnectionString,
-                adminBuilder.ConnectionString, marker);
+                adminBuilder.ConnectionString, marker, strategy, slot);
             await using var admin = new NpgsqlConnection(adminBuilder.ConnectionString);
             await admin.OpenAsync(cancellationToken);
+            var stopwatch = Stopwatch.StartNew();
             await using (var create = admin.CreateCommand())
             {
-                create.CommandText = $"CREATE DATABASE \"{name}\"";
+                // The template refuses connections, so nothing can hold it open while PostgreSQL copies it.
+                create.CommandText = template is null
+                    ? $"CREATE DATABASE \"{name}\""
+                    : $"CREATE DATABASE \"{name}\" TEMPLATE \"{template}\"";
                 await create.ExecuteNonQueryAsync(cancellationToken);
             }
+            var elapsed = stopwatch.ElapsedMilliseconds;
+            CreationStats.AddOrUpdate(strategy, (1, elapsed), (_, current) => (current.Count + 1, current.Milliseconds + elapsed));
 
             if (!ActiveDatabases.TryAdd(name, marker))
                 throw new InvalidOperationException($"PostgreSQL test database {name} is already registered.");
@@ -114,16 +161,21 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
         finally
         {
             if (!slotTransferred)
-                DisposableDatabaseSlots.Release();
+                slot.Release();
         }
     }
 
-    public static async Task RunAsync(
+    public static Task RunAsync(
         string baseConnectionString, PostgresTestDatabasePrefix prefix,
+        Func<PostgresTestDatabase, Task> operation) =>
+        RunAsync(baseConnectionString, prefix, PostgresTestDatabaseStrategy.TemplateClone, operation);
+
+    public static async Task RunAsync(
+        string baseConnectionString, PostgresTestDatabasePrefix prefix, PostgresTestDatabaseStrategy strategy,
         Func<PostgresTestDatabase, Task> operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        var database = await CreateAsync(baseConnectionString, prefix);
+        var database = await CreateAsync(baseConnectionString, prefix, strategy);
         Exception? operationException = null;
         try
         {
@@ -240,7 +292,7 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
         {
             _disposeLock.Release();
             if (Interlocked.Exchange(ref _databaseSlotReleased, 1) == 0)
-                DisposableDatabaseSlots.Release();
+                _slot.Release();
         }
     }
 
@@ -254,6 +306,9 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
 
     private static async Task DropExactAsync(NpgsqlConnection admin, string name, bool isInvalid = false)
     {
+        // Defence in depth: the shared template is never a disposable database, whatever the caller passes.
+        if (PostgresTestTemplate.IsTemplateName(name) || !(IsApprovedDatabaseName(name) || IsLegacyTruncatedName(name)))
+            throw new InvalidOperationException($"Refusing to drop {name}: not a disposable test database.");
         if (isInvalid)
         {
             // An interrupted DROP leaves datconnlimit=-2; PostgreSQL forbids ALTER on that database.
@@ -398,6 +453,7 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
         PostgresTestDatabasePrefix.PayrollAdjustment => "retailpos_payroll_adjustment",
         PostgresTestDatabasePrefix.InventoryLocationAuthorization => "retailpos_a2_inventory_location",
         PostgresTestDatabasePrefix.MobileSalesDashboard => "retailpos_mobile_sales_dashboard",
+        PostgresTestDatabasePrefix.OwnerDashboard => "retailpos_owner_dashboard",
         _ => throw new ArgumentOutOfRangeException(nameof(prefix), prefix, "Unapproved PostgreSQL test database prefix.")
     };
 }

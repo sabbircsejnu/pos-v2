@@ -994,6 +994,7 @@ public sealed class SaleCreationPostgresConcurrencyTests
                     new CashSessionStore(context),
                     outletAuthorizer.Object,
                     settings.Object,
+                    TestCompanySettings.Provider(),
                     audit.Object,
                     publisher.Object,
                     new RetailPOS.IntegrationTests.Infrastructure.NullCashSessionEvents(),
@@ -1048,7 +1049,7 @@ public sealed class SaleCreationPostgresConcurrencyTests
                     .Returns(Task.CompletedTask);
                 var service = new CreateSaleCommandHandler(
                     new IdempotencyLookupBarrierStore(
-                        new SaleCreationStore(context, new SaleReadStore(context)),
+                        new SaleCreationStore(context, new SaleReadStore(context, TestCompanySettings.Provider())),
                         barrier),
                     harness.SaleCashSessionValidator.Object,
                     harness.InvoiceNumberAllocator.Object,
@@ -1329,7 +1330,7 @@ public sealed class SaleCreationPostgresConcurrencyTests
                 await using var context = harness.CreateContext();
                 var handler = new VoidSaleCommandHandler(
                     new EligibleVoidReadBarrierStore(new SaleVoidStore(context), eligibleReadBarrier),
-                    new SaleReadStore(context),
+                    new SaleReadStore(context, TestCompanySettings.Provider()),
                     CreateOutletAuthorizer(),
                     accounting.Object,
                     new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
@@ -1458,7 +1459,7 @@ public sealed class SaleCreationPostgresConcurrencyTests
                     new EligibleRefundReadBarrierStore(
                         new SaleVoidStore(context),
                         eligibleReadBarrier),
-                    new SaleReadStore(context),
+                    new SaleReadStore(context, TestCompanySettings.Provider()),
                     CreateOutletAuthorizer(),
                     accounting.Object,
                     new SaleRefundStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(

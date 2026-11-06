@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -16,9 +17,10 @@ import { CurrencyService } from '../../services/currency.service';
   templateUrl: './valuation-reports.component.html'
 })
 export class ValuationReportsComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   readonly mode = signal<'cogs' | 'inventory'>('cogs');
-  readonly fromDate = signal(new Date().toISOString().slice(0, 10));
-  readonly toDate = signal(new Date().toISOString().slice(0, 10));
+  readonly fromDate = signal(this.companyToday.todayIso());
+  readonly toDate = signal(this.companyToday.todayIso());
   readonly outletId = signal<number | null>(null);
   readonly warehouseId = signal<number | null>(null);
   readonly productId = signal<number | null>(null);

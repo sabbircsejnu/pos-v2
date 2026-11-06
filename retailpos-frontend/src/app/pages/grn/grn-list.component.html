@@ -12,24 +12,56 @@
   </div>
 
   <!-- Filters -->
-  <div class="card p-3 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div>
-        <label class="label">Status</label>
-        <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" class="input">
+  <app-ui-card class="block mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+      <app-ui-form-field label="Status">
+        <select appUiControl [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
           <option value="">All Statuses</option>
           <option value="full">Full</option>
           <option value="partial">Partial</option>
         </select>
-      </div>
-      <div class="flex items-end">
-        <button (click)="clearFilters()" class="btn btn-outline w-full">
-          <i class="fas fa-times"></i>
-          Clear Filters
-        </button>
-      </div>
+      </app-ui-form-field>
+      <app-ui-form-field label="Location Type">
+        <select appUiControl [(ngModel)]="locationTypeFilter" (ngModelChange)="onLocationTypeChange()">
+          <option value="">All</option>
+          @if (outlets().length > 0) {
+            <option value="outlet">Outlet</option>
+          }
+          @if (warehouses().length > 0) {
+            <option value="warehouse">Warehouse</option>
+          }
+        </select>
+      </app-ui-form-field>
+      <app-ui-form-field label="Location">
+        <select appUiControl
+                [disabled]="!locationTypeFilter()"
+                [(ngModel)]="locationFilter"
+                (ngModelChange)="onFilterChange()">
+          <option [ngValue]="null">{{ allLocationsLabel() }}</option>
+          @for (location of locationOptions(); track location.id) {
+            <option [ngValue]="location.id">{{ location.name }}</option>
+          }
+        </select>
+      </app-ui-form-field>
+      <app-ui-date-picker label="From Date"
+                          [max]="toDate()"
+                          [(ngModel)]="fromDate"
+                          (ngModelChange)="onFilterChange()" />
+      <app-ui-date-picker label="To Date"
+                          [min]="fromDate()"
+                          [(ngModel)]="toDate"
+                          (ngModelChange)="onFilterChange()" />
     </div>
-  </div>
+    @if (dateRangeError()) {
+      <app-ui-alert class="block mt-3" variant="danger">{{ dateRangeError() }}</app-ui-alert>
+    }
+    <div class="flex justify-end mt-3">
+      <button appUiButton type="button" variant="outline" class="w-full md:w-auto" (click)="clearFilters()">
+        <i class="fas fa-times" aria-hidden="true"></i>
+        Clear Filters
+      </button>
+    </div>
+  </app-ui-card>
 
   <!-- Loading -->
   @if (grnService.isLoading()) {
@@ -135,12 +167,16 @@
     <div class="bg-white rounded-lg shadow-md p-12 text-center">
       <i class="fas fa-boxes text-6xl text-gray-300 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">No GRNs Found</h3>
-      <p class="text-gray-600 mb-6">Create a GRN after receiving goods from a purchase order</p>
-      <button (click)="createGrn()"
-              class="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-700 transition shadow-lg">
-        <i class="fas fa-plus mr-2"></i>
-        Create GRN
-      </button>
+      @if (hasActiveFilters()) {
+        <p class="text-gray-600">No GRNs match the selected filters.</p>
+      } @else {
+        <p class="text-gray-600 mb-6">Create a GRN after receiving goods from a purchase order</p>
+        <button (click)="createGrn()"
+                class="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-700 transition shadow-lg">
+          <i class="fas fa-plus mr-2"></i>
+          Create GRN
+        </button>
+      }
     </div>
   }
 </div>

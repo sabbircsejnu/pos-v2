@@ -24,6 +24,8 @@ using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Infrastructure.Sales;
 using RetailPOS.Tests.Sales;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public sealed class P306FoundationTests : IDisposable
@@ -278,7 +280,7 @@ public sealed class P306FoundationTests : IDisposable
             .Returns(Task.CompletedTask);
         var handler = new VoidSaleCommandHandler(
             new SaleVoidStore(db),
-            new SaleReadStore(db),
+            new SaleReadStore(db, TestCompanySettings.Provider()),
             CreateOutletAuthorizer(),
             RetailPOS.Tests.Sales.SaleCreationCommandTestFactory.FinancialPostings(db),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(

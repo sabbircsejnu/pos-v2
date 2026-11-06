@@ -1,0 +1,60 @@
+<div class="ea">
+  @if (editable()) {
+    <div class="ea__picker">
+      <button appUiButton variant="outline" size="sm" [loading]="isUploading()" (click)="fileInput.click()">
+        <i class="fas fa-paperclip" aria-hidden="true"></i>
+        Add files
+      </button>
+      <input #fileInput type="file" multiple hidden [accept]="accept" (change)="onFilesChosen($event)" />
+      <span class="ea__hint">PDF, JPG, PNG or WebP</span>
+    </div>
+  }
+
+  @if (actionError()) {
+    <app-ui-alert variant="danger">{{ actionError() }}</app-ui-alert>
+  }
+
+  @if (pendingFiles().length > 0) {
+    <ul class="ea__list" aria-label="Files to upload when the expense is saved">
+      @for (file of pendingFiles(); track $index; let index = $index) {
+        <li class="ea__row">
+          <span class="ea__name">{{ file.name }}</span>
+          <span class="ea__meta">{{ formatSize(file.size) }} · uploads on save</span>
+          <button appUiButton variant="ghost" size="sm" [attr.aria-label]="'Remove ' + file.name" (click)="removePending(index)">
+            <i class="fas fa-xmark" aria-hidden="true"></i>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (isLoading()) {
+    <app-ui-state kind="loading" title="Loading attachments" [compact]="true" />
+  } @else if (loadError()) {
+    <app-ui-state kind="error" title="Could not load attachments" [message]="loadError() ?? ''" [compact]="true">
+      <button appUiButton variant="outline" size="sm" (click)="retry()">Retry</button>
+    </app-ui-state>
+  } @else if (attachments().length > 0) {
+    <ul class="ea__list" aria-label="Attachments">
+      @for (attachment of attachments(); track attachment.id) {
+        <li class="ea__row">
+          <span class="ea__name">{{ attachment.fileName }}</span>
+          <span class="ea__meta">{{ formatSize(attachment.fileSizeBytes) }}</span>
+          <button appUiButton variant="ghost" size="sm" [attr.aria-label]="'Preview ' + attachment.fileName" (click)="preview(attachment)">
+            <i class="fas fa-eye" aria-hidden="true"></i>
+          </button>
+          <button appUiButton variant="ghost" size="sm" [attr.aria-label]="'Download ' + attachment.fileName" (click)="download(attachment)">
+            <i class="fas fa-download" aria-hidden="true"></i>
+          </button>
+          @if (editable()) {
+            <button appUiButton variant="ghost" size="sm" [attr.aria-label]="'Remove ' + attachment.fileName" (click)="remove(attachment)">
+              <i class="fas fa-trash" aria-hidden="true"></i>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else if (expenseId() !== null && !editable()) {
+    <app-ui-state kind="empty" title="No attachments" [compact]="true" />
+  }
+</div>

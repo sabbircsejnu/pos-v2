@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Variation;
 using RetailPOS.API.Models;
 using RetailPOS.Application.Variations;
@@ -11,7 +12,8 @@ namespace RetailPOS.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Policy = "variations.view")]
+    // Authenticated by default; reads also serve the Product Edit variant section, management keeps variations.view.
+    [Authorize]
     public class VariationsController : ControllerBase
     {
         private readonly ISender _sender;
@@ -19,6 +21,7 @@ namespace RetailPOS.API.Controllers
         public VariationsController(ISender sender) => _sender = sender;
 
         [HttpGet]
+        [Authorize(Policy = LookupAuthorizationPolicies.VariationList)]
         public async Task<ActionResult<ApiResponse<List<VariationDto>>>> GetAll(
             [FromQuery] bool includeInactive = false,
             CancellationToken cancellationToken = default)
@@ -28,6 +31,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = LookupAuthorizationPolicies.VariationList)]
         public async Task<ActionResult<ApiResponse<VariationDto>>> GetById(
             long id,
             CancellationToken cancellationToken)
@@ -37,6 +41,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.create")]
         public async Task<ActionResult<ApiResponse<VariationDto>>> Create(
             [FromBody] CreateVariationDto dto,
@@ -61,6 +66,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.edit")]
         public async Task<ActionResult<ApiResponse<VariationDto>>> Update(
             long id,
@@ -83,6 +89,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.delete")]
         public async Task<ActionResult<ApiResponse>> Delete(long id, CancellationToken cancellationToken)
         {
@@ -91,6 +98,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPost("{variationId}/options")]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.create")]
         public async Task<ActionResult<ApiResponse<VariationOptionDto>>> CreateOption(
             long variationId,
@@ -109,6 +117,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpPut("options/{optionId}")]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.edit")]
         public async Task<ActionResult<ApiResponse<VariationOptionDto>>> UpdateOption(
             long optionId,
@@ -126,6 +135,7 @@ namespace RetailPOS.API.Controllers
         }
 
         [HttpDelete("options/{optionId}")]
+        [Authorize(Policy = "variations.view")]
         [Authorize(Policy = "variations.delete")]
         public async Task<ActionResult<ApiResponse>> DeleteOption(
             long optionId,

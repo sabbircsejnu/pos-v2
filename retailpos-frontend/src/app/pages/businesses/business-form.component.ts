@@ -5,16 +5,20 @@ import { Router } from '@angular/router';
 import { BusinessService } from '../../services/business.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { AuthService } from '../../services/auth.service';
 import { CreateBusinessRequestDto } from '../../models/business.model';
+import { BusinessReceiptFooterFieldsComponent } from './business-receipt-footer-fields.component';
 
 @Component({
   selector: 'app-business-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, BusinessReceiptFooterFieldsComponent],
   templateUrl: './business-form.component.html'
 })
 export class BusinessFormComponent {
   isSubmitting = signal(false);
+  showPoweredBy = signal(false);
+  poweredByText = signal('');
 
   model: CreateBusinessRequestDto = {
     businessName: '',
@@ -47,8 +51,13 @@ export class BusinessFormComponent {
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
     private router: Router,
-    private location: Location
+    private location: Location,
+    private authService: AuthService
   ) {}
+
+  get canManagePoweredBy(): boolean {
+    return this.authService.isSuperAdmin();
+  }
 
   submit(): void {
     if (this.isSubmitting()) {
@@ -57,7 +66,15 @@ export class BusinessFormComponent {
 
     this.isSubmitting.set(true);
 
-    this.businessService.createBusiness(this.model).subscribe({
+    const request: CreateBusinessRequestDto = this.canManagePoweredBy
+      ? {
+          ...this.model,
+          showPoweredByOnReceipt: this.showPoweredBy(),
+          poweredByText: this.poweredByText().trim() || null
+        }
+      : this.model;
+
+    this.businessService.createBusiness(request).subscribe({
       next: (res) => {
         this.isSubmitting.set(false);
         this.alertService.success(res.message || 'Business created successfully');

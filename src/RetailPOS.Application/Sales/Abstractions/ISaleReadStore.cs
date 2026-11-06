@@ -10,5 +10,6 @@ public interface ISaleReadStore
 
     Task<SaleSearchReadModel> SearchAsync(
         SaleSearchCriteria criteria,
+        SaleReadScope scope,
         CancellationToken cancellationToken);
 }

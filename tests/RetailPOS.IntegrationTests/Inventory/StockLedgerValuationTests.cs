@@ -154,6 +154,69 @@ public class StockLedgerValuationTests
         Assert.Equal(0m, row.MovementValue);
     }
 
+    [Theory]
+    [InlineData(3, 0)]
+    [InlineData(0, 3)]
+    public void SuppliedZeroCost_IsNotReliable(int qtyIn, int qtyOut)
+    {
+        var db = CreateDbContext();
+        new StockLedgerWriter(db, Mock.Of<ILogger<StockLedgerWriter>>()).WriteEntryWithValuation(
+            variantId: 14,
+            locationId: 204,
+            locationType: "warehouse",
+            transactionType: "transfer",
+            qtyIn: qtyIn,
+            qtyOut: qtyOut,
+            balanceAfter: 3,
+            referenceType: "stock_transfer",
+            referenceId: 1,
+            unitCost: 0m);
+
+        var row = db.StockLedgers.Local.Single();
+        Assert.False(row.IsCostValuationReliable);
+        Assert.Equal(0m, row.MovementValue);
+    }
+
+    [Fact]
+    public void VerifiedZeroCost_IsReliableAtZero()
+    {
+        var db = CreateDbContext();
+        new StockLedgerWriter(db, Mock.Of<ILogger<StockLedgerWriter>>()).WriteVerifiedZeroCostEntry(
+            variantId: 15,
+            locationId: 205,
+            locationType: "warehouse",
+            transactionType: "grn",
+            qtyIn: 3,
+            qtyOut: 0,
+            balanceAfter: 3,
+            referenceType: "grn",
+            referenceId: 1);
+
+        var row = db.StockLedgers.Local.Single();
+        Assert.True(row.IsCostValuationReliable);
+        Assert.Equal(0m, row.UnitCost);
+        Assert.Equal(0m, row.MovementValue);
+    }
+
+    [Fact]
+    public void EvidenceRowThatMovesNoStock_KeepsItsExistingFlag()
+    {
+        var db = CreateDbContext();
+        new StockLedgerWriter(db, Mock.Of<ILogger<StockLedgerWriter>>()).WriteEntryWithValuation(
+            variantId: 16,
+            locationId: 206,
+            locationType: "outlet",
+            transactionType: StockLedgerTransactionType.TransferRejection,
+            qtyIn: 0,
+            qtyOut: 0,
+            balanceAfter: 0,
+            referenceType: StockLedgerReferenceType.StockTransfer,
+            referenceId: 1,
+            unitCost: 0m);
+
+        Assert.True(db.StockLedgers.Local.Single().IsCostValuationReliable);
+    }
+
     [Fact]
     public async Task PersistedStockLedgerEntries_AreImmutableAfterSave()
     {

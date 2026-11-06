@@ -67,6 +67,17 @@ public sealed class CashSessionsController(
         return Ok(ApiResponse<BusinessDaySalesReadModel>.SuccessResponse(result));
     }
 
+    [HttpGet("business-day-target")]
+    [Authorize(Policy = "cash_sessions.view")]
+    public async Task<ActionResult<ApiResponse<BusinessDayTargetReadModel>>> BusinessDayTarget(
+        [FromQuery] long outletId,
+        [FromQuery] DateTime? businessDate,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetBusinessDayTargetQuery(outletId, businessDate), cancellationToken);
+        return Ok(ApiResponse<BusinessDayTargetReadModel>.SuccessResponse(result));
+    }
+
     [HttpGet("active")]
     [Authorize(Policy = "cash_sessions.view")]
     public async Task<ActionResult<ApiResponse<CashSessionDto?>>> Active(

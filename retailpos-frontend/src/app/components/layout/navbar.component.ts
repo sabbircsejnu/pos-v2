@@ -4,9 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { MenuService } from '../../services/menu.service';
-import { OutletService } from '../../services/outlet.service';
-import { User } from '../../models/auth.models';
-import { Outlet } from '../../models/outlet.model';
+import { ActingLocationType, User, UserContextOption, UserContextOptions } from '../../models/auth.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -18,7 +16,6 @@ import { Subscription } from 'rxjs';
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
-  private outletService = inject(OutletService);
   private router = inject(Router);
   menuService = inject(MenuService);
 
@@ -26,30 +23,100 @@ export class NavbarComponent implements OnInit, OnDestroy {
   showRoleSwitchMenu = false;
   globalSearch = '';
   currentUser = signal<User | null>(null);
-  outlets = signal<Outlet[]>([]);
+  switchOptions = signal<UserContextOptions | null>(null);
   selectedActingRole = '';
-  selectedActingOutletId: number | null = null;
+  selectedLocationType: ActingLocationType = 'outlet';
+  selectedLocationId: number | null = null;
   switchingRole = signal(false);
   switchError = signal<string | null>(null);
 
-  readonly switchableRoles = ['OutletManager', 'Cashier', 'Salesman', 'Stock Manager'];
-
   private userSubscription?: Subscription;
+  private optionsSubscription?: Subscription;
+  private optionsUserId: number | null = null;
 
   ngOnInit(): void {
     this.userSubscription = this.authService.currentUser$.subscribe(user => {
       this.currentUser.set(user);
-      if (user?.isBusinessOwner && this.outlets().length === 0) {
-        this.outletService.getAllOutlets().subscribe({
-          next: res => this.outlets.set(res?.data ?? []),
-          error: () => this.outlets.set([])
-        });
+      if ((user?.id ?? null) !== this.optionsUserId) {
+        this.optionsUserId = user?.id ?? null;
+        this.loadSwitchOptions();
       }
     });
   }
 
+  /** A switched session must always be able to leave, even after its access was removed. */
+  showSwitcher(): boolean {
+    return this.switchOptions()?.canSwitch === true || this.currentUser()?.isRoleSwitched === true;
+  }
+
+  locationChoices(): UserContextOption[] {
+    const options = this.switchOptions();
+    if (!options) {
+      return [];
+    }
+    return this.selectedLocationType === 'warehouse' ? options.warehouses : options.outlets;
+  }
+
+  onLocationTypeChange(): void {
+    this.selectedLocationId = null;
+    this.selectSingleLocation();
+  }
+
+  canConfirmSwitch(): boolean {
+    return !!this.selectedActingRole && (this.selectedLocationType === 'all' || this.selectedLocationId !== null);
+  }
+
+  actingLocationLabel(): string {
+    const user = this.currentUser();
+    return user?.actingOutletName ?? user?.actingWarehouseName ?? 'All Locations';
+  }
+
+  private loadSwitchOptions(): void {
+    this.optionsSubscription?.unsubscribe();
+    if (this.optionsUserId === null) {
+      this.switchOptions.set(null);
+      return;
+    }
+
+    this.optionsSubscription = this.authService.getSwitchOptions().subscribe({
+      next: options => {
+        this.switchOptions.set(options);
+        this.applyOptionDefaults(options);
+      },
+      error: () => this.switchOptions.set(null)
+    });
+  }
+
+  private applyOptionDefaults(options: UserContextOptions): void {
+    if (!options.roles.some(role => role.name === this.selectedActingRole)) {
+      this.selectedActingRole = options.roles.length === 1 ? options.roles[0].name : '';
+    }
+
+    const typeStillOffered = (this.selectedLocationType === 'all' && options.allowAllLocations)
+      || (this.selectedLocationType === 'outlet' && options.outlets.length > 0)
+      || (this.selectedLocationType === 'warehouse' && options.warehouses.length > 0);
+    if (!typeStillOffered) {
+      this.selectedLocationType = options.outlets.length > 0
+        ? 'outlet'
+        : options.warehouses.length > 0 ? 'warehouse' : 'all';
+    }
+
+    if (!this.locationChoices().some(location => location.id === this.selectedLocationId)) {
+      this.selectedLocationId = null;
+    }
+    this.selectSingleLocation();
+  }
+
+  private selectSingleLocation(): void {
+    const choices = this.locationChoices();
+    if (this.selectedLocationType !== 'all' && this.selectedLocationId === null && choices.length === 1) {
+      this.selectedLocationId = choices[0].id;
+    }
+  }
+
   ngOnDestroy(): void {
     this.userSubscription?.unsubscribe();
+    this.optionsSubscription?.unsubscribe();
   }
 
   closeDropdowns(): void {
@@ -65,19 +132,24 @@ export class NavbarComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     this.showRoleSwitchMenu = !this.showRoleSwitchMenu;
     this.switchError.set(null);
+    if (this.showRoleSwitchMenu) {
+      // Assignments may have changed since the options were last loaded.
+      this.loadSwitchOptions();
+    }
   }
 
   confirmSwitchRole(event: Event): void {
     event.stopPropagation();
-    if (!this.selectedActingRole) {
-      this.switchError.set('Select a role.');
+    if (!this.canConfirmSwitch()) {
+      this.switchError.set('Select a role and location.');
       return;
     }
     this.switchingRole.set(true);
     this.switchError.set(null);
     this.authService.switchRole({
       actingRole: this.selectedActingRole,
-      actingOutletId: this.selectedActingOutletId ?? undefined
+      actingLocationType: this.selectedLocationType,
+      actingLocationId: this.selectedLocationType === 'all' ? undefined : this.selectedLocationId ?? undefined
     }).subscribe({
       next: () => {
         this.switchingRole.set(false);
@@ -87,7 +159,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.switchingRole.set(false);
-        this.switchError.set(err?.error?.message ?? 'Unable to switch role.');
+        this.switchError.set(
+          err?.error?.message
+            ?? (err?.status === 403 ? 'You are not allowed to switch to this context.' : 'Unable to switch context.')
+        );
       }
     });
   }
@@ -101,12 +176,13 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.showRoleSwitchMenu = false;
         this.showUserMenu = false;
         this.selectedActingRole = '';
-        this.selectedActingOutletId = null;
+        this.selectedLocationId = null;
+        this.loadSwitchOptions();
         this.router.navigate(['/dashboard']);
       },
       error: err => {
         this.switchingRole.set(false);
-        this.switchError.set(err?.error?.message ?? 'Unable to return to owner mode.');
+        this.switchError.set(err?.error?.message ?? 'Unable to return to your own context.');
       }
     });
   }

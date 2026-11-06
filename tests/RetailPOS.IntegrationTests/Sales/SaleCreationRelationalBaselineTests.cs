@@ -19,6 +19,8 @@ using RetailPOS.Infrastructure.Data;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Infrastructure.Sales;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Sales;
 
 public sealed class SaleCreationRelationalBaselineTests : IDisposable
@@ -791,7 +793,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
         IAuditService? audit = null) =>
         new(
             new SaleVoidStore(context),
-            new SaleReadStore(context),
+            new SaleReadStore(context, TestCompanySettings.Provider()),
             CreateOutletAuthorizer(),
             SaleCreationCommandTestFactory.FinancialPostings(context),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
@@ -820,7 +822,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
         ISaleMutationOutletAuthorizer? authorizer = null) =>
         new(
             new SaleVoidStore(context),
-            new SaleReadStore(context),
+            new SaleReadStore(context, TestCompanySettings.Provider()),
             authorizer ?? CreateOutletAuthorizer(),
             accounting,
             new SaleRefundStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
@@ -854,7 +856,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             .ReturnsAsync(() => TestInvoices.Issue($"SALE-{Guid.NewGuid():N}"));
 
         return new CreateSaleCommandHandler(
-            new SaleCreationStore(context, new SaleReadStore(context)),
+            new SaleCreationStore(context, new SaleReadStore(context, TestCompanySettings.Provider())),
             cashSessions.Object,
             invoiceNumberAllocator.Object,
             SaleCreationCommandTestFactory.FinancialPostings(context),

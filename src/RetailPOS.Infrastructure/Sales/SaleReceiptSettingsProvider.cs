@@ -55,17 +55,33 @@ public sealed class SaleReceiptSettingsProvider : ISaleReceiptSettingsProvider
             settings.Company.CompanyName,
             settings.Company.LogoBase64,
             settings.Company.Phone,
-            settings.Company.TaxNumber) { DateFormat = settings.Company.DateFormat };
+            settings.Company.TaxNumber)
+        {
+            DateFormat = settings.Company.DateFormat,
+            ConcernOf = settings.Company.ConcernOf,
+            Website = settings.Company.Website,
+            CurrencyCode = settings.Currency.CurrencyCode,
+            CurrencyName = settings.Currency.CurrencyName
+        };
 
     private sealed class StoredSystemSettings
     {
         public StoredCompanySettings Company { get; set; } = new();
         public StoredReceiptSettings Receipt { get; set; } = new();
+        public StoredCurrencySettings Currency { get; set; } = new();
+    }
+
+    private sealed class StoredCurrencySettings
+    {
+        public string CurrencyCode { get; set; } = "BDT";
+        public string CurrencyName { get; set; } = string.Empty;
     }
 
     private sealed class StoredCompanySettings
     {
         public string CompanyName { get; set; } = "Retail POS";
+        public string ConcernOf { get; set; } = string.Empty;
+        public string Website { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string TaxNumber { get; set; } = string.Empty;
         public string LogoBase64 { get; set; } = string.Empty;

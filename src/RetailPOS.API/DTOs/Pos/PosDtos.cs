@@ -64,6 +64,57 @@ public class PosStockHintDto
     public bool FromCache    { get; set; }
 }
 
+/// <summary>
+/// One sellable variant returned by GET /api/pos/catalogue. ListPrice is a display hint only;
+/// the cart always re-prices through POST /api/pos/cart-prices. No cost data.
+/// </summary>
+public class PosCatalogueItemDto
+{
+    public long    VariantId         { get; set; }
+    public long    ProductId         { get; set; }
+    public string  ProductName       { get; set; } = string.Empty;
+    public string  VariantName       { get; set; } = string.Empty;
+    public string? ProductCode       { get; set; }
+    public string  Sku               { get; set; } = string.Empty;
+    public string? Barcode           { get; set; }
+    public string? Attributes        { get; set; }
+    public long    CategoryId        { get; set; }
+    public string? CategoryName      { get; set; }
+    public decimal ListPrice         { get; set; }
+    public string? PrimaryImageThumb { get; set; }
+    /// <summary>Quantity at the requested (authorized) outlet; null when no outlet was requested.</summary>
+    public int?    StockQty          { get; set; }
+}
+
+/// <summary>Active category returned by GET /api/pos/categories for POS filtering.</summary>
+public class PosCategoryDto
+{
+    public long   Id               { get; set; }
+    public string Name             { get; set; } = string.Empty;
+    public long?  ParentCategoryId { get; set; }
+    public int    DisplayOrder     { get; set; }
+}
+
+/// <summary>Customer returned by GET /api/pos/customers/search; deliberately excludes email, loyalty and purchase history.</summary>
+public class PosCustomerLookupDto
+{
+    public long    Id            { get; set; }
+    public string  Name          { get; set; } = string.Empty;
+    public string? Phone         { get; set; }
+}
+
+/// <summary>Body of POST /api/pos/customers. No Business ID, email or loyalty fields: the server owns them.</summary>
+public class CreatePosCustomerDto
+{
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Customer name is required")]
+    [System.ComponentModel.DataAnnotations.MaxLength(255, ErrorMessage = "Customer name must be 255 characters or fewer")]
+    public string Name { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Phone number is required")]
+    [System.ComponentModel.DataAnnotations.MaxLength(20, ErrorMessage = "Phone number must be 20 characters or fewer")]
+    public string Phone { get; set; } = string.Empty;
+}
+
 public class PosTerminalDto
 {
     public long Id { get; set; }

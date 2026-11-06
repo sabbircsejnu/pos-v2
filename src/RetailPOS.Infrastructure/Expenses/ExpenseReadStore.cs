@@ -1,12 +1,92 @@
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.Expenses.Abstractions;
+using RetailPOS.Core.Accounting;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.Expenses;
 
-public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseReadStore
+public sealed class ExpenseReadStore(
+    RetailPOSDbContext dbContext,
+    IExpenseLocationAuthorizer locationAuthorizer) : IExpenseReadStore
 {
+    public async Task<IReadOnlyList<ExpensePaymentAccountReadModel>> GetPaymentAccountsAsync(
+        long businessId,
+        string? paymentSource,
+        long? outletId,
+        long? warehouseId,
+        CancellationToken cancellationToken)
+    {
+        var accounts = dbContext.ChartAccounts
+            .AsNoTracking()
+            .Where(account => account.BusinessId == businessId
+                && account.IsActive
+                && (account.AccountType == ChartAccountTypes.Asset || account.AccountType == ChartAccountTypes.Liability));
+
+        if (string.IsNullOrWhiteSpace(paymentSource))
+        {
+            accounts = accounts.Where(account => account.IsExpensePaymentAccount);
+        }
+        else
+        {
+            var source = paymentSource.Trim().ToLowerInvariant();
+            if (!ExpensePaymentSources.All.Contains(source))
+                throw new InvalidOperationException("Payment source must be bank, petty_cash or pos_drawer.");
+
+            var map = await ExpensePaymentAccountMapReader.LoadAsync(
+                dbContext,
+                businessId,
+                warehouseId.HasValue ? null : outletId,
+                cancellationToken);
+            var allowed = ExpensePaymentAccountPolicy.AllowedAccountIds(source, map).ToList();
+
+            // The POS drawer has exactly one account, chosen by configuration rather than by the funding-account flag.
+            accounts = source == ExpensePaymentSources.PosDrawer
+                ? accounts.Where(account => allowed.Contains(account.Id))
+                : accounts.Where(account => account.IsExpensePaymentAccount && allowed.Contains(account.Id));
+        }
+
+        return await accounts
+            .OrderBy(account => account.AccountCode)
+            .Select(account => new ExpensePaymentAccountReadModel(
+                account.Id,
+                account.AccountCode,
+                account.AccountName,
+                account.AccountType))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ExpenseAccountOptionReadModel>> GetEligibleExpenseAccountsAsync(
+        long businessId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await dbContext.ChartAccounts
+            .AsNoTracking()
+            .Where(account => account.BusinessId == businessId
+                && account.IsActive
+                && account.AccountType == ChartAccountTypes.Expense)
+            .OrderBy(account => account.AccountCode)
+            .Select(account => new
+            {
+                account.Id,
+                Facts = new ExpenseAccountFacts(
+                    account.AccountCode,
+                    account.AccountType,
+                    account.IsActive,
+                    account.IsSystemAccount,
+                    account.IsControlAccount,
+                    account.AllowManualPosting,
+                    account.ChildAccounts.Any(child => child.IsActive)),
+                account.AccountName
+            })
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .Where(candidate => ExpenseAccountEligibilityPolicy.IsEligible(candidate.Facts))
+            .Select(candidate => new ExpenseAccountOptionReadModel(candidate.Id, candidate.Facts.AccountCode, candidate.AccountName))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<ExpenseCategoryReadModel>> GetCategoriesAsync(
         long businessId,
         bool includeInactive,
@@ -37,11 +117,22 @@ public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseRea
         ExpenseSearchFilter filter,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Expenses
-            .AsNoTracking()
+        // A narrowing filter is authorized explicitly so an out-of-scope location is refused rather than empty.
+        if (filter.OutletId.HasValue || filter.WarehouseId.HasValue)
+            await locationAuthorizer.AuthorizeAsync(filter.OutletId, filter.WarehouseId, cancellationToken);
+
+        var query = (await ApplyLocationScopeAsync(
+                dbContext.Expenses.AsNoTracking(),
+                cancellationToken))
             .Include(expense => expense.Outlet)
+            .Include(expense => expense.Warehouse)
             .Include(expense => expense.ExpenseCategory)
             .Where(expense => expense.BusinessId == filter.BusinessId);
+
+        if (filter.WarehouseId.HasValue)
+        {
+            query = query.Where(expense => expense.WarehouseId == filter.WarehouseId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Category))
         {
@@ -95,10 +186,12 @@ public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseRea
         var expense = await dbContext.Expenses
             .AsNoTracking()
             .Include(expense => expense.Outlet)
+            .Include(expense => expense.Warehouse)
             .Include(expense => expense.ExpenseCategory)
             .Where(expense => expense.BusinessId == businessId && expense.Id == expenseId)
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         return ToReadModel(expense);
     }
 
@@ -109,8 +202,7 @@ public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseRea
         var now = DateTime.UtcNow;
         var start = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var end = start.AddMonths(1);
-        var expenses = await dbContext.Expenses
-            .AsNoTracking()
+        var expenses = await (await ApplyLocationScopeAsync(dbContext.Expenses.AsNoTracking(), cancellationToken))
             .Where(expense =>
                 expense.BusinessId == businessId
                 && expense.ExpenseDate >= start
@@ -125,6 +217,21 @@ public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseRea
                 .GroupBy(expense => expense.Category)
                 .ToDictionary(group => group.Key, group => group.Sum(expense => expense.Amount)),
             expenses.Count);
+    }
+
+    private async Task<IQueryable<Expense>> ApplyLocationScopeAsync(
+        IQueryable<Expense> query,
+        CancellationToken cancellationToken)
+    {
+        var scope = await locationAuthorizer.GetScopeAsync(cancellationToken);
+        if (scope.IsBusinessWide)
+            return query;
+
+        var outletIds = scope.OutletIds.ToList();
+        var warehouseIds = scope.WarehouseIds.ToList();
+        return query.Where(expense =>
+            (expense.OutletId != null && outletIds.Contains(expense.OutletId.Value))
+            || (expense.WarehouseId != null && warehouseIds.Contains(expense.WarehouseId.Value)));
     }
 
     private static ExpenseReadModel ToReadModel(Expense expense) =>
@@ -158,5 +265,7 @@ public sealed class ExpenseReadStore(RetailPOSDbContext dbContext) : IExpenseRea
             expense.SelfApprovedUnderOwnerException,
             expense.CreatedBy,
             expense.SubmittedBy,
-            expense.ApprovedBy);
+            expense.ApprovedBy,
+            expense.WarehouseId,
+            expense.Warehouse == null ? null : expense.Warehouse.Name);
 }

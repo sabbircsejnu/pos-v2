@@ -1,7 +1,8 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -56,14 +57,15 @@ import { ApReportFilter } from '../../models/accounting.model';
   `
 })
 export class ApReportComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   readonly mode: string;
   readonly title: string;
   readonly report = signal<any>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  asOfDate = new Date().toISOString().slice(0, 10);
-  dateFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-  dateTo = new Date().toISOString().slice(0, 10);
+  asOfDate = this.companyToday.todayIso();
+  dateFrom = this.companyToday.firstOfMonthIso();
+  dateTo = this.companyToday.todayIso();
   supplierId: number | null = null;
   status = '';
   disputed = false;

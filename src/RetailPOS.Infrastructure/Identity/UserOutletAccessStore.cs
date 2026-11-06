@@ -13,7 +13,9 @@ public sealed class UserOutletAccessStore(RetailPOSDbContext dbContext) : IUserO
             .Select(user => new UserLocationAccessUser(
                 user.BusinessId,
                 user.OutletId,
-                user.InventoryLocationAccessScope))
+                user.InventoryLocationAccessScope,
+                user.ContextSwitchEnabled,
+                user.ContextLocationScope))
             .FirstOrDefaultAsync();
 
     public async Task<IReadOnlyList<AuthorizedLocationReadModel>> ListOutletsAsync(long? businessId)

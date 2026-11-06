@@ -16,7 +16,10 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
     {
         var product = await dbContext.Products
             .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == filter.ProductId, cancellationToken)
+            .FirstOrDefaultAsync(
+                item => item.Id == filter.ProductId
+                    && (!scope.BusinessId.HasValue || item.BusinessId == scope.BusinessId.Value),
+                cancellationToken)
             ?? throw new KeyNotFoundException($"Product {filter.ProductId} not found");
 
         var variantIds = filter.VariantId.HasValue
@@ -57,10 +60,9 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
                 .ToListAsync(cancellationToken);
         }
 
+        // Inclusive UTC instants: the query handler resolves calendar dates in the Company time zone.
         var rangeStart = filter.DateFrom;
-        var rangeEnd = filter.DateTo.HasValue
-            ? filter.DateTo.Value.Date.AddDays(1).AddTicks(-1)
-            : (DateTime?)null;
+        var rangeEnd = filter.DateTo;
         var baseQuery = dbContext.StockLedgers
             .AsNoTracking()
             .Where(ledger => variantIds.Contains(ledger.VariantId));
@@ -143,12 +145,12 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
             .Where(row => row.ReferenceType == StockLedgerReferenceType.StockTransfer)
             .Select(row => row.ReferenceId)
             .Distinct()
-            .ToDictionary(id => id, id => $"TRF-{id}");
+            .ToList();
         var adjustmentIds = ledgerRows
             .Where(row => row.ReferenceType == StockLedgerReferenceType.StockAdjustment)
             .Select(row => row.ReferenceId)
             .Distinct()
-            .ToDictionary(id => id, id => $"ADJ-{id}");
+            .ToList();
         var saleNumbers = saleIds.Count == 0
             ? new Dictionary<long, string>()
             : await dbContext.Sales
@@ -166,6 +168,20 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
                             && outletIds.Contains(grn.PurchaseOrder.OutletId.Value))))
                 .Select(grn => new { grn.Id, grn.PoId })
                 .ToDictionaryAsync(grn => grn.Id, grn => $"GRN-{grn.Id} (PO-{grn.PoId})", cancellationToken);
+
+        // The ledger rows above are already location-scoped, so their documents need no second scope check.
+        var transferNumbers = transferIds.Count == 0
+            ? new Dictionary<long, string>()
+            : await dbContext.StockTransfers
+                .AsNoTracking()
+                .Where(transfer => transferIds.Contains(transfer.Id) && transfer.TransferNo != null)
+                .ToDictionaryAsync(transfer => transfer.Id, transfer => transfer.TransferNo!, cancellationToken);
+        var adjustmentNumbers = adjustmentIds.Count == 0
+            ? new Dictionary<long, string>()
+            : await dbContext.StockAdjustments
+                .AsNoTracking()
+                .Where(adjustment => adjustmentIds.Contains(adjustment.Id))
+                .ToDictionaryAsync(adjustment => adjustment.Id, adjustment => adjustment.AdjustmentNumber, cancellationToken);
 
         var rows = new List<StockTransactionReportRowReadModel>(ledgerRows.Count);
         var running = opening;
@@ -190,10 +206,10 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
                 StockLedgerReferenceType.Grn => grnNumbers.GetValueOrDefault(
                     row.ReferenceId,
                     $"GRN-{row.ReferenceId}"),
-                StockLedgerReferenceType.StockTransfer => transferIds.GetValueOrDefault(
+                StockLedgerReferenceType.StockTransfer => transferNumbers.GetValueOrDefault(
                     row.ReferenceId,
                     $"TRF-{row.ReferenceId}"),
-                StockLedgerReferenceType.StockAdjustment => adjustmentIds.GetValueOrDefault(
+                StockLedgerReferenceType.StockAdjustment => adjustmentNumbers.GetValueOrDefault(
                     row.ReferenceId,
                     $"ADJ-{row.ReferenceId}"),
                 _ => $"{row.ReferenceType}-{row.ReferenceId}"

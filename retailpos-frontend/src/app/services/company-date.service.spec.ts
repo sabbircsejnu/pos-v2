@@ -45,6 +45,28 @@ describe('company date formatting and parsing', () => {
     expect(() => normalizeDateFormat('not-a-date-format')).toThrow();
   });
 
+  it('takes the business time zone from the formatting settings, and resets it after logout', () => {
+    const users = new BehaviorSubject<{ id: number } | null>({ id: 1 });
+    const dates = TestBed.inject(CompanyDateService);
+    const http = TestBed.inject(HttpTestingController);
+    dates.connect(users);
+    http.expectOne(`${environment.apiUrl}/settings/formatting`)
+      .flush({ data: { dateFormat: 'DD/MM/YYYY', timeZone: 'America/New_York' } });
+    expect(dates.timeZone()).toBe('America/New_York');
+    users.next(null);
+    expect(dates.timeZone()).toBe('Asia/Dhaka');
+  });
+
+  it('keeps the default time zone when the API sends none', () => {
+    const dates = TestBed.inject(CompanyDateService);
+    dates.load().subscribe();
+    TestBed.inject(HttpTestingController).expectOne(`${environment.apiUrl}/settings/formatting`)
+      .flush({ data: { dateFormat: 'DD/MM/YYYY' } });
+    expect(dates.timeZone()).toBe('Asia/Dhaka');
+    dates.setTimeZone('  ');
+    expect(dates.timeZone()).toBe('Asia/Dhaka');
+  });
+
   it('loads for login, not anonymous, reloads for identity changes, and resets after logout', () => {
     const users = new BehaviorSubject<{ id: number } | null>(null);
     const dates = TestBed.inject(CompanyDateService);

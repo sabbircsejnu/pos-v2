@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.AccountingReports.Abstractions;
 using RetailPOS.Application.AccountingReports.ReadModels;
@@ -6,7 +7,9 @@ using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.AccountingReports;
 
-public sealed class EnhancedGeneralLedgerReadStore(RetailPOSDbContext dbContext)
+public sealed class EnhancedGeneralLedgerReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones)
     : IEnhancedGeneralLedgerReadStore
 {
     public async Task<EnhancedGeneralLedgerReadModel> GetAsync(
@@ -28,8 +31,8 @@ public sealed class EnhancedGeneralLedgerReadStore(RetailPOSDbContext dbContext)
             .Select(candidate => new AccountHierarchyRow(candidate.Id, candidate.ParentAccountId))
             .ToListAsync(cancellationToken);
         var accountIds = GetDescendantAccountIds(account.Id, accountHierarchy);
-        var dateFrom = (filter.DateFrom ?? DateTime.UtcNow.Date).Date;
-        var dateTo = (filter.DateTo ?? DateTime.UtcNow).Date.AddDays(1).AddTicks(-1);
+        var dateFrom = (filter.DateFrom ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
+        var dateTo = (filter.DateTo ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date.AddDays(1).AddTicks(-1);
         if (dateTo < dateFrom)
             throw new InvalidOperationException("DateTo must not be earlier than DateFrom.");
 

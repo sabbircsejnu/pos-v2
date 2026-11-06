@@ -58,6 +58,13 @@
                 (ngModelChange)="updateCompanyField('companyName', $event)" />
             </div>
             <div class="md:col-span-2">
+              <label class="label" for="company-concern-of">Concern Of</label>
+              <input id="company-concern-of" type="text" class="input" maxlength="150"
+                [ngModel]="company().concernOf"
+                (ngModelChange)="updateCompanyField('concernOf', $event)" />
+              <p class="text-xs text-gray-500 mt-1">Optional. Invoices print "A concern of ..." below the business name; leave blank to hide it.</p>
+            </div>
+            <div class="md:col-span-2">
               <label class="label">Address</label>
               <textarea class="input" rows="2"
                 [ngModel]="company().address"
@@ -102,6 +109,7 @@
               <input type="text" class="input"
                 [ngModel]="company().timeZone"
                 (ngModelChange)="updateCompanyField('timeZone', $event)" />
+              <p class="text-xs text-gray-500 mt-1">Every date in this Business follows this time zone.</p>
             </div>
             <div class="md:col-span-2 text-xs text-gray-500 -mt-1">
               Currency for this company is configured in the
@@ -235,22 +243,6 @@
                       [ngModel]="posForm().maxCashSessionDurationHours"
                       (ngModelChange)="updatePosField('maxCashSessionDurationHours', $event)" />
                   </app-ui-form-field>
-
-                  <app-ui-form-field
-                    label="Default time zone"
-                    hint="IANA time zone id, for example Asia/Dhaka. Outlets can override it."
-                    [required]="true"
-                    [error]="posErrors().defaultTimeZoneId ?? ''">
-                    <input appUiControl type="text" name="defaultTimeZoneId" list="pos-time-zones" autocomplete="off"
-                      [disabled]="!canEditPosSettings"
-                      [ngModel]="posForm().defaultTimeZoneId"
-                      (ngModelChange)="updatePosField('defaultTimeZoneId', $event)" />
-                    <datalist id="pos-time-zones">
-                      @for (zone of timeZoneSuggestions; track zone) {
-                        <option [value]="zone"></option>
-                      }
-                    </datalist>
-                  </app-ui-form-field>
                 </div>
 
                 <h3 class="pos-section-title">Tax</h3>
@@ -342,6 +334,7 @@
               <textarea class="input" rows="3"
                 [ngModel]="receipt().footer"
                 (ngModelChange)="updateReceiptField('footer', $event)"></textarea>
+              <p class="text-xs text-gray-500 mt-1">A "Powered by" line is managed by the Platform Super Admin and cannot be added here.</p>
             </div>
             <div>
               <label class="label">Paper Size</label>

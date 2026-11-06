@@ -22,6 +22,7 @@ public sealed class P306ReconciliationPostgresConcurrencyTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.ReconciliationMatch,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))

@@ -5,6 +5,6 @@ namespace RetailPOS.Application.Grns.Abstractions;
 public interface IPendingGrnPurchaseOrderReadStore
 {
     Task<IReadOnlyList<PendingGrnPurchaseOrderReadModel>> FindPendingAsync(
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 }

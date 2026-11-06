@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { User, CreateUserDto, UpdateUserDto, ChangePasswordDto, UserListResponse } from '../models/user.model';
+import { User, CreateUserDto, UpdateUserDto, ChangePasswordDto, UserContextRoleOption, UserListResponse } from '../models/user.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -41,6 +41,11 @@ export class UserService {
   /**
    * Get user by ID
    */
+  getContextRoleOptions(businessId?: number | null): Observable<UserContextRoleOption[]> {
+    const params = businessId ? { businessId } : undefined;
+    return this.http.get<UserContextRoleOption[]>(`${this.apiUrl}/context-role-options`, { params });
+  }
+
   getUserById(id: number): Observable<User> {
     return this.http.get<User>(`${this.apiUrl}/${id}`);
   }

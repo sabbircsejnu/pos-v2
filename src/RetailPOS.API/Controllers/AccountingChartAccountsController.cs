@@ -63,7 +63,8 @@ public class AccountingChartAccountsController : ControllerBase
                 dto.AllowManualPosting,
                 dto.IsActive,
                 dto.DisplayOrder,
-                TryGetCurrentUserId()),
+                TryGetCurrentUserId(),
+                dto.IsExpensePaymentAccount),
             cancellationToken);
         return CreatedAtAction(
             nameof(GetById),
@@ -87,7 +88,8 @@ public class AccountingChartAccountsController : ControllerBase
                 dto.AllowManualPosting,
                 dto.IsActive,
                 dto.DisplayOrder,
-                TryGetCurrentUserId()),
+                TryGetCurrentUserId(),
+                dto.IsExpensePaymentAccount),
             cancellationToken);
         return Ok(ApiResponse<ChartAccountDto>.SuccessResponse(Map(result), "Chart account updated successfully"));
     }
@@ -128,6 +130,7 @@ public class AccountingChartAccountsController : ControllerBase
             IsControlAccount = account.IsControlAccount,
             AllowManualPosting = account.AllowManualPosting,
             IsActive = account.IsActive,
+            IsExpensePaymentAccount = account.IsExpensePaymentAccount,
             DisplayOrder = account.DisplayOrder
         };
 }

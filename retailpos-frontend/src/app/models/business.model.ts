@@ -31,6 +31,10 @@ export interface CreateBusinessRequestDto {
   defaultWarehouseName?: string;
   warehouseManagerName?: string;
   warehouseManagerEmail?: string;
+
+  /** Platform-controlled; the API refuses anyone but a Platform Super Admin. */
+  showPoweredByOnReceipt?: boolean;
+  poweredByText?: string | null;
 }
 
 export interface CreateBusinessResponseDto {
@@ -56,6 +60,13 @@ export interface BusinessSummaryDto {
   outletCount: number;
   warehouseCount: number;
   businessOwnerEmail?: string;
+  showPoweredByOnReceipt?: boolean;
+  poweredByText?: string | null;
+}
+
+export interface UpdateBusinessReceiptFooterDto {
+  showPoweredByOnReceipt: boolean;
+  poweredByText: string | null;
 }
 
 export interface UpdateBusinessStatusDto {

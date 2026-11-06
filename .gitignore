@@ -315,5 +315,8 @@ HashGen/
 # Keep these files
 # =====================================================
 
+# Private expense attachments (receipts); never commit
+src/RetailPOS.API/App_Data/
+
 !.gitkeep
 !.gitattributes

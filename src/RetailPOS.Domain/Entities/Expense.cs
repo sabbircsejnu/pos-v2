@@ -54,6 +54,10 @@ public class Expense
     public string? AttachmentPath { get; set; }
     public DateTime ExpenseDate { get; set; }
     public long? OutletId { get; set; }
+
+    /// <summary>Set instead of <see cref="OutletId"/> for a warehouse expense; both null means business-level.</summary>
+    public long? WarehouseId { get; set; }
+
     public string Status { get; set; } = ExpenseStatuses.Draft;
     public long? JournalEntryId { get; set; }
     public long? CreatedBy { get; set; }
@@ -74,8 +78,10 @@ public class Expense
     // Navigation properties
     public virtual Business Business { get; set; } = null!;
     public virtual Outlet? Outlet { get; set; }
+    public virtual Warehouse? Warehouse { get; set; }
     public virtual ExpenseCategory? ExpenseCategory { get; set; }
     public virtual ChartAccount? ExpenseAccount { get; set; }
     public virtual ChartAccount? PaymentAccount { get; set; }
     public virtual JournalEntry? JournalEntry { get; set; }
+    public virtual ICollection<ExpenseAttachment> Attachments { get; set; } = new List<ExpenseAttachment>();
 }

@@ -22,6 +22,8 @@ using RetailPOS.Infrastructure.Pos;
 using RetailPOS.Infrastructure.Sales;
 using Moq;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Sales;
 
 internal static class SaleCreationCommandTestFactory
@@ -93,7 +95,7 @@ internal static class SaleCreationCommandTestFactory
         long businessId = 1)
     {
         return new(
-            new SaleCreationStore(db, new SaleReadStore(db)),
+            new SaleCreationStore(db, new SaleReadStore(db, TestCompanySettings.Provider())),
             cashSessionValidator,
             invoiceNumberAllocator,
             FinancialPostings(db),
@@ -112,7 +114,8 @@ internal static class SaleCreationCommandTestFactory
             db,
             new CashSessionEventWriter(new IntegrationOutbox(
                 db, Mock.Of<IAuditContext>(), TimeProvider.System, Mock.Of<IIntegrationReplayAuthorization>())),
-            clock ?? TimeProvider.System);
+            clock ?? TimeProvider.System,
+            TestCompanySettings.Provider());
 
     /// <summary>Posts the sale's D10 intent through the production journal poster (what the worker does).</summary>
     public static async Task<SaleJournalPostingResult> PostSaleIntentAsync(

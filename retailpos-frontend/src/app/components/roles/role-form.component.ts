@@ -13,6 +13,14 @@ interface PermissionCategory {
 
 /** Readable labels for permissions whose raw key is not self-explanatory. */
 export const PERMISSION_DETAILS: Record<string, { label: string; description: string }> = {
+  'dashboard.sales_finance.view': {
+    label: 'View Sales & Finance Dashboard',
+    description: 'See all sales, purchase, expense, profit and cash figures of the business, for every outlet. Does not allow changing any transaction.'
+  },
+  'dashboard.inventory_intelligence.view': {
+    label: 'View Inventory Intelligence Dashboard',
+    description: 'See all stock, stock value and transfer recommendations of the business, for every location. Creating a transfer still needs the Stock Transfer permissions.'
+  },
   'sales.discount.apply': {
     label: 'Apply Manual Discounts',
     description: 'Apply discounts at the POS, up to the maximum manual discount percentage.'
@@ -72,7 +80,7 @@ export class RoleFormComponent implements OnInit {
     ...HR_PAYROLL_PERMISSION_CATEGORIES,
     {
       name: 'User Management',
-      permissions: ['users.view', 'users.create', 'users.edit', 'users.delete']
+      permissions: ['users.view', 'users.create', 'users.edit', 'users.delete', 'users.context_access.manage', 'users.context_access.grant_all']
     },
     {
       name: 'Role Management',
@@ -187,6 +195,10 @@ export class RoleFormComponent implements OnInit {
       permissions: ['suppliers.view', 'suppliers.create', 'suppliers.edit', 'suppliers.delete']
     },
     {
+      name: 'Dashboards',
+      permissions: ['dashboard.sales_finance.view', 'dashboard.inventory_intelligence.view']
+    },
+    {
       name: 'Reports',
       permissions: ['reports.sales', 'reports.inventory', 'reports.financial', 'reports.export']
     },
@@ -220,7 +232,7 @@ export class RoleFormComponent implements OnInit {
     },
     {
       name: 'Finance - Expenses and Expense Categories',
-      permissions: ['accounting.expenses.view', 'accounting.expenses.create', 'accounting.expenses.edit', 'accounting.expenses.submit', 'accounting.expenses.approve', 'accounting.expenses.reject', 'accounting.expenses.cancel']
+      permissions: ['accounting.expenses.view', 'accounting.expenses.create', 'accounting.expenses.edit', 'accounting.expenses.submit', 'accounting.expenses.approve', 'accounting.expenses.reject', 'accounting.expenses.cancel', 'accounting.expense_categories.manage']
     },
     {
       name: 'Finance - Supplier Payments and Advances',

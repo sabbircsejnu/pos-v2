@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.AccountingReports.Abstractions;
 using RetailPOS.Application.AccountingReports.ReadModels;
@@ -6,13 +7,16 @@ using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.AccountingReports;
 
-public sealed class CogsReportReadStore(RetailPOSDbContext dbContext) : ICogsReportReadStore
+public sealed class CogsReportReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones) : ICogsReportReadStore
 {
     public async Task<CogsReportReadModel> GetAsync(
         CogsReportFilter filter,
         long businessId,
         CancellationToken cancellationToken)
     {
+        filter = filter with { DateTo = filter.DateTo ?? await timeZones.GetTodayAsync(businessId, cancellationToken) };
         var configuration = await dbContext.AccountingConfigurations
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -101,7 +105,7 @@ public sealed class CogsReportReadStore(RetailPOSDbContext dbContext) : ICogsRep
             query = query.Where(journal =>
                 journal.PostingDate >= filter.DateFrom.Value.Date);
 
-        var end = (filter.DateTo ?? DateTime.UtcNow)
+        var end = filter.DateTo!.Value
             .Date
             .AddDays(1)
             .AddTicks(-1);

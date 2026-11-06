@@ -20,7 +20,7 @@ public sealed class CreateGrnCommandHandlerTests
             store.Object,
             tenantScope.Object,
             auditWriter.Object,
-            Mock.Of<IPurchaseOrderLocationAuthorizer>());
+            Mock.Of<IGrnReceiptLocationAuthorizer>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(
@@ -57,7 +57,7 @@ public sealed class CreateGrnCommandHandlerTests
             store.Object,
             tenantScope.Object,
             auditWriter.Object,
-            Mock.Of<IPurchaseOrderLocationAuthorizer>());
+            Mock.Of<IGrnReceiptLocationAuthorizer>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(

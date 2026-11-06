@@ -1,78 +1,52 @@
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Authentication.Abstractions;
+using RetailPOS.Application.Authentication.Context;
 using RetailPOS.Application.Authentication.Contracts;
-using RetailPOS.Application.Identity.Abstractions;
-using RetailPOS.Core.Entities;
 
 namespace RetailPOS.Application.Authentication.Commands;
 
 public sealed record SwitchRoleCommand(
     long RealUserId,
     string? ActingRole,
-    long? ActingOutletId) : ICommand<AuthenticationResult>;
+    long? ActingOutletId,
+    string? ActingLocationType = null,
+    long? ActingLocationId = null) : ICommand<AuthenticationResult>;
 
 public sealed class SwitchRoleCommandHandler(
     IAuthenticationStore store,
-    IAuthenticationCredentialsIssuer credentialsIssuer)
+    IAuthenticationCredentialsIssuer credentialsIssuer,
+    UserContextPolicy contextPolicy)
     : IRequestHandler<SwitchRoleCommand, AuthenticationResult>
 {
-    private static readonly HashSet<string> AllowedActingRoles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "OutletManager",
-        "Cashier",
-        "Salesman",
-        "Stock Manager",
-        "StockManager"
-    };
-
     public async Task<AuthenticationResult> Handle(
         SwitchRoleCommand request,
         CancellationToken cancellationToken)
     {
         var user = await store.FindActiveUserForRoleSwitchAsync(request.RealUserId, cancellationToken);
-        EnsureBusinessOwner(user);
+        if (user is null || !user.IsActive)
+        {
+            throw new UnauthorizedAccessException("User not found or inactive.");
+        }
 
         if (string.IsNullOrWhiteSpace(request.ActingRole))
         {
             throw new InvalidOperationException("ActingRole is required.");
         }
 
-        if (!AllowedActingRoles.Contains(request.ActingRole))
-        {
-            throw new UnauthorizedAccessException($"Role '{request.ActingRole}' is not switchable.");
-        }
-
-        var actingRole = await store.FindRoleForSwitchAsync(request.ActingRole, cancellationToken)
-            ?? throw new InvalidOperationException($"Role '{request.ActingRole}' not found.");
-
-        AuthenticationOutlet? actingOutlet = null;
-        if (request.ActingOutletId.HasValue)
-        {
-            actingOutlet = await store.FindOutletForSwitchAsync(
-                request.ActingOutletId.Value,
-                cancellationToken)
-                ?? throw new InvalidOperationException($"Outlet {request.ActingOutletId} not found.");
-
-            if (!user!.BusinessId.HasValue || actingOutlet.BusinessId != user.BusinessId)
-            {
-                throw new UnauthorizedAccessException("Selected outlet does not belong to your business.");
-            }
-        }
-
-        var permissions = LoginCommandHandler.ParsePermissionJson(actingRole.Permissions);
-        var claims = new AuthenticationActingRoleClaims(
-            actingRole.Id,
-            actingRole.Name,
-            permissions,
-            request.ActingOutletId,
-            actingOutlet?.Name);
+        var (locationType, locationId) = ResolveRequestedLocation(request);
+        var resolved = await contextPolicy.ResolveAsync(
+            user,
+            request.ActingRole,
+            locationType,
+            locationId,
+            cancellationToken);
         var credentials = credentialsIssuer.IssueForRoleSwitch(
-            ToAuthenticationUser(user!),
-            permissions,
-            claims);
+            ToAuthenticationUser(user),
+            resolved.Permissions,
+            resolved.ToClaims());
         await store.PersistRefreshTokenAsync(
-            user!.Id,
+            user.Id,
             credentials.RefreshToken,
             credentials.RefreshTokenExpiresAt,
             cancellationToken);
@@ -86,30 +60,41 @@ public sealed class SwitchRoleCommandHandler(
                 user.BusinessId,
                 user.Name,
                 user.Email,
-                actingRole.Name,
-                permissions,
-                request.ActingOutletId,
-                actingOutlet?.Name,
+                resolved.Role.Name,
+                resolved.Permissions,
+                resolved.OutletId,
+                resolved.OutletName,
                 user.RoleName,
-                IsBusinessOwner: true,
+                IsBusinessOwner: UserContextPolicy.IsOwner(user),
                 MustResetPassword: user.MustResetPassword,
-                ActingRoleName: actingRole.Name,
-                ActingOutletId: request.ActingOutletId,
-                ActingOutletName: actingOutlet?.Name,
-                IsRoleSwitched: true));
+                ActingRoleName: resolved.Role.Name,
+                ActingOutletId: resolved.OutletId,
+                ActingOutletName: resolved.OutletName,
+                IsRoleSwitched: true,
+                ActingLocationType: resolved.LocationType,
+                ActingWarehouseId: resolved.WarehouseId,
+                ActingWarehouseName: resolved.WarehouseName));
     }
 
-    private static void EnsureBusinessOwner(AuthenticationRoleSwitchUser? user)
+    // ActingOutletId is the original outlet-only contract and stays valid on its own.
+    private static (string? Type, long? Id) ResolveRequestedLocation(SwitchRoleCommand request)
     {
-        if (user is null || !user.IsActive)
+        if (request.ActingOutletId is not long outletId)
         {
-            throw new UnauthorizedAccessException("User not found or inactive.");
+            return (request.ActingLocationType, request.ActingLocationId);
         }
 
-        if (!string.Equals(user.RoleName, SystemRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
+        var typeConflicts = !string.IsNullOrWhiteSpace(request.ActingLocationType)
+            && !string.Equals(
+                request.ActingLocationType.Trim(),
+                UserContextLocationTypes.Outlet,
+                StringComparison.OrdinalIgnoreCase);
+        if (typeConflicts || (request.ActingLocationId.HasValue && request.ActingLocationId != outletId))
         {
-            throw new UnauthorizedAccessException("Only BusinessOwner can switch roles.");
+            throw new InvalidOperationException("ActingOutletId conflicts with the selected location.");
         }
+
+        return (UserContextLocationTypes.Outlet, outletId);
     }
 
     internal static AuthenticationUser ToAuthenticationUser(AuthenticationRoleSwitchUser user) =>
@@ -124,12 +109,16 @@ public sealed class SwitchRoleCommandHandler(
             user.RolePermissions,
             user.OutletId,
             user.OutletName,
-            permissionOverrides: null,
+            user.PermissionOverrides,
             user.IsActive,
             user.MustResetPassword);
 }
 
-public sealed record ReturnOwnerCommand(long RealUserId) : ICommand<AuthenticationResult>;
+/// <param name="IsCurrentlySwitched">
+/// Lets a non-owner leave a switched session even after their switching access was removed.
+/// </param>
+public sealed record ReturnOwnerCommand(long RealUserId, bool IsCurrentlySwitched = false)
+    : ICommand<AuthenticationResult>;
 
 public sealed class ReturnOwnerCommandHandler(
     IAuthenticationStore store,
@@ -146,12 +135,15 @@ public sealed class ReturnOwnerCommandHandler(
             throw new UnauthorizedAccessException("User not found or inactive.");
         }
 
-        if (!string.Equals(user.RoleName, SystemRoleNames.BusinessOwner, StringComparison.OrdinalIgnoreCase))
+        var isOwner = UserContextPolicy.IsOwner(user);
+        if (!isOwner && !request.IsCurrentlySwitched)
         {
-            throw new UnauthorizedAccessException("Only BusinessOwner can switch roles.");
+            throw new UnauthorizedAccessException("There is no switched context to return from.");
         }
 
-        var permissions = LoginCommandHandler.ParsePermissionJson(user.RolePermissions);
+        var permissions = LoginCommandHandler.BuildEffectivePermissions(
+            user.RolePermissions,
+            user.PermissionOverrides);
         var credentials = credentialsIssuer.Issue(
             SwitchRoleCommandHandler.ToAuthenticationUser(user),
             permissions);
@@ -175,7 +167,7 @@ public sealed class ReturnOwnerCommandHandler(
                 user.OutletId,
                 user.OutletName,
                 user.RoleName,
-                IsBusinessOwner: true,
+                IsBusinessOwner: isOwner,
                 MustResetPassword: user.MustResetPassword));
     }
 }

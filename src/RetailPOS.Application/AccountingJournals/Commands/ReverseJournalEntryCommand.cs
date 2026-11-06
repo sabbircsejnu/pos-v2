@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.AccountingJournals.Abstractions;
@@ -12,16 +13,27 @@ public sealed record ReverseJournalEntryCommand(
     : ICommand<long>;
 
 public sealed class ReverseJournalEntryCommandHandler(
-    IManualJournalDraftStore store)
+    IManualJournalDraftStore store,
+    ICompanyTimeZoneProvider timeZones)
     : IRequestHandler<ReverseJournalEntryCommand, long>
 {
-    public Task<long> Handle(
+    public async Task<long> Handle(
         ReverseJournalEntryCommand request,
-        CancellationToken cancellationToken) =>
-        store.ReverseAsync(
+        CancellationToken cancellationToken)
+    {
+        // Without a chosen date, a reversal posts on today in the Company time zone.
+        var reversal = request.Reversal.PostingDate.HasValue
+            ? request.Reversal
+            : request.Reversal with
+            {
+                PostingDate = await timeZones.GetTodayAsync(request.BusinessId, cancellationToken)
+            };
+        return await store.ReverseAsync(
             request.BusinessId,
             request.ActorUserId,
             request.JournalId,
-            request.Reversal,
+            reversal,
             cancellationToken);
+    }
+
 }

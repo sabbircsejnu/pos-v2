@@ -15,6 +15,10 @@ public class StockTransferItemDto
     public int TransferQuantity { get; set; }
     public int AcceptedQuantity { get; set; }
     public int RejectedQuantity { get; set; }
+    public int MissingQuantity { get; set; }
+    public int DamagedQuantity { get; set; }
+    public int InTransitQuantity { get; set; }
+    public int ReturnTransitQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public string? Remarks { get; set; }
 }

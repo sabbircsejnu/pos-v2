@@ -31,6 +31,8 @@ interface SetupOptions {
   routeId?: string;
   purchaseOrder?: Record<string, unknown>;
   accessError?: Error;
+  /** The GrnView locations; defaults to the same locations as the destination list. */
+  receivable?: AuthorizedOutletsDto;
 }
 
 describe('PoFormComponent destination location', () => {
@@ -60,9 +62,14 @@ describe('PoFormComponent destination location', () => {
       warning: vi.fn(),
       confirm: vi.fn((_message: string, onConfirm: () => void) => onConfirm())
     };
-    loadLocations = vi.fn().mockReturnValue(options.accessError
-      ? throwError(() => options.accessError)
-      : of({ data: options.access }));
+    loadLocations = vi.fn((policy?: string) => {
+      if (policy === 'GrnView' && options.receivable) {
+        return of({ data: options.receivable });
+      }
+      return options.accessError
+        ? throwError(() => options.accessError)
+        : of({ data: options.access });
+    });
 
     await TestBed.configureTestingModule({
       imports: [PoFormComponent],
@@ -177,7 +184,7 @@ describe('PoFormComponent destination location', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(loadLocations).toHaveBeenCalledTimes(2);
+    expect(loadLocations.mock.calls.filter(([policy]) => policy !== 'GrnView')).toHaveLength(2);
     expect(component.locationsError()).toBe('');
     expect(select('locationType').disabled).toBe(false);
     expect(select('locationId').disabled).toBe(false);
@@ -214,6 +221,26 @@ describe('PoFormComponent destination location', () => {
     expect(request.locationId).toBe(12);
     expect(request.warehouseId).toBeUndefined();
     expect(request.idempotencyKey).toBeTruthy();
+  });
+
+  it('blocks Purchase & Receive at a destination the user is not assigned to, but not saving the order', async () => {
+    const outlet = { id: 12, name: 'Main Outlet', type: 'outlet' as const };
+    await setup({ access: access({ outlets: [outlet] }), receivable: access({ outlets: [] }) });
+    component.supplierId.set(1);
+    component.items.set([{ variantId: 5, quantity: 2, unitPrice: 10, discount: 0, tax: 0 }]);
+    fixture.detectChanges();
+
+    const receive = Array.from(root().querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Purchase & Receive'))!;
+    expect(receive.disabled).toBe(true);
+
+    component.purchaseAndReceive();
+
+    expect(loadLocations).toHaveBeenCalledWith('GrnView');
+    expect(alerts.error).toHaveBeenCalledWith('You are not assigned to this location, so you cannot receive goods into it.');
+    expect(poService.purchaseAndReceive).not.toHaveBeenCalled();
+    component.save(false);
+    expect(poService.create).toHaveBeenCalled();
   });
 
   it('keeps an existing order destination selected while editing', async () => {

@@ -86,8 +86,36 @@ public sealed class AuthenticationStore(RetailPOSDbContext dbContext) : IAuthent
                 user.OutletId,
                 user.Outlet == null ? null : user.Outlet.Name,
                 user.IsActive,
-                user.MustResetPassword))
+                user.MustResetPassword,
+                user.PermissionOverrides,
+                user.ContextSwitchEnabled,
+                user.ContextLocationScope,
+                user.ContextRoleScope))
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<AuthenticationRole>> ListBusinessContextRolesAsync(
+        long businessId,
+        IReadOnlyCollection<string> defaultRoleNames,
+        CancellationToken cancellationToken)
+    {
+        var defaultNames = defaultRoleNames.Select(name => name.ToLower()).ToList();
+        return await dbContext.Roles
+            .AsNoTracking()
+            .Where(role => defaultNames.Contains(role.Name.ToLower())
+                || role.Users.Any(user => user.BusinessId == businessId))
+            .Select(role => new AuthenticationRole(role.Id, role.Name, role.Permissions))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuthenticationRole>> ListMappedContextRolesAsync(
+        long userId,
+        long businessId,
+        CancellationToken cancellationToken) =>
+        await dbContext.UserContextRoles
+            .AsNoTracking()
+            .Where(mapping => mapping.UserId == userId && mapping.BusinessId == businessId)
+            .Select(mapping => new AuthenticationRole(mapping.Role!.Id, mapping.Role.Name, mapping.Role.Permissions))
+            .ToListAsync(cancellationToken);
 
     public async Task<AuthenticationRole?> FindRoleForSwitchAsync(
         string roleName,

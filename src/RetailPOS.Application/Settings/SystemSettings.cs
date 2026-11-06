@@ -3,6 +3,9 @@ namespace RetailPOS.Application.Settings;
 public class CompanySettings
 {
     public string CompanyName { get; set; } = "Retail POS";
+
+    /// <summary>Optional parent name; invoices print "A concern of {value}" below the business name.</summary>
+    public string ConcernOf { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

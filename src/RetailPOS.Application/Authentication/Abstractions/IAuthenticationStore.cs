@@ -17,6 +17,14 @@ public interface IAuthenticationStore : IAuthenticationProfileStore
     Task<AuthenticationOutlet?> FindOutletForSwitchAsync(
         long outletId,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<AuthenticationRole>> ListBusinessContextRolesAsync(
+        long businessId,
+        IReadOnlyCollection<string> defaultRoleNames,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<AuthenticationRole>> ListMappedContextRolesAsync(
+        long userId,
+        long businessId,
+        CancellationToken cancellationToken);
     Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken);
 
     Task<AuthenticationUser> CreateRegisteredUserAsync(
@@ -114,7 +122,11 @@ public sealed record AuthenticationRoleSwitchUser(
     long? OutletId,
     string? OutletName,
     bool IsActive,
-    bool MustResetPassword);
+    bool MustResetPassword,
+    string? PermissionOverrides = null,
+    bool ContextSwitchEnabled = false,
+    string? ContextLocationScope = null,
+    string? ContextRoleScope = null);
 
 public sealed record AuthenticationOutlet(long Id, long? BusinessId, string Name);
 

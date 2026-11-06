@@ -38,3 +38,22 @@ public sealed class StubMakerCheckerPolicy(bool ownerExceptionEnabled = false, b
         throw new CashSessionException(CashSessionErrorCodes.ExpenseMakerChecker, "maker-checker", 403);
     }
 }
+
+/// <summary>For harnesses that test expense rules other than location scope: every location is in scope.</summary>
+public sealed class AllowAllExpenseLocations : IExpenseLocationAuthorizer
+{
+    public Task<ExpenseLocationScope> GetScopeAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new ExpenseLocationScope(true, [], []));
+
+    public Task AuthorizeAsync(long? outletId, long? warehouseId, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+}
+
+/// <summary>For harnesses that do not test numbering: a unique number without the Business's time zone setup.</summary>
+public sealed class SequentialExpenseNumbers : IExpenseNumberAllocator
+{
+    private static long s_next;
+
+    public Task<string> AllocateAsync(long businessId, long? outletId, long? warehouseId, long actorUserId, CancellationToken cancellationToken) =>
+        Task.FromResult($"T-EXP-{Interlocked.Increment(ref s_next)}");
+}

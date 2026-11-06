@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.AccountingReports.Abstractions;
@@ -11,7 +12,8 @@ public sealed record GetCashBookQuery(CashBookFilter Filter, IReadOnlyList<strin
 public sealed class GetCashBookQueryHandler(
     ICashBookReadStore store,
     ICashBookPostingAccountResolver accountResolver,
-    IAccountingReportTenantScope tenantScope)
+    IAccountingReportTenantScope tenantScope,
+    ICompanyTimeZoneProvider timeZones)
     : IRequestHandler<GetCashBookQuery, CashBookReadModel>
 {
     private static readonly string[] DefaultSlots = ["cash", "petty_cash", "bank"];
@@ -21,8 +23,8 @@ public sealed class GetCashBookQueryHandler(
         CancellationToken cancellationToken)
     {
         var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
-        var dateFrom = request.Filter.DateFrom?.Date ?? DateTime.UtcNow.Date;
-        var dateTo = (request.Filter.DateTo?.Date ?? DateTime.UtcNow.Date)
+        var dateFrom = request.Filter.DateFrom?.Date ?? await timeZones.GetTodayAsync(businessId, cancellationToken);
+        var dateTo = (request.Filter.DateTo?.Date ?? await timeZones.GetTodayAsync(businessId, cancellationToken))
             .AddDays(1)
             .AddTicks(-1);
         if (dateTo < dateFrom)

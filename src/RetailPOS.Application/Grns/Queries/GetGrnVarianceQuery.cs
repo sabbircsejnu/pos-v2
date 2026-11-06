@@ -9,17 +9,17 @@ public sealed record GetGrnVarianceQuery(long GrnId) : IQuery<GrnVarianceReadMod
 
 public sealed class GetGrnVarianceQueryHandler(
     IGrnReadStore store,
-    IGrnTenantScope tenantScope)
+    IGrnReadScopeProvider scopeProvider)
     : IRequestHandler<GetGrnVarianceQuery, GrnVarianceReadModel>
 {
     public async Task<GrnVarianceReadModel> Handle(
         GetGrnVarianceQuery request,
         CancellationToken cancellationToken)
     {
-        var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
+        var scope = await scopeProvider.GetAsync(cancellationToken);
         var variance = await store.FindVarianceByIdAsync(
             request.GrnId,
-            businessId,
+            scope,
             cancellationToken);
         return variance ?? throw new KeyNotFoundException(
             $"GRN with ID {request.GrnId} not found");

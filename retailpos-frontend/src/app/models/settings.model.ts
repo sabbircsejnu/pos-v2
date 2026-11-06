@@ -1,5 +1,7 @@
 export interface CompanySettings {
   companyName: string;
+  /** Optional; invoices print "A concern of {value}" below the business name. */
+  concernOf?: string;
   address: string;
   phone: string;
   email: string;

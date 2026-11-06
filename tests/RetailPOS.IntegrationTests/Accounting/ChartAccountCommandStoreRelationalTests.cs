@@ -100,7 +100,7 @@ public sealed class ChartAccountCommandStoreRelationalTests : IDisposable
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _store.DeactivateAsync(17, 101, parent.Id, CancellationToken.None));
-        Assert.Equal("Account cannot be deactivated while it has active child accounts.", error.Message);
+        Assert.Equal("Cannot deactivate this account because it has 1 active child account.", error.Message);
         Assert.True(await _store.DeactivateAsync(17, 101, child.Id, CancellationToken.None));
         Assert.True(await _store.DeactivateAsync(17, 101, parent.Id, CancellationToken.None));
     }

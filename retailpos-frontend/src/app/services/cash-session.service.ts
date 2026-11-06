@@ -191,6 +191,19 @@ export interface CashSessionDetail {
 }
 
 /** Daily Sales for one outlet business date (Phase 4). Completed sales are totalled; voided/refunded are counted only. */
+/** Target against net sales excluding VAT (FR-TARGET-04). `variance` is signed: actual minus target. */
+export interface BusinessDayTarget {
+  outletId: number;
+  businessDate: string;
+  netSales: number;
+  /** null when not configured; zero on a scheduled off day. */
+  target: number | null;
+  variance: number | null;
+  achievementPercent: number | null;
+  status: 'ok' | 'not_configured' | 'off_day';
+  serverNowUtc: string;
+}
+
 export interface BusinessDaySales {
   outletId: number;
   outletName: string;
@@ -235,6 +248,12 @@ export class CashSessionService {
     let params = new HttpParams().set('outletId', outletId);
     if (businessDate) params = params.set('businessDate', businessDate);
     return this.http.get<ApiEnvelope<BusinessDaySales>>(`${this.url}/business-day-sales`, { params });
+  }
+
+  businessDayTarget(outletId: number, businessDate?: string | null): Observable<ApiEnvelope<BusinessDayTarget>> {
+    let params = new HttpParams().set('outletId', outletId);
+    if (businessDate) params = params.set('businessDate', businessDate);
+    return this.http.get<ApiEnvelope<BusinessDayTarget>>(`${this.url}/business-day-target`, { params });
   }
 
   /** Closing summary PDF from the immutable close snapshot (closed sessions only). */

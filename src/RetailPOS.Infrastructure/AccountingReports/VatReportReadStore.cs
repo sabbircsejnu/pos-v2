@@ -1,3 +1,5 @@
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.VatReports.Abstractions;
 using RetailPOS.Application.VatReports.ReadModels;
@@ -7,7 +9,9 @@ using RetailPOS.Infrastructure.PurchaseOrders;
 
 namespace RetailPOS.Infrastructure.AccountingReports;
 
-public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatReportReadStore
+public sealed class VatReportReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones) : IVatReportReadStore
 {
     private const string VatPayableSlot = "vat_payable";
     private const string VatReceivableSlot = "vat_receivable";
@@ -157,6 +161,8 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
         long businessId,
         CancellationToken cancellationToken)
     {
+        var zoneId = await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken);
+        var (fromUtc, toExclusiveUtc) = CompanyDayWindow(filter, zoneId);
         var outletIds = (await dbContext.Outlets
                 .AsNoTracking()
                 .Where(outlet => outlet.BusinessId == businessId)
@@ -166,8 +172,8 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
         var sales = await dbContext.Sales
             .AsNoTracking()
             .Where(sale =>
-                sale.SaleDate.Date >= filter.DateFrom.Date &&
-                sale.SaleDate.Date <= filter.DateTo.Date &&
+                sale.SaleDate >= fromUtc &&
+                sale.SaleDate < toExclusiveUtc &&
                 sale.Tax > 0m &&
                 (!filter.OutletId.HasValue || sale.OutletId == filter.OutletId.Value))
             .Include(sale => sale.Items)
@@ -190,11 +196,24 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
             .ToArray();
     }
 
+    private static (DateTime FromUtc, DateTime ToExclusiveUtc) CompanyDayWindow(
+        VatReportFilter filter,
+        string timeZoneId)
+    {
+        var (fromUtc, toExclusiveUtc) = CompanyDates.DayWindow(
+            DateOnly.FromDateTime(filter.DateFrom),
+            DateOnly.FromDateTime(filter.DateTo),
+            timeZoneId);
+        return (fromUtc!.Value, toExclusiveUtc!.Value);
+    }
+
     private async Task<List<VatTransactionReadModel>> BuildEventsAsync(
         VatReportFilter filter,
         long businessId,
         CancellationToken cancellationToken)
     {
+        var zoneId = await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken);
+        var (fromUtc, toExclusiveUtc) = CompanyDayWindow(filter, zoneId);
         var journalRows = await dbContext.JournalEntries
             .AsNoTracking()
             .Where(entry =>
@@ -223,7 +242,7 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
                 .ToListAsync(cancellationToken))
             .Where(sale => outletIds.Contains(sale.OutletId))
             .Where(sale =>
-                (sale.SaleDate.Date >= filter.DateFrom.Date && sale.SaleDate.Date <= filter.DateTo.Date) ||
+                (sale.SaleDate >= fromUtc && sale.SaleDate < toExclusiveUtc) ||
                 reversalSaleIds.Contains(sale.Id.ToString()))
             .ToList();
 
@@ -235,7 +254,7 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
                 var vat = item.VatAmount ?? 0m;
                 journals.TryGetValue(("Sale", sale.Id.ToString()), out var journal);
                 result.Add(new VatTransactionReadModel(
-                    journal?.PostingDate ?? sale.SaleDate,
+                    journal?.PostingDate ?? CompanyDates.DateFor(sale.SaleDate, zoneId),
                     "Sale",
                     sale.SaleNumber,
                     journal?.Id,
@@ -351,8 +370,8 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
             .AsNoTracking()
             .WhereBusiness(businessId)
             .Where(grn =>
-                grn.ReceivedDate.Date >= filter.DateFrom.Date &&
-                grn.ReceivedDate.Date <= filter.DateTo.Date &&
+                grn.ReceivedDate >= fromUtc &&
+                grn.ReceivedDate < toExclusiveUtc &&
                 (!filter.WarehouseId.HasValue ||
                     grn.PurchaseOrder.WarehouseId == filter.WarehouseId.Value) &&
                 (!filter.OutletId.HasValue ||
@@ -370,7 +389,7 @@ public sealed class VatReportReadStore(RetailPOSDbContext dbContext) : IVatRepor
                 var vat = item.VatAmount ?? 0m;
                 journals.TryGetValue(("Grn", grn.Id.ToString()), out var journal);
                 result.Add(new VatTransactionReadModel(
-                    journal?.PostingDate ?? grn.ReceivedDate,
+                    journal?.PostingDate ?? CompanyDates.DateFor(grn.ReceivedDate, zoneId),
                     "Purchase",
                     grn.SupplierInvoiceNumber ?? $"GRN-{grn.Id}",
                     journal?.Id,

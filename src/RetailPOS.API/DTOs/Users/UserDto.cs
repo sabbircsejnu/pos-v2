@@ -29,6 +29,30 @@ public class UserDto
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>Returned on single-user reads; null on list responses.</summary>
+    public UserContextAccessDto? ContextAccess { get; set; }
+}
+
+public class UserContextRoleOptionDto
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public class UserContextAccessDto
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>selected | all</summary>
+    [System.ComponentModel.DataAnnotations.StringLength(20)]
+    public string LocationScope { get; set; } = "selected";
+
+    /// <summary>mapped | all</summary>
+    [System.ComponentModel.DataAnnotations.StringLength(20)]
+    public string RoleScope { get; set; } = "mapped";
+
+    public IEnumerable<long> RoleIds { get; set; } = [];
 }
 
 /// <summary>

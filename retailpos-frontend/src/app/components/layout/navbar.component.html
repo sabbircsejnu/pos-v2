@@ -45,6 +45,7 @@
         <span class="rp-icon-btn__badge" aria-hidden="true">3</span>
       </button>
 
+      @if (showSwitcher()) {
       <div class="rp-dropdown">
         <button
           type="button"
@@ -57,8 +58,8 @@
           title="Outlet Switcher">
           <i class="fas fa-shop" aria-hidden="true"></i>
           <span class="rp-chip-btn__label hidden md:inline lg:hidden xl:inline">
-            @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
-              {{ currentUser()?.actingOutletName }}
+            @if (currentUser()?.isRoleSwitched) {
+              {{ actingLocationLabel() }}
             } @else {
               Outlet Switcher
             }
@@ -71,48 +72,75 @@
             <div class="rp-popover__header">
               <div class="rp-popover__eyebrow">Outlet Switcher</div>
               <div class="rp-popover__title">
-                @if (currentUser()?.isRoleSwitched && currentUser()?.actingOutletName) {
-                  {{ currentUser()?.actingRoleName }} &#64; {{ currentUser()?.actingOutletName }}
-                } @else {
+                @if (currentUser()?.isRoleSwitched) {
+                  {{ currentUser()?.actingRoleName }} &#64; {{ actingLocationLabel() }}
+                } @else if (currentUser()?.isBusinessOwner) {
                   Owner Mode (All Outlets)
+                } @else {
+                  {{ currentUser()?.roleName }}
                 }
               </div>
             </div>
 
             <div class="rp-popover__body">
-              <label for="acting-role-select" class="rp-field-label">Acting Role</label>
-              <select
-                id="acting-role-select"
-                [(ngModel)]="selectedActingRole"
-                class="rp-field">
-                <option value="">Select role</option>
-                @for (r of switchableRoles; track r) {
-                  <option [value]="r">{{ r }}</option>
-                }
-              </select>
+              @if (switchOptions()?.canSwitch) {
+                <label for="acting-role-select" class="rp-field-label">Acting Role</label>
+                <select
+                  id="acting-role-select"
+                  [(ngModel)]="selectedActingRole"
+                  class="rp-field">
+                  <option value="">Select role</option>
+                  @for (r of switchOptions()?.roles ?? []; track r.id) {
+                    <option [value]="r.name">{{ r.name }}</option>
+                  }
+                </select>
 
-              <label for="acting-outlet-select" class="rp-field-label">Outlet</label>
-              <select
-                id="acting-outlet-select"
-                [(ngModel)]="selectedActingOutletId"
-                class="rp-field">
-                <option [ngValue]="null">All outlets</option>
-                @for (o of outlets(); track o.id) {
-                  <option [ngValue]="o.id">{{ o.name }}</option>
+                <label for="acting-location-type-select" class="rp-field-label">Location Type</label>
+                <select
+                  id="acting-location-type-select"
+                  [(ngModel)]="selectedLocationType"
+                  (ngModelChange)="onLocationTypeChange()"
+                  class="rp-field">
+                  @if (switchOptions()?.outlets?.length) {
+                    <option value="outlet">Outlet</option>
+                  }
+                  @if (switchOptions()?.warehouses?.length) {
+                    <option value="warehouse">Warehouse</option>
+                  }
+                  @if (switchOptions()?.allowAllLocations) {
+                    <option value="all">All Locations</option>
+                  }
+                </select>
+
+                @if (selectedLocationType !== 'all') {
+                  <label for="acting-location-select" class="rp-field-label">
+                    {{ selectedLocationType === 'warehouse' ? 'Warehouse' : 'Outlet' }}
+                  </label>
+                  <select
+                    id="acting-location-select"
+                    [(ngModel)]="selectedLocationId"
+                    class="rp-field">
+                    <option [ngValue]="null">Select location</option>
+                    @for (location of locationChoices(); track location.id) {
+                      <option [ngValue]="location.id">{{ location.name }}</option>
+                    }
+                  </select>
                 }
-              </select>
+              }
 
               @if (switchError()) {
                 <div class="rp-field-error" role="alert">{{ switchError() }}</div>
               }
 
-              <button
-                type="button"
-                (click)="confirmSwitchRole($event)"
-                [disabled]="switchingRole() || !selectedActingRole"
-                class="rp-btn rp-btn--primary">
-                Switch Context
-              </button>
+              @if (switchOptions()?.canSwitch) {
+                <button
+                  type="button"
+                  (click)="confirmSwitchRole($event)"
+                  [disabled]="switchingRole() || !canConfirmSwitch()"
+                  class="rp-btn rp-btn--primary">
+                  Switch Context
+                </button>
+              }
 
               @if (currentUser()?.isRoleSwitched) {
                 <button
@@ -120,13 +148,14 @@
                   (click)="returnOwnerMode($event)"
                   [disabled]="switchingRole()"
                   class="rp-btn rp-btn--success">
-                  Return Owner Mode
+                  {{ currentUser()?.isBusinessOwner ? 'Return Owner Mode' : 'Return to My Role' }}
                 </button>
               }
             </div>
           </div>
         }
       </div>
+      }
 
       <div class="rp-dropdown">
         <button

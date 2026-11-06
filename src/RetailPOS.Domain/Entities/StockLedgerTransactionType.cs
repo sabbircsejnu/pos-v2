@@ -38,6 +38,12 @@ public static class StockLedgerTransactionType
 
     /// <summary>Transfer was rejected at destination during receiving.</summary>
     public const string TransferRejection = "transfer_rejection";
+
+    /// <summary>Evidence that units were recorded missing or damaged when a transfer was received; moves no stock.</summary>
+    public const string TransferDiscrepancy = "transfer_discrepancy";
+
+    /// <summary>Approved correction of an earlier movement's cost; moves no stock. Its reference is the movement corrected.</summary>
+    public const string CostCorrection = "cost_correction";
 }
 
 /// <summary>
@@ -49,4 +55,5 @@ public static class StockLedgerReferenceType
     public const string Sale = "sale";
     public const string StockAdjustment = "stock_adjustment";
     public const string StockTransfer = "stock_transfer";
+    public const string StockCostCorrection = "stock_cost_correction";
 }

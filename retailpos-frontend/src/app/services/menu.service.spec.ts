@@ -29,6 +29,56 @@ function leaf(id: string, permission?: string, role?: string): MenuItem {
 // Suite
 // ---------------------------------------------------------------------------
 
+describe('MenuService – owner dashboard visibility', () => {
+  const SALES = 'dashboard.sales_finance.view';
+  const INVENTORY = 'dashboard.inventory_intelligence.view';
+
+  function visibleWith(granted: string[], reportsToo = false): string[] {
+    const allowed = reportsToo
+      ? [...granted, 'reports.sales', 'reports.inventory', 'reports.financial', 'products.view_cost']
+      : granted;
+    const auth = {
+      currentUser$: new Subject<void>().asObservable(),
+      hasPermission: (permission: string) => allowed.includes(permission),
+      hasAnyPermission: (permissions: string[]) => permissions.some(permission => allowed.includes(permission)),
+      hasRole: () => false,
+      getUserValue: () => null,
+      isAuthenticated: () => false
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AuthService, useValue: auth },
+        { provide: HrPayrollCapabilityStore, useValue: {
+          changed$: NEVER, reset: () => undefined, generation: 0, setVerified: () => undefined, isEnabled: () => false
+        } },
+        { provide: HrPayrollCapabilityService, useValue: { load: () => NEVER } }
+      ]
+    });
+    const section = TestBed.inject(MenuService).sections().find(item => item.id === 'owner-dashboards');
+    return section?.items.map(item => item.route ?? '') ?? [];
+  }
+
+  it('shows only Sales & Finance with its permission', () => {
+    expect(visibleWith([SALES])).toEqual(['/dashboard/sales-finance']);
+  });
+
+  it('shows only Inventory Intelligence with its permission', () => {
+    expect(visibleWith([INVENTORY])).toEqual(['/dashboard/inventory-intelligence']);
+  });
+
+  it('shows both with both permissions', () => {
+    expect(visibleWith([SALES, INVENTORY])).toEqual(['/dashboard/sales-finance', '/dashboard/inventory-intelligence']);
+  });
+
+  it('hides the whole group without either permission', () => {
+    expect(visibleWith([])).toEqual([]);
+  });
+
+  it('is not opened by report or cost permissions', () => {
+    expect(visibleWith([], true)).toEqual([]);
+  });
+});
+
 describe('MenuService – filterMenuItems', () => {
   let service: MenuService;
 
@@ -411,6 +461,31 @@ describe('MenuService – filterMenuItems', () => {
       expect(routes).not.toContain('/accounts');
       expect(routes).not.toContain('/transactions');
       expect(routes).not.toContain('/bills');
+    });
+
+    it('offers the real Chart of Accounts under Finance only with its own view permission', () => {
+      const granted = (permissions: string[]) => {
+        mockAuthService.hasPermission.mockImplementation((p: string) => permissions.includes(p));
+        mockAuthService.hasAnyPermission.mockImplementation((required: string[]) => required.some(p => permissions.includes(p)));
+        return filter(NAV_SECTIONS.flatMap(section => section.items)).map(item => item.route);
+      };
+      const finance = NAV_SECTIONS.find(section => section.id === 'finance');
+
+      expect(finance?.items.map(item => item.route)).toContain('/accounting/chart-of-accounts');
+      expect(granted(['accounting.chart_accounts.view'])).toContain('/accounting/chart-of-accounts');
+      expect(granted(['accounting.expenses.edit', 'accounting.expense_categories.manage'])).not.toContain('/accounting/chart-of-accounts');
+    });
+
+    it('shows Expense Categories to expense users and to category managers', () => {
+      const routesFor = (permissions: string[]) => {
+        mockAuthService.hasPermission.mockImplementation((p: string) => permissions.includes(p));
+        mockAuthService.hasAnyPermission.mockImplementation((required: string[]) => required.some(p => permissions.includes(p)));
+        return filter(NAV_SECTIONS.flatMap(section => section.items)).map(item => item.route);
+      };
+
+      expect(routesFor(['accounting.expenses.view'])).toContain('/expense-categories');
+      expect(routesFor(['accounting.expense_categories.manage'])).toContain('/expense-categories');
+      expect(routesFor(['accounting.chart_accounts.view'])).not.toContain('/expense-categories');
     });
   });
 

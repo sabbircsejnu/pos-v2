@@ -13,7 +13,14 @@ public sealed record OutletReadModel(
     string? InvoicePrefix = null,
     bool InvoicePrefixLocked = false,
     string? TimeZoneId = null,
-    IReadOnlyList<OutletTerminalReadModel>? Terminals = null);
+    IReadOnlyList<OutletTerminalReadModel>? Terminals = null)
+{
+    public string? InvoicePrintBranchName { get; init; }
+    public string? BinNumber { get; init; }
+    public string? Mushak { get; init; }
+    public string? ReturnExchangePolicy { get; init; }
+    public string? VatLawNotification { get; init; }
+}
 
 public sealed record OutletStatsReadModel(
     long Id,

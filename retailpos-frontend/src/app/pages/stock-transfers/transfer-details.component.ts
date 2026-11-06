@@ -32,8 +32,12 @@ interface ReceiveLineInput {
   transferQuantity: number;
   acceptedQuantity: number;
   rejectedQuantity: number;
+  missingQuantity: number;
+  damagedQuantity: number;
   remarks: string;
 }
+
+type ReceiveQuantityField = 'acceptedQuantity' | 'rejectedQuantity' | 'missingQuantity' | 'damagedQuantity';
 
 interface DetailField {
   label: string;
@@ -184,6 +188,8 @@ export class TransferDetailsComponent implements OnInit {
           transferQuantity: transferQty,
           acceptedQuantity: transferQty,
           rejectedQuantity: 0,
+          missingQuantity: 0,
+          damagedQuantity: 0,
           remarks: item.remarks || ''
         };
       })
@@ -237,34 +243,41 @@ export class TransferDetailsComponent implements OnInit {
     this.isReceiving.set(false);
   }
 
-  updateReceiveAccepted(index: number, value: number): void {
+  /**
+   * Sets one quantity and rebalances the row so it always totals the dispatched quantity: reducing Accepted moves
+   * the difference to Rejected (or to Missing on a return, which cannot be rejected again); any other change
+   * takes from or gives back to Accepted.
+   */
+  updateReceiveQuantity(index: number, field: ReceiveQuantityField, value: number): void {
     this.receiveItems.update(items => {
       const updated = [...items];
-      const row = updated[index];
-      const accepted = Math.max(0, Number(value) || 0);
-      const boundedAccepted = Math.min(accepted, row.transferQuantity);
-      updated[index] = {
-        ...row,
-        acceptedQuantity: boundedAccepted,
-        rejectedQuantity: row.transferQuantity - boundedAccepted
-      };
+      const row = { ...updated[index] };
+      const others = (keep: ReceiveQuantityField[]) =>
+        keep.reduce((total, name) => total + row[name], 0);
+      const requested = Math.max(0, Math.floor(Number(value) || 0));
+
+      if (field === 'acceptedQuantity') {
+        row.acceptedQuantity = Math.min(requested, row.transferQuantity - others(['missingQuantity', 'damagedQuantity']));
+        const remainder = row.transferQuantity - row.acceptedQuantity - others(['missingQuantity', 'damagedQuantity']);
+        if (this.isSystemReturn()) {
+          row.missingQuantity += remainder;
+        } else {
+          row.rejectedQuantity = remainder;
+        }
+      } else {
+        const fixed = (['rejectedQuantity', 'missingQuantity', 'damagedQuantity'] as ReceiveQuantityField[])
+          .filter(name => name !== field);
+        row[field] = Math.min(requested, row.transferQuantity - others(fixed));
+        row.acceptedQuantity = row.transferQuantity - row[field] - others(fixed);
+      }
+
+      updated[index] = row;
       return updated;
     });
   }
 
-  updateReceiveRejected(index: number, value: number): void {
-    this.receiveItems.update(items => {
-      const updated = [...items];
-      const row = updated[index];
-      const rejected = Math.max(0, Number(value) || 0);
-      const boundedRejected = Math.min(rejected, row.transferQuantity);
-      updated[index] = {
-        ...row,
-        rejectedQuantity: boundedRejected,
-        acceptedQuantity: row.transferQuantity - boundedRejected
-      };
-      return updated;
-    });
+  isSystemReturn(): boolean {
+    return !!this.transfer()?.originalTransferId;
   }
 
   updateReceiveRemarks(index: number, value: string): void {
@@ -282,11 +295,18 @@ export class TransferDetailsComponent implements OnInit {
     const invalidRow = this.receiveItems().find(
       row => row.acceptedQuantity < 0 ||
         row.rejectedQuantity < 0 ||
-        row.acceptedQuantity + row.rejectedQuantity !== row.transferQuantity
+        row.missingQuantity < 0 ||
+        row.damagedQuantity < 0 ||
+        row.acceptedQuantity + row.rejectedQuantity + row.missingQuantity + row.damagedQuantity !== row.transferQuantity
     );
 
     if (invalidRow) {
-      this.alertService.error('Accepted and rejected quantities must total transfer quantity for every row');
+      this.alertService.error('Accepted, rejected, missing and damaged quantities must total the transfer quantity for every row');
+      return;
+    }
+
+    if (this.receiveItems().some(row => row.missingQuantity + row.damagedQuantity > 0 && !row.remarks?.trim())) {
+      this.alertService.error('Enter a reason in Remarks for every row with missing or damaged units');
       return;
     }
 
@@ -296,6 +316,8 @@ export class TransferDetailsComponent implements OnInit {
         variantId: row.variantId,
         acceptedQuantity: row.acceptedQuantity,
         rejectedQuantity: row.rejectedQuantity,
+        missingQuantity: row.missingQuantity,
+        damagedQuantity: row.damagedQuantity,
         remarks: row.remarks?.trim() || undefined
       }))
     };
@@ -462,6 +484,7 @@ export class TransferDetailsComponent implements OnInit {
     const transfer = this.transfer();
     return !!transfer
       && transfer.status === 'in_transit'
+      && !transfer.originalTransferId
       && this.auth.hasPermission('stock_transfers.reject_receive')
       && this.canReceiveOrRejectCurrentTransfer();
   }

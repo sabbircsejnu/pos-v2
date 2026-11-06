@@ -2,6 +2,12 @@ using RetailPOS.Application.Settings;
 
 namespace RetailPOS.Application.Settings.Abstractions;
 
+/// <summary>The shared Company time zone for synchronous callers, such as the stock ledger writer.</summary>
+public interface ICompanyTimeZoneSnapshot
+{
+    string GetCompanyTimeZoneId();
+}
+
 public interface ISystemSettingsStore
 {
     Task<SystemSettings> GetAsync(CancellationToken cancellationToken);

@@ -16,6 +16,7 @@ public class ChartAccountDto
     public bool AllowManualPosting { get; set; }
     public bool IsActive { get; set; }
     public int DisplayOrder { get; set; }
+    public bool IsExpensePaymentAccount { get; set; }
 }
 
 public class ChartAccountSearchDto
@@ -36,6 +37,7 @@ public class CreateChartAccountDto
     public bool AllowManualPosting { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public int DisplayOrder { get; set; }
+    public bool IsExpensePaymentAccount { get; set; }
 }
 
 public class UpdateChartAccountDto
@@ -46,6 +48,9 @@ public class UpdateChartAccountDto
     public bool AllowManualPosting { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public int DisplayOrder { get; set; }
+
+    /// <summary>Omitted by older clients, which leaves the flag unchanged.</summary>
+    public bool? IsExpensePaymentAccount { get; set; }
 }
 
 public class AccountingConfigurationDto

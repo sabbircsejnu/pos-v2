@@ -22,6 +22,7 @@ public sealed class OpenCashSessionCommandHandler(
     ICashSessionStore store,
     ICashSessionWriteOutletAuthorizer outletAuthorizer,
     IBusinessPosSettingsStore settingsStore,
+    ICompanyTimeZoneProvider timeZones,
     ICashSessionOpenAuditWriter auditWriter,
     ICashSessionOpenedPublisher eventPublisher,
     ICashSessionEventWriter eventWriter,
@@ -55,7 +56,7 @@ public sealed class OpenCashSessionCommandHandler(
         var terminal = ResolveTerminal(context, request.TerminalId);
 
         var settings = await settingsStore.GetAsync(context.BusinessId, cancellationToken);
-        var timeZoneId = CashSessionTime.ResolveEffectiveTimeZoneId(context.OutletTimeZoneId, settings.DefaultTimeZoneId);
+        var timeZoneId = await timeZones.GetTimeZoneIdAsync(context.BusinessId, cancellationToken);
         var now = clock.GetUtcNow().UtcDateTime;
         var businessDate = CashSessionTime.BusinessDateFor(now, timeZoneId);
 

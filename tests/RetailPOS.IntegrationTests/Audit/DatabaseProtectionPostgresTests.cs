@@ -28,7 +28,7 @@ public sealed class DatabaseProtectionPostgresTests
         }
 
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
-        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, async database =>
+        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, PostgresTestDatabaseStrategy.FreshMigration, async database =>
         {
             await using var db = CreateContext(database.ConnectionString);
             var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
@@ -67,7 +67,7 @@ public sealed class DatabaseProtectionPostgresTests
         }
 
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
-        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, async database =>
+        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, PostgresTestDatabaseStrategy.FreshMigration, async database =>
         {
             await using var db = CreateContext(database.ConnectionString);
             await db.Database.MigrateAsync();
@@ -120,7 +120,7 @@ public sealed class DatabaseProtectionPostgresTests
         }
 
         Assert.False(string.IsNullOrWhiteSpace(connectionString));
-        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, async database =>
+        await PostgresTestDatabase.RunAsync(connectionString!, PostgresTestDatabasePrefix.MigrationBaseline, PostgresTestDatabaseStrategy.FreshMigration, async database =>
         {
             await using var db = CreateContext(database.ConnectionString);
             await db.Database.MigrateAsync();

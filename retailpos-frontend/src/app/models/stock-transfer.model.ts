@@ -12,6 +12,10 @@ export interface StockTransferItemDto {
   transferQuantity: number;
   acceptedQuantity: number;
   rejectedQuantity: number;
+  missingQuantity: number;
+  damagedQuantity: number;
+  inTransitQuantity: number;
+  returnTransitQuantity: number;
   unitCost: number;
   remarks?: string;
 }
@@ -49,6 +53,9 @@ export interface StockTransferDto {
   creatorName?: string;
   createdAt: string;
   items: StockTransferItemDto[];
+  originalTransferId?: number;
+  returnTransferId?: number;
+  returnTransferNo?: string;
 }
 
 export interface CreateStockTransferItemDto {
@@ -76,6 +83,8 @@ export interface ReceiveStockTransferItemDto {
   variantId: number;
   acceptedQuantity: number;
   rejectedQuantity: number;
+  missingQuantity?: number;
+  damagedQuantity?: number;
   remarks?: string;
 }
 

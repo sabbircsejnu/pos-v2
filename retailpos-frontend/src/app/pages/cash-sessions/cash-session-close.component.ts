@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AlertService } from '../../services/alert.service';
+import { CurrencyService } from '../../services/currency.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CashHandoverInput, CloseCashSessionDto } from '../../services/pos.service';
 import { CashSessionDetail, CashSessionService } from '../../services/cash-session.service';
@@ -17,7 +18,12 @@ interface HandoverRow {
   bankAccountReference: string;
   depositReference: string;
   notes: string;
+  /** Fields the cashier has edited; their inline error shows from then on (all of them after Review). */
+  touched: Partial<Record<HandoverField, true>>;
 }
+
+type HandoverField = 'amount' | 'bank' | 'recipient';
+type HandoverPatch = Partial<Omit<HandoverRow, 'touched'>>;
 
 interface DenominationRow {
   value: number;
@@ -37,8 +43,10 @@ const DEFAULT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
   imports: [FormsModule, RouterLink, AppCurrencyPipe, ...UI_KIT],
   styleUrl: './cash-sessions.css',
   template: `
-    <div class="container mx-auto px-4 py-4 cs-page" data-density="compact">
-      <app-ui-page-header title="Close Cash Session" description="Count the drawer, explain any difference and record where the cash goes." [breadcrumbs]="breadcrumbs" />
+    <!-- Layout follows the approved POS prototype (Docs/08_Sales_And_POS/iranimart_pos_prototype.html, "Close Cash Session"):
+         one centred column of section cards A–D, a two-column reconciliation, and a sticky action bar. -->
+    <div class="container mx-auto px-4 py-4 cs-page cs-closing" data-density="compact">
+      <app-ui-page-header title="Close Cash Session" description="Reconcile the drawer, record cash handover, and confirm session closing." [breadcrumbs]="breadcrumbs" />
 
       @if (loadError()) {
         <app-ui-state kind="error" title="The session could not be loaded" [message]="loadError()!">
@@ -55,108 +63,141 @@ const DEFAULT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
           }
           @if (submitError()) { <app-ui-alert variant="danger" title="Cash session not closed">{{ submitError() }}</app-ui-alert> }
 
-          <app-ui-card title="A. Session information">
-            <dl class="cs-rows">
-              <div class="cs-row"><dt>Outlet / terminal</dt><dd>{{ d.outletName }} · {{ d.terminalName }}</dd></div>
-              <div class="cs-row"><dt>Business date</dt><dd>{{ d.session.businessDate | appDate:'dd MMM yyyy' }}</dd></div>
-              <div class="cs-row"><dt>Opened</dt><dd>{{ d.session.openedAt | appDate:'dd MMM yyyy, hh:mm a' }} by {{ d.openedByName }}</dd></div>
-              <div class="cs-row"><dt>Open for</dt><dd>{{ elapsed(d) }}</dd></div>
-              <div class="cs-row"><dt>Closing cashier</dt><dd>You (from your sign-in)</dd></div>
+          <app-ui-card title="A. Session Information">
+            <dl class="cs-info-grid">
+              <div><dt>Outlet</dt><dd>{{ d.outletName }}</dd></div>
+              <div><dt>Terminal</dt><dd>{{ d.terminalName }}</dd></div>
+              <div><dt>Business Date</dt><dd>{{ d.session.businessDate | appDate:'dd MMM yyyy' }}</dd></div>
+              <div><dt>Opened By</dt><dd>{{ d.openedByName }}</dd></div>
+              <div><dt>Opening Time</dt><dd class="cs-info-grid__plain">{{ d.session.openedAt | appDate:'dd MMM yyyy, hh:mm a' }} <span class="cs-muted">· open for {{ elapsed(d) }}</span></dd></div>
+              <div><dt>Status</dt><dd>
+                @if (d.session.state === 'overdue') { <app-ui-badge variant="danger">Overdue · Close required</app-ui-badge> }
+                @else { <app-ui-badge variant="success">Open · Ready to close</app-ui-badge> }
+              </dd></div>
+              <div><dt>Closing Cashier</dt><dd class="cs-info-grid__plain">You (from your sign-in)</dd></div>
             </dl>
           </app-ui-card>
 
-          <div class="cs-grid cs-grid--two">
-            <app-ui-card title="B. Reconciliation">
-              <dl class="cs-rows">
-                <div class="cs-row"><dt>Opening cash</dt><dd>{{ d.summary.openingCash | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Cash sales retained ({{ d.summary.saleCount }} sales)</dt><dd>{{ d.summary.cashSales | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Change given back (not retained)</dt><dd>{{ d.summary.changeGiven | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Drawer expenses paid</dt><dd>− {{ d.summary.drawerExpenses | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Cash refunds paid</dt><dd>− {{ d.summary.cashRefunds | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Approved corrections</dt><dd>{{ d.summary.corrections | appCurrency }}</dd></div>
-                <div class="cs-row cs-row--total"><dt>Expected drawer cash</dt><dd>{{ d.summary.expectedClosingCash | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Card sales (not in drawer)</dt><dd>{{ d.summary.cardSales | appCurrency }}</dd></div>
-                <div class="cs-row"><dt>Mobile sales (not in drawer)</dt><dd>{{ d.summary.mobileSales | appCurrency }}</dd></div>
-              </dl>
-              <app-ui-form-field label="Counted cash" [required]="true" [error]="countError()">
-                <input appUiControl type="number" name="counted" min="0" step="0.01" inputmode="decimal" [ngModel]="counted()" (ngModelChange)="counted.set($event === null || $event === '' ? null : +$event)" />
-              </app-ui-form-field>
-              <dl class="cs-rows">
-                <div class="cs-row cs-row--total"><dt>Variance (counted − expected)</dt>
-                  <dd><app-ui-badge [variant]="variance() === 0 ? 'neutral' : variance()! > 0 ? 'info' : 'danger'">{{ variance() === null ? '—' : (variance()! | appCurrency) }}</app-ui-badge></dd></div>
-              </dl>
-              @if (variance() !== null && variance() !== 0) {
-                <app-ui-form-field label="Reason for the difference" [required]="true" [error]="reasonError()">
-                  <textarea appUiControl name="reason" rows="3" maxlength="1000" [ngModel]="reason()" (ngModelChange)="reason.set($event)"></textarea>
+          <app-ui-card title="B. Cash Reconciliation">
+            <div class="cs-close-grid">
+              <div>
+                <dl class="cs-close-rows">
+                  <div class="cs-close-row"><dt>Opening Cash</dt><dd>{{ d.summary.openingCash | appCurrency }}</dd></div>
+                  <div class="cs-close-row"><dt>Cash Sales retained ({{ d.summary.saleCount }} sales)</dt><dd>{{ d.summary.cashSales | appCurrency }}</dd></div>
+                  <div class="cs-close-row cs-close-row--info"><dt>Change given back (not retained)</dt><dd>{{ d.summary.changeGiven | appCurrency }}</dd></div>
+                  <div class="cs-close-row"><dt>Cash Expenses</dt><dd>−{{ d.summary.drawerExpenses | appCurrency }}</dd></div>
+                  <div class="cs-close-row"><dt>Cash Refunds</dt><dd>−{{ d.summary.cashRefunds | appCurrency }}</dd></div>
+                  <div class="cs-close-row"><dt>Approved Corrections</dt><dd>{{ d.summary.corrections | appCurrency }}</dd></div>
+                  <div class="cs-close-row cs-close-row--highlight"><dt>Expected Closing Cash</dt><dd>{{ d.summary.expectedClosingCash | appCurrency }}</dd></div>
+                </dl>
+                <p class="cs-muted cs-close-note">Non-cash reconciliation: Card {{ d.summary.cardSales | appCurrency }} · Mobile {{ d.summary.mobileSales | appCurrency }}</p>
+              </div>
+              <div class="cs-close-entry">
+                <app-ui-form-field [label]="'Actual Counted Cash (' + currencyCode() + ')'" [required]="true" [error]="countFieldError()">
+                  <span uiFieldPrefix class="cs-addon">{{ currencySymbol() }}</span>
+                  <input appUiControl type="number" name="counted" min="0" step="0.01" inputmode="decimal" placeholder="0.00" [ngModel]="counted()" (ngModelChange)="setCounted($event)" />
                 </app-ui-form-field>
-                <p class="cs-hint">A difference is recorded for approval. It never changes the ledger by itself.</p>
-              }
-              <app-ui-form-field label="Closing notes" hint="Optional">
-                <textarea appUiControl name="notes" rows="2" maxlength="1000" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
-              </app-ui-form-field>
-            </app-ui-card>
+                <p class="cs-hint-box" [attr.data-tone]="varianceTone()" aria-live="polite">{{ varianceHint() }}</p>
+                @if (variance() !== null && variance() !== 0) {
+                  <app-ui-form-field label="Reason for the difference" [required]="true" [error]="showErrors() ? reasonError() : ''" hint="A difference is recorded for approval. It never changes the ledger by itself.">
+                    <textarea appUiControl name="reason" rows="3" maxlength="1000" [ngModel]="reason()" (ngModelChange)="reason.set($event)"></textarea>
+                  </app-ui-form-field>
+                }
+                <app-ui-form-field label="Closing Notes">
+                  <textarea appUiControl name="notes" rows="4" maxlength="1000" placeholder="Add closing notes..." [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+                </app-ui-form-field>
+              </div>
+            </div>
+          </app-ui-card>
 
-            <app-ui-card title="C. Denominations (optional)">
-              <div class="cs-denominations">
+          <app-ui-card title="C. Cash Denomination (optional)">
+            <button appUiButton type="button" variant="outline" [attr.aria-expanded]="denominationsOpen()" aria-controls="cs-denominations" (click)="denominationsOpen.set(!denominationsOpen())">
+              <i class="fas fa-calculator" aria-hidden="true"></i><span>{{ denominationsOpen() ? 'Hide denomination counter' : 'Use denomination counter' }}</span>
+            </button>
+            @if (denominationsOpen()) {
+              <div id="cs-denominations" class="cs-denomination-grid">
                 @for (row of denominations(); track row.value; let i = $index) {
-                  <app-ui-form-field [label]="'× ' + row.value">
-                    <input appUiControl type="number" min="0" step="1" inputmode="numeric" [name]="'denom' + i"
+                  <app-ui-form-field [label]="currencySymbol() + row.value">
+                    <input appUiControl type="number" min="0" step="1" inputmode="numeric" placeholder="0" [name]="'denom' + i"
                       [ngModel]="row.count" (ngModelChange)="setDenomination(i, $event)" />
                   </app-ui-form-field>
                 }
               </div>
-              <dl class="cs-rows"><div class="cs-row cs-row--total"><dt>Denomination total</dt><dd>{{ denominationTotal() | appCurrency }}</dd></div></dl>
-              @if (denominationTotal() > 0) {
-                <button appUiButton type="button" variant="outline" (click)="counted.set(denominationTotal())">Use as counted cash</button>
-              }
-            </app-ui-card>
-          </div>
-
-          <app-ui-card title="D. Handover and deposit" subtitle="Custody transfers are not operating expenses.">
-            @for (row of handovers(); track $index; let i = $index) {
-              <div class="cs-handover">
-                <app-ui-form-field label="Method">
-                  <select appUiControl [name]="'method' + i" [(ngModel)]="row.method">
-                    <option value="cash_to_manager">Cash to manager</option>
-                    <option value="cash_to_owner">Cash to owner</option>
-                    <option value="bank_deposit">Bank deposit</option>
-                  </select>
-                </app-ui-form-field>
-                <app-ui-form-field label="Amount"><input appUiControl type="number" min="0" step="0.01" [name]="'amount' + i" [(ngModel)]="row.amount" /></app-ui-form-field>
-                @if (row.method === 'bank_deposit') {
-                  <app-ui-form-field label="Bank"><input appUiControl type="text" [name]="'bank' + i" [(ngModel)]="row.bankName" /></app-ui-form-field>
-                  <app-ui-form-field label="Account / reference"><input appUiControl type="text" [name]="'acct' + i" [(ngModel)]="row.bankAccountReference" /></app-ui-form-field>
-                  <app-ui-form-field label="Deposit slip no."><input appUiControl type="text" [name]="'slip' + i" [(ngModel)]="row.depositReference" /></app-ui-form-field>
-                } @else {
-                  <app-ui-form-field label="Taken by"><input appUiControl type="text" [name]="'to' + i" [(ngModel)]="row.recipientName" /></app-ui-form-field>
+              <div class="cs-denomination-total">
+                <span>Denomination total <strong>{{ denominationTotal() | appCurrency }}</strong></span>
+                @if (denominationTotal() > 0) {
+                  <button appUiButton type="button" variant="outline" size="sm" (click)="setCounted(denominationTotal())">Use as counted cash</button>
                 }
-                <app-ui-form-field label="Notes"><input appUiControl type="text" [name]="'hn' + i" [(ngModel)]="row.notes" /></app-ui-form-field>
-                <button appUiButton type="button" variant="outline" (click)="removeHandover(i)" [attr.aria-label]="'Remove handover line ' + (i + 1)">Remove</button>
               </div>
             }
-            <button appUiButton type="button" variant="outline" (click)="addHandover()"><i class="fas fa-plus" aria-hidden="true"></i><span>Add handover line</span></button>
-            <dl class="cs-rows">
-              <div class="cs-row"><dt>Counted</dt><dd>{{ (counted() ?? 0) | appCurrency }}</dd></div>
-              <div class="cs-row"><dt>Handed over</dt><dd>{{ handedOver() | appCurrency }}</dd></div>
-              <div class="cs-row cs-row--total"><dt>Retained at outlet</dt><dd>{{ retained() | appCurrency }}</dd></div>
-            </dl>
-            @if (handoverError()) { <app-ui-alert variant="danger" title="Handover">{{ handoverError() }}</app-ui-alert> }
-            <p class="cs-hint">Photo or PDF evidence can be attached on the session page after closing. A bank deposit stays "pending bank verification" until confirmed.</p>
           </app-ui-card>
 
-          @if (reviewing()) {
-            <app-ui-alert variant="info" title="Review before closing">
-              Counted {{ (counted() ?? 0) | appCurrency }} against expected {{ d.summary.expectedClosingCash | appCurrency }}
-              (variance {{ (variance() ?? 0) | appCurrency }}); {{ handedOver() | appCurrency }} handed over, {{ retained() | appCurrency }} retained.
-              Closing is final: the figures are frozen and later corrections need a separate approved workflow.
-            </app-ui-alert>
-          }
+          <app-ui-card title="D. Cash Handover &amp; Attachments">
+            @for (row of handovers(); track $index; let i = $index) {
+              <div class="cs-handover-row" role="group" [attr.aria-label]="'Handover ' + (i + 1)">
+                <div class="cs-handover-row__head">
+                  <p class="cs-handover-row__title">Handover {{ i + 1 }}</p>
+                  <button appUiButton type="button" variant="ghost" size="sm" (click)="removeHandover(i)" [attr.aria-label]="'Remove handover ' + (i + 1)"><i class="fas fa-trash-alt" aria-hidden="true"></i><span>Remove</span></button>
+                </div>
+                <div class="cs-form-2">
+                  <app-ui-form-field label="Handover Head / Recipient" [required]="true">
+                    <select appUiControl [name]="'method' + i" [ngModel]="row.method" (ngModelChange)="updateHandover(i, { method: $event })">
+                      <option value="bank_deposit">Bank Deposit / Cash Collection</option>
+                      <option value="cash_to_manager">Manager</option>
+                      <option value="cash_to_owner">Owner</option>
+                    </select>
+                  </app-ui-form-field>
+                  <app-ui-form-field label="Amount" [required]="true" [error]="rowError(i, 'amount')">
+                    <span uiFieldPrefix class="cs-addon">{{ currencySymbol() }}</span>
+                    <input appUiControl type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" [name]="'amount' + i" [ngModel]="row.amount" (ngModelChange)="updateHandover(i, { amount: parseAmount($event) })" />
+                  </app-ui-form-field>
+                  <div class="cs-readonly-field">
+                    <span class="cs-readonly-field__label">Given By</span>
+                    <span class="cs-readonly-field__value">You (closing cashier)</span>
+                  </div>
+                  @if (row.method === 'bank_deposit') {
+                    <app-ui-form-field label="Bank" [error]="rowError(i, 'bank')"><input appUiControl type="text" [name]="'bank' + i" [ngModel]="row.bankName" (ngModelChange)="updateHandover(i, { bankName: $event })" /></app-ui-form-field>
+                    <app-ui-form-field label="Account / Reference"><input appUiControl type="text" [name]="'acct' + i" [ngModel]="row.bankAccountReference" (ngModelChange)="updateHandover(i, { bankAccountReference: $event })" /></app-ui-form-field>
+                    <app-ui-form-field label="Deposit Slip No."><input appUiControl type="text" [name]="'slip' + i" [ngModel]="row.depositReference" (ngModelChange)="updateHandover(i, { depositReference: $event })" /></app-ui-form-field>
+                  } @else {
+                    <app-ui-form-field label="Taken By" [required]="true" [error]="rowError(i, 'recipient')"><input appUiControl type="text" [name]="'to' + i" [ngModel]="row.recipientName" (ngModelChange)="updateHandover(i, { recipientName: $event })" /></app-ui-form-field>
+                  }
+                  <app-ui-form-field label="Notes" hint="Optional"><input appUiControl type="text" [name]="'hn' + i" [ngModel]="row.notes" (ngModelChange)="updateHandover(i, { notes: $event })" /></app-ui-form-field>
+                </div>
+              </div>
+            } @empty {
+              <p class="cs-muted cs-handover-empty">No cash handed over. All counted cash stays at the outlet.</p>
+            }
+            <button appUiButton type="button" variant="outline" class="cs-add-handover" (click)="addHandover()"><i class="fas fa-plus" aria-hidden="true"></i><span>Add Handover</span></button>
+
+            <div class="cs-stat-row">
+              <div class="cs-stat">Physical cash counted<strong>{{ (counted() ?? 0) | appCurrency }}</strong></div>
+              <div class="cs-stat">Total handed over<strong data-testid="handed-over">{{ handedOver() | appCurrency }}</strong></div>
+              <div class="cs-stat" [attr.data-tone]="retained() < 0 ? 'danger' : null">Retained at outlet<strong>{{ retained() | appCurrency }}</strong></div>
+            </div>
+            @if (overHandoverError()) { <app-ui-alert variant="danger" title="Handover">{{ overHandoverError() }}</app-ui-alert> }
+            <p class="cs-hint-box">Receipts, deposit slips or handover documents (photo or PDF) are attached on the session page after closing. A bank deposit stays "pending bank verification" until confirmed.</p>
+          </app-ui-card>
 
           <div class="cs-sticky-footer">
             <a appUiButton variant="outline" [routerLink]="['/cash-sessions', d.session.id]">Cancel</a>
             <button appUiButton type="button" variant="outline" (click)="review()">Review Closing Summary</button>
-            <button appUiButton type="button" [loading]="isSubmitting()" [disabled]="!reviewing() || isSubmitting()" (click)="confirm()">Confirm &amp; Close</button>
+            <button appUiButton type="button" [loading]="isSubmitting()" [disabled]="!reviewing() || isSubmitting()" (click)="confirm()">Confirm &amp; Close Cash Session</button>
           </div>
+
+          <app-ui-dialog [(open)]="reviewDialogOpen" title="Review Closing Summary" size="md" (closed)="reviewing.set(false)">
+            <p class="cs-muted cs-dialog-sub">{{ d.outletName }} · {{ d.terminalName }}</p>
+            <dl class="cs-close-rows">
+              <div class="cs-close-row"><dt>Expected closing cash</dt><dd>{{ d.summary.expectedClosingCash | appCurrency }}</dd></div>
+              <div class="cs-close-row"><dt>Counted</dt><dd>{{ (counted() ?? 0) | appCurrency }}</dd></div>
+              <div class="cs-close-row"><dt>Variance</dt><dd>{{ (variance() ?? 0) | appCurrency }}</dd></div>
+              <div class="cs-close-row"><dt>Handover</dt><dd>{{ handedOver() | appCurrency }}</dd></div>
+              <div class="cs-close-row cs-close-row--highlight"><dt>Retained at outlet</dt><dd>{{ retained() | appCurrency }}</dd></div>
+            </dl>
+            <p class="cs-hint-box">Closing is final: the figures are frozen and later corrections need a separate approved workflow.</p>
+            <button uiDialogFooter appUiButton type="button" variant="outline" (click)="cancelReview()">Cancel</button>
+            <button uiDialogFooter appUiButton type="button" data-autofocus (click)="continueReview()">Continue</button>
+          </app-ui-dialog>
         }
       } @else {
         <app-ui-state kind="loading" title="Loading" message="Loading the session…" />
@@ -170,6 +211,10 @@ export class CashSessionCloseComponent implements OnInit {
   private readonly sessions = inject(CashSessionService);
   private readonly errors = inject(ErrorHandlerService);
   private readonly alerts = inject(AlertService);
+  private readonly currency = inject(CurrencyService);
+
+  readonly currencySymbol = this.currency.symbol;
+  readonly currencyCode = this.currency.code;
 
   readonly breadcrumbs = [{ label: 'Sales', link: '/cash-sessions' }, { label: 'Cash Sessions', link: '/cash-sessions' }, { label: 'Close' }];
 
@@ -178,6 +223,10 @@ export class CashSessionCloseComponent implements OnInit {
   submitError = signal<string | null>(null);
   isSubmitting = signal(false);
   reviewing = signal(false);
+  /** Set by Review: every inline error is shown from then on. */
+  showErrors = signal(false);
+  reviewDialogOpen = signal(false);
+  denominationsOpen = signal(false);
 
   counted = signal<number | null>(null);
   reason = signal('');
@@ -202,6 +251,19 @@ export class CashSessionCloseComponent implements OnInit {
     return '';
   });
   reasonError = computed(() => (this.variance() !== 0 && !this.reason().trim() ? 'A reason is required when the count differs from the expected cash.' : ''));
+  countFieldError = computed(() => (this.showErrors() || this.counted() !== null ? this.countError() : ''));
+  overHandoverError = computed(() => (this.retained() < 0 ? 'Handed-over cash cannot exceed the counted cash.' : ''));
+  varianceTone = computed(() => {
+    const variance = this.variance();
+    return variance === null || variance === 0 ? 'neutral' : variance > 0 ? 'info' : 'danger';
+  });
+  varianceHint = computed(() => {
+    const variance = this.variance();
+    if (variance === null) return 'Enter the counted cash to see the difference.';
+    const difference = `Difference ${this.currency.format(variance)}`;
+    if (variance === 0) return `${difference} · Exact Match`;
+    return `${difference} · ${variance > 0 ? 'Over' : 'Short'}, a reason is required`;
+  });
   handoverError = computed(() => {
     if (this.retained() < 0) return 'Handed-over cash cannot exceed the counted cash.';
     for (const row of this.handovers()) {
@@ -237,8 +299,47 @@ export class CashSessionCloseComponent implements OnInit {
     this.reviewing.set(false);
   }
 
+  setCounted(value: number | string | null): void {
+    this.counted.set(this.parseAmount(value));
+    this.reviewing.set(false);
+  }
+
+  /** A number input yields a number, or null while empty/incomplete; anything non-finite counts as no amount. */
+  parseAmount(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
+   * Replaces the row instead of mutating it: the totals and validation are computed signals over handovers(), which
+   * only recompute when the array itself changes (two-way binding into row.amount never notified them).
+   */
+  updateHandover(index: number, patch: HandoverPatch): void {
+    const touched: Partial<Record<HandoverField, true>> = {};
+    if ('amount' in patch) touched.amount = true;
+    if ('bankName' in patch || 'bankAccountReference' in patch) touched.bank = true;
+    if ('recipientName' in patch) touched.recipient = true;
+    this.handovers.update(rows => rows.map((row, i) => (i === index ? { ...row, ...patch, touched: { ...row.touched, ...touched } } : row)));
+    this.reviewing.set(false);
+  }
+
+  /** Inline message for one handover field; the same rules as handoverError(). */
+  rowError(index: number, field: HandoverField): string {
+    const row = this.handovers()[index];
+    if (!row || !(this.showErrors() || row.touched[field])) return '';
+    switch (field) {
+      case 'amount':
+        return !row.amount || row.amount <= 0 ? 'Each handover line needs an amount above zero.' : '';
+      case 'bank':
+        return row.method === 'bank_deposit' && !row.bankName.trim() && !row.bankAccountReference.trim() ? 'A bank deposit needs the bank or account reference.' : '';
+      default:
+        return row.method !== 'bank_deposit' && !row.recipientName.trim() ? 'A cash handover needs the person who took the cash.' : '';
+    }
+  }
+
   addHandover(): void {
-    this.handovers.update(rows => [...rows, { method: 'cash_to_manager', amount: null, recipientName: '', bankName: '', bankAccountReference: '', depositReference: '', notes: '' }]);
+    this.handovers.update(rows => [...rows, { method: 'cash_to_manager', amount: null, recipientName: '', bankName: '', bankAccountReference: '', depositReference: '', notes: '', touched: {} }]);
     this.reviewing.set(false);
   }
 
@@ -252,10 +353,22 @@ export class CashSessionCloseComponent implements OnInit {
     return this.countError() || this.reasonError() || this.handoverError();
   }
 
+  /** Validates, then shows the closing summary; Confirm is enabled only from the reviewed state. */
   review(): void {
+    this.showErrors.set(true);
     const problem = this.blockingProblem();
     this.submitError.set(problem || null);
     this.reviewing.set(!problem);
+    this.reviewDialogOpen.set(!problem);
+  }
+
+  continueReview(): void {
+    this.reviewDialogOpen.set(false);
+  }
+
+  cancelReview(): void {
+    this.reviewDialogOpen.set(false);
+    this.reviewing.set(false);
   }
 
   buildPayload(): CloseCashSessionDto {

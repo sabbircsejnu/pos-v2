@@ -50,7 +50,27 @@ public sealed record SaleReadModel(
     IReadOnlyList<SaleItemReadModel> Items,
     IReadOnlyList<SalePaymentReadModel> Payments,
     long? SalespersonUserId = null,
-    string? SalespersonName = null);
+    string? SalespersonName = null)
+{
+    public string? CustomerPhone { get; init; }
+
+    /// <summary>The outlet's invoice print settings; only populated for receipt reads.</summary>
+    public SaleOutletPrintReadModel? OutletPrint { get; init; }
+
+    /// <summary>The outlet override or Business default (D9); only populated for receipt reads.</summary>
+    public string? EffectiveTimeZoneId { get; init; }
+
+    /// <summary>The Business's platform-controlled footer settings; only populated for receipt reads.</summary>
+    public bool ShowPoweredByOnReceipt { get; init; }
+    public string? PoweredByText { get; init; }
+}
+
+public sealed record SaleOutletPrintReadModel(
+    string? BranchName,
+    string? BinNumber,
+    string? Mushak,
+    string? ReturnExchangePolicy,
+    string? VatLawNotification);
 
 public sealed record SaleSearchCriteria(
     long? OutletId,

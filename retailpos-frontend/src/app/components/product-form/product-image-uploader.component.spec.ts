@@ -79,7 +79,9 @@ describe('ProductImageUploaderComponent', () => {
       expect(input.multiple).toBe(true);
       expect(input.accept).toBe('image/jpeg,image/jpg,image/png,image/webp');
       expect(q('label.pu-drop').textContent).toContain('Click to upload');
-      expect(q('label.pu-drop').textContent).toContain('800–1200 px');
+      expect(q('label.pu-drop').textContent).toContain('up to 5 MB');
+      expect(q('label.pu-drop').textContent).toContain('Large images are optimized automatically');
+      expect(q('label.pu-drop').textContent).not.toContain('800');
     });
   });
 
@@ -123,19 +125,56 @@ describe('ProductImageUploaderComponent', () => {
       await vi.waitFor(() => expect(cmp.getPendingFiles().length).toBe(1));
     });
 
-    it('rejects the wrong type, oversize files and wrong dimensions with named messages', async () => {
-      const gif = new File(['x'], 'anim.gif', { type: 'image/gif' });
-      const huge = png('huge.png', 5 * 1024 * 1024 + 1);
-      await cmp.onFiles(fileList([gif]));
-      await cmp.onFiles(fileList([huge]));
-      dims = { w: 400, h: 400 };
+    const dangerAlerts = () => qa('app-ui-alert[data-variant="danger"]').map(a => a.textContent!.replace(/\s+/g, ' ').trim());
+
+    it.each([
+      [1086, 1448],
+      [800, 1200],
+      [4000, 3000],
+      [200, 200],
+      [8000, 6000],
+    ])('accepts a %i×%i image without asking the user to resize it', async (w, h) => {
+      dims = { w, h };
+      await cmp.onFiles(fileList([png('photo.png')]));
+      await settle();
+      expect(cmp.getPendingFiles().map(f => f.name)).toEqual(['photo.png']);
+      expect(dangerAlerts()).toEqual([]);
+    });
+
+    it('rejects an image below the minimum dimension with the same rule as the server', async () => {
+      dims = { w: 150, h: 900 };
       await cmp.onFiles(fileList([png('small.png')]));
       await settle();
       expect(cmp.getPendingFiles()).toEqual([]);
-      const alerts = qa('app-ui-alert[data-variant="danger"]').map(a => a.textContent!.replace(/\s+/g, ' ').trim());
-      expect(alerts[0]).toContain('small.png: Dimensions must be 800–1200 px on each side. Got 400×400.');
-      expect(alerts).toHaveLength(1);
+      expect(dangerAlerts()).toEqual(['small.png: Image is too small: each side must be at least 200 px. Got 150×900.']);
     });
+
+    it('rejects an image above the pixel limit with the same rule as the server', async () => {
+      dims = { w: 10000, h: 6000 };
+      await cmp.onFiles(fileList([png('giant.png')]));
+      await settle();
+      expect(cmp.getPendingFiles()).toEqual([]);
+      expect(dangerAlerts()).toEqual(['giant.png: Image is too large to process: the limit is 50 megapixels. Got 10000×6000.']);
+    });
+
+    it('explains an oversize file and a file the browser cannot decode', async () => {
+      await cmp.onFiles(fileList([png('huge.png', 5 * 1024 * 1024 + 1)]));
+      await settle();
+      expect(dangerAlerts()).toEqual(['huge.png: File too large (max 5 MB).']);
+
+      vi.stubGlobal(
+        'Image',
+        class {
+          onerror: (() => void) | null = null;
+          set src(_: string) { queueMicrotask(() => this.onerror?.()); }
+        }
+      );
+      await cmp.onFiles(fileList([png('broken.png')]));
+      await settle();
+      expect(cmp.getPendingFiles()).toEqual([]);
+      expect(dangerAlerts()).toEqual(['broken.png: The file is not a valid JPG, PNG, or WEBP image, or it is corrupted.']);
+    });
+
 
     it('reports each rejection when several are chosen at once', async () => {
       const gif = new File(['x'], 'anim.gif', { type: 'image/gif' });
@@ -143,6 +182,41 @@ describe('ProductImageUploaderComponent', () => {
       await settle();
       expect(cmp.getPendingFiles().map(f => f.name)).toEqual(['ok.png']);
       expect(q('app-ui-alert[data-variant="danger"]').textContent).toContain('anim.gif: Only JPG, PNG, or WEBP allowed.');
+    });
+  });
+
+  describe('without products.edit (view-only media)', () => {
+    async function setupViewOnly(productId: number | null) {
+      await setup(productId);
+      fixture.componentRef.setInput('canEdit', false);
+      await settle();
+    }
+
+    it('hides the drop zone and explains that image changes need the Edit Products permission', async () => {
+      await setupViewOnly(null);
+      expect(q('.pu-drop')).toBeNull();
+      expect(q('input[type="file"]')).toBeNull();
+      expect(root().textContent).toContain('Adding, replacing or removing product images requires the Edit Products permission.');
+    });
+
+    it('keeps images viewable but offers no set-primary or delete actions', async () => {
+      await setupViewOnly(5);
+      expect(qa('.pu-tile')).toHaveLength(2);
+      expect(qa('.pu-tile button').map(b => b.getAttribute('aria-label'))).toEqual(['View image', 'View image']);
+    });
+
+    it('ignores upload, set-primary and delete attempts so no request can fail with 403', async () => {
+      await setupViewOnly(5);
+      const files = { length: 1, item: () => png() } as unknown as FileList;
+      await cmp.onFiles(files);
+      cmp.setPrimary(listed[1]);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      cmp.remove(listed[1]);
+
+      expect(svc.upload).not.toHaveBeenCalled();
+      expect(svc.setPrimary).not.toHaveBeenCalled();
+      expect(svc.delete).not.toHaveBeenCalled();
+      expect(cmp.pendingFiles()).toEqual([]);
     });
   });
 

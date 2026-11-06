@@ -1,0 +1,92 @@
+@let rd = document();
+<div class="thermal-receipt">
+  <header class="tr-center">
+    @if (rd.header.showLogo && rd.header.logoBase64) {
+      <img class="tr-logo" [src]="'data:image/png;base64,' + rd.header.logoBase64" alt="Business logo" />
+    }
+    <h2 class="tr-business">{{ rd.header.businessName || 'Business' }}</h2>
+    @if (rd.header.concernOf) { <p class="tr-line">A concern of {{ rd.header.concernOf }}</p> }
+    @if (rd.header.branchName || rd.header.outletName) { <p class="tr-line">Branch: {{ rd.header.branchName || rd.header.outletName }}</p> }
+    @if (rd.header.outletAddress) { <p class="tr-line tr-multiline">Address: {{ rd.header.outletAddress }}</p> }
+    @if (rd.header.showroomHotline) { <p class="tr-line">Showroom Hotline: {{ rd.header.showroomHotline }}</p> }
+    @if (rd.header.centralHotline) { <p class="tr-line">Central Hotline: {{ rd.header.centralHotline }}</p> }
+    @if (rd.header.website) { <p class="tr-line">Web: {{ rd.header.website }}</p> }
+    @if (rd.header.taxIdentityLine) { <p class="tr-identity">{{ rd.header.taxIdentityLine }}</p> }
+    @if (rd.header.headerText) { <p class="tr-line tr-multiline">{{ rd.header.headerText }}</p> }
+    <h3 class="tr-title">Invoice</h3>
+  </header>
+
+  <dl class="tr-meta tr-section">
+    <dt>Date</dt><dd>{{ rd.saleInfo.invoiceDateText }}</dd>
+    <dt>Invoice No</dt><dd>{{ rd.saleInfo.invoiceNumber }}</dd>
+    <dt>Customer</dt><dd>{{ rd.saleInfo.customerName }}</dd>
+    @if (rd.saleInfo.customerMobile) { <dt>Mobile</dt><dd>{{ rd.saleInfo.customerMobile }}</dd> }
+  </dl>
+
+  <section class="tr-section">
+    <table class="tr-items">
+      <thead>
+        <tr>
+          <th scope="col">Item</th>
+          <th scope="col" class="tr-qty">Qty</th>
+          <th scope="col" class="tr-num tr-price">U.Price</th>
+          <th scope="col" class="tr-num tr-percent">Dis%</th>
+          <th scope="col" class="tr-num tr-total">Total</th>
+        </tr>
+        <tr><td class="tr-rule" colspan="5"></td></tr>
+      </thead>
+      <tbody>
+        @for (item of rd.items; track $index) {
+          <tr>
+            <td>{{ item.printName || item.productName }}</td>
+            <td class="tr-qty tr-qty-value">{{ item.quantity }}</td>
+            <td class="tr-num">{{ money(item.unitPrice) }}</td>
+            <td class="tr-num">{{ item.discountPercent ?? 0 }}</td>
+            <td class="tr-num">{{ money(item.lineTotal) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (rd.taxInclusive) { <p class="tr-note">All prices are inclusive of VAT.</p> }
+  </section>
+
+  <section class="tr-section tr-amounts">
+    <div><span>Sub Total</span><b>{{ money(rd.summary.subtotal) }}</b></div>
+    @if (rd.summary.discount > 0) { <div><span>Discount</span><b>{{ money(rd.summary.discount) }}</b></div> }
+    @if (!rd.taxInclusive && rd.summary.tax) { <div><span>VAT</span><b>{{ money(rd.summary.tax) }}</b></div> }
+    <div><span>(+/-) Rounding</span><b>{{ money(rd.summary.roundOff) }}</b></div>
+  </section>
+
+  <section class="tr-section tr-amounts">
+    <div><b>Amount Due</b><b>{{ money(rd.summary.grandTotal) }}</b></div>
+    <div><span>Paid</span><b>{{ money(rd.summary.paidAmount) }}</b></div>
+    @for (payment of rd.paymentLines; track payment.label) {
+      <div><span>{{ payment.label }}</span><b>{{ money(payment.amount) }}</b></div>
+    }
+    <div><span>Change</span><b>{{ money(rd.summary.change) }}</b></div>
+  </section>
+
+  @if (rd.amountInWords) {
+    <section class="tr-section">
+      <b>Amount In Words:</b>
+      <p class="tr-line">{{ rd.amountInWords }}</p>
+    </section>
+  }
+
+  <footer class="tr-section tr-center">
+    @if (rd.footer.returnPolicy) {
+      <b>Return / Exchange Policy</b>
+      <p class="tr-line tr-multiline">{{ rd.footer.returnPolicy }}</p>
+    }
+    @if (rd.footer.vatLawNotification) { <p class="tr-line tr-multiline tr-strong">{{ rd.footer.vatLawNotification }}</p> }
+    @if (rd.footer.thankYouMessage) { <p class="tr-line tr-strong">{{ rd.footer.thankYouMessage }}</p> }
+    @if (rd.footer.showBarcode || rd.footer.showQr) { <p class="tr-line">{{ rd.footer.codeValue || rd.saleInfo.invoiceNumber }}</p> }
+  </footer>
+
+  @if (rd.footer.footerText || rd.footer.poweredByText) {
+    <div class="tr-section tr-center">
+      @if (rd.footer.footerText) { <p class="tr-line tr-multiline">{{ rd.footer.footerText }}</p> }
+      @if (rd.footer.poweredByText) { <p class="tr-line tr-powered-by">{{ rd.footer.poweredByText }}</p> }
+    </div>
+  }
+</div>

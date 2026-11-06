@@ -12,6 +12,31 @@ public class ExpenseCategoryDto
     public bool IsActive { get; set; }
 }
 
+public class ExpensePaymentAccountDto
+{
+    public long Id { get; set; }
+    public string AccountCode { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
+    public string AccountType { get; set; } = string.Empty;
+}
+
+public class ExpenseAccountOptionDto
+{
+    public long Id { get; set; }
+    public string AccountCode { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
+}
+
+public class ExpenseAttachmentDto
+{
+    public long Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public long? CreatedBy { get; set; }
+}
+
 public class UpsertExpenseCategoryDto
 {
     [Required, MaxLength(120)] public string Name { get; set; } = string.Empty;
@@ -35,6 +60,8 @@ public class ExpenseDto
     public DateTime ExpenseDate { get; set; }
     public long? OutletId { get; set; }
     public string? OutletName { get; set; }
+    public long? WarehouseId { get; set; }
+    public string? WarehouseName { get; set; }
     public string Status { get; set; } = string.Empty;
     public long? JournalEntryId { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -74,6 +101,7 @@ public class CreateExpenseDto
     [MaxLength(500)] public string? AttachmentPath { get; set; }
     [Required] public DateTime ExpenseDate { get; set; }
     public long? OutletId { get; set; }
+    public long? WarehouseId { get; set; }
 }
 
 public class UpdateExpenseDto
@@ -93,6 +121,7 @@ public class UpdateExpenseDto
     [MaxLength(500)] public string? AttachmentPath { get; set; }
     [Required] public DateTime ExpenseDate { get; set; }
     public long? OutletId { get; set; }
+    public long? WarehouseId { get; set; }
 }
 
 public class ApproveExpenseDto
@@ -105,6 +134,7 @@ public class ExpenseSearchDto
     public string? Category { get; set; }
     public string? Status { get; set; }
     public long? OutletId { get; set; }
+    public long? WarehouseId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public int PageNumber { get; set; } = 1;

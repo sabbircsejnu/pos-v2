@@ -6,7 +6,7 @@
 | Started | 2026-11-02 |
 | Authority | SRS v1.2 → LLD v1.2 → Loyalty SRS/LLD → prototype → [Rev 3 Gap Analysis](./POS_MASTER_BLUEPRINT_GAP_ANALYSIS.md) → existing code |
 | Gap analysis | Not modified. Rows below reference its IDs and track actual resolution. |
-| Current position | **Phase 0–3.2 and Phase 4 implemented. STOPPED for owner review of §12–§13. Development migrated to 68 (P21, P3, P31, P32, P4 applied 3 Nov 2026 under owner authorisation, §13). Financial gates D06/D07 OPEN. Phase 5 is NOT started.** |
+| Current position | **Phase 0–3.2 and Phase 4 implemented. STOPPED for owner review of §12–§13. Development is at 70 migrations: 68 reached with P21, P3, P31, P32, P4 on 3 Nov 2026 (§13); latest `PosV2OutletInvoicePrintSettings` on 5 Nov 2026 under owner authorisation (§16). Financial gates D06/D07 OPEN. Phase 5 is NOT started.** |
 
 ## 1. Phase status
 
@@ -811,7 +811,7 @@ The owner asked to stop the running Phase 4 full suite. When the stop was proces
 | Indexes / constraints | 0 invalid indexes, 0 unvalidated constraints; P4 index and FK present |
 
 ### 13.6 Development API startup
-Started from this source with the standard Development profile (`--launch-profile http`, user-secrets → Development; `MigrateOnStartup`/`SeedOnStartup` false; `FinancialPosting:HostRole=Api`, workers in-process). Log: both posting workers started, listening on `http://localhost:5005`, **0 fail/crit entries**. In Api mode no `/health` route is mapped (404 by design; `/health/financial-posting` exists only in Worker mode); a protected endpoint answers 401 without a token. Both workers wrote heartbeats to `retailpos_db` (`host_role=Api`, a completed pass, 0 consecutive failures); `sale_financial_postings` stayed empty and the sales data unchanged. No test sale, refund or other data was created in Development. The API was left running in this session (background task; it stops with the session or Ctrl+C).
+Started from this source with the standard Development profile (`--launch-profile http`, user-secrets → Development; `MigrateOnStartup`/`SeedOnStartup` false; `FinancialPosting:HostRole=Api`, workers in-process). Log: both posting workers started, listening on `http://localhost:5005`, **0 fail/crit entries**. In Api mode no `/health` route is mapped (404 by design; `/health/financial-posting` exists only in Worker mode); a protected endpoint answers 401 without a token. Both workers wrote heartbeats to `retailpos_db` (`host_role=Api`, a completed pass, 0 consecutive failures); `sale_financial_postings` stayed empty and the sales data unchanged. No test sale, refund or other data was created in Development. The API process later ended (exit 255 with no error in its log, consistent with an external stop) and was not restarted; start it with `dotnet run --project src\RetailPOS.API --launch-profile http`.
 
 ### 13.7 Remaining tests and release gates
 - One complete full integration run on the final source (the last full run had the single contract-test failure fixed afterwards).
@@ -820,3 +820,170 @@ Started from this source with the standard Development profile (`--launch-profil
 - Outlet invoice prefixes (D13): the three Development outlets already have prefixes (O001–O003); other environments seeded from the demo seed must set them before checkout.
 - Existing legacy sales remain without VAT line evidence and payment rows (§11.9): a void/refund of them fails explicitly (`allocation_evidence_missing`) by design.
 - Staging/Production: separate authorisation, backup and rehearsal.
+
+## 14. Test infrastructure — PostgreSQL template cloning (3 Nov 2026)
+
+**Status: implemented in the test project only and verified; STOPPED for owner review. No production code, Phase 4 behaviour, accounting rule or migration changed. Development untouched. Nothing staged, committed or pushed.** Configuration and safety rules: `Docs/Development/LOCAL_INFRASTRUCTURE.md` §11.
+
+### 14.1 Root cause (measured from the Phase 4 TRX, no new baseline run)
+- `PostgresTestDatabase` allowed **2 concurrent disposable databases in total**, each slot held for the whole test, and almost every database ran the full migration chain (~68 migrations). Tests clustered at 138–149 s each, mostly queueing.
+- `PostgresTestDatabaseLifecycleTests.EveryPrefix_RemovesExactPersistedName` creates 24 **empty** databases sequentially; each had to win one of those 2 slots, so it took **1,777.5 s** while doing about 5 s of work.
+
+### 14.2 Change
+- Three explicit strategies at the single creation choke point (`PostgresTestDatabaseStrategy`): **TemplateClone** (default), **FreshMigration** and **Lifecycle**, each with its own slot pool (Fresh stays at 2; clones 4 by default, `RETAILPOS_TEST_MAX_CLONE_DATABASES`; lifecycle 4).
+- New `PostgresTestTemplate`: one migrated template per migration fingerprint (SHA-256 of the full EF migration script incl. custom SQL), built under a PostgreSQL advisory lock, then `IS_TEMPLATE`/`ALLOW_CONNECTIONS false`; interrupted builds recovered by marker; foreign databases under a template name refused; template names outside every cleanup path.
+- Explicit `FreshMigration` for migration-execution tests (chain validation, P31 Up/Down, Phase 2 and pricing-tenancy upgrade/backfill, database protection) and for the 11 `EnsureCreated` suites (model-built schema without migration triggers — cloning would have changed what they test). `Lifecycle` for the lifecycle tests. The other 43 caller files clone; their `MigrateAsync()` calls are unchanged and become no-ops.
+- Files: new `tests/RetailPOS.IntegrationTests/Infrastructure/{PostgresTestTemplate.cs, PostgresTestTemplateTests.cs}`; modified `Infrastructure/PostgresTestDatabase.cs`, `Infrastructure/PostgresTestDatabaseLifecycleTests.cs` and the 16 caller files that select `FreshMigration`. No assertion was removed or weakened.
+
+### 14.3 Targeted verification
+`PostgresTestTemplateTests` (9) pass: template ready/immutable/complete history (clone has no pending migrations; triggers present); **clone schema identical to a real fresh migration** (tables/columns, indexes, constraints, triggers, functions, migration history compared); parallel clones isolated and a new clone unaffected; FreshMigration and Lifecycle databases empty; fingerprint/name change with the migration script; cleanup cannot drop the template; interrupted build rebuilt once and a foreign database under the name refused; Development server and non-template names refused. Also passed: `PostgresTestDatabaseLifecycleTests` (all), `MigrationChainValidationTests`, `InfrastructureConfigurationTests`, and a representative 80-test set across both strategies (Phase 3/3.1/3.2/4 posting incl. P31 rollback, cash sessions, Phase 2, pricing tenancy, database protection, two `EnsureCreated` accounting suites): **80/80**. A second test process **reused** the ready template (12–148 ms) instead of rebuilding it.
+
+### 14.4 Full suite (one run, no competing suite)
+| Measure | Before (Phase 4 run, 3 Nov 16:15) | After (optimized run, 3 Nov 17:47) |
+|---|---|---|
+| Tests | 2,108 (2,107 passed, 1 failed — the `SaleDto` contract test, fixed afterwards) | **2,117 — 2,117 passed, 0 failed, 0 skipped** (+9 template tests) |
+| Wall clock (TRX start → finish) | 40 m 59 s | **6 m 41 s** (shell-measured 405 s) — about 6.1× faster |
+| Sum of test durations | 22,807 s | 3,604 s |
+| Slowest test | `EveryPrefix_RemovesExactPersistedName` 1,777.5 s | `ConcurrentOverlappingPolicyCreationHasOneAuditedOutcome` 65.1 s (`EveryPrefix…` now ~3 s) |
+| Tests ≥ 30 s | 208 | 16 |
+
+Database work in the optimized run (`RETAILPOS_TEST_DB_STATS`): **205 template clones** (avg 184 ms under full parallel load; ~100–150 ms in isolation), 39 FreshMigration databases (empty create avg 70 ms; these tests still migrate themselves), 32 Lifecycle databases (avg 52 ms). **Full migration-chain executions avoided per run: 205.** Template initialization: first build **8.7 s** (targeted run), reused in the full run in 19 ms. The current template `retailpos_tpl_9c9a8045f0e518a3` remains on the Test server by design; no disposable database was left behind (the pre-existing `retailpos_recon_match_f014…` orphan and `a2_test_guard` were left untouched).
+
+This full run also closes §12.11: the current source (Phase 4 plus the updated contract test) passes the complete integration suite.
+
+### 14.5 Limitations and further improvements
+- The 39 FreshMigration databases still run full migrations or `EnsureCreated` (the `EnsureCreated` accounting suites could get a second, model-built template).
+- The per-process fingerprint is computed by generating the full EF migration script once (a few seconds, not separately measured).
+- Templates of superseded fingerprints are not deleted automatically (manual SQL in `LOCAL_INFRASTRUCTURE.md` §11).
+- Cross-process template building is serialised by an advisory lock; two concurrent processes were not exercised (sequential processes reuse the template, verified). Never run two full suites at once.
+- Clone concurrency was not tuned beyond the default 4; the slowest remaining tests are deliberate concurrency scenarios (payroll policy, pricing database guards).
+
+## 15. Phase 4 — POS lookup authorization fix (3 Nov 2026)
+
+**Status: implemented and verified with targeted tests; STOPPED for review. No migration, schema, role, permission catalogue or Product/Category Management policy changed. Development database not modified. Nothing staged, committed or pushed. No Phase 3.2 D06/D07 work.**
+
+### 15.1 Symptom
+POS Checkout showed the global "You do not have permission to perform this action." notice; `GET /api/categories` and `GET /api/products?pageSize=200&isActive=true` returned 403.
+
+### 15.2 Investigation and root cause
+- `PosScreenComponent.loadCategories()` / `loadProducts()` called the **Category/Product Management** endpoints directly (`CategoriesController` → `categories.view`, `ProductsController` → `products.view`). Every other POS read (lookup, stock-hint, cart-prices, terminals, salespersons, cash sessions) already used `/api/pos/*` under `sales.create`. The POS route itself only requires `sales.create`.
+- Reproduced against the running Development API with real tokens (demo accounts, read-only): Cashier role → 200 (the seeded Cashier role happens to carry `products.view`/`categories.view`); BusinessOwner switched to **OutletManager** → **403 on both**, with an **empty body** (ASP.NET policy failure — not a Business-context error, which returns 400 `business_context_required` with a JSON body, and not an outlet-scope refusal, which returns a JSON message). `/api/pos/lookup` returned 404/200 for the same token, proving `sales.create` and Business/Outlet scope were fine.
+- Development roles (read-only query): `OutletManager` and `Salesman` hold `sales.create` but not `products.view`/`categories.view`. The `Salesman` row was **edited at 18:48 UTC today** and now has 13 permissions including both — apparently a manual workaround. It was **not changed** by this fix; the owner should decide whether to revert it now that it is no longer needed.
+- Secondary defects of the old call: `GET /api/products` ignores `pageSize`/`isActive` (returned every product including inactive ones, unbounded) and its DTO carries cost fields subject only to redaction; the screen also had no real outlet stock until a stock hint was fetched.
+
+### 15.3 Fix
+- **Backend (new read-only POS endpoints, class-level `sales.create`, no new permission):**
+  - `GET /api/pos/catalogue?outletId&categoryId&q&limit` (limit 1–500, default 200) → `GetPosCatalogueQuery` → `IPosCatalogueReadStore`/`PosCatalogueReadStore`: variants of **active** products of the caller's Business only (`IBusinessScope.RequireBusinessId`, Business checked on both variant and product), name/SKU/barcode/product-code search, category filter, stock at the requested outlet (outlet authorized by `ResolveAndAuthorizeOutletFilterAsync` exactly like `/lookup`, 403 with message otherwise), primary thumbnail, `listPrice` as a display hint. **No cost data.**
+  - `GET /api/pos/categories` → `GetPosCategoriesQuery`, reusing the Business-scoped `ICategoryCatalog`; active categories only, minimal DTO.
+  - Prices stay server-authoritative: the cart still re-prices through `POST /api/pos/cart-prices`; the sale command is unchanged. Lookup/price caches unchanged (the catalogue is not cached, so no new cache-isolation surface).
+  - `ProductsController`, `CategoriesController`, `LookupAuthorizationPolicies`, roles and the permission catalogue are unchanged.
+- **Frontend:** `PosService.getCatalogue()` / `getCategories()` (with `SUPPRESS_ERROR_NOTICE`); `PosScreenComponent` no longer calls `/api/products` or `/api/categories`; catalogue outlet stock seeds the stock display; a catalogue failure shows its real cause inside the product browser (offline, Business context required, outlet-scope message from the server, generic retry) with a Retry button instead of the global permission modal; a category failure only leaves "All". Layout unchanged.
+
+### 15.4 Files changed
+- New: `src/RetailPOS.Application/Pos/Abstractions/IPosCatalogueReadStore.cs`, `src/RetailPOS.Application/Pos/Queries/GetPosCatalogueQueries.cs`, `src/RetailPOS.Application/Pos/ReadModels/PosCatalogueReadModels.cs`, `src/RetailPOS.Infrastructure/Pos/PosCatalogueReadStore.cs`, `tests/RetailPOS.IntegrationTests/Sales/PosCatalogueAuthorizationHttpTests.cs`, `retailpos-frontend/src/app/pages/pos/pos-lookup-errors.ts`, `retailpos-frontend/src/app/pages/pos/pos-lookup-errors.spec.ts`.
+- Modified: `src/RetailPOS.API/Controllers/PosController.cs`, `src/RetailPOS.API/DTOs/Pos/PosDtos.cs`, `src/RetailPOS.API/Program.cs` (DI registration), `retailpos-frontend/src/app/services/pos.service.ts`, `retailpos-frontend/src/app/services/pos.service.spec.ts`, `retailpos-frontend/src/app/pages/pos/pos-screen.component.ts`, `retailpos-frontend/src/app/pages/pos/pos-screen.component.html`, `retailpos-frontend/src/app/pages/pos/pos-screen.component.spec.ts`, this report.
+
+### 15.5 Tests (actual results)
+- New `PosCatalogueAuthorizationHttpTests` (7): seller with `sales.create` and no `products.view`/`categories.view` loads catalogue and categories; only active products/categories of the own Business, no cost fields, other-Business category id returns nothing; search/category/limit filters, invalid limit 400; POS endpoints require `sales.create` (management-only token → 403); outlet stock follows location authorization (other outlet and cross-Business outlet 403 without data; role-switched acting outlet enforced); barcode/SKU lookup and cart pricing work for the seller, inactive and foreign SKUs 404; seller still gets 403 on every Product/Category Management read, product edit/delete and category create; a `products.view` holder still needs `products.edit`/`products.delete`.
+- Targeted backend run (`PosCatalogueAuthorizationHttpTests`, `PosLookupHttpTests`, `RbacPermissionConsistencyTests`, `StockLocationAuthorizationHttpTests`): **94/94 passed** (in-memory API factory; built to a separate output folder because the running Development API/Visual Studio lock `src/RetailPOS.API/bin`). Full backend integration suite **not run** (as instructed).
+- Angular targeted (POS pages, `pos.service`, interceptors): **94/94 passed**, incl. new cases: initialization uses only `/api/pos/*` with Product/Category permissions absent, no permission alert when POS permissions are present, accurate failure messages, category failure tolerated and retry.
+- Angular full unit run: **1,301/1,301 passed, 98 files**; Vitest also reports **1 pre-existing unhandled error** from `cash-sessions.spec.ts` (`this.sessions.businessDaySales is not a function` — mock gap, unrelated, not touched).
+- `ng build`: **succeeded**; only the pre-existing `pos-screen.component.css` budget warning (11.97 kB vs 10 kB; CSS not changed).
+
+### 15.6 Not done / follow-ups
+- The running Development API was not restarted, so the new endpoints are not live there until the owner restarts it; live re-verification with the OutletManager token should follow.
+- `Salesman` role workaround edit (§15.2) left for the owner to decide.
+- `GET /api/products` still ignores `pageSize`/`isActive` for management screens (unchanged by design here).
+
+## 16. Development deployment of `PosV2OutletInvoicePrintSettings` (5 Nov 2026, owner-authorised)
+
+**Status: migration DONE on Development only. Manual receipt verification by the owner is PENDING (§16.7). Staging and Production were not touched. Nothing staged, committed or pushed.**
+
+The migration supports the legacy-style 80 mm receipt: Outlet settings for Invoice Print Branch Name, BIN Number, Mushak, Return / Exchange Policy and VAT Law Notification. The Company `Concern Of` setting lives in `system-settings.json`, not in the database, so it needs no migration.
+
+### 16.1 Target and pre-deployment state
+| Item | Value |
+|---|---|
+| Container / port / database | `iranimart-dev-postgres-1`, `127.0.0.1:5435`, `retailpos_db` (PostgreSQL 16.13) |
+| Migration history before | **69**, last `20261105100459_UserContextSwitchingAccess`; no history rows missing from source |
+| Pending (source vs history) | Only `20261105105652_PosV2OutletInvoicePrintSettings` |
+| Model vs snapshot | `has-pending-model-changes`: none |
+| Writers during deployment | No Development API running (ports 5005-5008 free), 0 other connections to `retailpos_db` |
+
+### 16.2 Migration SQL
+One transaction: `ALTER TABLE outlets ADD` for `bin_number` varchar(50), `invoice_print_branch_name` varchar(150), `mushak` varchar(50), `return_exchange_policy` varchar(2000), `vat_law_notification` varchar(2000), all nullable with no default, plus the history row. No data rewrite and no `DROP`, `TRUNCATE` or `DELETE` in the Up script. The Down script drops the five columns and deletes the history row.
+
+### 16.3 Safety gates
+| Gate | Result |
+|---|---|
+| Fresh backup | `backups/outlet-print/retailpos_db-pre-outletprint-20261105T111544Z.dump` (`pg_dump -Fc`, 1,205,781 bytes, SHA-256 `6db253f5858e00555fba2a9f56845ef08569372ef06080cbf9e6d54376edeac0`); `pg_restore -l` OK, 192 table-data entries. Git-ignored. |
+| Restore test | Restored with `--no-owner --no-acl --exit-on-error` into a dedicated database on the **Test** server (127.0.0.1:55432, PostgreSQL 16.13): exit 0; row counts and content hashes of all 192 tables identical to Development. |
+| Scripts | `backups/outlet-print/migrate-up-20261105T111544Z.sql` (SHA-256 `1386b1007461b5553b149c985b3cf29dbf25c9cf931303a4c062ecf212fa64c0`) and `migrate-down-20261105T111544Z.sql` (SHA-256 `105614633af12a688028ccbc20e9706afd055b0b3f64272938d7c738fc9b3b55`), generated with `dotnet ef migrations script`. |
+| Rehearsal on the restored copy | Apply → rollback → re-apply, each `ON_ERROR_STOP` exit 0. History 70 → 69 → 70; new nullable columns 5 → 0 → 5; all 192 tables identical to baseline after every step. A write to the new columns, including multiline text, succeeded inside a transaction that was rolled back. The rehearsal database was dropped afterwards (verified 0 remaining). |
+| Immediately before applying | Development re-fingerprinted: identical to the backup baseline. |
+
+### 16.4 Applied to Development
+The rehearsed Up script was run with `psql -v ON_ERROR_STOP=1` on `retailpos_db`: **exit 0.** History **69 → 70**, last `20261105105652_PosV2OutletInvoicePrintSettings`, product version 9.0.0. `dotnet ef migrations list` against Development shows 0 pending. All five columns are present and nullable with the expected lengths. No rollback was needed or executed.
+
+### 16.5 Data integrity
+`backups/outlet-print/fingerprint-before-20261105T111544Z.txt` and `fingerprint-after-20261105T111544Z.txt` hold a row count and MD5 content hash for all 192 `public` tables and are **byte-identical**. `__EFMigrationsHistory` is excluded because it gains the one row, and the `outlets` hash excludes the five new columns.
+
+| Area | Rows (unchanged) |
+|---|---|
+| Sales | 5 sales (total 2,239.40, tax 177.99) / 11 items / 2 payments / 2 cash sessions |
+| Inventory | 54 inventories / 17 stock ledgers / 3 adjustments / 2 transfers / 2 stock counts |
+| Catalogue | 8 products / 24 variants / 7 customers |
+| Users | 10 users / 10 roles / 3 outlets (all five new columns NULL on every outlet) |
+| Financial | 5 journal entries / 17 lines / 26 chart accounts / 6 accounts / 5 expenses |
+
+The later Development API start changed only `financial_posting_worker_heartbeats` (30 → 32 rows, the normal worker heartbeat). `receipt_print_histories` stayed at 9 rows.
+
+### 16.6 Smoke tests
+| Check | Result |
+|---|---|
+| API start | Development environment from `src/RetailPOS.API` with Release output on `http://127.0.0.1:5005`; started and listening, **0 fail/crit log entries**. That instance was then stopped so the port stays free for the owner; start it with `dotnet run --project src\RetailPOS.API --launch-profile http`. |
+| Unauthenticated requests | `/api/outlets`, `/api/settings/company`, `/api/sales/1/receipt-document`: 401 |
+| Swagger | The new fields are present on `CreateOutletDto`, `UpdateOutletDto`, `OutletDto`, `ReceiptDocumentDto`, `ReceiptHeaderDto` and `CompanySettings` (`concernOf`). |
+| Real data, read-only probe | A throwaway program outside the repository used the real read stores, settings provider and PDF renderer with history and audit writers stubbed, so nothing was written. All 3 outlets load. All 5 sales compose with invoice number, total and tax equal to the database, each as a single-page 80 mm PDF. |
+
+Automated test results, all focused (full integration suite not run, as instructed):
+- Before the deployment: backend unit 49/49, backend integration 49/49 (receipt PDF, migration on a fresh Test-server database, outlet, settings, sales HTTP), Angular 119/119 across 4 spec files, `npm run build` succeeded with the `pos-screen.component.css` budget warning.
+- After the item-name fix below: backend unit 47/47 with a narrower filter, receipt PDF 3/3. The integration and Angular sets were not re-run after this backend-only change.
+
+Defect found by the real-data probe and fixed in code only: variant names repeat the product name, so items printed as "ProBook Laptop 15 - ProBook Laptop 15 - Default". The item name now drops the repeated product name and a bare "Default". No schema or data change.
+
+### 16.7 Remaining manual receipt verification (owner)
+Not covered above: no login credentials were used, so authenticated API calls and the UI were not exercised. The Angular print layout was checked in headless Chrome on a temporary harness with sample data, not through the full POS sale flow.
+
+- [ ] Restart the Development API on a build that includes the item-name fix.
+- [ ] Outlet Create/Edit: save, reload and clear all five print settings; multiline policy text keeps its line breaks.
+- [ ] Company Settings: save `Concern Of` and confirm the "A concern of ..." line appears, and disappears when cleared.
+- [ ] Receipt settings for a legacy match: clear Header, set Footer to the "Powered by" text and set the Thank You message. These are configuration, not hardcoded.
+- [ ] Complete a POS sale: auto-print, print and reprint in the browser preview show only the receipt at 80 mm, with the same invoice number on reprint.
+- [ ] Sale Details: reprint and PDF download.
+- [ ] A4 mode: browser print and PDF (A4 was not checked in a browser).
+- [ ] Split payment, line and invoice discount, VAT-exclusive sale, and a customer with no mobile number.
+- [ ] Physical 80 mm thermal printer: width, margins and paper cut.
+
+Use sales 4 and 5 for reprint checks. Sales 1-3 are older rows with blank invoice numbers and totals that do not add up on paper (sale 1: Sub Total 1,089.95 + VAT 92.65 against Amount Due 1,089.97). The receipt prints their stored values unchanged by design.
+
+### 16.8 Open decisions and limitations
+- Reprints take BIN, policies, branch name, and product and customer names from current data; only amounts are fixed sale records. Keeping the header text as it was at sale time would need a further schema change.
+- Amount in words uses lakh/crore. To be confirmed by the owner.
+- Fallbacks to be confirmed: Central Hotline uses the Company Phone; an empty outlet BIN uses the company Tax Number; an empty outlet policy uses the Receipt Settings policy.
+- Inclusive VAT on 80 mm prints only the "All prices are inclusive of VAT." note, without the amount.
+- `(+/-) Rounding` is always 0.00, because checkout neither applies nor stores rounding.
+- Legacy `challan` and combined print modes do not exist in POS v2 and were not added. The legacy C# reference code was not available for review.
+- Company settings, including `Concern Of`, are one global `system-settings.json`, not per Business.
+
+### 16.9 Rollback
+`backups/outlet-print/migrate-down-20261105T111544Z.sql` is rehearsed and removes the five columns, along with any values saved in them. Applying it needs separate owner authorisation, and the code must be reverted with it, because the current `Outlet` model requires these columns.
+
+## Company time zone replaces D9 (owner decision, 5 Nov 2026)
+
+Every Business has one Company time zone, and every calendar date follows it. This amends D9, FR-TIME-04 and AC-21; outlet time zones no longer apply.
+
+- **Source:** `ICompanyTimeZoneProvider` returns `BusinessPosSettings.DefaultTimeZoneId` when the Business has saved it, otherwise the shared `system-settings.json` Company value. No schema change: `outlets.time_zone_id` is retained but ignored, and the API still accepts it.
+- **Applied so far:** GRNs, accounting reports and reversals (stage 1); cash session opening, sale reversal dates, receipts, today's summary, sales report and list ranges, backdate checks and cash-variance journals (stage 2).
+- **Unchanged history:** existing journals, sale business dates and cash session snapshots keep their stored values. A session opened before the change keeps its snapshot. P3.2-D02 now reads "in the Company zone".
+- **Pending (stage 3):** inventory, stock adjustments, purchase reports, payroll, HR and the mobile dashboard, whose API documents UTC calendar days. Device attendance punches keep their recorded zone.

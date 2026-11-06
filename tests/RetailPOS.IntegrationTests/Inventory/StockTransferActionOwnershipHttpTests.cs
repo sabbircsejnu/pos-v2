@@ -152,6 +152,7 @@ public class StockTransferActionOwnershipHttpTests : IClassFixture<RetailPosApiF
     public async Task SourceUser_SendDeductsStockAndWritesValuedLedgerOnce_AndRejectsDuplicateSend()
     {
         await ResetAndSeedAsync();
+        await SeedSourceCostAsync(301, 11, "outlet", 10m);
         using var sourceClient = CreateClient(
             101,
             "stock_transfers.view,stock_transfers.create,stock_transfers.approve,stock_transfers.dispatch",
@@ -200,9 +201,10 @@ public class StockTransferActionOwnershipHttpTests : IClassFixture<RetailPosApiF
     }
 
     [Fact]
-    public async Task DestinationUser_RejectsInTransitTransferAndCreatesOneReturnDraft()
+    public async Task DestinationUser_RejectsInTransitTransferAndCreatesOneReturnInTransit()
     {
         await ResetAndSeedAsync();
+        await SeedSourceCostAsync(301, 11, "outlet", 10m);
         using var sourceClient = CreateClient(
             101,
             "stock_transfers.view,stock_transfers.create,stock_transfers.approve,stock_transfers.dispatch",
@@ -255,14 +257,14 @@ public class StockTransferActionOwnershipHttpTests : IClassFixture<RetailPosApiF
                 row.TransferType == StockTransfer.TransferTypeReturn
                 && row.FromLocationId == 21
                 && row.ToLocationId == 11);
-        Assert.Equal(StockTransfer.StatusDraft, returnTransfer.Status);
+        Assert.Equal(StockTransfer.StatusInTransit, returnTransfer.Status);
         Assert.Equal(102, returnTransfer.CreatedBy);
         Assert.Contains("Auto-created return transfer", returnTransfer.Notes);
         var returnItem = Assert.Single(returnTransfer.Items);
         Assert.Equal(2, returnItem.Quantity);
         Assert.Equal(2, returnItem.RequestedQuantity);
         Assert.Equal(2, returnItem.TransferQuantity);
-        Assert.Equal(0m, returnItem.UnitCost);
+        Assert.Equal(10m, returnItem.UnitCost);
 
         var duplicateResponse = await destinationClient.PostAsJsonAsync(
             $"/api/stock-transfers/{transferId}/reject",
@@ -412,6 +414,18 @@ public class StockTransferActionOwnershipHttpTests : IClassFixture<RetailPosApiF
         client.DefaultRequestHeaders.Add("X-Test-Role", role);
         client.DefaultRequestHeaders.Add("X-Test-Permissions", permissions);
         return client;
+    }
+
+    /// <summary>Gives the source a real cost history: a transfer takes its cost from there, never from the client.</summary>
+    private async Task SeedSourceCostAsync(long variantId, long locationId, string locationType, decimal unitCost)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
+        var onHand = db.Inventories
+            .Where(row => row.VariantId == variantId && row.LocationId == locationId)
+            .Sum(row => row.Quantity);
+        db.StockLedgers.Add(StockCostTestData.Receipt(variantId, locationId, locationType, onHand, unitCost));
+        await db.SaveChangesAsync();
     }
 
     private async Task ResetAndSeedAsync()

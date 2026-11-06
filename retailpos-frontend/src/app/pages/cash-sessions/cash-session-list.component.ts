@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
-import { BusinessDaySales, CashSessionListItem, CashSessionService, CashSessionTerminalOption } from '../../services/cash-session.service';
+import { BusinessDaySales, BusinessDayTarget, CashSessionListItem, CashSessionService, CashSessionTerminalOption } from '../../services/cash-session.service';
 import { AuthorizedLocationDto } from '../../models/report.model';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { UI_KIT } from '../../components/shared/ui';
@@ -13,8 +13,8 @@ import { formatElapsed, stateLabel, stateVariant, varianceVariant } from './cash
 /**
  * Cash Sessions landing and history (FR-CS-01/02). It shows the sessions that are open or overdue for the chosen outlet
  * (with the server-derived elapsed time and warnings), the outlet's sales for the current business date, the daily
- * target state and the paged history with filters. No target is invented: until an approved target model exists the
- * target card says "Not configured". Everything the user may do is decided by the API; the buttons only reflect the
+ * target against net sales excluding VAT, and the paged history with filters. No target is invented: an outlet without
+ * one says "Not configured". Everything the user may do is decided by the API; the buttons only reflect the
  * permission claims.
  */
 @Component({
@@ -53,7 +53,32 @@ import { formatElapsed, stateLabel, stateVariant, varianceVariant } from './cash
         <app-ui-state kind="empty" title="No outlet available" message="You are not assigned to an outlet that can run cash sessions." />
       } @else {
         <div class="cs-grid" aria-label="Business day performance">
-          <app-ui-card title="Daily target"><div class="cs-metric"><span class="cs-metric__value">Not configured</span><span class="cs-hint">No approved sales-target model exists yet, so no target is calculated or shown.</span></div></app-ui-card>
+          <app-ui-card title="Daily target" [loading]="dayTargetLoading()">
+            @if (dayTargetError()) {
+              <app-ui-state kind="error" [compact]="true" title="Not available" [message]="dayTargetError()!">
+                <button appUiButton type="button" variant="outline" (click)="loadDayTarget()">Retry</button>
+              </app-ui-state>
+            } @else if (dayTarget(); as t) {
+              <div class="cs-metric">
+                @switch (t.status) {
+                  @case ('not_configured') {
+                    <span class="cs-metric__value">Not configured</span>
+                    <span class="cs-hint">No sales target is set for this outlet on this date.</span>
+                  }
+                  @case ('off_day') {
+                    <span class="cs-metric__value">{{ t.target | appCurrency }}</span>
+                    <span class="cs-hint"><app-ui-badge variant="neutral">Scheduled Off Day</app-ui-badge> Any sales today are still recorded.</span>
+                  }
+                  @default {
+                    <span class="cs-metric__value">{{ t.target | appCurrency }}</span>
+                    @if (t.achievementPercent !== null) {
+                      <span class="cs-hint">{{ t.achievementPercent }}% achieved</span>
+                    }
+                  }
+                }
+              </div>
+            }
+          </app-ui-card>
           <app-ui-card title="This business day's sales" [loading]="daySalesLoading()">
             @if (daySalesError()) {
               <app-ui-state kind="error" [compact]="true" title="Not available" [message]="daySalesError()!">
@@ -73,7 +98,27 @@ import { formatElapsed, stateLabel, stateVariant, varianceVariant } from './cash
               </div>
             }
           </app-ui-card>
-          <app-ui-card title="Variance vs target"><div class="cs-metric"><span class="cs-metric__value">—</span><span class="cs-hint">Shown once a target is configured.</span></div></app-ui-card>
+          <app-ui-card title="Variance vs target" [loading]="dayTargetLoading()">
+            @if (dayTarget(); as t) {
+              <div class="cs-metric">
+                @if (t.variance === null) {
+                  <span class="cs-metric__value">—</span>
+                  <span class="cs-hint">{{ t.status === 'off_day' ? 'No target applies on an off day.' : 'Shown once a target is configured.' }}</span>
+                } @else {
+                  <span class="cs-metric__value">
+                    <i class="fas" [class.fa-face-smile]="t.variance > 0" [class.fa-face-frown]="t.variance < 0" [class.fa-circle-check]="t.variance === 0" aria-hidden="true"></i>
+                    {{ t.variance | appCurrency }}
+                  </span>
+                  <span class="cs-hint">
+                    <app-ui-badge [variant]="t.variance > 0 ? 'success' : t.variance < 0 ? 'danger' : 'neutral'">{{ t.variance > 0 ? 'Above target' : t.variance < 0 ? 'Below target' : 'On target' }}</app-ui-badge>
+                    Net sales excluding VAT {{ t.netSales | appCurrency }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <div class="cs-metric"><span class="cs-metric__value">—</span></div>
+            }
+          </app-ui-card>
         </div>
 
         @for (session of active(); track session.id) {
@@ -187,6 +232,9 @@ export class CashSessionListComponent implements OnInit {
   daySales = signal<BusinessDaySales | null>(null);
   daySalesLoading = signal(false);
   daySalesError = signal<string | null>(null);
+  dayTarget = signal<BusinessDayTarget | null>(null);
+  dayTargetLoading = signal(false);
+  dayTargetError = signal<string | null>(null);
   outletId = signal<number | null>(null);
   items = signal<CashSessionListItem[]>([]);
   active = signal<CashSessionListItem[]>([]);
@@ -241,7 +289,29 @@ export class CashSessionListComponent implements OnInit {
     this.loadHistory();
     this.loadActive();
     this.loadDaySales();
+    this.loadDayTarget();
     this.loadTerminals();
+  }
+
+  /** Daily target and signed variance from the server, using the same calculation as the Owner Dashboard. */
+  loadDayTarget(): void {
+    const outletId = this.outletId();
+    if (!outletId) return;
+    this.dayTargetLoading.set(true);
+    this.dayTargetError.set(null);
+    this.sessions.businessDayTarget(outletId).subscribe({
+      next: (response) => {
+        if (this.outletId() !== outletId) return;
+        this.dayTarget.set(response.data ?? null);
+        this.dayTargetLoading.set(false);
+      },
+      error: (err) => {
+        if (this.outletId() !== outletId) return;
+        this.dayTarget.set(null);
+        this.dayTargetError.set(this.errors.extractErrorMessage(err));
+        this.dayTargetLoading.set(false);
+      }
+    });
   }
 
   /** Server-computed sales of the outlet's current business date (effective time zone), never the browser cart. */

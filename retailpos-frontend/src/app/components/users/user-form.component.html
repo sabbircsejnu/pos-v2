@@ -27,7 +27,10 @@
 
   <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="form-container">
     <div class="form-body space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 gap-2"
+        [class.lg:grid-cols-5]="wizardSteps.length === 5"
+        [class.lg:grid-cols-6]="wizardSteps.length === 6">
         @for (step of wizardSteps; track $index; let i = $index) {
           <button
             type="button"
@@ -169,7 +172,7 @@
 
       @if (isCurrentStep(3)) {
         <div>
-          <label class="label label-required">Default Inventory Location</label>
+          <label class="label">Default Inventory Location</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-white p-4">
             <div>
               <label class="label">Location Type</label>
@@ -181,7 +184,7 @@
             <div>
               <label class="label">Location</label>
               <select formControlName="defaultLocationId" class="select" [class.input-error]="userForm.get('defaultLocationId')?.invalid && userForm.get('defaultLocationId')?.touched">
-                <option [ngValue]="null">Select default inventory location</option>
+                <option [ngValue]="null">No default location</option>
                 @if (userForm.get('defaultLocationType')?.value === 'outlet') {
                   @for (outlet of outlets(); track outlet.id) {
                     <option [ngValue]="outlet.id">{{ outlet.name }}</option>
@@ -194,7 +197,7 @@
               </select>
             </div>
           </div>
-          <p class="mt-1.5 text-xs text-gray-500">Default location is the user's starting working location. Assigned locations remain separate.</p>
+          <p class="mt-1.5 text-xs text-gray-500">Optional. Default location is the user's starting working location. Assigned locations remain separate. Outlet selling roles need a default outlet.</p>
         </div>
       }
 
@@ -235,6 +238,75 @@
               }
             </div>
           </div>
+        </div>
+      }
+
+      @if (isCurrentStep(5) && showContextStep()) {
+        <div class="grid grid-cols-1 gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input id="context-enabled" type="checkbox" formControlName="contextSwitchEnabled" class="w-4 h-4" />
+            <span class="text-sm text-rp-ink">Allow this user to switch context</span>
+          </label>
+
+          @if (userForm.get('contextSwitchEnabled')?.value) {
+            <fieldset class="rounded-rp-card border border-rp-border bg-rp-card p-4 space-y-3">
+              <legend class="label">Location Scope</legend>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" formControlName="contextLocationScope" value="selected" class="w-4 h-4" />
+                <span class="text-sm text-rp-ink">Selected Locations (the assignments in the previous step)</span>
+              </label>
+              <label class="flex items-center gap-2" [class.cursor-pointer]="canGrantAllContextAccess">
+                <input
+                  id="context-location-all"
+                  type="radio"
+                  formControlName="contextLocationScope"
+                  value="all"
+                  class="w-4 h-4"
+                  [attr.disabled]="canGrantAllContextAccess ? null : true" />
+                <span class="text-sm text-rp-ink">All Business Locations</span>
+              </label>
+            </fieldset>
+
+            <fieldset class="rounded-rp-card border border-rp-border bg-rp-card p-4 space-y-3">
+              <legend class="label">Role Scope</legend>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" formControlName="contextRoleScope" value="mapped" class="w-4 h-4" />
+                <span class="text-sm text-rp-ink">Mapped Roles</span>
+              </label>
+              <label class="flex items-center gap-2" [class.cursor-pointer]="canGrantAllContextAccess">
+                <input
+                  id="context-role-all"
+                  type="radio"
+                  formControlName="contextRoleScope"
+                  value="all"
+                  class="w-4 h-4"
+                  [attr.disabled]="canGrantAllContextAccess ? null : true" />
+                <span class="text-sm text-rp-ink">All Business Roles</span>
+              </label>
+              @if (!canGrantAllContextAccess) {
+                <p class="text-xs text-rp-ink-secondary">Granting an All scope needs the users.context_access.grant_all permission.</p>
+              }
+
+              @if (userForm.get('contextRoleScope')?.value === 'mapped') {
+                <div class="space-y-2 max-h-48 overflow-y-auto border-t border-rp-border pt-3">
+                  @for (role of contextRoleOptions(); track role.id) {
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        class="w-4 h-4"
+                        [checked]="isContextRoleSelected(role.id)"
+                        (change)="toggleContextRole(role.id)" />
+                      <span class="text-sm text-rp-ink">{{ role.name }}</span>
+                    </label>
+                  } @empty {
+                    <p class="text-sm text-rp-ink-secondary">No additional roles are available to map.</p>
+                  }
+                </div>
+              }
+            </fieldset>
+
+            <p class="text-xs text-rp-ink-secondary">The user can always stay on their own role. Switching never bypasses a role's permissions or an operation's location rules.</p>
+          }
         </div>
       }
     </div>

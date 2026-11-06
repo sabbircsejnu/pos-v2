@@ -1,3 +1,5 @@
+using Moq;
+using RetailPOS.Application.Settings.Abstractions;
 using RetailPOS.Application.Sales.Abstractions;
 using RetailPOS.Application.Sales.Commands;
 using RetailPOS.Application.Sales.Queries;
@@ -47,13 +49,25 @@ public sealed class SalesReadQueryHandlerTests
             2,
             1);
         var store = new FakeSaleReadStore(null) { SearchResult = expected };
-        var handler = new SearchSalesQueryHandler(store);
+        var scope = new SaleReadScope(1, [5001]);
+        var scopeProvider = new Mock<ISaleReadScopeProvider>();
+        scopeProvider.Setup(port => port.GetAsync(5001, It.IsAny<CancellationToken>())).ReturnsAsync(scope);
+        var zone = new Mock<ICurrentCompanyTimeZone>();
+        zone.Setup(port => port.GetTimeZoneIdAsync(It.IsAny<CancellationToken>())).ReturnsAsync("Asia/Dhaka");
+        var handler = new SearchSalesQueryHandler(store, scopeProvider.Object, zone.Object);
         using var cancellation = new CancellationTokenSource();
 
         var result = await handler.Handle(new SearchSalesQuery(criteria), cancellation.Token);
 
         Assert.Same(expected, result);
-        Assert.Equal(criteria, store.Criteria);
+        // Picked dates cover whole days in the Company zone.
+        Assert.Equal(
+            criteria with
+            {
+                StartDate = new DateTime(2026, 9, 30, 18, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 10, 3, 18, 0, 0, DateTimeKind.Utc).AddTicks(-1)
+            },
+            store.Criteria);
         Assert.Equal(cancellation.Token, store.CancellationToken);
     }
 
@@ -416,6 +430,7 @@ public sealed class SalesReadQueryHandlerTests
 
         public Task<SaleSearchReadModel> SearchAsync(
             SaleSearchCriteria criteria,
+            SaleReadScope scope,
             CancellationToken cancellationToken)
         {
             Criteria = criteria;

@@ -242,7 +242,9 @@ public sealed class StockCountSearchReadStore(
                 ledger.LocationId == locationId
                 && ledger.LocationType == locationType
                 && ledger.CreatedAt > generatedAt
-                && variantIds.Contains(ledger.VariantId));
+                && variantIds.Contains(ledger.VariantId)
+                // A cost correction moves no stock, so it cannot make a count out of date.
+                && ledger.TransactionType != StockLedgerTransactionType.CostCorrection);
 
         var count = await movementQuery.CountAsync(cancellationToken);
         if (count == 0)

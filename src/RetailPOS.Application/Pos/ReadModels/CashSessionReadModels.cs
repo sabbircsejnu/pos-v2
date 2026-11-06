@@ -132,6 +132,20 @@ public sealed record BusinessDaySalesReadModel(
     int RefundedCount,
     decimal RefundedOriginalTotal);
 
+/// <param name="NetSales">Net of VAT, discounts and recorded voids and refunds: the metric targets are measured against.</param>
+/// <param name="Target">Null when not configured; zero on a scheduled off day.</param>
+/// <param name="Variance">Signed: actual minus target. Null when not configured or on an off day.</param>
+/// <param name="Status">ok, not_configured or off_day.</param>
+public sealed record BusinessDayTargetReadModel(
+    long OutletId,
+    DateOnly BusinessDate,
+    decimal NetSales,
+    decimal? Target,
+    decimal? Variance,
+    decimal? AchievementPercent,
+    string Status,
+    DateTime ServerNowUtc);
+
 public sealed record BusinessDaySalesTotals(
     int CompletedCount,
     decimal CompletedTotal,

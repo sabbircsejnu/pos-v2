@@ -20,7 +20,13 @@ public sealed class AuthenticationCredentialsIssuer(
 
     public AuthenticationCredentials IssueForRefresh(
         AuthenticationProfileData profile,
-        IReadOnlyCollection<string> effectivePermissions)
+        IReadOnlyCollection<string> effectivePermissions) =>
+        IssueForRefresh(profile, effectivePermissions, actingRole: null);
+
+    public AuthenticationCredentials IssueForRefresh(
+        AuthenticationProfileData profile,
+        IReadOnlyCollection<string> effectivePermissions,
+        AuthenticationActingRoleClaims? actingRole)
     {
         AuthenticationTokenRole? role = profile.RoleId.HasValue && profile.RoleName is not null
             ? new AuthenticationTokenRole(
@@ -37,7 +43,7 @@ public sealed class AuthenticationCredentialsIssuer(
                 profile.BusinessId,
                 profile.OutletId),
             role,
-            actingRole: null,
+            actingRole,
             effectivePermissions,
             DateTime.UtcNow);
     }

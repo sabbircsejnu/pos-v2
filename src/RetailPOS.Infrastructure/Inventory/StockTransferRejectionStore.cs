@@ -9,6 +9,7 @@ namespace RetailPOS.Infrastructure.StockTransfers;
 public sealed class StockTransferRejectionStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
+    IStockTransferReceiptAuditWriter auditWriter,
     ILogger<StockTransferRejectionStore> logger)
     : IStockTransferRejectionStore
 {
@@ -43,6 +44,12 @@ public sealed class StockTransferRejectionStore(
                     "This transfer must be In Transit before it can be rejected.");
             }
 
+            if (transfer.OriginalTransferId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "A return of rejected stock cannot be rejected again. Record any units not received as missing or damaged.");
+            }
+
             transfer.Status = StockTransfer.StatusRejected;
             transfer.RejectedBy = rejectedBy;
             transfer.RejectedAt = DateTime.UtcNow;
@@ -55,72 +62,55 @@ public sealed class StockTransferRejectionStore(
                 item.AcceptedQuantity = 0;
                 item.RejectedQuantity = rejectedQuantity;
                 var locationType = NormalizeLocationType(transfer.ToLocationType);
-                var inventoryBalance = await dbContext.Inventories
-                    .Where(inventory =>
-                        inventory.VariantId == item.VariantId
-                        && inventory.LocationId == transfer.ToLocationId
-                        && inventory.LocationType.ToLower() == locationType)
-                    .Select(inventory => (int?)inventory.Quantity)
-                    .FirstOrDefaultAsync(cancellationToken) ?? 0;
+                var inventory = await dbContext.Inventories.FirstOrDefaultAsync(
+                    row => row.VariantId == item.VariantId
+                        && row.LocationId == transfer.ToLocationId
+                        && row.LocationType.ToLower() == locationType,
+                    cancellationToken);
+                StockTransferWriteRules.ClaimForEvidenceOnlyMovement(dbContext, inventory);
 
-                stockLedger.WriteEntry(
+                stockLedger.WriteEntryWithValuation(
                     variantId: item.VariantId,
                     locationId: transfer.ToLocationId,
-                    locationType: transfer.ToLocationType,
+                    locationType: locationType,
                     transactionType: StockLedgerTransactionType.TransferRejection,
                     qtyIn: 0,
                     qtyOut: 0,
-                    balanceAfter: inventoryBalance,
+                    balanceAfter: inventory?.Quantity ?? 0,
                     referenceType: StockLedgerReferenceType.StockTransfer,
                     referenceId: transfer.Id,
                     remarks: $"Transfer rejected. Reason: {reason}",
-                    createdBy: rejectedBy ?? transfer.CreatedBy);
+                    createdBy: rejectedBy ?? transfer.CreatedBy,
+                    unitCost: item.UnitCost);
             }
 
-            var returnItems = transfer.Items
-                .Select(item => new
-                {
-                    item.VariantId,
-                    Quantity = item.RejectedQuantity > 0
-                        ? item.RejectedQuantity
-                        : ResolveTransferQuantity(item)
-                })
-                .Where(item => item.Quantity > 0)
-                .ToArray();
-
-            if (returnItems.Length > 0)
-            {
-                var now = DateTime.UtcNow;
-                var maxId = await dbContext.StockTransfers
-                    .MaxAsync(candidate => (long?)candidate.Id, cancellationToken) ?? 0;
-                var returnTransfer = new StockTransfer
-                {
-                    TransferNo = $"TRF-{now.Year}-{(maxId + 1):D5}",
-                    TransferType = StockTransfer.TransferTypeReturn,
-                    FromLocationId = transfer.ToLocationId,
-                    FromLocationType = transfer.ToLocationType,
-                    ToLocationId = transfer.FromLocationId,
-                    ToLocationType = transfer.FromLocationType,
-                    TransferDate = now,
-                    Status = StockTransfer.StatusDraft,
-                    CreatedBy = rejectedBy ?? transfer.CreatedBy,
-                    CreatedAt = now,
-                    Notes = $"Auto-created return transfer for rejected transfer #{transfer.TransferNo ?? transfer.Id.ToString()}.",
-                    Items = returnItems.Select(item => new StockTransferItem
-                    {
-                        VariantId = item.VariantId,
-                        Quantity = item.Quantity,
-                        RequestedQuantity = item.Quantity,
-                        TransferQuantity = item.Quantity,
-                        AcceptedQuantity = 0,
-                        RejectedQuantity = 0,
-                        UnitCost = 0m
-                    }).ToList()
-                };
-                dbContext.StockTransfers.Add(returnTransfer);
-            }
+            await StockTransferWriteRules.CreateSystemReturnAsync(
+                dbContext,
+                transfer,
+                rejectedBy ?? transfer.CreatedBy,
+                cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            await auditWriter.RecordAsync(
+                new StockTransferReceiptAudit(
+                    transfer.Id,
+                    transfer.TransferNo,
+                    transfer.Status,
+                    transfer.ToLocationId,
+                    transfer.ToLocationType,
+                    rejectedBy,
+                    reason,
+                    transfer.Items
+                        .Select(item => new StockTransferReceiptAuditLine(
+                            item.VariantId,
+                            item.RejectedQuantity,
+                            0,
+                            item.RejectedQuantity,
+                            0,
+                            0,
+                            item.Remarks))
+                        .ToArray()),
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             logger.LogInformation(
                 "Stock transfer {TransferId} rejected by user {UserId}. Reason: {Reason}",

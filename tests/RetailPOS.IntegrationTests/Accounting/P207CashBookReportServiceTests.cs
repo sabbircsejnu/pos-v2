@@ -8,6 +8,8 @@ using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.AccountingReports;
 using RetailPOS.Infrastructure.Data;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class P207CashBookReportServiceTests
@@ -29,7 +31,8 @@ public class P207CashBookReportServiceTests
         var handler = new GetCashBookQueryHandler(
             new CashBookReadStore(db),
             resolver.Object,
-            tenantScope.Object);
+            tenantScope.Object,
+            TestCompanySettings.Provider());
 
         var report = await handler.Handle(
             new GetCashBookQuery(
@@ -192,7 +195,8 @@ public class P207CashBookReportServiceTests
         var handler = new GetCashBookQueryHandler(
             new CashBookReadStore(db),
             resolver.Object,
-            tenantScope.Object);
+            tenantScope.Object,
+            TestCompanySettings.Provider());
         return handler.Handle(
             new GetCashBookQuery(
                 new CashBookFilter(

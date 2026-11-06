@@ -14,5 +14,22 @@
       <div class="mt-5 flex justify-end"><button class="btn btn-primary text-sm" (click)="save()" [disabled]="isSaving()"><i class="fas fa-save" [class.fa-spin]="isSaving()"></i> Save</button></div>
       }
     </section>
+
+    <app-ui-card title="Expense Payment Accounts">
+      <p class="mb-3 text-sm">Accounts that can fund an expense. Expense categories still decide which ledger account the cost posts to. An enabled account is offered only for the payment source it matches: Cash and Petty Cash mappings for petty cash, Bank mappings and registered bank accounts for bank. The POS drawer always uses the outlet's Cash mapping.</p>
+      @if (paymentFlagError()) { <app-ui-alert variant="danger">{{ paymentFlagError() }}</app-ui-alert> }
+      <ul class="flex flex-col gap-2">
+        @for (account of paymentCandidateAccounts(); track account.id) {
+          <li>
+            <label class="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" [checked]="account.isExpensePaymentAccount"
+                     [disabled]="savingPaymentFlagId() === account.id || !auth.hasPermission('accounting.chart_accounts.edit')"
+                     (change)="setPaymentFlag(account, $any($event.target))" />
+              <span>{{ accountLabel(account) }}</span>
+            </label>
+          </li>
+        }
+      </ul>
+    </app-ui-card>
   }
 </div>

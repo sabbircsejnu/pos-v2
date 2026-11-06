@@ -25,6 +25,7 @@ public sealed class ExpenseApprovalPostgresConcurrencyTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.ExpenseApproval,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 await using (var setup = CreateContext(database.ConnectionString))
@@ -66,7 +67,9 @@ public sealed class ExpenseApprovalPostgresConcurrencyTests
                             SupplierPaymentCreationTestHarness.CreateJournalCommandSender(journalStore),
                             tenant.Object),
                         new ExpenseApprovalPreflightBarrierResolver(barrier),
-                        new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy());
+                        new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy(),
+            new RetailPOS.IntegrationTests.Infrastructure.AllowAllExpenseLocations(),
+            new RetailPOS.IntegrationTests.Infrastructure.SequentialExpenseNumbers());
 
                     try
                     {

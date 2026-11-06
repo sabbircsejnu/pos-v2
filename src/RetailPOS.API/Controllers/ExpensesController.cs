@@ -68,7 +68,8 @@ public class ExpensesController : ControllerBase
                 searchDto.StartDate,
                 searchDto.EndDate,
                 searchDto.PageNumber,
-                searchDto.PageSize)),
+                searchDto.PageSize,
+                searchDto.WarehouseId)),
             cancellationToken);
         return Ok(ApiResponse<ExpenseListDto>.SuccessResponse(ExpenseReadModelMapper.ToDto(result)));
     }
@@ -112,7 +113,9 @@ public class ExpensesController : ControllerBase
                     dto.Description,
                     dto.AttachmentPath,
                     dto.ExpenseDate,
-                    dto.OutletId)),
+                    dto.OutletId,
+                    dto.PaymentSource,
+                    dto.WarehouseId)),
             cancellationToken);
         var expense = await GetExpenseDtoAsync(expenseId, cancellationToken);
         return CreatedAtAction(
@@ -152,7 +155,9 @@ public class ExpensesController : ControllerBase
                     dto.Description,
                     dto.AttachmentPath,
                     dto.ExpenseDate,
-                    dto.OutletId)),
+                    dto.OutletId,
+                    dto.PaymentSource,
+                    dto.WarehouseId)),
             cancellationToken);
         var expense = await GetExpenseDtoAsync(expenseId, cancellationToken);
         return Ok(ApiResponse<ExpenseDto>.SuccessResponse(expense, "Expense updated successfully"));

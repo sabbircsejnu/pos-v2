@@ -4,7 +4,11 @@ using RetailPOS.Application.AccountingJournals.Commands;
 using RetailPOS.Application.AccountingJournals.Queries;
 using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.Grns.ReadModels;
+using RetailPOS.Application.Identity.LocationAccess;
 using RetailPOS.Application.Inventory.Abstractions;
+using RetailPOS.Application.Inventory.Costing;
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using RetailPOS.Application.SupplierPayments.Abstractions;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Entities.Audit;
@@ -25,9 +29,49 @@ public sealed class GrnTenantScopeAdapter(ITenantAccessService tenantAccess)
     }
 }
 
+public sealed class GrnReadScopeProviderAdapter(
+    ITenantAccessService tenantAccess,
+    IUserOutletAccessService locationAccess) : IGrnReadScopeProvider
+{
+    public async Task<GrnReadScope> GetAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var businessId = tenantAccess.RequireBusinessId();
+        var authorized = await locationAccess.GetAuthorizedOutletsAsync(LocationAccessPolicy.GrnView);
+        return new GrnReadScope(
+            businessId,
+            authorized.IsGlobalAccess,
+            authorized.Outlets.Select(location => location.Id).ToList(),
+            authorized.Warehouses.Select(location => location.Id).ToList());
+    }
+}
+
+public sealed class GrnReceiptLocationAuthorizerAdapter(IUserOutletAccessService outletAccess)
+    : IGrnReceiptLocationAuthorizer
+{
+    public async Task AuthorizeAsync(
+        string locationType,
+        long locationId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            await outletAccess.EnforceWriteLocationAsync(LocationAccessPolicy.GrnView, locationId, locationType);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // The location can come from the stored document, so the refusal must not name it.
+            throw new UnauthorizedAccessException("You are not assigned to this GRN location.");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+}
+
 public sealed class GrnCompletionAuthorizerAdapter(
     ITenantAccessService tenantAccess,
-    IUserOutletAccessService outletAccess) : IGrnCompletionAuthorizer
+    IGrnReceiptLocationAuthorizer locationAuthorizer) : IGrnCompletionAuthorizer
 {
     public async Task<long?> AuthorizeAsync(
         long? businessId,
@@ -38,13 +82,7 @@ public sealed class GrnCompletionAuthorizerAdapter(
         cancellationToken.ThrowIfCancellationRequested();
         tenantAccess.EnsureBusinessMatch(businessId, "GRN");
         long? authorizedBusinessId = tenantAccess.RequireBusinessId();
-        var location = await outletAccess.EnforceWriteLocationAsync(locationId, locationType);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (location.LocationId != locationId
-            || !string.Equals(location.LocationType, locationType, StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException($"The requested {locationType} is not authorized.");
-
+        await locationAuthorizer.AuthorizeAsync(locationType, locationId, cancellationToken);
         return authorizedBusinessId;
     }
 }
@@ -64,7 +102,25 @@ public sealed class GrnCompletionStockLedgerWriterAdapter(IStockLedgerWriter sto
         long referenceId,
         string remarks,
         long createdBy,
-        decimal unitCost) =>
+        GrnLedgerCost cost)
+    {
+        if (cost.ZeroCostVerified)
+        {
+            stockLedger.WriteVerifiedZeroCostEntry(
+                variantId,
+                locationId,
+                locationType,
+                transactionType,
+                quantityIn,
+                quantityOut,
+                balanceAfter,
+                referenceType,
+                referenceId,
+                remarks,
+                createdBy);
+            return;
+        }
+
         stockLedger.WriteEntryWithValuation(
             variantId,
             locationId,
@@ -77,13 +133,16 @@ public sealed class GrnCompletionStockLedgerWriterAdapter(IStockLedgerWriter sto
             referenceId,
             remarks,
             createdBy,
-            unitCost: unitCost);
+            unitCost: cost.UnitCost,
+            movementValue: cost.MovementValue);
+    }
 }
 
 public sealed class GrnCompletionAccountingPosterAdapter(
     ISender sender,
     IAccountingConfigurationService accountingConfigurationService,
-    ISupplierPayableRecognitionWriter supplierPayableWriter)
+    ISupplierPayableRecognitionWriter supplierPayableWriter,
+    ICompanyTimeZoneProvider timeZones)
     : IGrnCompletionAccountingPoster
 {
     public async Task<long?> PostReceiptAndCreatePayableAsync(
@@ -218,6 +277,9 @@ public sealed class GrnCompletionAccountingPosterAdapter(
                     null));
         }
 
+        var accountingDate = CompanyDates.DateFor(
+            grn.ReceivedDate,
+            await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken));
         var journalId = await sender.Send(
             new CreateOrGetSystemJournalDraftCommand(
                 businessId,
@@ -225,8 +287,8 @@ public sealed class GrnCompletionAccountingPosterAdapter(
                 new ManualJournalDraftInput(
                     "PurchaseReceiptPosting",
                     grn.ReceivedDate,
-                    grn.ReceivedDate,
-                    grn.ReceivedDate.Date,
+                    accountingDate,
+                    accountingDate,
                     "Grn",
                     grn.Id.ToString(),
                     $"GRN-{grn.Id:D6}",

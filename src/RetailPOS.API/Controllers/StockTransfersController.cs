@@ -475,7 +475,9 @@ public class StockTransfersController : ControllerBase
                     item.VariantId,
                     item.AcceptedQuantity,
                     item.RejectedQuantity,
-                    item.Remarks)).ToArray(),
+                    item.Remarks,
+                    item.MissingQuantity,
+                    item.DamagedQuantity)).ToArray(),
                 dto.Notes);
         var transfer = await _sender.Send(
             new ReceiveStockTransferCommand(id, input, userId),
@@ -572,6 +574,10 @@ public class StockTransfersController : ControllerBase
                 TransferQuantity = item.TransferQuantity,
                 AcceptedQuantity = item.AcceptedQuantity,
                 RejectedQuantity = item.RejectedQuantity,
+                MissingQuantity = item.MissingQuantity,
+                DamagedQuantity = item.DamagedQuantity,
+                InTransitQuantity = item.InTransitQuantity,
+                ReturnTransitQuantity = item.ReturnTransitQuantity,
                 UnitCost = item.UnitCost,
                 Remarks = item.Remarks
             });
@@ -610,7 +616,10 @@ public class StockTransfersController : ControllerBase
             CreatedBy = transfer.CreatedBy,
             CreatorName = transfer.CreatorName,
             CreatedAt = transfer.CreatedAt,
-            Items = items
+            Items = items,
+            OriginalTransferId = transfer.OriginalTransferId,
+            ReturnTransferId = transfer.ReturnTransferId,
+            ReturnTransferNo = transfer.ReturnTransferNo
         };
     }
 

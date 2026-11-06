@@ -34,6 +34,31 @@ internal static class OutletPosSetupApplier
                 throw new UnauthorizedAccessException("Managing POS terminals requires the outlets.terminals.manage permission.");
             await ApplyTerminalsAsync(db, outlet, setup.Terminals, isNew, cancellationToken);
         }
+
+        if (setup.InvoicePrint is not null)
+            ApplyInvoicePrint(outlet, setup.InvoicePrint);
+    }
+
+    private static void ApplyInvoicePrint(Outlet outlet, OutletInvoicePrintInput print)
+    {
+        outlet.InvoicePrintBranchName = NextPrintValue(
+            outlet.InvoicePrintBranchName, print.BranchName, OutletPosSetupRules.MaxPrintBranchNameLength, "Invoice print branch name");
+        outlet.BinNumber = NextPrintValue(
+            outlet.BinNumber, print.BinNumber, OutletPosSetupRules.MaxPrintBinLength, "BIN number");
+        outlet.Mushak = NextPrintValue(
+            outlet.Mushak, print.Mushak, OutletPosSetupRules.MaxPrintMushakLength, "Mushak");
+        outlet.ReturnExchangePolicy = NextPrintValue(
+            outlet.ReturnExchangePolicy, print.ReturnExchangePolicy, OutletPosSetupRules.MaxPrintPolicyLength, "Return / exchange policy");
+        outlet.VatLawNotification = NextPrintValue(
+            outlet.VatLawNotification, print.VatLawNotification, OutletPosSetupRules.MaxPrintPolicyLength, "VAT law notification");
+    }
+
+    private static string? NextPrintValue(string? current, string? requested, int maxLength, string label)
+    {
+        var normalized = OutletPosSetupRules.NormalizePrintText(requested, maxLength, label);
+        return normalized is null
+            ? current
+            : normalized.Length == 0 ? null : normalized;
     }
 
     private static async Task ApplyInvoicePrefixAsync(
@@ -185,7 +210,17 @@ internal static class OutletPosSetupApplier
         var setups = await db.Outlets
             .AsNoTracking()
             .Where(outlet => ids.Contains(outlet.Id))
-            .Select(outlet => new { outlet.Id, outlet.InvoicePrefix, outlet.TimeZoneId })
+            .Select(outlet => new
+            {
+                outlet.Id,
+                outlet.InvoicePrefix,
+                outlet.TimeZoneId,
+                outlet.InvoicePrintBranchName,
+                outlet.BinNumber,
+                outlet.Mushak,
+                outlet.ReturnExchangePolicy,
+                outlet.VatLawNotification
+            })
             .ToDictionaryAsync(outlet => outlet.Id, cancellationToken);
         var terminals = await db.PosTerminals
             .AsNoTracking()
@@ -230,7 +265,12 @@ internal static class OutletPosSetupApplier
                     InvoicePrefix = setup?.InvoicePrefix,
                     InvoicePrefixLocked = locked.Contains(outlet.Id),
                     TimeZoneId = setup?.TimeZoneId,
-                    Terminals = outletTerminals ?? []
+                    Terminals = outletTerminals ?? [],
+                    InvoicePrintBranchName = setup?.InvoicePrintBranchName,
+                    BinNumber = setup?.BinNumber,
+                    Mushak = setup?.Mushak,
+                    ReturnExchangePolicy = setup?.ReturnExchangePolicy,
+                    VatLawNotification = setup?.VatLawNotification
                 };
             })
             .ToList();

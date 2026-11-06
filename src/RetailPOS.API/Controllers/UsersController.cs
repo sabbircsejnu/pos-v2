@@ -6,6 +6,7 @@ using RetailPOS.Application.Identity.Commands;
 using RetailPOS.Application.Identity.Queries;
 using RetailPOS.Application.Identity.ReadModels;
 using RetailPOS.Application.Authentication.Commands;
+using RetailPOS.Application.Identity.Permissions;
 using RetailPOS.API.DTOs.Users;
 using RetailPOS.API.Services;
 
@@ -430,6 +431,25 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>Roles that can be mapped for context switching in the caller's business.</summary>
+    [HttpGet("context-role-options")]
+    [Authorize(Policy = PermissionCatalog.UserContextAccessManage)]
+    public async Task<ActionResult<IReadOnlyList<UserContextRoleOptionDto>>> GetContextRoleOptions(
+        [FromQuery] long? businessId = null)
+    {
+        // Only a Super Admin names a business; everyone else stays inside their own.
+        var scope = _tenantAccess.IsSuperAdmin ? businessId : _tenantAccess.RequireBusinessId();
+        if (scope is not long scopedBusinessId)
+        {
+            return Ok(Array.Empty<UserContextRoleOptionDto>());
+        }
+
+        var roles = await _sender.Send(
+            new GetAssignableContextRolesQuery(scopedBusinessId),
+            HttpContext.RequestAborted);
+        return Ok(roles.Select(role => new UserContextRoleOptionDto { Id = role.Id, Name = role.Name }).ToArray());
+    }
+
     private static UserGovernanceProfile ToProfile(CreateUserDto dto) => new(
         dto.Name,
         dto.Email,
@@ -442,7 +462,8 @@ public class UsersController : ControllerBase
         dto.InventoryLocationAccessScope,
         dto.BusinessId,
         dto.UserPermissions?.Cast<string?>().ToArray(),
-        dto.IsActive);
+        dto.IsActive,
+        ToContextAccess(dto.ContextAccess));
 
     private static UserGovernanceProfile ToProfile(UpdateUserDto dto) => new(
         dto.Name,
@@ -456,7 +477,13 @@ public class UsersController : ControllerBase
         dto.InventoryLocationAccessScope,
         dto.BusinessId,
         dto.UserPermissions?.Cast<string?>().ToArray(),
-        dto.IsActive);
+        dto.IsActive,
+        ToContextAccess(dto.ContextAccess));
+
+    private static UserContextAccessInput? ToContextAccess(UserContextAccessDto? dto) =>
+        dto is null
+            ? null
+            : new UserContextAccessInput(dto.Enabled, dto.LocationScope, dto.RoleScope, dto.RoleIds.ToArray());
 
     private static UserListDto ToDto(UserListReadModel users) => new()
     {
@@ -481,6 +508,15 @@ public class UsersController : ControllerBase
         DefaultLocationType = user.DefaultLocationType,
         DefaultLocationId = user.DefaultLocationId,
         UserPermissions = user.UserPermissions,
+        ContextAccess = user.ContextAccess is null
+            ? null
+            : new UserContextAccessDto
+            {
+                Enabled = user.ContextAccess.Enabled,
+                LocationScope = user.ContextAccess.LocationScope,
+                RoleScope = user.ContextAccess.RoleScope,
+                RoleIds = user.ContextAccess.RoleIds
+            },
         OutletAssignments = user.OutletAssignments.Select(assignment => new UserOutletAssignmentDto
         {
             Id = assignment.Id,

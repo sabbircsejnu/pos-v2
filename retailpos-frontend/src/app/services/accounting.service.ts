@@ -8,6 +8,8 @@ import {
   ExpenseDto, ExpenseCategoryDto, CreateExpenseDto, UpdateExpenseDto, ApproveExpenseDto, ExpenseSearchRequest, ExpenseSummaryDto,
   OtherIncomeEntryDto, CreateOtherIncomeEntryDto, UpdateOtherIncomeEntryDto, ApproveOtherIncomeEntryDto, OtherIncomeSearchRequest,
   CreateSupplierPaymentDto, SupplierPaymentDto, CreateSupplierAdvanceDto, SupplierAdvanceDto,
+  ChartAccountRow, CreateChartAccountDto, UpdateChartAccountDto,
+  ExpensePaymentAccountDto, ExpensePaymentAccountFilter, ExpenseAccountOptionDto, ExpenseAttachmentDto,
   JournalEntryDto, CreateJournalEntryDto, UpdateJournalEntryDto, ReverseJournalEntryDto, JournalSearchRequest, JournalEntryAttachmentDto,
   BillDto, CreateBillDto, UpdateBillStatusDto, BillSearchRequest, BillSummaryDto,
   FinancialYearDto, CreateFinancialYearDto, UpdateFinancialYearDto, AccountingPeriodDto, CreateAccountingPeriodDto, UpdateAccountingPeriodDto,
@@ -258,6 +260,36 @@ export class AccountingService {
     return this.http.get<any>(`${this.accountingUrl}/chart-accounts`, { params });
   }
 
+  /** Saves only the expense-payment flag: the other fields are sent back as read, because the API replaces them. */
+  setChartAccountExpensePaymentFlag(account: ChartAccountRow, isExpensePaymentAccount: boolean): Observable<{ data: ChartAccountRow }> {
+    return this.http.put<{ data: ChartAccountRow }>(`${this.accountingUrl}/chart-accounts/${account.id}`, {
+      accountName: account.accountName,
+      parentAccountId: account.parentAccountId ?? null,
+      isControlAccount: account.isControlAccount,
+      allowManualPosting: account.allowManualPosting,
+      isActive: account.isActive,
+      displayOrder: account.displayOrder,
+      isExpensePaymentAccount
+    });
+  }
+
+  /** Every account of the Business, active or not, for the Chart of Accounts screen. */
+  getAllChartAccounts(): Observable<{ data: ChartAccountRow[] }> {
+    return this.http.get<{ data: ChartAccountRow[] }>(`${this.accountingUrl}/chart-accounts`);
+  }
+
+  createChartAccount(dto: CreateChartAccountDto): Observable<{ data: ChartAccountRow }> {
+    return this.http.post<{ data: ChartAccountRow }>(`${this.accountingUrl}/chart-accounts`, dto);
+  }
+
+  updateChartAccount(id: number, dto: UpdateChartAccountDto): Observable<{ data: ChartAccountRow }> {
+    return this.http.put<{ data: ChartAccountRow }>(`${this.accountingUrl}/chart-accounts/${id}`, dto);
+  }
+
+  deactivateChartAccount(id: number): Observable<unknown> {
+    return this.http.post(`${this.accountingUrl}/chart-accounts/${id}/deactivate`, null);
+  }
+
   getChartAccounts(accountType?: string): Observable<{ data: Array<{ id: number; accountCode: string; accountName: string }> }> {
     let params = new HttpParams().set('isActive', 'true');
     if (accountType) params = params.set('accountType', accountType);
@@ -499,6 +531,39 @@ export class AccountingService {
   }
 
   // ─── Expenses ─────────────────────────────────────────────────────────────
+
+  /** Funding accounts for expenses, narrowed to what a source may credit at a location; needs no Chart of Accounts access. */
+  getExpensePaymentAccounts(filter: ExpensePaymentAccountFilter = {}): Observable<{ data: ExpensePaymentAccountDto[] }> {
+    let params = new HttpParams();
+    if (filter.paymentSource) params = params.set('paymentSource', filter.paymentSource);
+    if (filter.outletId) params = params.set('outletId', filter.outletId);
+    if (filter.warehouseId) params = params.set('warehouseId', filter.warehouseId);
+    return this.http.get<{ data: ExpensePaymentAccountDto[] }>(`${this.expensesUrl}/payment-accounts`, { params });
+  }
+
+  /** Ledger accounts a category may be mapped to; needs category management, not Chart of Accounts access. */
+  getEligibleExpenseAccounts(): Observable<{ data: ExpenseAccountOptionDto[] }> {
+    return this.http.get<{ data: ExpenseAccountOptionDto[] }>(`${this.expensesUrl}/expense-accounts`);
+  }
+
+  getExpenseAttachments(expenseId: number): Observable<{ data: ExpenseAttachmentDto[] }> {
+    return this.http.get<{ data: ExpenseAttachmentDto[] }>(`${this.expensesUrl}/${expenseId}/attachments`);
+  }
+
+  uploadExpenseAttachment(expenseId: number, file: File): Observable<{ data: ExpenseAttachmentDto }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ data: ExpenseAttachmentDto }>(`${this.expensesUrl}/${expenseId}/attachments`, formData);
+  }
+
+  deleteExpenseAttachment(expenseId: number, attachmentId: number): Observable<unknown> {
+    return this.http.delete(`${this.expensesUrl}/${expenseId}/attachments/${attachmentId}`);
+  }
+
+  getExpenseAttachmentContent(expenseId: number, attachmentId: number, inline: boolean): Observable<Blob> {
+    const params = new HttpParams().set('inline', inline);
+    return this.http.get(`${this.expensesUrl}/${expenseId}/attachments/${attachmentId}/content`, { params, responseType: 'blob' });
+  }
 
   getExpenseCategories(includeInactive = false): Observable<any> {
     const params = new HttpParams().set('includeInactive', includeInactive);

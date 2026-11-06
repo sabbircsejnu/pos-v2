@@ -34,9 +34,15 @@ public class ProductImagesControllerCharacterizationTests
         var route = Assert.Single(typeof(ProductImagesController).GetCustomAttributes(typeof(RouteAttribute), true)
             .Cast<RouteAttribute>());
         Assert.Equal("api/products/{productId:long}/images", route.Template);
-        Assert.Equal("products.view", Assert.Single(typeof(ProductImagesController)
+        // The controller only requires authentication; reading images is the product-record lookup
+        // (products.view or products.edit), so editing a product implies reading its media.
+        Assert.Null(Assert.Single(typeof(ProductImagesController)
             .GetCustomAttributes(typeof(AuthorizeAttribute), true)
             .Cast<AuthorizeAttribute>()).Policy);
+        Assert.Equal(RetailPOS.API.Authorization.LookupAuthorizationPolicies.ProductRecordRead, Assert.Single(
+            typeof(ProductImagesController).GetMethod(nameof(ProductImagesController.List))!
+                .GetCustomAttributes(typeof(AuthorizeAttribute), true)
+                .Cast<AuthorizeAttribute>()).Policy);
         sender.Verify(service => service.Send(
             It.IsAny<IRequest<IReadOnlyList<ProductImageReadModel>>>(),
             It.IsAny<CancellationToken>()), Times.Once);

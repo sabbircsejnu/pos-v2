@@ -9,6 +9,8 @@ using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.AccountingReports;
 using RetailPOS.Infrastructure.Data;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class P206ValuationReportServiceTests
@@ -178,7 +180,7 @@ public class P206ValuationReportServiceTests
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1L);
         var handler = new GetCogsReportQueryHandler(
-            new CogsReportReadStore(db),
+            new CogsReportReadStore(db, TestCompanySettings.Provider()),
             tenantScope.Object);
         return await handler.Handle(
             new GetCogsReportQuery(new CogsReportFilter(
@@ -199,7 +201,7 @@ public class P206ValuationReportServiceTests
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1L);
         var handler = new GetInventoryValuationQueryHandler(
-            new InventoryValuationReadStore(db),
+            new InventoryValuationReadStore(db, TestCompanySettings.Provider()),
             tenantScope.Object);
         var result = await handler.Handle(
             new GetInventoryValuationQuery(new InventoryValuationFilter(

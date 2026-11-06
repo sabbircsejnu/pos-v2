@@ -76,7 +76,8 @@ public class StockTransferUpdateSqliteTests : IClassFixture<SqliteRetailPosApiFa
         var persistedItem = Assert.Single(persisted.Items);
         Assert.Equal("original-line", persistedItem.Remarks);
         Assert.Equal(1, persistedItem.Quantity);
-        Assert.Equal(10m, persistedItem.UnitCost);
+        // The cost is decided at dispatch, so neither the original nor the failed client value is kept.
+        Assert.Equal(0m, persistedItem.UnitCost);
         Assert.Equal(50, (await verifyDb.Inventories.SingleAsync()).Quantity);
         Assert.Empty(verifyDb.StockLedgers);
     }

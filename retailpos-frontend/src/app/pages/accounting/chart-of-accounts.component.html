@@ -1,0 +1,106 @@
+<div class="flex flex-col gap-4 p-4">
+  <app-ui-page-header
+    title="Chart of Accounts"
+    description="The ledger accounts of this business. Accounts with history stay on record and are never deleted.">
+    @if (canCreate) {
+      <button uiPagePrimaryActions appUiButton type="button" (click)="openCreate()">Add account</button>
+    }
+  </app-ui-page-header>
+
+  <app-ui-data-table
+    ariaLabel="Chart of accounts"
+    density="compact"
+    rowKey="id"
+    [columns]="columns"
+    [rows]="rows()"
+    [loading]="isLoading()"
+    [error]="loadError()"
+    errorTitle="Could not load the chart of accounts"
+    loadingLabel="Loading accounts…"
+    emptyTitle="No accounts yet"
+    emptyMessage="Accounts appear here once accounting has been set up for this business."
+    searchLabel="Search accounts"
+    searchPlaceholder="Search code or name…"
+    [paginated]="false"
+    (retry)="load()">
+    <ng-template uiTableCell="accountCode" let-row>
+      <span [style.padding-inline-start]="'calc(var(--rp-space-4) * ' + row.depth + ')'">{{ row.accountCode }}</span>
+    </ng-template>
+    <ng-template uiTableRowActions let-row>
+      @if (canEdit) {
+        <div class="flex flex-wrap justify-end gap-1">
+          <button appUiButton type="button" variant="ghost" size="sm" [attr.aria-label]="'Edit account ' + row.accountCode" (click)="openEdit(row.account)">Edit</button>
+          @if (!row.account.isSystemAccount) {
+            @if (row.account.isActive) {
+              <button appUiButton type="button" variant="ghost" size="sm" [attr.aria-label]="'Deactivate account ' + row.accountCode" (click)="askDeactivate(row.account)">Deactivate</button>
+            } @else {
+              <button appUiButton type="button" variant="ghost" size="sm" [attr.aria-label]="'Activate account ' + row.accountCode" [disabled]="isChangingStatus()" (click)="activate(row.account)">Activate</button>
+            }
+          }
+        </div>
+      }
+    </ng-template>
+  </app-ui-data-table>
+</div>
+
+<app-ui-dialog [(open)]="showForm" [title]="editing() ? 'Edit account' : 'Add account'" size="md">
+  <form class="ui-form-stack" [formGroup]="form" (ngSubmit)="save()">
+    @if (formError()) {
+      <app-ui-alert variant="danger">{{ formError() }}</app-ui-alert>
+    }
+    <app-ui-form-field label="Account code" [required]="true" [hint]="editing() ? 'Fixed once the account exists.' : 'Must be unique in this business.'">
+      <input appUiControl type="text" formControlName="accountCode" maxlength="30" />
+    </app-ui-form-field>
+    <app-ui-form-field label="Account name" [required]="true">
+      <input appUiControl type="text" formControlName="accountName" maxlength="150" />
+    </app-ui-form-field>
+    <app-ui-form-field label="Account type" [required]="true" [hint]="editing() ? 'Fixed once the account exists.' : ''">
+      <select appUiControl formControlName="accountType" (change)="onTypeChange()">
+        @for (type of accountTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </app-ui-form-field>
+    <app-ui-form-field label="Normal balance" [required]="true" [hint]="editing() ? 'Fixed once the account exists.' : ''">
+      <select appUiControl formControlName="normalBalanceType">
+        <option value="Debit">Debit</option>
+        <option value="Credit">Credit</option>
+      </select>
+    </app-ui-form-field>
+    <app-ui-form-field label="Parent account" [hint]="editing()?.isSystemAccount ? 'System accounts cannot be moved.' : 'Optional. Only active accounts of the same type.'">
+      <select appUiControl formControlName="parentAccountId">
+        <option [ngValue]="null">Top level</option>
+        @for (account of parentOptions(); track account.id) {
+          <option [ngValue]="account.id">{{ label(account) }}</option>
+        }
+      </select>
+    </app-ui-form-field>
+    <app-ui-form-field label="Display order">
+      <input appUiControl type="number" min="0" step="1" formControlName="displayOrder" />
+    </app-ui-form-field>
+    <label class="flex items-center gap-2 text-sm">
+      <input appUiControl type="checkbox" formControlName="isControlAccount" />
+      <span>Control account (a grouping or subledger account; not selectable for expense categories)</span>
+    </label>
+    <label class="flex items-center gap-2 text-sm">
+      <input appUiControl type="checkbox" formControlName="allowManualPosting" />
+      <span>Allow direct postings (manual journals and expense categories)</span>
+    </label>
+  </form>
+  <button uiDialogFooter appUiButton variant="outline" type="button" [disabled]="isSaving()" (click)="showForm.set(false)">Cancel</button>
+  <button uiDialogFooter appUiButton type="button" [loading]="isSaving()" (click)="save()">{{ editing() ? 'Save changes' : 'Create account' }}</button>
+</app-ui-dialog>
+
+<app-ui-confirm-dialog
+  [(open)]="showDeactivate"
+  title="Deactivate account?"
+  confirmLabel="Deactivate"
+  [destructive]="true"
+  [busy]="isChangingStatus()"
+  (confirmed)="confirmDeactivate()">
+  @if (statusError()) {
+    <app-ui-alert variant="danger">{{ statusError() }}</app-ui-alert>
+  } @else {
+    <p>{{ statusTarget() ? label(statusTarget()!) : '' }} will no longer be available for new transactions. Existing ledger history stays unchanged.</p>
+  }
+</app-ui-confirm-dialog>

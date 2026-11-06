@@ -74,6 +74,7 @@ import { StockCountListComponent } from './pages/stock-counts/stock-count-list.c
 import { StockCountCreateComponent } from './pages/stock-counts/stock-count-create.component';
 import { StockCountDetailsComponent } from './pages/stock-counts/stock-count-details.component';
 import { AccountsListComponent } from './pages/accounting/accounts-list.component';
+import { ChartOfAccountsComponent } from './pages/accounting/chart-of-accounts.component';
 import { TransactionsListComponent } from './pages/accounting/transactions-list.component';
 import { ExpensesListComponent } from './pages/accounting/expenses-list.component';
 import { ExpenseFormComponent } from './pages/accounting/expense-form.component';
@@ -139,6 +140,20 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: DashboardComponent },
+      {
+        path: 'dashboard/sales-finance',
+        loadComponent: () => import('./pages/owner-dashboard/sales-finance-page.component')
+          .then(page => page.SalesFinancePageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['dashboard.sales_finance.view'] }
+      },
+      {
+        path: 'dashboard/inventory-intelligence',
+        loadComponent: () => import('./pages/owner-dashboard/inventory-intelligence-page.component')
+          .then(page => page.InventoryIntelligencePageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['dashboard.inventory_intelligence.view'] }
+      },
       { path: 'search', component: GlobalSearchComponent },
       {
         path: 'hr/dashboard',
@@ -360,8 +375,8 @@ export const routes: Routes = [
 
       // Outlet Management Routes
       { path: 'outlets', component: OutletListComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.view'] } },
-      { path: 'outlets/create', component: OutletFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.create'] } },
-      { path: 'outlets/edit/:id', component: OutletFormComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.edit'] } },
+      { path: 'outlets/create', component: OutletFormComponent, canActivate: [routePermissionGuard], canDeactivate: [unsavedChangesGuard], data: { permissions: ['outlets.create'] } },
+      { path: 'outlets/edit/:id', component: OutletFormComponent, canActivate: [routePermissionGuard], canDeactivate: [unsavedChangesGuard], data: { permissions: ['outlets.edit'] } },
       { path: 'outlets/:id', component: OutletDetailsComponent, canActivate: [routePermissionGuard], data: { permissions: ['outlets.view'] } },
 
       // Warehouse Management Routes
@@ -470,13 +485,14 @@ export const routes: Routes = [
 
       // Accounting Routes
       { path: 'accounts', component: AccountsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.chart_accounts.view'] } },
+      { path: 'accounting/chart-of-accounts', component: ChartOfAccountsComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.chart_accounts.view'], title: 'Chart of Accounts' } },
       { path: 'settings/accounting', component: AccountingConfigurationComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.configuration.view'] } },
       { path: 'accounting/reconciliation', component: BankReconciliationComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.reconciliation.view'] } },
       { path: 'accounting/close-workbench', component: AccountingCloseWorkbenchComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.close.audit.view'], title: 'Close Workbench' } },
       { path: 'financial-postings', component: FinancialPostingsComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.financial_postings.view'], title: 'Sale GL Postings' } },
       { path: 'financial-years', component: FinancialYearsComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.financial_years.view', 'accounting.periods.view'], title: 'Financial Years / Accounting Periods' } },
       { path: 'opening-balance', component: OpeningBalanceComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.opening_balances.post', 'accounting.opening_balances.adjust'], title: 'Opening Balance' } },
-      { path: 'expense-categories', component: ExpenseCategoriesComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.expenses.view'], title: 'Expense Categories' } },
+      { path: 'expense-categories', component: ExpenseCategoriesComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.expenses.view', 'accounting.expense_categories.manage'], title: 'Expense Categories' } },
       { path: 'supplier-payments', component: SupplierPaymentsComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.supplier_payments.view', 'accounting.supplier_advances.view'], title: 'Supplier Payments & Advances' } },
       { path: 'transactions', component: TransactionsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.journals.view'] } },
       { path: 'manual-journals', component: ManualJournalListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.manual_journals.view'] } },

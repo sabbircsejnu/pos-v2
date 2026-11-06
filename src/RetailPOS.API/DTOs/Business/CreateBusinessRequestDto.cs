@@ -25,6 +25,9 @@ public class CreateBusinessRequestDto
     public string? DefaultWarehouseName { get; set; }
     public string? WarehouseManagerName { get; set; }
     public string? WarehouseManagerEmail { get; set; }
+
+    public bool ShowPoweredByOnReceipt { get; set; }
+    public string? PoweredByText { get; set; }
 }
 
 public class CreateBusinessResponseDto
@@ -62,6 +65,14 @@ public class BusinessSummaryDto
     public long OutletCount { get; set; }
     public long WarehouseCount { get; set; }
     public string? BusinessOwnerEmail { get; set; }
+    public bool ShowPoweredByOnReceipt { get; set; }
+    public string? PoweredByText { get; set; }
+}
+
+public class UpdateBusinessReceiptFooterDto
+{
+    public bool ShowPoweredByOnReceipt { get; set; }
+    public string? PoweredByText { get; set; }
 }
 
 public class UpdateBusinessStatusDto

@@ -2,7 +2,7 @@ import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { inject as injectCompanyDates } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -22,11 +22,30 @@ import { BarcodeService } from '../../services/barcode.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { AlertService } from '../../services/alert.service';
 import { CurrencyService } from '../../services/currency.service';
+import { UI_KIT } from '../../components/shared/ui';
+import {
+  DEFAULT_PRINTER_MARGIN_MM,
+  LabelPrintSettings,
+  MIN_RELIABLE_MODULE_WIDTH_MM,
+  ThermalLabelContent,
+  barcodeModuleWidthMm,
+  buildThermalPrintHtml,
+  buildThermalVariantLine,
+  expandQueue,
+  renderThermalBarcode,
+  validateLabelSettings,
+} from './barcode-label-print';
+
+type PrintFormat = 'thermal' | 'a4';
+type PrintOutput = 'browser' | 'pdf';
+
+const PRINT_SETTINGS_STORAGE_KEY = 'barcode_label_print_settings';
+const THERMAL_PREVIEW_LIMIT = 12;
 
 @Component({
   selector: 'app-barcode-labels',
   standalone: true,
-  imports: [UiDateInputDirective, CommonModule, FormsModule, RouterLink],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, RouterLink, ...UI_KIT],
   templateUrl: './barcode-labels.component.html',
   styleUrls: ['./barcode-labels.component.css']
 })
@@ -77,7 +96,21 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
   hasTemplates = signal(false);
   selectedTemplateId = signal<number | null>(null);
   selectedLabelSize = signal('60x40');
-  printMode = signal('browser');
+  customWidthMm = signal<number | null>(60);
+  customHeightMm = signal<number | null>(40);
+  marginTopMm = signal<number | null>(DEFAULT_PRINTER_MARGIN_MM);
+  marginRightMm = signal<number | null>(DEFAULT_PRINTER_MARGIN_MM);
+  marginBottomMm = signal<number | null>(DEFAULT_PRINTER_MARGIN_MM);
+  marginLeftMm = signal<number | null>(DEFAULT_PRINTER_MARGIN_MM);
+  printFormat = signal<PrintFormat>('thermal');
+  printOutput = signal<PrintOutput>('browser');
+  /** The value print history stores: the PDF output, or else how the browser print was laid out. */
+  readonly printMode = computed(() => {
+    if (this.printOutput() === 'pdf') {
+      return 'pdf';
+    }
+    return this.printFormat() === 'thermal' ? 'thermal' : 'browser';
+  });
   showHistory = signal(false);
   sourceModule = signal('barcode-center');
   sourceReferenceType = signal('manual');
@@ -97,6 +130,63 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
 
   isPrinting = signal(false);
 
+  readonly labelSettings = computed<LabelPrintSettings>(() => {
+    const size = this.resolveLabelSize();
+    return {
+      widthMm: size.widthMm,
+      heightMm: size.heightMm,
+      marginTopMm: this.marginTopMm() as number,
+      marginRightMm: this.marginRightMm() as number,
+      marginBottomMm: this.marginBottomMm() as number,
+      marginLeftMm: this.marginLeftMm() as number,
+    };
+  });
+  readonly settingsErrors = computed(() => validateLabelSettings(this.labelSettings(), this.printFormat()));
+  readonly settingsValid = computed(() => Object.keys(this.settingsErrors()).length === 0);
+
+  /** The print document itself, so the preview cannot differ from what is sent to the printer. */
+  readonly thermalPreview = computed<{ html: SafeHtml; shown: number; total: number } | null>(() => {
+    if (this.printFormat() !== 'thermal' || !this.settingsValid()) {
+      return null;
+    }
+
+    const items = this.queue().length > 0 ? this.queue() : [this.previewSampleItem];
+    try {
+      const labels = this.buildThermalLabels(items, THERMAL_PREVIEW_LIMIT);
+      return {
+        html: this.sanitizer.bypassSecurityTrustHtml(buildThermalPrintHtml(labels, this.labelSettings())),
+        shown: labels.length,
+        total: items.reduce((sum, row) => sum + row.quantityPrinted, 0),
+      };
+    } catch {
+      return null;
+    }
+  });
+
+  readonly thinBarcodeWarning = computed(() => {
+    if (this.printFormat() !== 'thermal' || !this.settingsValid()) {
+      return '';
+    }
+
+    const settings = this.labelSettings();
+    const contentWidthMm = settings.widthMm - settings.marginLeftMm - settings.marginRightMm;
+    const thin = new Set<string>();
+    for (const row of this.queue()) {
+      try {
+        const value = this.resolveBarcodeValue(row);
+        if (value && barcodeModuleWidthMm(renderThermalBarcode(value).modules, contentWidthMm) < MIN_RELIABLE_MODULE_WIDTH_MM) {
+          thin.add(value);
+        }
+      } catch {
+        // Values that cannot be encoded are reported when printing starts.
+      }
+    }
+    return thin.size > 0
+      ? `These barcodes may not scan reliably at this label width: ${[...thin].join(', ')}. Use a wider label or smaller side margins.`
+      : '';
+  });
+
+  private hasRememberedLabelSize = false;
   private readonly searchSubject = new Subject<string>();
   private previewBarcodeCacheKey = '';
   private previewBarcodeCacheValue: SafeHtml | null = null;
@@ -109,7 +199,10 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
     private readonly errorHandler: ErrorHandlerService,
     private readonly currency: CurrencyService,
     private readonly sanitizer: DomSanitizer,
-  ) {}
+  ) {
+    this.restorePrintSettings();
+    effect(() => this.savePrintSettings());
+  }
 
   ngOnInit(): void {
     this.companyName.set(this.resolveCompanyName());
@@ -205,7 +298,10 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
         const defaultTemplate = activeTemplates.find(t => t.isDefault) || activeTemplates[0];
         if (defaultTemplate) {
           this.selectedTemplateId.set(defaultTemplate.id);
-          this.tryApplyTemplateSize(defaultTemplate);
+          // A size this device has already been set up for wins over the template default.
+          if (!this.hasRememberedLabelSize) {
+            this.tryApplyTemplateSize(defaultTemplate);
+          }
         }
       },
       error: (error) => this.alertService.error(this.errorHandler.extractErrorMessage(error))
@@ -220,6 +316,22 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
     }
   }
 
+  changeLabelSize(key: string): void {
+    if (key === 'custom') {
+      const current = this.resolveLabelSize();
+      this.customWidthMm.set(current.widthMm);
+      this.customHeightMm.set(current.heightMm);
+    }
+    this.selectedLabelSize.set(key);
+  }
+
+  setLabelDimension(dimension: 'width' | 'height', value: number | null): void {
+    const current = this.resolveLabelSize();
+    this.customWidthMm.set(dimension === 'width' ? value : current.widthMm);
+    this.customHeightMm.set(dimension === 'height' ? value : current.heightMm);
+    this.selectedLabelSize.set('custom');
+  }
+
   printQueue(): void {
     if (this.queue().length === 0) {
       this.alertService.warning('Add at least one variant to the print queue.');
@@ -231,20 +343,36 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const labelSize = this.resolveLabelSize();
+    if (!this.settingsValid()) {
+      this.alertService.warning('Correct the label size and margins before printing.');
+      return;
+    }
+
+    const barcodeProblem = this.findBarcodeProblem();
+    if (barcodeProblem) {
+      this.alertService.error(barcodeProblem);
+      return;
+    }
+
+    const settings = this.labelSettings();
     const payload: RecordBarcodePrintHistoryRequest = {
       templateId: this.selectedTemplateId() || undefined,
       companyName: this.companyName(),
       printMode: this.printMode(),
-      labelWidthMm: labelSize.widthMm,
-      labelHeightMm: labelSize.heightMm,
+      printLayout: this.printFormat(),
+      labelWidthMm: settings.widthMm,
+      labelHeightMm: settings.heightMm,
+      marginTopMm: settings.marginTopMm,
+      marginRightMm: settings.marginRightMm,
+      marginBottomMm: settings.marginBottomMm,
+      marginLeftMm: settings.marginLeftMm,
       sourceModule: this.sourceModule(),
       sourceReferenceType: this.sourceReferenceType(),
       sourceReferenceId: this.sourceReferenceId(),
-      items: this.queue().map(item => ({ ...item }))
+      items: this.queue().map(item => ({ ...item, priceText: this.buildPriceText(item) }))
     };
 
-    if (this.printMode() === 'pdf') {
+    if (this.printOutput() === 'pdf') {
       this.generatePdfAndRecord(payload);
       return;
     }
@@ -253,9 +381,7 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
     this.barcodeService.recordPrintHistory(payload, this.queue().length > 1).subscribe({
       next: () => {
         this.openPrintWindow();
-        this.alertService.success(this.printMode() === 'pdf'
-          ? 'Print layout opened. Use Save as PDF in the print dialog.'
-          : 'Print layout opened successfully.');
+        this.alertService.success('Print dialog opened.');
         if (this.showHistory()) {
           this.loadHistory();
         }
@@ -342,6 +468,10 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
     return `${size.widthMm}x${size.heightMm}mm`;
   }
 
+  getFormatLabel(): string {
+    return this.printFormat() === 'thermal' ? 'Thermal Label' : 'A4 Sheet';
+  }
+
   getPreviewTitle(): string {
     return this.buildRetailTitle(this.getPreviewItem());
   }
@@ -371,7 +501,12 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
       return this.previewBarcodeCacheValue;
     }
 
-    const markup = this.buildBarcodeSvgMarkup(value, size.widthMm, size.heightMm);
+    let markup = '';
+    try {
+      markup = this.buildBarcodeSvgMarkup(value, size.widthMm, size.heightMm);
+    } catch {
+      // A value that cannot be encoded shows no bars here; printing reports it by name.
+    }
     const safe = this.sanitizer.bypassSecurityTrustHtml(markup);
     this.previewBarcodeCacheKey = cacheKey;
     this.previewBarcodeCacheValue = safe;
@@ -401,19 +536,133 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
   }
 
   private resolveLabelSize(): LabelSizePreset {
-    const selected = this.labelSizes.find(x => x.key === this.selectedLabelSize());
-    if (selected) {
-      return selected;
+    if (this.selectedLabelSize() === 'custom') {
+      return {
+        key: 'custom',
+        name: 'Custom',
+        widthMm: this.customWidthMm() as number,
+        heightMm: this.customHeightMm() as number,
+      };
     }
 
-    return this.labelSizes[2];
+    return this.labelSizes.find(x => x.key === this.selectedLabelSize()) ?? this.labelSizes[2];
   }
 
   private tryApplyTemplateSize(template: BarcodeTemplate): void {
-    const match = this.labelSizes.find(x => x.widthMm === Number(template.labelWidthMm) && x.heightMm === Number(template.labelHeightMm));
+    const widthMm = Number(template.labelWidthMm);
+    const heightMm = Number(template.labelHeightMm);
+    const match = this.labelSizes.find(x => x.widthMm === widthMm && x.heightMm === heightMm);
     if (match) {
       this.selectedLabelSize.set(match.key);
+      return;
     }
+
+    if (widthMm > 0 && heightMm > 0) {
+      this.customWidthMm.set(widthMm);
+      this.customHeightMm.set(heightMm);
+      this.selectedLabelSize.set('custom');
+    }
+  }
+
+  private resolveBarcodeValue(row: BarcodePrintQueueItem): string {
+    return (row.barcodeValue || row.variantSku || '').trim();
+  }
+
+  private buildPriceText(row: BarcodePrintQueueItem): string {
+    return `MRP: ${this.formatCurrency(row.sellingPrice)}`;
+  }
+
+  private buildThermalLabels(items: BarcodePrintQueueItem[], limit?: number): ThermalLabelContent[] {
+    const company = this.companyName();
+    const barcodes = new Map<string, string>();
+
+    return expandQueue(items, limit).map(row => {
+      const value = this.resolveBarcodeValue(row);
+      let barcodeSvg = barcodes.get(value);
+      if (barcodeSvg === undefined) {
+        barcodeSvg = renderThermalBarcode(value).markup;
+        barcodes.set(value, barcodeSvg);
+      }
+
+      return {
+        company,
+        title: this.buildRetailTitle(row),
+        variantLine: buildThermalVariantLine(row),
+        barcodeSvg,
+        priceText: this.buildPriceText(row),
+      };
+    });
+  }
+
+  /** Checked before anything is recorded, so history never claims a print that could not be produced. */
+  private findBarcodeProblem(): string | null {
+    for (const row of this.queue()) {
+      const value = this.resolveBarcodeValue(row);
+      if (!value) {
+        return `${row.productName} has no barcode or SKU to print.`;
+      }
+      try {
+        renderThermalBarcode(value);
+      } catch {
+        return `Barcode "${value}" for ${row.productName} contains characters CODE128 cannot encode.`;
+      }
+    }
+    return null;
+  }
+
+  private restorePrintSettings(): void {
+    try {
+      const stored = JSON.parse(localStorage.getItem(PRINT_SETTINGS_STORAGE_KEY) ?? 'null');
+      if (!stored) {
+        return;
+      }
+
+      if (stored.format === 'thermal' || stored.format === 'a4') {
+        this.printFormat.set(stored.format);
+      }
+      if (stored.output === 'browser' || stored.output === 'pdf') {
+        this.printOutput.set(stored.output);
+      }
+      if (stored.sizeKey === 'custom' || this.labelSizes.some(size => size.key === stored.sizeKey)) {
+        this.selectedLabelSize.set(stored.sizeKey);
+        this.customWidthMm.set(this.storedNumber(stored.widthMm, 60));
+        this.customHeightMm.set(this.storedNumber(stored.heightMm, 40));
+        this.hasRememberedLabelSize = true;
+      }
+      this.marginTopMm.set(this.storedNumber(stored.marginTopMm, DEFAULT_PRINTER_MARGIN_MM));
+      this.marginRightMm.set(this.storedNumber(stored.marginRightMm, DEFAULT_PRINTER_MARGIN_MM));
+      this.marginBottomMm.set(this.storedNumber(stored.marginBottomMm, DEFAULT_PRINTER_MARGIN_MM));
+      this.marginLeftMm.set(this.storedNumber(stored.marginLeftMm, DEFAULT_PRINTER_MARGIN_MM));
+    } catch {
+      // Unreadable or blocked storage: keep the defaults.
+    }
+  }
+
+  private savePrintSettings(): void {
+    const settings = {
+      format: this.printFormat(),
+      output: this.printOutput(),
+      sizeKey: this.selectedLabelSize(),
+      widthMm: this.customWidthMm(),
+      heightMm: this.customHeightMm(),
+      marginTopMm: this.marginTopMm(),
+      marginRightMm: this.marginRightMm(),
+      marginBottomMm: this.marginBottomMm(),
+      marginLeftMm: this.marginLeftMm(),
+    };
+    if (!this.settingsValid()) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(PRINT_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      // Blocked storage: the settings still apply to this session.
+    }
+  }
+
+  private storedNumber(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   }
 
   private generatePdfAndRecord(payload: RecordBarcodePrintHistoryRequest): void {
@@ -458,23 +707,30 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
   }
 
   private openPrintWindow(): void {
-    const labelSize = this.resolveLabelSize();
-    const html = this.buildPrintHtml(this.queue(), labelSize.widthMm, labelSize.heightMm, this.companyName());
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    const settings = this.labelSettings();
+    const html = this.printFormat() === 'thermal'
+      ? buildThermalPrintHtml(this.buildThermalLabels(this.queue()), settings)
+      : this.buildPrintHtml(this.queue(), settings.widthMm, settings.heightMm, this.companyName());
 
-    if (!printWindow) {
-      this.alertService.error('Popup blocked by browser. Please allow popups and try again.');
-      return;
-    }
+    // A hidden frame prints its own document, including its @page rules, and cannot be stopped by a popup blocker.
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.tabIndex = -1;
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1200px;height:800px;border:0;';
+    frame.onload = () => {
+      const printWindow = frame.contentWindow;
+      if (!printWindow) {
+        frame.remove();
+        this.alertService.error('Could not open the print dialog. Please try again.');
+        return;
+      }
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-
-    setTimeout(() => {
+      printWindow.addEventListener('afterprint', () => frame.remove(), { once: true });
       printWindow.focus();
       printWindow.print();
-    }, 350);
+    };
+    frame.srcdoc = html;
+    document.body.appendChild(frame);
   }
 
   private buildPrintHtml(
@@ -581,7 +837,11 @@ export class BarcodeLabelsComponent implements OnInit, OnDestroy {
   }
 
   private buildBarcodeSvgMarkup(value: string, widthMm: number, heightMm: number): string {
-    const barcodeValue = value.trim() || 'CM00181';
+    const barcodeValue = value.trim();
+    if (!barcodeValue) {
+      return '';
+    }
+
     const svg = document.createElementNS(BarcodeLabelsComponent.SVG_NS, 'svg');
 
     JsBarcode(svg, barcodeValue, {

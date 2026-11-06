@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -19,6 +20,7 @@ import { Supplier } from '../../models/supplier.model';
   styleUrls: ['./supplier-payments.component.css']
 })
 export class SupplierPaymentsComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   paymentForm!: FormGroup;
   advanceForm!: FormGroup;
   suppliers = signal<Supplier[]>([]);
@@ -46,7 +48,7 @@ export class SupplierPaymentsComponent implements OnInit {
   private initializeForms(): void {
     this.paymentForm = this.fb.group({
       supplierId: [null, Validators.required],
-      paymentDate: [new Date().toISOString().split('T')[0], Validators.required],
+      paymentDate: [this.companyToday.todayIso(), Validators.required],
       paymentMethod: ['Cash', Validators.required],
       paymentAccountId: [1, Validators.required],
       amount: [null, [Validators.required, Validators.min(0.01)]],
@@ -56,7 +58,7 @@ export class SupplierPaymentsComponent implements OnInit {
 
     this.advanceForm = this.fb.group({
       supplierId: [null, Validators.required],
-      paymentDate: [new Date().toISOString().split('T')[0], Validators.required],
+      paymentDate: [this.companyToday.todayIso(), Validators.required],
       paymentMethod: ['Cash', Validators.required],
       paymentAccountId: [1, Validators.required],
       amount: [null, [Validators.required, Validators.min(0.01)]],
@@ -121,7 +123,7 @@ export class SupplierPaymentsComponent implements OnInit {
         this.alertService.success('Supplier payment created successfully.');
         this.paymentForm.reset({
           supplierId: null,
-          paymentDate: new Date().toISOString().split('T')[0],
+          paymentDate: this.companyToday.todayIso(),
           paymentMethod: 'Cash',
           paymentAccountId: 1,
           amount: null,
@@ -160,7 +162,7 @@ export class SupplierPaymentsComponent implements OnInit {
         this.alertService.success('Supplier advance created successfully.');
         this.advanceForm.reset({
           supplierId: null,
-          paymentDate: new Date().toISOString().split('T')[0],
+          paymentDate: this.companyToday.todayIso(),
           paymentMethod: 'Cash',
           paymentAccountId: 1,
           amount: null,

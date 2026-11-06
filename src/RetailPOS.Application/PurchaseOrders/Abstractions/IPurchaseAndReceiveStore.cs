@@ -1,3 +1,4 @@
+using RetailPOS.Application.Inventory.Costing;
 using RetailPOS.Application.PurchaseOrders.Commands;
 using RetailPOS.Core.Entities;
 
@@ -29,7 +30,8 @@ public interface IPurchaseAndReceiveStockLedgerWriter
         string referenceType,
         long referenceId,
         string remarks,
-        long? createdBy);
+        long? createdBy,
+        GrnLedgerCost cost);
 }
 
 public interface IPurchaseReceiptJournalPoster

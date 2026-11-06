@@ -10,6 +10,11 @@ public interface IAuthenticationCredentialsIssuer
         AuthenticationProfileData profile,
         IReadOnlyCollection<string> effectivePermissions);
 
+    AuthenticationCredentials IssueForRefresh(
+        AuthenticationProfileData profile,
+        IReadOnlyCollection<string> effectivePermissions,
+        AuthenticationActingRoleClaims? actingRole);
+
     AuthenticationCredentials IssueForRoleSwitch(
         AuthenticationUser user,
         IReadOnlyCollection<string> actingPermissions,

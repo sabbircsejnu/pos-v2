@@ -2,7 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RetailPOS.Application.Outlets;
 using RetailPOS.Application.Outlets.Abstractions;
+using RetailPOS.Application.Outlets.SalesTargets;
+using RetailPOS.Application.Settings.Abstractions;
+using RetailPOS.Core.Audit;
 using RetailPOS.Core.Entities;
+using RetailPOS.Core.Entities.Audit;
+using RetailPOS.Infrastructure.Audit;
 using RetailPOS.Infrastructure.Data;
 using RetailPOS.Application.Integration;
 using RetailPOS.Infrastructure.Integration;
@@ -12,7 +17,10 @@ namespace RetailPOS.Infrastructure.Outlets;
 public sealed class OutletWriteStore(
     RetailPOSDbContext dbContext,
     IOperationalLocationSourceEventWriter sourceEvents,
-    ILogger<OutletWriteStore> logger) : IOutletWriteStore, IBusinessSetupOutletWriteStore
+    ILogger<OutletWriteStore> logger,
+    ICompanyTimeZoneProvider? timeZones = null,
+    IAuditContext? auditContext = null,
+    IAuditService? auditService = null) : IOutletWriteStore, IBusinessSetupOutletWriteStore
 {
     public async Task<OutletReadModel> CreateAsync(
         string name,
@@ -62,6 +70,7 @@ public sealed class OutletWriteStore(
         };
 
         await OutletPosSetupApplier.ApplyAsync(dbContext, outlet, posSetup, isNew: true, cancellationToken);
+        var targetChange = await ApplySalesTargetsAsync(outlet, posSetup, isNew: true, cancellationToken);
         dbContext.Outlets.Add(outlet);
         try
         {
@@ -76,6 +85,7 @@ public sealed class OutletWriteStore(
         }
 
         logger.LogInformation("Outlet created: ID={Id}, Name={Name}", outlet.Id, outlet.Name);
+        await AuditSalesTargetsAsync(outlet, targetChange, cancellationToken);
 
         var created = await ProjectOutletAsync(outlet.Id, businessId, cancellationToken);
         return created with { UserCount = 0 };
@@ -114,6 +124,7 @@ public sealed class OutletWriteStore(
         outlet.UpdatedAt = DateTime.UtcNow;
 
         await OutletPosSetupApplier.ApplyAsync(dbContext, outlet, posSetup, isNew: false, cancellationToken);
+        var targetChange = await ApplySalesTargetsAsync(outlet, posSetup, isNew: false, cancellationToken);
         try
         {
             await OperationalLocationSourcePersistence.SaveUpdatedAsync(dbContext, sourceEvents, outlet, cancellationToken);
@@ -124,10 +135,113 @@ public sealed class OutletWriteStore(
                 OutletSetupErrorCodes.DuplicateInvoicePrefix,
                 "The invoice prefix is already used by another outlet.");
         }
+        catch (DbUpdateException exception) when (
+            Sales.PostgresViolations.IsUniqueViolation(exception, OutletSalesTargetModelConfiguration.VersionNumberIndex)
+            || Sales.PostgresViolations.IsUniqueViolation(exception, OutletSalesTargetModelConfiguration.ActiveOverrideIndex))
+        {
+            throw new OutletSetupException(
+                SalesTargetErrorCodes.Conflict,
+                "Someone else changed this outlet's sales targets. Reload the page and try again.");
+        }
 
         logger.LogInformation("Outlet updated: ID={Id}, Name={Name}", outlet.Id, outlet.Name);
+        await AuditSalesTargetsAsync(outlet, targetChange, cancellationToken);
         return await ProjectOutletAsync(outlet.Id, businessId, cancellationToken);
     }
+
+    private async Task<OutletSalesTargetChange?> ApplySalesTargetsAsync(
+        Outlet outlet,
+        OutletPosSetupInput posSetup,
+        bool isNew,
+        CancellationToken cancellationToken)
+    {
+        if (posSetup.SalesTargets is null)
+            return null;
+        if (timeZones is null)
+            throw new InvalidOperationException("Saving sales targets needs the Company time zone provider.");
+        if (outlet.BusinessId is not long businessId)
+            throw new InvalidOperationException("Sales targets can only be set on an outlet that belongs to a business.");
+
+        var today = DateOnly.FromDateTime(await timeZones.GetTodayAsync(businessId, cancellationToken));
+        return await OutletSalesTargetApplier.ApplyAsync(
+            dbContext,
+            outlet,
+            posSetup.SalesTargets,
+            today,
+            auditContext?.ActingUserId ?? auditContext?.RealUserId,
+            isNew,
+            cancellationToken);
+    }
+
+    /// <summary>The configuration rows are the record of what applied when; this adds who changed it and from what.</summary>
+    private async Task AuditSalesTargetsAsync(
+        Outlet outlet,
+        OutletSalesTargetChange? change,
+        CancellationToken cancellationToken)
+    {
+        if (auditService is null || change is null || !change.HasChanges)
+            return;
+
+        var entities = new List<AuditEntityInput>();
+        if (change.NewVersion is { } version)
+        {
+            entities.Add(new AuditEntityInput(
+                nameof(OutletSalesTargetVersion),
+                version.Id.ToString(),
+                AuditOperationType.Insert,
+                [
+                    ("versionNo", change.PreviousVersion?.VersionNo, version.VersionNo),
+                    ("isEnabled", change.PreviousVersion?.IsEnabled, version.IsEnabled),
+                    ("effectiveFrom", change.PreviousVersion?.EffectiveFrom.ToString("yyyy-MM-dd"), version.EffectiveFrom.ToString("yyyy-MM-dd")),
+                    ("weeklyOffDays", DescribeOffDays(change.PreviousVersion?.Days.Where(day => day.IsOffDay).Select(day => day.DayOfWeek)), DescribeOffDays(version.Days.Where(day => day.IsOffDay).Select(day => day.DayOfWeek))),
+                    ("weekdayTargets", DescribeTargets(change.PreviousVersion?.Days.Select(day => (day.DayOfWeek, day.TargetAmount))), DescribeTargets(version.Days.Select(day => (day.DayOfWeek, day.TargetAmount))))
+                ]));
+        }
+
+        foreach (var item in change.ChangedOverrides)
+            entities.Add(new AuditEntityInput(
+                nameof(OutletSalesTargetOverride),
+                item.Id.ToString(),
+                AuditOperationType.Update,
+                [
+                    ("period", null, $"{item.PeriodType} {item.PeriodFrom:yyyy-MM-dd}..{item.PeriodTo:yyyy-MM-dd}"),
+                    ("calculatedAmount", null, item.CalculatedAmount),
+                    ("overrideAmount", null, item.OverrideAmount),
+                    ("reason", null, item.Reason)
+                ]));
+
+        foreach (var item in change.ClearedOverrides)
+            entities.Add(new AuditEntityInput(
+                nameof(OutletSalesTargetOverride),
+                item.Id.ToString(),
+                AuditOperationType.Update,
+                [
+                    ("period", null, $"{item.PeriodType} {item.PeriodFrom:yyyy-MM-dd}..{item.PeriodTo:yyyy-MM-dd}"),
+                    ("resetToAuto", item.OverrideAmount, null)
+                ]));
+
+        await auditService.RecordAsync(new AuditEventInput
+        {
+            ActionType = AuditActionType.Update,
+            Module = AuditModule.Settings,
+            Summary = $"Outlet sales targets changed: {outlet.Id}",
+            PrimaryEntity = (nameof(Outlet), outlet.Id.ToString()),
+            Metadata = new Dictionary<string, object?>
+            {
+                ["businessId"] = outlet.BusinessId,
+                ["outletId"] = outlet.Id
+            },
+            Entities = entities
+        }, cancellationToken);
+    }
+
+    private static string? DescribeOffDays(IEnumerable<DayOfWeek>? days) =>
+        days is null ? null : string.Join(",", days.OrderBy(day => day));
+
+    private static string? DescribeTargets(IEnumerable<(DayOfWeek Day, decimal? Amount)>? days) =>
+        days is null
+            ? null
+            : string.Join(",", days.OrderBy(day => day.Day).Select(day => $"{day.Day}={day.Amount?.ToString("0.00") ?? "-"}"));
 
     public async Task DeleteTerminalAsync(
         long outletId,

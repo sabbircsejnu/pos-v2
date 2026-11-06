@@ -66,5 +66,11 @@ public class UpdateUserDto
     /// </summary>
     public IEnumerable<string>? UserPermissions { get; set; }
 
+    /// <summary>
+    /// Context switching configuration. Omit to leave it unchanged; changing it needs
+    /// users.context_access.manage, and users.context_access.grant_all for an All scope.
+    /// </summary>
+    public UserContextAccessDto? ContextAccess { get; set; }
+
     public bool IsActive { get; set; }
 }

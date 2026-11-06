@@ -169,6 +169,128 @@ describe('CashSessionCloseComponent', () => {
     expect(component.isSubmitting()).toBe(false);
   });
 
+  async function typeInto(fixture: { detectChanges(): void; whenStable(): Promise<unknown> }, input: HTMLInputElement | HTMLSelectElement, value: string) {
+    input.value = value;
+    input.dispatchEvent(new Event(input instanceof HTMLSelectElement ? 'change' : 'input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('updates Handed over and clears the amount error when a handover amount is typed into the field', async () => {
+    const { fixture, component } = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    component.counted.set(150);
+    component.addHandover();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await typeInto(fixture, root.querySelector<HTMLInputElement>('.cs-handover-row input[type="number"]')!, '34.99');
+
+    expect(component.handovers()[0].amount).toBe(34.99);
+    expect(component.handedOver()).toBe(34.99);
+    expect(component.retained()).toBe(115.01);
+    expect(component.rowError(0, 'amount')).toBe('');
+    expect(root.querySelector('[data-testid="handed-over"]')!.textContent).toContain('34.99');
+    expect(root.textContent).not.toContain('Each handover line needs an amount above zero.');
+
+    // The remaining rule is reported against its own field, and clears once the field is typed.
+    expect(component.handoverError()).toContain('person who took the cash');
+    await typeInto(fixture, root.querySelector<HTMLInputElement>('.cs-handover-row input[type="text"]')!, 'Manager');
+    expect(component.handoverError()).toBe('');
+
+    // Switching the method through the select re-validates against the bank-deposit rule.
+    await typeInto(fixture, root.querySelector<HTMLSelectElement>('.cs-handover-row select')!, 'bank_deposit');
+    expect(component.handovers()[0].method).toBe('bank_deposit');
+    expect(component.handoverError()).toContain('bank');
+    await typeInto(fixture, root.querySelector<HTMLInputElement>('.cs-handover-row input[type="text"]')!, 'City Bank');
+    expect(component.handoverError()).toBe('');
+  });
+
+  it('keeps the existing handover rules: zero, empty and over-handover amounts are rejected', async () => {
+    const { fixture, component } = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    component.counted.set(50);
+    component.addHandover();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const amount = () => root.querySelector<HTMLInputElement>('.cs-handover-row input[type="number"]')!;
+
+    await typeInto(fixture, root.querySelector<HTMLInputElement>('.cs-handover-row input[type="text"]')!, 'Owner');
+    await typeInto(fixture, amount(), '0');
+    expect(component.handoverError()).toBe('Each handover line needs an amount above zero.');
+    expect(root.textContent).toContain('Each handover line needs an amount above zero.');
+
+    await typeInto(fixture, amount(), '');
+    expect(component.handovers()[0].amount).toBeNull();
+    expect(component.handoverError()).toBe('Each handover line needs an amount above zero.');
+
+    await typeInto(fixture, amount(), '60');
+    expect(component.handoverError()).toContain('cannot exceed');
+    expect(root.textContent).toContain('Handed-over cash cannot exceed the counted cash.');
+  });
+
+  it('does not flag untouched fields until Review, then shows every inline error', async () => {
+    const { fixture, component } = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    component.addHandover();
+    fixture.detectChanges();
+    expect(component.countFieldError()).toBe('');
+    expect(component.rowError(0, 'amount')).toBe('');
+
+    component.review();
+    fixture.detectChanges();
+    expect(component.reviewing()).toBe(false);
+    expect(component.countFieldError()).toBe('Enter the counted cash.');
+    expect(component.rowError(0, 'amount')).toContain('above zero');
+    expect(root.textContent).toContain('Enter the counted cash.');
+  });
+
+  it('parses handover amounts without accepting non-numeric input', async () => {
+    const { component } = await create();
+    expect(component.parseAmount(34.99)).toBe(34.99);
+    expect(component.parseAmount('34.99')).toBe(34.99);
+    expect(component.parseAmount('')).toBeNull();
+    expect(component.parseAmount(null)).toBeNull();
+    expect(component.parseAmount(Number.NaN)).toBeNull();
+    expect(component.parseAmount('abc')).toBeNull();
+  });
+
+  it('reviews in a dialog: Continue enables Confirm, Cancel withdraws the review', async () => {
+    const { fixture, component, close } = await create();
+    component.setCounted(150);
+    component.review();
+    fixture.detectChanges();
+    expect(component.reviewDialogOpen()).toBe(true);
+    expect(document.body.textContent).toContain('Review Closing Summary');
+
+    component.cancelReview();
+    expect(component.reviewing()).toBe(false);
+    component.confirm(); // not reviewed: re-opens the review instead of submitting
+    expect(close).not.toHaveBeenCalled();
+    expect(component.reviewDialogOpen()).toBe(true);
+
+    component.continueReview();
+    expect(component.reviewDialogOpen()).toBe(false);
+    expect(component.reviewing()).toBe(true);
+    component.confirm();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the denomination counter collapsed until requested and states the exact-match difference', async () => {
+    const { fixture, component } = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('#cs-denominations')).toBeNull();
+    component.denominationsOpen.set(true);
+    fixture.detectChanges();
+    expect(root.querySelectorAll('#cs-denominations input').length).toBe(10);
+
+    component.setCounted(150);
+    expect(component.varianceHint()).toContain('Exact Match');
+    component.setCounted(140);
+    expect(component.varianceHint()).toContain('reason is required');
+  });
+
   it('keeps an overdue session closable and says so', async () => {
     const overdue = detail({ session: { ...baseSession, state: 'overdue', isOverdue: true } as never });
     const { fixture } = await create(overdue);
@@ -305,7 +427,10 @@ describe('CashSessionListComponent', () => {
 
   it('lists history for the default outlet and hides open/close actions without permission', async () => {
     const list = vi.fn().mockReturnValue(of({ data: { items: [], page: 1, pageSize: 20, totalCount: 0, serverNowUtc: '2026-11-03T18:30:00Z' } }));
-    configure({ list }, ['cash_sessions.view']);
+    const businessDaySales = vi.fn().mockReturnValue(of({ data: null }));
+    const openContext = vi.fn().mockReturnValue(of({ data: { terminals: [] } }));
+    const businessDayTarget = vi.fn().mockReturnValue(of({ data: { outletId: 4, businessDate: '2026-11-06', netSales: 0, target: null, variance: null, achievementPercent: null, status: 'not_configured', serverNowUtc: '2026-11-06T04:00:00Z' } }));
+    configure({ list, businessDaySales, businessDayTarget, openContext }, ['cash_sessions.view']);
     TestBed.overrideProvider(UserOutletAccessService, { useValue: { load: () => of({ data: { outlets: [{ id: 4, name: 'Main', type: 'outlet' }], defaultOutletId: 4 } }) } });
     const fixture = TestBed.createComponent(CashSessionListComponent);
     fixture.detectChanges();
@@ -316,5 +441,44 @@ describe('CashSessionListComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Not configured');
     expect(text).not.toContain('Open Cash Session');
+  });
+
+  describe('daily target cards', () => {
+    async function render(target: Record<string, unknown>) {
+      const empty = of({ data: { items: [], totalCount: 0, page: 1, pageSize: 20 } });
+      configure({
+        list: vi.fn().mockReturnValue(empty),
+        businessDaySales: vi.fn().mockReturnValue(of({ data: null })),
+        businessDayTarget: vi.fn().mockReturnValue(of({ data: { outletId: 4, businessDate: '2026-11-06', serverNowUtc: '2026-11-06T04:00:00Z', ...target } })),
+        openContext: vi.fn().mockReturnValue(of({ data: { terminals: [] } }))
+      }, ['cash_sessions.view']);
+      TestBed.overrideProvider(UserOutletAccessService, { useValue: { load: () => of({ data: { outlets: [{ id: 4, name: 'Main', type: 'outlet' }], defaultOutletId: 4 } }) } });
+      const fixture = TestBed.createComponent(CashSessionListComponent);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).textContent ?? '';
+    }
+
+    it('shows the target, percentage and a shortfall below target', async () => {
+      const text = await render({ netSales: 600, target: 1000, variance: -400, achievementPercent: 60, status: 'ok' });
+      expect(text).toContain('60% achieved');
+      expect(text).toContain('Below target');
+    });
+
+    it('shows when sales are above target', async () => {
+      expect(await render({ netSales: 1500, target: 1000, variance: 500, achievementPercent: 150, status: 'ok' })).toContain('Above target');
+    });
+
+    it('shows on target at exactly zero variance', async () => {
+      expect(await render({ netSales: 1000, target: 1000, variance: 0, achievementPercent: 100, status: 'ok' })).toContain('On target');
+    });
+
+    it('shows a scheduled off day with no variance', async () => {
+      const text = await render({ netSales: 500, target: 0, variance: null, achievementPercent: null, status: 'off_day' });
+      expect(text).toContain('Scheduled Off Day');
+      expect(text).toContain('No target applies on an off day.');
+      expect(text).not.toContain('Below target');
+    });
   });
 });

@@ -138,9 +138,13 @@
                 </td>
                 <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ formatCurrency(exp.amount) }}</td>
                 <td class="px-4 py-2.5 text-gray-600">{{ exp.description || '-' }}</td>
-                <td class="px-4 py-2.5 text-gray-600">{{ exp.outletName || '-' }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ exp.outletName || exp.warehouseName || 'Business-level' }}</td>
                 <td class="px-4 py-2.5">
                   <div class="flex items-center justify-center gap-2">
+                        <button (click)="openAttachments(exp, $event)" class="btn btn-ghost py-1 px-2" title="Attachments"
+                          [attr.aria-label]="'Attachments of expense ' + (exp.expenseNumber || exp.id)">
+                      <i class="fas fa-paperclip" aria-hidden="true"></i>
+                    </button>
                         <button [disabled]="!canEdit(exp)"
                           (click)="editExpense(exp.id, $event)" class="btn btn-ghost py-1 px-2" title="Edit">
                       <i class="fas fa-edit"></i>
@@ -216,6 +220,12 @@
         Add Expense
       </button>
     </div>
+  }
+
+  @if (attachmentsExpense(); as expense) {
+    <app-ui-dialog [open]="true" [title]="'Attachments · ' + (expense.expenseNumber || expense.id)" (closed)="attachmentsExpense.set(null)">
+      <app-expense-attachments [expenseId]="expense.id" [editable]="false" />
+    </app-ui-dialog>
   }
 
   @if (payingExpense(); as expense) {

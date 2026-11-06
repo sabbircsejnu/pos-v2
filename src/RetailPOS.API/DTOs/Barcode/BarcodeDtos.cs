@@ -131,6 +131,12 @@ public class CreateBarcodePrintHistoryItemDto
     public string? VariantAttributes { get; set; }
     public decimal? SellingPrice { get; set; }
     public int QuantityPrinted { get; set; }
+
+    /// <summary>Product code used in the label title; derived from the SKU when absent.</summary>
+    public string? MainProductCode { get; set; }
+
+    /// <summary>MRP as the client displays it, so the PDF prints the same text as the browser.</summary>
+    public string? PriceText { get; set; }
 }
 
 public class RecordBarcodePrintHistoryDto
@@ -139,8 +145,15 @@ public class RecordBarcodePrintHistoryDto
     public long? TemplateId { get; set; }
     public string? CompanyName { get; set; }
     public string PrintMode { get; set; } = "pdf";
+
+    /// <summary>"thermal" for one label per page; anything else, or absent, is the A4 sheet.</summary>
+    public string? PrintLayout { get; set; }
     public decimal LabelWidthMm { get; set; } = 60;
     public decimal LabelHeightMm { get; set; } = 40;
+    public decimal MarginTopMm { get; set; } = 1;
+    public decimal MarginRightMm { get; set; } = 1;
+    public decimal MarginBottomMm { get; set; } = 1;
+    public decimal MarginLeftMm { get; set; } = 1;
     public string? SourceModule { get; set; }
     public string? SourceReferenceType { get; set; }
     public long? SourceReferenceId { get; set; }

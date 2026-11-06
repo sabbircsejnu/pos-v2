@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using RetailPOS.API.Authorization;
 using RetailPOS.Application.Authentication.Abstractions;
 using RetailPOS.Application.Identity.Abstractions;
 using RetailPOS.Core.Entities;
@@ -13,6 +14,9 @@ public static class RoleSwitchClaims
     public const string ActingRoleName = AuthenticationClaimNames.ActingRoleName;
     public const string ActingOutletId = AuthenticationClaimNames.ActingOutletId;
     public const string ActingOutletName = AuthenticationClaimNames.ActingOutletName;
+    public const string ActingLocationType = AuthenticationClaimNames.ActingLocationType;
+    public const string ActingWarehouseId = AuthenticationClaimNames.ActingWarehouseId;
+    public const string ActingWarehouseName = AuthenticationClaimNames.ActingWarehouseName;
     public const string IsRoleSwitched = AuthenticationClaimNames.IsRoleSwitched;
     public const string BusinessOwnerRoleName = SystemRoleNames.BusinessOwner;
     public const string SuperAdminRoleName = SystemRoleNames.SuperAdmin;
@@ -49,6 +53,9 @@ public sealed class RoleSwitchContext : IRoleSwitchContext
     public string? ActingRoleName => User?.FindFirst(RoleSwitchClaims.ActingRoleName)?.Value;
     public long? ActingOutletId => TryParseLong(User?.FindFirst(RoleSwitchClaims.ActingOutletId)?.Value);
     public string? ActingOutletName => User?.FindFirst(RoleSwitchClaims.ActingOutletName)?.Value;
+    public long? ActingWarehouseId => TryParseLong(User?.FindFirst(RoleSwitchClaims.ActingWarehouseId)?.Value);
+
+    public bool HasPermission(string permission) => User.HasPermission(permission);
 
     public bool IsRoleSwitched =>
         string.Equals(User?.FindFirst(RoleSwitchClaims.IsRoleSwitched)?.Value, "true",

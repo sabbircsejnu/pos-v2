@@ -94,6 +94,10 @@
       }
     </div>
 
+    @if (canManagePoweredBy) {
+      <app-business-receipt-footer-fields [(show)]="showPoweredBy" [(text)]="poweredByText" />
+    }
+
     <div class="flex items-center gap-3">
       <button
         type="submit"

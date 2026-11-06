@@ -11,6 +11,8 @@ using RetailPOS.Infrastructure.Audit;
 using RetailPOS.Infrastructure.AccountingJournals;
 using RetailPOS.Infrastructure.Data;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class JournalEntryCommandTests : IDisposable
@@ -722,7 +724,7 @@ public class JournalEntryCommandTests : IDisposable
             ReverseJournalEntryDto input,
             long actorUserId)
         {
-            var id = await new ReverseJournalEntryCommandHandler(_store).Handle(
+            var id = await new ReverseJournalEntryCommandHandler(_store, TestCompanySettings.Provider()).Handle(
                 new ReverseJournalEntryCommand(
                     1,
                     actorUserId,

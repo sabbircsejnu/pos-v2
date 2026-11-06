@@ -43,6 +43,16 @@ public sealed class CustomerReadStore(RetailPOSDbContext dbContext, IBusinessSco
             .Select(ToReadModel())
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<CustomerReadModel>> QuickSearchByNameOrPhoneAsync(
+        string query,
+        int limit,
+        CancellationToken cancellationToken) =>
+        await ApplyTextFilter(Scoped().Where(customer => customer.IsActive), query, matchEmail: false)
+            .OrderBy(customer => customer.Name)
+            .Take(limit)
+            .Select(ToReadModel())
+            .ToListAsync(cancellationToken);
+
     public async Task<CustomerReadModel?> GetByIdAsync(
         long id,
         CancellationToken cancellationToken) =>
@@ -57,7 +67,7 @@ public sealed class CustomerReadStore(RetailPOSDbContext dbContext, IBusinessSco
         return dbContext.Customers.AsNoTracking().Where(customer => customer.BusinessId == businessId);
     }
 
-    private static IQueryable<Customer> ApplyTextFilter(IQueryable<Customer> customers, string query)
+    private static IQueryable<Customer> ApplyTextFilter(IQueryable<Customer> customers, string query, bool matchEmail = true)
     {
         var lower = query.ToLower();
         var digits = CustomerPhoneNormalizer.DigitsOnly(query);
@@ -65,7 +75,7 @@ public sealed class CustomerReadStore(RetailPOSDbContext dbContext, IBusinessSco
             (customer.Name != null && customer.Name.ToLower().Contains(lower)) ||
             (customer.Phone != null && customer.Phone.Contains(lower)) ||
             (digits.Length >= 3 && customer.PhoneNormalized != null && customer.PhoneNormalized.Contains(digits)) ||
-            (customer.Email != null && customer.Email.ToLower().Contains(lower)));
+            (matchEmail && customer.Email != null && customer.Email.ToLower().Contains(lower)));
     }
 
     internal static System.Linq.Expressions.Expression<Func<Customer, CustomerReadModel>> ToReadModel() =>

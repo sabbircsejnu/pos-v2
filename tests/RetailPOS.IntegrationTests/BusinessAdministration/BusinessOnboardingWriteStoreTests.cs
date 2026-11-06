@@ -212,7 +212,7 @@ public sealed class BusinessOnboardingWriteStoreTests : IAsyncLifetime
             auditService,
             Mock.Of<IOperationalLocationSourceEventWriter>(),
             NullLogger<BusinessOnboardingWriteStore>.Instance);
-        return new CreateBusinessCommandHandler(store);
+        return new CreateBusinessCommandHandler(store, Mock.Of<RetailPOS.Application.BusinessAdministration.Abstractions.IBusinessTargetAccess>());
     }
 
     private static CreateBusinessCommand CreateRequest(bool createWarehouse) => new(

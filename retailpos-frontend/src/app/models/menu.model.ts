@@ -22,6 +22,16 @@ export interface MenuSection {
 // Section-first navigation model designed to scale for 100+ screens.
 export const NAV_SECTIONS: MenuSection[] = [
   {
+    id: 'owner-dashboards',
+    label: 'DASHBOARD',
+    items: [
+      { id: 'dashboard-sales-finance', label: 'Sales & Finance', icon: 'fas fa-chart-line',
+        route: '/dashboard/sales-finance', permission: 'dashboard.sales_finance.view' },
+      { id: 'dashboard-inventory-intelligence', label: 'Inventory Intelligence', icon: 'fas fa-boxes-stacked',
+        route: '/dashboard/inventory-intelligence', permission: 'dashboard.inventory_intelligence.view' }
+    ]
+  },
+  {
     id: 'hr-payroll',
     label: 'HR AND PAYROLL',
     items: [
@@ -168,11 +178,12 @@ export const NAV_SECTIONS: MenuSection[] = [
     id: 'finance',
     label: 'FINANCE',
     items: [
+      { id: 'chart-of-accounts', label: 'Chart of Accounts', icon: 'fas fa-sitemap', route: '/accounting/chart-of-accounts', permission: 'accounting.chart_accounts.view' },
       { id: 'accounting-config', label: 'Accounting Configuration', icon: 'fas fa-sliders', route: '/settings/accounting', permission: 'accounting.configuration.view' },
       { id: 'financial-years', label: 'Financial Years / Periods', icon: 'fas fa-calendar-alt', route: '/financial-years', permission: ['accounting.financial_years.view', 'accounting.periods.view'] },
       { id: 'opening-balance', label: 'Opening Balance', icon: 'fas fa-balance-scale', route: '/opening-balance', permission: ['accounting.opening_balances.post', 'accounting.opening_balances.adjust'] },
       { id: 'expenses', label: 'Expenses', icon: 'fas fa-receipt', route: '/expenses', permission: 'accounting.expenses.view' },
-      { id: 'expense-categories', label: 'Expense Categories', icon: 'fas fa-tags', route: '/expense-categories', permission: 'accounting.expenses.view' },
+      { id: 'expense-categories', label: 'Expense Categories', icon: 'fas fa-tags', route: '/expense-categories', permission: ['accounting.expenses.view', 'accounting.expense_categories.manage'] },
       { id: 'supplier-payments', label: 'Supplier Payments', icon: 'fas fa-file-invoice-dollar', route: '/supplier-payments', permission: ['accounting.supplier_payments.view', 'accounting.supplier_advances.view'] },
       { id: 'other-income', label: 'Other Income', icon: 'fas fa-hand-holding-dollar', route: '/incomes', permission: 'accounting.other_income.view' },
       { id: 'financial-postings', label: 'Sale GL Postings', icon: 'fas fa-arrows-rotate', route: '/financial-postings', permission: 'sales.financial_postings.view' },

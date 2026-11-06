@@ -27,6 +27,11 @@ export interface Outlet {
   invoicePrefixLocked?: boolean;
   /** IANA time zone override; null/absent inherits the Business default. */
   timeZoneId?: string | null;
+  invoicePrintBranchName?: string | null;
+  binNumber?: string | null;
+  mushak?: string | null;
+  returnExchangePolicy?: string | null;
+  vatLawNotification?: string | null;
   terminals?: OutletTerminal[];
   userCount: number;
   createdAt: string;
@@ -44,9 +49,78 @@ export interface CreateOutletRequest {
   timeZoneId?: string | null;
   /** Omitted/null = leave terminals untouched (required when the user lacks outlets.terminals.manage). */
   terminals?: OutletTerminalInput[] | null;
+  /** Printed-invoice settings. Omitted/null = unchanged, '' = clear. */
+  invoicePrintBranchName?: string | null;
+  binNumber?: string | null;
+  mushak?: string | null;
+  returnExchangePolicy?: string | null;
+  vatLawNotification?: string | null;
+  /** Weekly off days and sales targets. Omitted = unchanged. */
+  salesTargets?: OutletSalesTargetsInput;
 }
 
 export type UpdateOutletRequest = CreateOutletRequest;
+
+export type SalesTargetPeriodType = 'weekly' | 'first_half' | 'second_half' | 'monthly';
+
+export interface OutletSalesTargetDay {
+  /** 0 = Sunday to 6 = Saturday. */
+  dayOfWeek: number;
+  isOffDay: boolean;
+  targetAmount: number | null;
+}
+
+export interface OutletSalesTargetOverrideInput {
+  periodType: SalesTargetPeriodType;
+  periodFrom: string;
+  /** null = Reset to Auto. */
+  overrideAmount: number | null;
+  reason?: string | null;
+}
+
+export interface OutletSalesTargetsInput {
+  isEnabled: boolean;
+  effectiveFrom: string;
+  days: OutletSalesTargetDay[];
+  overrides?: OutletSalesTargetOverrideInput[];
+  /** The version this form loaded; null when it loaded none. */
+  expectedVersionNo: number | null;
+}
+
+export interface OutletSalesTargetVersion {
+  id: number;
+  versionNo: number;
+  effectiveFrom: string;
+  isEnabled: boolean;
+  days: OutletSalesTargetDay[];
+  createdByUserId: number | null;
+  createdAt: string;
+}
+
+export interface OutletSalesTargetPeriod {
+  periodType: SalesTargetPeriodType;
+  from: string;
+  to: string;
+  calculated: number | null;
+  target: number | null;
+  overrideAmount: number | null;
+  isOverridden: boolean;
+  reason: string | null;
+  updatedByUserId: number | null;
+  updatedAt: string | null;
+  workingDays: number;
+  offDays: number;
+  notConfiguredDays: number;
+}
+
+export interface OutletSalesTargetConfiguration {
+  outletId: number;
+  today: string;
+  latest: OutletSalesTargetVersion | null;
+  current: OutletSalesTargetVersion | null;
+  periods: OutletSalesTargetPeriod[];
+  history: OutletSalesTargetVersion[];
+}
 
 export interface OutletStats {
   id: number;

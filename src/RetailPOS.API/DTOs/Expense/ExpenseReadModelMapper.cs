@@ -14,6 +14,31 @@ internal static class ExpenseReadModelMapper
         IsActive = readModel.IsActive
     };
 
+    public static ExpensePaymentAccountDto ToDto(ExpensePaymentAccountReadModel readModel) => new()
+    {
+        Id = readModel.Id,
+        AccountCode = readModel.AccountCode,
+        AccountName = readModel.AccountName,
+        AccountType = readModel.AccountType
+    };
+
+    public static ExpenseAccountOptionDto ToDto(ExpenseAccountOptionReadModel readModel) => new()
+    {
+        Id = readModel.Id,
+        AccountCode = readModel.AccountCode,
+        AccountName = readModel.AccountName
+    };
+
+    public static ExpenseAttachmentDto ToDto(ExpenseAttachmentReadModel readModel) => new()
+    {
+        Id = readModel.Id,
+        FileName = readModel.FileName,
+        ContentType = readModel.ContentType,
+        FileSizeBytes = readModel.FileSizeBytes,
+        CreatedAt = readModel.CreatedAt,
+        CreatedBy = readModel.CreatedBy
+    };
+
     public static ExpenseListDto ToDto(ExpenseListReadModel readModel) => new()
     {
         Expenses = readModel.Expenses.Select(ToDto).ToList(),
@@ -39,6 +64,8 @@ internal static class ExpenseReadModelMapper
         ExpenseDate = readModel.ExpenseDate,
         OutletId = readModel.OutletId,
         OutletName = readModel.OutletName,
+        WarehouseId = readModel.WarehouseId,
+        WarehouseName = readModel.WarehouseName,
         Status = readModel.Status,
         JournalEntryId = readModel.JournalEntryId,
         CreatedAt = readModel.CreatedAt,

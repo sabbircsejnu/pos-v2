@@ -39,6 +39,22 @@ public sealed class CustomerReadQueryHandlerTests
     }
 
     [Fact]
+    public async Task PosQuickSearch_UsesTheNameOrPhoneStoreSearchWithTheSameLimitAndNeverTheEmailSearch()
+    {
+        var store = new FakeCustomerReadStore();
+        var handler = new PosQuickSearchCustomersQueryHandler(store);
+
+        Assert.Empty(await handler.Handle(new PosQuickSearchCustomersQuery("  "), CancellationToken.None));
+        Assert.Null(store.LastPosQuickSearch);
+
+        var results = await handler.Handle(new PosQuickSearchCustomersQuery(" 01711 "), CancellationToken.None);
+
+        Assert.Equal(("01711", 10), store.LastPosQuickSearch);
+        Assert.Null(store.LastQuickSearch);
+        Assert.Same(store.Customers, results);
+    }
+
+    [Fact]
     public async Task GetCustomerById_ThrowsEstablishedNotFoundException()
     {
         var handler = new GetCustomerByIdQueryHandler(new FakeCustomerReadStore());
@@ -58,6 +74,7 @@ public sealed class CustomerReadQueryHandlerTests
 
         public (string? Query, int PageNumber, int PageSize)? LastSearch { get; private set; }
         public (string Query, int Limit)? LastQuickSearch { get; private set; }
+        public (string Query, int Limit)? LastPosQuickSearch { get; private set; }
 
         public Task<(IReadOnlyList<CustomerReadModel> Customers, int TotalCount)> SearchAsync(
             string? query,
@@ -75,6 +92,15 @@ public sealed class CustomerReadQueryHandlerTests
             CancellationToken cancellationToken)
         {
             LastQuickSearch = (query, limit);
+            return Task.FromResult(Customers);
+        }
+
+        public Task<IReadOnlyList<CustomerReadModel>> QuickSearchByNameOrPhoneAsync(
+            string query,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            LastPosQuickSearch = (query, limit);
             return Task.FromResult(Customers);
         }
 

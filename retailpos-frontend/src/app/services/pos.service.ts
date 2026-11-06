@@ -4,9 +4,10 @@
 // endpoints.  All heavy product browsing stays in SaleService.
 // ─────────────────────────────────────────────────────────────────────────────
 import { Injectable, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { SUPPRESS_ERROR_NOTICE } from '../interceptors/error.interceptor';
 import {
   HeldSaleDto,
   HoldSaleDto,
@@ -46,6 +47,39 @@ export interface PosApiResponse<T> {
   success?: boolean;
   message?: string;
   data: T;
+}
+
+/** Sellable variant from GET /api/pos/catalogue. `listPrice` is a display hint; the cart re-prices via cart-prices. */
+export interface PosCatalogueItemDto {
+  variantId: number;
+  productId: number;
+  productName: string;
+  variantName: string;
+  productCode?: string | null;
+  sku: string;
+  barcode?: string | null;
+  attributes?: string | null;
+  categoryId: number;
+  categoryName?: string | null;
+  listPrice: number;
+  primaryImageThumb?: string | null;
+  /** Quantity at the requested outlet; null when no outlet was sent. */
+  stockQty?: number | null;
+}
+
+/** Active category from GET /api/pos/categories. */
+export interface PosCategoryDto {
+  id: number;
+  name: string;
+  parentCategoryId?: number | null;
+  displayOrder: number;
+}
+
+/** Minimal customer from GET /api/pos/customers/search (no email, loyalty or purchase history). */
+export interface PosCustomerLookupDto {
+  id: number;
+  name: string;
+  phone?: string | null;
 }
 
 export interface PosTerminalDto {
@@ -179,6 +213,43 @@ export class PosService {
   isLoadingHeld = signal(false);
 
   constructor(private http: HttpClient) {}
+
+  // ── Catalogue ─────────────────────────────────────────────────────────────
+
+  /**
+   * Sellable variants for the product browser, authorized by the POS sale permission (not products.view).
+   * The global error notice is suppressed: the POS screen reports the failure with its real cause.
+   */
+  getCatalogue(outletId?: number | null, limit: number = 200): Observable<PosApiResponse<PosCatalogueItemDto[]>> {
+    let params = new HttpParams().set('limit', limit.toString());
+    if (outletId) params = params.set('outletId', outletId.toString());
+    return this.http.get<PosApiResponse<PosCatalogueItemDto[]>>(`${this.posUrl}/catalogue`, {
+      params,
+      context: new HttpContext().set(SUPPRESS_ERROR_NOTICE, true)
+    });
+  }
+
+  /** Active categories for the POS filter, authorized by the POS sale permission (not categories.view). */
+  getCategories(): Observable<PosApiResponse<PosCategoryDto[]>> {
+    return this.http.get<PosApiResponse<PosCategoryDto[]>>(`${this.posUrl}/categories`, {
+      context: new HttpContext().set(SUPPRESS_ERROR_NOTICE, true)
+    });
+  }
+
+  /** Checkout customer picker, authorized by the POS sale permission (not customers.view). */
+  searchCustomers(query: string): Observable<PosApiResponse<PosCustomerLookupDto[]>> {
+    return this.http.get<PosApiResponse<PosCustomerLookupDto[]>>(`${this.posUrl}/customers/search`, {
+      params: new HttpParams().set('q', query)
+    });
+  }
+
+  /**
+   * Quick Customer from checkout, authorized by the POS sale permission (not customers.create). A phone already used in
+   * the Business returns 409 CUSTOMER_PHONE_EXISTS with the existing customer's id, name and phone.
+   */
+  createCustomer(dto: { name: string; phone: string }): Observable<PosApiResponse<PosCustomerLookupDto>> {
+    return this.http.post<PosApiResponse<PosCustomerLookupDto>>(`${this.posUrl}/customers`, dto);
+  }
 
   // ── Lookup ────────────────────────────────────────────────────────────────
 

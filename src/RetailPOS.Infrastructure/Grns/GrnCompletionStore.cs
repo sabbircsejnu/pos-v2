@@ -1,3 +1,4 @@
+using RetailPOS.Application.Inventory.Costing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RetailPOS.Application.Grns.Abstractions;
@@ -108,7 +109,13 @@ public sealed class GrnCompletionStore(
                     grn.Id,
                     $"GRN completion — PO-{grn.PoId:D6}",
                     actorUserId,
-                    item.UnitCost);
+                    // The value this GRN's journal debits to Inventory for the line.
+                    GrnLedgerCost.Resolve(
+                        item.ReceivedQty,
+                        item.UnitCost,
+                        item.TaxableAmount ?? item.ReceivedQty * item.UnitCost,
+                        item.PurchaseOrderItem.UnitPrice,
+                        item.PurchaseOrderItem.Discount));
             }
 
             var journalEntryId = await accountingPoster.PostReceiptAndCreatePayableAsync(

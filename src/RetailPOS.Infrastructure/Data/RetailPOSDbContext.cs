@@ -29,6 +29,7 @@ public class RetailPOSDbContext : DbContext
     public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
     public DbSet<UserWarehouseAssignment> UserWarehouseAssignments => Set<UserWarehouseAssignment>();
     public DbSet<UserOutletAssignment> UserOutletAssignments => Set<UserOutletAssignment>();
+    public DbSet<UserContextRole> UserContextRoles => Set<UserContextRole>();
 
     // Locations
     public DbSet<Outlet> Outlets => Set<Outlet>();
@@ -98,6 +99,7 @@ public class RetailPOSDbContext : DbContext
     public DbSet<SupplierPayableDocument> SupplierPayableDocuments => Set<SupplierPayableDocument>();
     public DbSet<SupplierAdvanceUtilization> SupplierAdvanceUtilizations => Set<SupplierAdvanceUtilization>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<ExpenseAttachment> ExpenseAttachments => Set<ExpenseAttachment>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<ChartAccount> ChartAccounts => Set<ChartAccount>();
     public DbSet<AccountingConfiguration> AccountingConfigurations => Set<AccountingConfiguration>();
@@ -271,6 +273,7 @@ public class RetailPOSDbContext : DbContext
         RetailPOS.Infrastructure.HR.Payroll.PayrollFinalSettlementModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Payroll.PayrollFinalSettlementExecutionModelConfiguration.Configure(
             modelBuilder);
+        RetailPOS.Infrastructure.Outlets.OutletSalesTargetModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Calendars.HrCalendarModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Attendance.HrRosterModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Attendance.HrDeviceModelConfiguration.Configure(modelBuilder);
@@ -323,6 +326,7 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Address).HasMaxLength(500);
             entity.Property(e => e.SubscriptionPlan).HasMaxLength(100);
+            entity.Property(e => e.PoweredByText).HasMaxLength(150);
             entity.HasIndex(e => e.Name).IsUnique();
         });
 
@@ -376,6 +380,24 @@ public class RetailPOSDbContext : DbContext
                 .HasMaxLength(40)
                 .HasDefaultValue(User.InventoryAccessAssignedOnly)
                 .IsRequired();
+            entity.Property(e => e.ContextSwitchEnabled).HasDefaultValue(false);
+            entity.Property(e => e.ContextLocationScope)
+                .HasMaxLength(20)
+                .HasDefaultValue(User.ContextLocationSelected)
+                .IsRequired();
+            entity.Property(e => e.ContextRoleScope)
+                .HasMaxLength(20)
+                .HasDefaultValue(User.ContextRoleMapped)
+                .IsRequired();
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_users_context_location_scope",
+                    "context_location_scope IN ('selected', 'all')");
+                table.HasCheckConstraint(
+                    "ck_users_context_role_scope",
+                    "context_role_scope IN ('mapped', 'all')");
+            });
 
             entity.HasOne(e => e.Business)
                 .WithMany(b => b.Users)
@@ -402,6 +424,11 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.ContactNumber).HasMaxLength(20);
             entity.Property(e => e.InvoicePrefix).HasMaxLength(12);
             entity.Property(e => e.TimeZoneId).HasMaxLength(64);
+            entity.Property(e => e.InvoicePrintBranchName).HasMaxLength(150);
+            entity.Property(e => e.BinNumber).HasMaxLength(50);
+            entity.Property(e => e.Mushak).HasMaxLength(50);
+            entity.Property(e => e.ReturnExchangePolicy).HasMaxLength(2000);
+            entity.Property(e => e.VatLawNotification).HasMaxLength(2000);
             entity.HasIndex(e => new { e.BusinessId, e.InvoicePrefix })
                 .IsUnique()
                 .HasFilter("invoice_prefix IS NOT NULL");
@@ -507,6 +534,29 @@ public class RetailPOSDbContext : DbContext
             entity.HasOne(e => e.Warehouse)
                 .WithMany()
                 .HasForeignKey(e => e.WarehouseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Business)
+                .WithMany()
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserContextRole>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
+            entity.HasIndex(e => e.RoleId);
+            entity.HasIndex(e => e.BusinessId);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ContextRoles)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Role)
+                .WithMany()
+                .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Business)
@@ -1431,6 +1481,14 @@ public class RetailPOSDbContext : DbContext
         // StockTransfer Configuration
         modelBuilder.Entity<StockTransfer>(entity =>
         {
+            // One system return per transfer, whatever the application does.
+            entity.HasIndex(e => e.OriginalTransferId)
+                .IsUnique()
+                .HasFilter("original_transfer_id IS NOT NULL");
+            entity.HasOne(e => e.OriginalTransfer)
+                .WithMany()
+                .HasForeignKey(e => e.OriginalTransferId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TransferNo).HasMaxLength(40);
             entity.Property(e => e.TransferType).HasMaxLength(30).IsRequired();
@@ -1496,6 +1554,9 @@ public class RetailPOSDbContext : DbContext
         // StockTransferItem Configuration
         modelBuilder.Entity<StockTransferItem>(entity =>
         {
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_stock_transfer_items_discrepancy_not_negative",
+                "missing_quantity >= 0 AND damaged_quantity >= 0"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.UnitCost).HasPrecision(18, 4);
             entity.Property(e => e.Remarks).HasMaxLength(1000);
@@ -2324,6 +2385,10 @@ public class RetailPOSDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.BusinessId, e.Status });
             entity.HasIndex(e => new { e.BusinessId, e.ExpenseNumber }).IsUnique();
+            entity.HasIndex(e => new { e.BusinessId, e.WarehouseId });
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_expenses_single_location",
+                "outlet_id IS NULL OR warehouse_id IS NULL"));
 
             entity.HasOne(e => e.Business)
                 .WithMany(b => b.Expenses)
@@ -2334,6 +2399,11 @@ public class RetailPOSDbContext : DbContext
                 .WithMany(o => o.Expenses)
                 .HasForeignKey(e => e.OutletId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Warehouse)
+                .WithMany()
+                .HasForeignKey(e => e.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(e => e.ExpenseCategory)
                 .WithMany(c => c.Expenses)
@@ -2354,6 +2424,21 @@ public class RetailPOSDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.JournalEntryId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ExpenseAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ContentType).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.StorageKey).HasMaxLength(500).IsRequired();
+
+            entity.HasIndex(e => new { e.BusinessId, e.ExpenseId });
+
+            entity.HasOne(e => e.Expense)
+                .WithMany(e => e.Attachments)
+                .HasForeignKey(e => e.ExpenseId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // AuditLog Configuration

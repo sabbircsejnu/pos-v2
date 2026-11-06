@@ -1,3 +1,5 @@
+import { map } from 'rxjs';
+import { BusinessContextStore } from './services/business-context.store';
 import { ApplicationConfig, APP_INITIALIZER, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
@@ -51,8 +53,11 @@ export const appConfig: ApplicationConfig = {
     ),
     {
       provide: APP_INITIALIZER,
-      useFactory: (dates: CompanyDateService, auth: AuthService) => () => dates.connect(auth.currentUser$),
-      deps: [CompanyDateService, AuthService],
+      useFactory: (dates: CompanyDateService, auth: AuthService, context: BusinessContextStore) => () => {
+        dates.connect(auth.currentUser$);
+        dates.reloadOnBusinessChange(context.selected$.pipe(map(selected => selected?.businessId ?? null)));
+      },
+      deps: [CompanyDateService, AuthService, BusinessContextStore],
       multi: true,
     },
     {

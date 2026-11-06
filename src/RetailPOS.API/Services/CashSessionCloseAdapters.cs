@@ -1,3 +1,5 @@
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using MediatR;
 using RetailPOS.API.DTOs.Accounting;
 using RetailPOS.Application.AccountingJournals.Abstractions;
@@ -10,14 +12,15 @@ namespace RetailPOS.API.Services;
 
 public sealed class CashSessionVarianceJournalPoster(
     ISender? journalCommands,
-    IAccountingConfigurationService? accountingConfigurationService)
+    IAccountingConfigurationService? accountingConfigurationService,
+    ICompanyTimeZoneProvider? timeZones = null)
     : ICashSessionVarianceJournalPoster
 {
     public async Task<long?> PostAsync(
         CashSessionVarianceJournalRequest request,
         CancellationToken cancellationToken)
     {
-        if (journalCommands is null || accountingConfigurationService is null)
+        if (journalCommands is null || accountingConfigurationService is null || timeZones is null)
             return null;
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -87,12 +90,15 @@ public sealed class CashSessionVarianceJournalPoster(
                 null));
         }
 
+        var postingDate = CompanyDates.DateFor(
+            request.TransactionTimestamp,
+            await timeZones.GetTimeZoneIdAsync(request.BusinessId, cancellationToken));
         var journal = new ManualJournalDraftInput(
             request.Difference > 0
                 ? "CashDifferenceSurplusPosting"
                 : "CashDifferenceShortagePosting",
             request.TransactionTimestamp,
-            request.TransactionTimestamp,
+            postingDate,
             request.BusinessDate,
             "CashSessionClose",
             request.SessionId.ToString(),

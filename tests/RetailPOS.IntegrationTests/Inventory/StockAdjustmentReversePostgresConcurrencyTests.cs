@@ -351,6 +351,13 @@ public sealed class StockAdjustmentReversePostgresConcurrencyTests
         IStockLedgerWriter inner,
         Barrier barrier) : IStockLedgerWriter
     {
+        public void WriteVerifiedZeroCostEntry(
+            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
+            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            DateTime? createdAt = null) =>
+            inner.WriteVerifiedZeroCostEntry(variantId, locationId, locationType, transactionType, qtyIn, qtyOut,
+                balanceAfter, referenceType, referenceId, remarks, createdBy, createdAt);
+
         public void WriteEntry(
             long variantId,
             long locationId,

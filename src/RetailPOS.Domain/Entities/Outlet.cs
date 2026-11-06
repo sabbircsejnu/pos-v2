@@ -13,6 +13,21 @@ public class Outlet
 
     /// <summary>Optional IANA time zone overriding the Business default (D9).</summary>
     public string? TimeZoneId { get; set; }
+
+    /// <summary>Branch name printed on invoices; the outlet name is printed when empty.</summary>
+    public string? InvoicePrintBranchName { get; set; }
+
+    /// <summary>Business Identification Number printed on this outlet's invoices.</summary>
+    public string? BinNumber { get; set; }
+
+    /// <summary>Mushak form reference printed beside the BIN (e.g. "6.3").</summary>
+    public string? Mushak { get; set; }
+
+    /// <summary>Multiline return/exchange policy printed on this outlet's invoices.</summary>
+    public string? ReturnExchangePolicy { get; set; }
+
+    /// <summary>Multiline VAT law notification printed on this outlet's invoices.</summary>
+    public string? VatLawNotification { get; set; }
     public long? ManagerId { get; set; }
     public long SourceVersion { get; set; } = 1;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -26,4 +41,6 @@ public class Outlet
     public virtual ICollection<CashSession> CashSessions { get; set; } = new List<CashSession>();
     public virtual ICollection<Sale> Sales { get; set; } = new List<Sale>();
     public virtual ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+    public virtual ICollection<OutletSalesTargetVersion> SalesTargetVersions { get; set; } = new List<OutletSalesTargetVersion>();
+    public virtual ICollection<OutletSalesTargetOverride> SalesTargetOverrides { get; set; } = new List<OutletSalesTargetOverride>();
 }

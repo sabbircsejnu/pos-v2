@@ -1,3 +1,7 @@
+using RetailPOS.Infrastructure.StockTransfers;
+using RetailPOS.Infrastructure.AccountingReports;
+using RetailPOS.Application.Inventory.Abstractions;
+using RetailPOS.Application.AccountingReports.ReadModels;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -8,6 +12,7 @@ using Moq;
 using RetailPOS.API.DTOs.Accounting;
 using RetailPOS.API.Services;
 using RetailPOS.Application.AccountingJournals.Abstractions;
+using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Commands;
 using RetailPOS.Core.Entities;
@@ -37,101 +42,7 @@ public sealed class PurchaseAndReceiveRelationalTests
             {
                 await using var db = await CreateMigratedContextAsync(database.ConnectionString);
                 await SeedAsync(db, 1);
-                var today = DateTime.UtcNow.Date;
-                var periodStart = new DateTime(today.Year, today.Month, 1);
-                var periodEnd = periodStart.AddMonths(1).AddDays(-1);
-                db.ChartAccounts.AddRange(
-                    new ChartAccount
-                    {
-                        Id = 6101,
-                        BusinessId = 1,
-                        AccountCode = "6101",
-                        AccountName = "Inventory",
-                        AccountType = ChartAccountTypes.Asset,
-                        NormalBalanceType = NormalBalanceTypes.Debit,
-                        IsActive = true
-                    },
-                    new ChartAccount
-                    {
-                        Id = 6102,
-                        BusinessId = 1,
-                        AccountCode = "6102",
-                        AccountName = "Supplier Payable",
-                        AccountType = ChartAccountTypes.Liability,
-                        NormalBalanceType = NormalBalanceTypes.Credit,
-                        IsActive = true
-                    });
-                db.FinancialYears.Add(new FinancialYear
-                {
-                    Id = 6201,
-                    BusinessId = 1,
-                    YearCode = $"FY-{today.Year}-PUR",
-                    Name = $"FY {today.Year}",
-                    StartDate = new DateTime(today.Year, 1, 1),
-                    EndDate = new DateTime(today.Year, 12, 31),
-                    IsCurrent = true
-                });
-                db.AccountingPeriods.Add(new AccountingPeriod
-                {
-                    Id = 6202,
-                    FinancialYearId = 6201,
-                    PeriodNumber = today.Month,
-                    Name = today.ToString("MMMM"),
-                    StartDate = periodStart,
-                    EndDate = periodEnd,
-                    Status = AccountingPeriodStatuses.Open
-                });
-                await db.SaveChangesAsync();
-
-                var audit = Mock.Of<IAuditService>(service =>
-                    service.RecordAsync(
-                        It.IsAny<AuditEventInput>(),
-                        It.IsAny<CancellationToken>()) == Task.CompletedTask);
-                var journalNumbers = new Mock<IJournalNumberAllocator>();
-                journalNumbers.Setup(service => service.AllocateNextJournalNumberAsync(
-                        It.IsAny<long>(),
-                        It.IsAny<long?>(),
-                        It.IsAny<DateTime>(),
-                        It.IsAny<long?>(),
-                        It.IsAny<CancellationToken>()))
-                    .ReturnsAsync("PUR-RECEIPT-1");
-                var journalStore = new ManualJournalDraftStore(
-                    db,
-                    audit,
-                    journalNumbers.Object,
-                    NullLogger<ManualJournalDraftStore>.Instance);
-                var configuration = new Mock<IAccountingConfigurationService>();
-                configuration.Setup(service => service.ResolvePostingAccountAsync(
-                        PostingAccountSlots.Inventory,
-                        null))
-                    .ReturnsAsync(new PostingAccountResolutionDto
-                    {
-                        Slot = PostingAccountSlots.Inventory,
-                        AccountId = 6101
-                    });
-                configuration.Setup(service => service.ResolvePostingAccountAsync(
-                        PostingAccountSlots.SupplierPayable,
-                        null))
-                    .ReturnsAsync(new PostingAccountResolutionDto
-                    {
-                        Slot = PostingAccountSlots.SupplierPayable,
-                        AccountId = 6102
-                    });
-                var poster = new PurchaseReceiptJournalPoster(
-                    SupplierPaymentCreationTestHarness.CreateJournalCommandSender(journalStore),
-                    configuration.Object);
-                var ledger = new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
-                    db,
-                    NullLogger<RetailPOS.Infrastructure.ReadStores.StockLedgerWriter>.Instance);
-                var handler = new PurchaseAndReceiveCommandHandler(
-                    new PurchaseAndReceiveStore(
-                        db,
-                        new PurchaseAndReceiveStockLedgerWriterAdapter(ledger),
-                        poster,
-                        Mock.Of<ILogger<PurchaseAndReceiveStore>>()),
-                    new PurchaseOrderReadStore(db),
-                    new TestPurchaseOrderTenantScope(1),
-                    Mock.Of<IPurchaseOrderLocationAuthorizer>());
+                var handler = await CreateHandlerWithRealJournalAsync(db);
 
                 var result = await handler.Handle(
                     BuildCommand("purchase-receipt-journal"),
@@ -160,8 +71,102 @@ public sealed class PurchaseAndReceiveRelationalTests
                     && line.CreditAmount == 37.5m
                     && line.WarehouseId == 1101);
                 Assert.Equal("completed", result.PurchaseOrder.Status, ignoreCase: true);
-                Assert.Single(await db.StockLedgers.ToListAsync());
+                // The ledger carries the GRN cost and equals what the journal debited to Inventory.
+                var movement = Assert.Single(await db.StockLedgers.ToListAsync());
+                Assert.True(movement.IsCostValuationReliable);
+                Assert.Equal(12.5m, movement.UnitCost);
+                Assert.Equal(37.5m, movement.MovementValue);
                 Assert.Equal(3, await db.Inventories.Select(item => item.Quantity).SingleAsync());
+            });
+    }
+
+    [Fact]
+    public async Task PurchasedStock_StaysReconciledToTheGeneralLedger_WhenItMovesBetweenLocations()
+    {
+        await PostgresTestDatabase.RunAsync(
+            GetPostgresConnectionString(),
+            PostgresTestDatabasePrefix.PurchaseReceive,
+            async database =>
+            {
+                await using var db = await CreateMigratedContextAsync(database.ConnectionString);
+                await SeedAsync(db, 1);
+                var handler = await CreateHandlerWithRealJournalAsync(db);
+                db.ChartAccounts.Add(new ChartAccount
+                {
+                    Id = 6103,
+                    BusinessId = 1,
+                    AccountCode = "6103",
+                    AccountName = "COGS",
+                    AccountType = ChartAccountTypes.Expense,
+                    NormalBalanceType = NormalBalanceTypes.Debit,
+                    IsActive = true
+                });
+                db.AccountingConfigurations.Add(new AccountingConfiguration
+                {
+                    BusinessId = 1,
+                    InventoryAccountId = 6101,
+                    CogsAccountId = 6103,
+                    SupplierPayableAccountId = 6102,
+                    JournalNumberPrefix = "JR",
+                    JournalSequenceResetPolicy = AccountingSequenceResetPolicies.PerFinancialYear
+                });
+                db.Outlets.Add(new Outlet { Id = 1201, BusinessId = 1, Name = "Showroom", Address = "A" });
+                await db.SaveChangesAsync();
+
+                var result = await handler.Handle(BuildCommand("reconciled-receipt"), CancellationToken.None);
+
+                db.StockTransfers.Add(new StockTransfer
+                {
+                    Id = 8001,
+                    TransferNo = "TRF-REC-1",
+                    TransferType = StockTransfer.TransferTypeDirect,
+                    FromLocationId = 1101,
+                    FromLocationType = "warehouse",
+                    ToLocationId = 1201,
+                    ToLocationType = "outlet",
+                    TransferDate = DateTime.UtcNow,
+                    Status = StockTransfer.StatusDraft,
+                    CreatedBy = 77,
+                    Items =
+                    [
+                        new StockTransferItem
+                        {
+                            VariantId = 5001,
+                            Quantity = 2,
+                            RequestedQuantity = 2,
+                            TransferQuantity = 2,
+                            UnitCost = 999m
+                        }
+                    ]
+                });
+                await db.SaveChangesAsync();
+                var ledger = new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
+                    db,
+                    NullLogger<RetailPOS.Infrastructure.ReadStores.StockLedgerWriter>.Instance);
+                await new StockTransferDispatchStore(db, ledger, NullLogger<StockTransferDispatchStore>.Instance)
+                    .SubmitAndDispatchAsync(8001, 1, 77, autoApprove: true, CancellationToken.None);
+                await new StockTransferReceiveStore(
+                        db,
+                        ledger,
+                        Mock.Of<IStockTransferReceiptAuditWriter>(),
+                        NullLogger<StockTransferReceiveStore>.Instance)
+                    .ReceiveAsync(8001, 1, null, 77, CancellationToken.None);
+
+                var report = await new InventoryValuationReadStore(db, TestCompanySettings.Provider()).GetAsync(
+                    new InventoryValuationFilter(DateTime.UtcNow.Date.AddDays(2), null, null, null, null, null, null),
+                    1,
+                    CancellationToken.None);
+
+                // BuildCommand receives 3 units at 12.50, which the journal debits at 37.50.
+                Assert.Empty(report.UnvaluedMovements);
+                Assert.Equal(37.5m, report.GeneralLedgerBalance);
+                Assert.Equal(37.5m, report.TotalInventoryValue);
+                Assert.Equal(0m, report.ReconciliationDifference);
+                Assert.Equal(12.5m, report.Rows.Single(row => row.LocationType == "warehouse").InventoryValue);
+                Assert.Equal(25m, report.Rows.Single(row => row.LocationType == "outlet").InventoryValue);
+                Assert.Single(await db.JournalEntries.Where(entry => entry.ReferenceType == "Grn").ToListAsync());
+                Assert.Empty(await db.JournalEntries.Where(entry => entry.ReferenceType != "Grn").ToListAsync());
+                Assert.NotEqual(0, result.GrnId);
             });
     }
 
@@ -359,6 +364,108 @@ public sealed class PurchaseAndReceiveRelationalTests
             db, context => context.Database.MigrateAsync());
     }
 
+    private static async Task<PurchaseAndReceiveCommandHandler> CreateHandlerWithRealJournalAsync(RetailPOSDbContext db)
+    {
+        var today = DateTime.UtcNow.Date;
+        var periodStart = new DateTime(today.Year, today.Month, 1);
+        var periodEnd = periodStart.AddMonths(1).AddDays(-1);
+        db.ChartAccounts.AddRange(
+            new ChartAccount
+            {
+                Id = 6101,
+                BusinessId = 1,
+                AccountCode = "6101",
+                AccountName = "Inventory",
+                AccountType = ChartAccountTypes.Asset,
+                NormalBalanceType = NormalBalanceTypes.Debit,
+                IsActive = true
+            },
+            new ChartAccount
+            {
+                Id = 6102,
+                BusinessId = 1,
+                AccountCode = "6102",
+                AccountName = "Supplier Payable",
+                AccountType = ChartAccountTypes.Liability,
+                NormalBalanceType = NormalBalanceTypes.Credit,
+                IsActive = true
+            });
+        db.FinancialYears.Add(new FinancialYear
+        {
+            Id = 6201,
+            BusinessId = 1,
+            YearCode = $"FY-{today.Year}-PUR",
+            Name = $"FY {today.Year}",
+            StartDate = new DateTime(today.Year, 1, 1),
+            EndDate = new DateTime(today.Year, 12, 31),
+            IsCurrent = true
+        });
+        db.AccountingPeriods.Add(new AccountingPeriod
+        {
+            Id = 6202,
+            FinancialYearId = 6201,
+            PeriodNumber = today.Month,
+            Name = today.ToString("MMMM"),
+            StartDate = periodStart,
+            EndDate = periodEnd,
+            Status = AccountingPeriodStatuses.Open
+        });
+        await db.SaveChangesAsync();
+
+        var audit = Mock.Of<IAuditService>(service =>
+            service.RecordAsync(
+                It.IsAny<AuditEventInput>(),
+                It.IsAny<CancellationToken>()) == Task.CompletedTask);
+        var journalNumbers = new Mock<IJournalNumberAllocator>();
+        journalNumbers.Setup(service => service.AllocateNextJournalNumberAsync(
+                It.IsAny<long>(),
+                It.IsAny<long?>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<long?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("PUR-RECEIPT-1");
+        var journalStore = new ManualJournalDraftStore(
+            db,
+            audit,
+            journalNumbers.Object,
+            NullLogger<ManualJournalDraftStore>.Instance);
+        var configuration = new Mock<IAccountingConfigurationService>();
+        configuration.Setup(service => service.ResolvePostingAccountAsync(
+                PostingAccountSlots.Inventory,
+                null))
+            .ReturnsAsync(new PostingAccountResolutionDto
+            {
+                Slot = PostingAccountSlots.Inventory,
+                AccountId = 6101
+            });
+        configuration.Setup(service => service.ResolvePostingAccountAsync(
+                PostingAccountSlots.SupplierPayable,
+                null))
+            .ReturnsAsync(new PostingAccountResolutionDto
+            {
+                Slot = PostingAccountSlots.SupplierPayable,
+                AccountId = 6102
+            });
+        var poster = new PurchaseReceiptJournalPoster(
+            SupplierPaymentCreationTestHarness.CreateJournalCommandSender(journalStore),
+            configuration.Object,
+            TestCompanySettings.Provider());
+        var ledger = new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
+            db,
+            NullLogger<RetailPOS.Infrastructure.ReadStores.StockLedgerWriter>.Instance);
+        var handler = new PurchaseAndReceiveCommandHandler(
+            new PurchaseAndReceiveStore(
+                db,
+                new PurchaseAndReceiveStockLedgerWriterAdapter(ledger),
+                poster,
+                Mock.Of<ILogger<PurchaseAndReceiveStore>>()),
+            new PurchaseOrderReadStore(db),
+            new TestPurchaseOrderTenantScope(1),
+            Mock.Of<IGrnReceiptLocationAuthorizer>());
+
+        return handler;
+    }
+
     private static async Task SeedAsync(RetailPOSDbContext db, long businessId)
     {
         var warehouseId = businessId == 1 ? 1101 : 2101;
@@ -427,7 +534,7 @@ public sealed class PurchaseAndReceiveRelationalTests
         var readStore = new PurchaseOrderReadStore(db);
         var tenantScope = new TestPurchaseOrderTenantScope(businessId);
         return new PurchaseAndReceiveSubject(
-            new PurchaseAndReceiveCommandHandler(store, readStore, tenantScope, Mock.Of<IPurchaseOrderLocationAuthorizer>()),
+            new PurchaseAndReceiveCommandHandler(store, readStore, tenantScope, Mock.Of<IGrnReceiptLocationAuthorizer>()),
             journal);
     }
 

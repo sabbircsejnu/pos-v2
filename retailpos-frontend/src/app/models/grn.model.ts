@@ -93,6 +93,12 @@ export interface CreateGrnDto {
 export interface GrnSearchRequest {
   poId?: number;
   status?: string;
+  locationType?: 'outlet' | 'warehouse';
+  locationId?: number;
+  /** Inclusive date (yyyy-MM-dd) in the Company Settings time zone. */
+  fromDate?: string;
+  /** Inclusive date (yyyy-MM-dd) in the Company Settings time zone. */
+  toDate?: string;
   pageNumber: number;
   pageSize: number;
 }

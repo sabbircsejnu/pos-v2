@@ -1,5 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { UiAlertComponent } from '../../components/shared/ui/ui-alert.component';
+import { UiDialogComponent } from '../../components/shared/ui/ui-dialog.component';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
 import {
   Component, OnInit, OnDestroy, signal, computed, inject, HostListener
@@ -9,7 +11,6 @@ import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { CurrencyService } from '../../services/currency.service';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
-import { HttpClient, HttpParams } from '@angular/common/http';
 
 import { AuthService } from '../../services/auth.service';
 import { SaleService } from '../../services/sale.service';
@@ -17,8 +18,7 @@ import { PosService } from '../../services/pos.service';
 import { CashSessionDto, CartPriceResultItem, EligibleSalespersonDto, PosTerminalDto } from '../../services/pos.service';
 import { CashSessionService } from '../../services/cash-session.service';
 import { Router } from '@angular/router';
-import { PosDiscountAuditRequest } from '../../services/pos.service';
-import { CustomerService } from '../../services/customer.service';
+import { PosDiscountAuditRequest, PosCustomerLookupDto } from '../../services/pos.service';
 import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
@@ -27,15 +27,17 @@ import {
 } from '../../models/sale.model';
 import { CustomerDto } from '../../models/customer.model';
 import { ProductImageService } from '../../services/product-image.service';
-import { environment } from '../../../environments/environment';
 import { ReceiptSettings } from '../../models/settings.model';
+import { ThermalReceiptComponent } from './thermal-receipt.component';
+import { applyReceiptPrintPage, clearReceiptPrintPage } from './receipt-print-page';
 import { calculateTax, effectiveLineTaxRate, roundMoney } from './pos-tax';
 import { percentToDiscountAmount, validateManualDiscount } from './pos-discount';
 import {
   CART_UPDATED_MESSAGE, DISCOUNT_NOT_PERMITTED_MESSAGE, NO_ACTIVE_TERMINAL_MESSAGE, TERMINAL_REQUIRED_MESSAGE,
-  discountLimitMessage, mapPosSaleError
+  discountLimitMessage, mapPosSaleError, readApiErrorBody
 } from './pos-sale-errors';
 import { PosTerminalAvailability, resolveTerminalSelection } from './pos-terminals';
+import { posCatalogueErrorMessage } from './pos-lookup-errors';
 
 type TerminalsState = PosTerminalAvailability | 'loading' | 'error';
 
@@ -63,19 +65,18 @@ interface QuickCustomerForm {
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
-  imports: [AppDatePipe, UiDateInputDirective, UiAlertComponent, CommonModule, FormsModule, AppCurrencyPipe],
+  imports: [AppDatePipe, UiDateInputDirective, UiAlertComponent, UiDialogComponent, CommonModule, FormsModule, AppCurrencyPipe, ThermalReceiptComponent],
   templateUrl: './pos-screen.component.html',
   styleUrls: ['./pos-screen.component.css']
 })
 export class PosScreenComponent implements OnInit, OnDestroy {
+  private readonly companyTodayService = inject(CompanyDateService);
   private authService = inject(AuthService);
   private saleService = inject(SaleService);
   private posService  = inject(PosService);
-  private customerService = inject(CustomerService);
   private settingsService = inject(SettingsService);
   private alertService = inject(AlertService);
   private errorHandler = inject(ErrorHandlerService);
-  private http = inject(HttpClient);
   private imageSvc = inject(ProductImageService);
   private currencyService = inject(CurrencyService);
   private router = inject(Router);
@@ -100,6 +101,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   showProductBrowser = signal(false);
   selectedCategory = signal<number | null>(null);
   isLoadingProducts = signal(false);
+  productsLoadError = signal<string | null>(null);
   lowStockThreshold = signal<number>(5);
   outletStockByVariant = signal<Record<number, number>>({});
   stockLoadingByVariant = signal<Record<number, boolean>>({});
@@ -112,20 +114,28 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   cartItems = signal<CartItem[]>([]);
   duplicateCartVariantId = signal<number | null>(null);
   discountPercent = signal<number>(0);
-  paymentMethod = signal<string>('cash');
   cashTendered = signal<number>(0);
+  /**
+   * Prototype tender table: three directly editable amounts. Card and Mobile are typed; Cash follows the remainder
+   * (payable − card − mobile) until the cashier types a cash amount. More than one non-zero amount is a split payment.
+   */
+  cardAmount = signal<number>(0);
+  mobileAmount = signal<number>(0);
+  manualCashAmount = signal<number | null>(null);
 
   // Split payment state
-  splitPayments = signal<CreateSalePaymentDto[]>([]);
-  useSplitPayment = signal(false);
 
   // Customer state
   selectedCustomer = signal<CustomerDto | null>(null);
   customerSearchQuery = signal('');
   customerResults = signal<CustomerDto[]>([]);
   showCustomerDropdown = signal(false);
+  /** Customer Lookup dialog (prototype: Lookup button / F3). */
+  customerLookupOpen = signal(false);
   showQuickCustomerModal = signal(false);
   isSavingCustomer = signal(false);
+  /** Existing customer that already owns the entered phone (409 CUSTOMER_PHONE_EXISTS); the cashier may select it. */
+  quickCustomerDuplicate = signal<PosCustomerLookupDto | null>(null);
   quickCustomerForm = signal<QuickCustomerForm>({
     salutation: '',
     firstName: '',
@@ -235,6 +245,16 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.cartItems().reduce((sum, item) => sum + item.subtotal, 0)
   );
 
+  /** Display only ("MRP Total"): quantity × unit price before any manual discount. */
+  grossTotal = computed(() =>
+    roundMoney(this.cartItems().reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))
+  );
+
+  /** Display only: line discounts plus the invoice discount, so MRP Total − Discount + VAT = the payable total. */
+  totalDiscount = computed(() =>
+    roundMoney(this.cartItems().reduce((sum, item) => sum + item.discountAmount, 0) + this.discountAmount())
+  );
+
   taxEnabled = computed(() => this.posSettings()?.taxEnabled ?? true);
   taxName = computed(() => this.posSettings()?.taxName?.trim() || 'Tax');
 
@@ -256,6 +276,33 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const limit = this.discountLimitPercent();
     if (limit === null) return '';
     return limit > 0 ? `Manual discount limit: ${Number(limit.toFixed(2))}%` : 'Manual discounts are not enabled';
+  });
+
+  /** Line and invoice discounts are mutually exclusive; the server refuses both together (SALE_DISCOUNT_CONFLICT). */
+  itemDiscountActive = computed(() =>
+    this.cartItems().some(item => (item.discountAmount ?? 0) > 0 || (item.discountPercent ?? 0) > 0)
+  );
+
+  invoiceDiscountActive = computed(() => this.discountPercent() > 0);
+
+  /** A 0 % Business limit without the override permission: the server refuses every manual discount. */
+  manualDiscountsDisabled = computed(() => this.discountLimitPercent() === 0 && !this.canOverrideDiscountLimit());
+
+  itemDiscountDisabled = computed(() =>
+    !this.canApplyDiscount() || this.manualDiscountsDisabled() || this.invoiceDiscountActive()
+  );
+
+  invoiceDiscountDisabled = computed(() =>
+    !this.canApplyDiscount() || this.manualDiscountsDisabled() || this.itemDiscountActive()
+  );
+
+  /** Why a discount input is disabled, for its tooltip and the cart footer. */
+  discountLockReason = computed(() => {
+    if (!this.canApplyDiscount()) return 'Manual discounts require the discount permission.';
+    if (this.manualDiscountsDisabled()) return 'Manual discounts are not enabled for this business (limit 0%).';
+    if (this.invoiceDiscountActive()) return 'Invoice discount applied: remove it to use item discounts.';
+    if (this.itemDiscountActive()) return 'Item discounts applied: remove them to use an invoice discount.';
+    return '';
   });
 
   discountAmount = computed(() => {
@@ -311,6 +358,37 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   taxAmount = computed(() => this.taxCalculation().tax);
 
+  /** The line's share of the cart tax, from the same allocation that produces the sale total. */
+  lineTax(index: number): number {
+    return this.taxCalculation().lines[index]?.tax ?? 0;
+  }
+
+  /** Line net after its discount, plus its tax when prices exclude tax (the invoice discount is shown in the summary). */
+  lineTotal(index: number): number {
+    const calculation = this.taxCalculation();
+    const line = calculation.lines[index];
+    if (!line) return 0;
+    return roundMoney(calculation.inclusive ? line.net : line.net + line.tax);
+  }
+
+  /** Terminal as the backend names it: "name · code", or just one when they are the same. */
+  terminalLabel(terminal: { name?: string | null; code?: string | null }): string {
+    const name = (terminal.name ?? '').trim();
+    const code = (terminal.code ?? '').trim();
+    if (!name || !code || name === code) return name || code;
+    return `${name} · ${code}`;
+  }
+
+  /** The line's share of the invoice discount (same largest-remainder allocation as the server). */
+  lineInvoiceDiscountShare(index: number): number {
+    return this.taxCalculation().lines[index]?.invoiceDiscountShare ?? 0;
+  }
+
+  /** Product name without the variant suffix; the variant is shown on its own line. */
+  cartLineName(item: CartItem): string {
+    return item.displayName || item.productName;
+  }
+
   /** "VAT", or "incl. VAT" when the prices already contain the tax. */
   taxLabel = computed(() => (this.taxCalculation().inclusive ? `incl. ${this.taxName()}` : this.taxName()));
 
@@ -332,18 +410,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.cartItems().reduce((sum, item) => sum + item.quantity, 0)
   );
 
-  dueAmount = computed(() => {
-    if (this.useSplitPayment()) {
-      return Math.max(0, Math.round((this.payableAmount() - this.splitTotal()) * 100) / 100);
-    }
-    if (this.paymentMethod() === 'cash') {
-      return Math.max(0, Math.round((this.payableAmount() - this.cashTendered()) * 100) / 100);
-    }
-    return 0;
-  });
+  /** Still to collect: payable minus card, mobile and the cash actually handed over. */
+  dueAmount = computed(() =>
+    Math.max(0, this.roundMoney(this.payableAmount() - this.cardBreakdown() - this.mobileBreakdown() - this.cashTenderedTotal()))
+  );
 
   headerOutlet = computed(() => this.currentUser()?.outletName ?? 'Outlet not assigned');
-  headerCashier = computed(() => this.currentUser()?.fullName ?? this.currentUser()?.username ?? 'Cashier');
+  headerCashier = computed(() => this.currentUser()?.name ?? this.currentUser()?.fullName ?? this.currentUser()?.username ?? 'Cashier');
   headerTerminal = computed(() => {
     const selectedId = this.selectedTerminalId();
     const terminal = this.terminals().find((t) => t.id === selectedId);
@@ -357,9 +430,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.authService.hasPermission('customers.view') || this.authService.hasPermission('*')
   );
 
-  canCreateCustomers = computed(() =>
-    this.authService.hasPermission('customers.create') || this.authService.hasPermission('*')
-  );
+  // POS Quick Customer is authorized by the POS sale permission (POST /api/pos/customers); the server enforces it.
+  canCreateCustomers = computed(() => this.authService.hasPermission('sales.create'));
 
   canBackdateSale = computed(() =>
     this.authService.hasPermission('sales.backdate')
@@ -435,79 +507,50 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    if (this.useSplitPayment()) {
-      return Math.abs(this.splitTotal() - this.payableAmount()) <= 0.01 && !this.splitTenderError();
-    }
-
-    if (this.paymentMethod() === 'cash') {
-      return this.cashTendered() >= this.payableAmount();
-    }
-
-    return true;
+    return this.paymentError() === null;
   });
 
   cashBreakdown = computed(() => {
-    if (this.useSplitPayment()) {
-      return this.splitPayments()
-        .filter((p) => p.method === 'cash')
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-    }
-    return this.paymentMethod() === 'cash' ? this.payableAmount() : 0;
+    const manual = this.manualCashAmount();
+    if (manual !== null) return this.roundMoney(manual);
+    return Math.max(0, this.roundMoney(this.payableAmount() - this.cardAmount() - this.mobileAmount()));
   });
 
-  cardBreakdown = computed(() => {
-    if (this.useSplitPayment()) {
-      return this.splitPayments()
-        .filter((p) => p.method === 'card')
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-    }
-    return this.paymentMethod() === 'card' ? this.payableAmount() : 0;
-  });
+  cardBreakdown = computed(() => this.roundMoney(this.cardAmount()));
 
-  mobileBreakdown = computed(() => {
-    if (this.useSplitPayment()) {
-      return this.splitPayments()
-        .filter((p) => p.method === 'mobile')
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-    }
-    return this.paymentMethod() === 'mobile' ? this.payableAmount() : 0;
-  });
+  mobileBreakdown = computed(() => this.roundMoney(this.mobileAmount()));
 
-  change = computed(() => {
-    if (this.useSplitPayment()) {
-      return this.roundMoney(this.splitPayments()
-        .filter((p) => p.method === 'cash')
-        .reduce((sum, p) => sum + Math.max(0, (p.tendered ?? p.amount ?? 0) - (p.amount || 0)), 0));
-    }
-    if (this.paymentMethod() !== 'cash') return 0;
-    return Math.max(0, Math.round((this.cashTendered() - this.payableAmount()) * 100) / 100);
-  });
+  /** True while Cash is derived from the other two amounts (the cashier has not typed a cash amount). */
+  cashIsAuto = computed(() => this.manualCashAmount() === null);
+
+  paymentTotal = computed(() => this.roundMoney(this.cashBreakdown() + this.cardBreakdown() + this.mobileBreakdown()));
+
+  /** Payable minus the entered payments: positive when short, negative when over. */
+  paymentDifference = computed(() => this.roundMoney(this.payableAmount() - this.paymentTotal()));
+
+  /** The methods with a non-zero amount, in tender-table order. */
+  activePayments = computed(() =>
+    ([['cash', this.cashBreakdown()], ['card', this.cardBreakdown()], ['mobile', this.mobileBreakdown()]] as const)
+      .filter(([, amount]) => amount > 0)
+      .map(([method, amount]) => ({ method, amount }))
+  );
+
+  isSplitPayment = computed(() => this.activePayments().length > 1);
+
+  /** The largest payment (the server records the same as the sale's payment method); cash for a zero sale. */
+  paymentMethod = computed(() =>
+    [...this.activePayments()].sort((a, b) => b.amount - a.amount)[0]?.method ?? 'cash'
+  );
+
+  change = computed(() =>
+    this.cashBreakdown() > 0 ? Math.max(0, this.roundMoney(this.cashTendered() - this.cashBreakdown())) : 0
+  );
 
   /** Cash that stays in the drawer for this sale: the cash allocation, never the tendered amount. */
   netCashRetained = computed(() => this.roundMoney(this.cashBreakdown()));
 
-  /** Cash handed over by the customer across all cash payments. */
-  cashTenderedTotal = computed(() => {
-    if (this.useSplitPayment()) {
-      return this.roundMoney(this.splitPayments()
-        .filter((p) => p.method === 'cash')
-        .reduce((sum, p) => sum + (p.tendered ?? p.amount ?? 0), 0));
-    }
-    return this.paymentMethod() === 'cash' ? this.cashTendered() : 0;
-  });
-
-  splitTenderError = computed(() => {
-    const short = this.splitPayments().some((p) => p.method === 'cash' && p.tendered !== undefined && p.tendered !== null && p.tendered < (p.amount || 0) - 0.004);
-    return short ? 'Cash tendered on a cash line cannot be less than its amount.' : '';
-  });
-
-  splitTotal = computed(() =>
-    this.splitPayments().reduce((s, p) => s + (p.amount || 0), 0)
-  );
-
-  splitRemaining = computed(() =>
-    Math.max(0, Math.round((this.payableAmount() - this.splitTotal()) * 100) / 100)
-  );
+  /** Cash handed over by the customer (only meaningful when part of the sale is paid in cash). */
+  cashTenderedTotal = computed(() => (this.cashBreakdown() > 0 ? this.roundMoney(this.cashTendered()) : 0));
 
   private customerSearchSubject = new Subject<string>();
   private subs: Subscription[] = [];
@@ -522,7 +565,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.currentUser.set(this.authService.getUserValue());
-    this.salesOrderDate.set(this.formatDateForInput(new Date()));
+    this.salesOrderDate.set(this.companyTodayService.todayIso());
     this.selectedCustomer.set(this.walkInCustomer);
     this.loadCategories();
     this.loadProducts();
@@ -551,6 +594,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearReceiptPrintPage();
     this.subs.forEach(s => s.unsubscribe());
     document.body.classList.remove('pos-fullscreen');
     if (document.fullscreenElement) {
@@ -612,21 +656,18 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       case '1':
         if (event.ctrlKey) {
           event.preventDefault();
-          this.useSplitPayment.set(false);
           this.setPaymentMethod('cash');
         }
         break;
       case '2':
         if (event.ctrlKey) {
           event.preventDefault();
-          this.useSplitPayment.set(false);
           this.setPaymentMethod('card');
         }
         break;
       case '3':
         if (event.ctrlKey) {
           event.preventDefault();
-          this.useSplitPayment.set(false);
           this.setPaymentMethod('mobile');
         }
         break;
@@ -656,11 +697,14 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     shell.requestFullscreen().catch(() => this.alertService.warning('The browser refused fullscreen mode.'));
   }
 
+  /** Lookup button / F3: opens the customer search dialog (its search box takes the focus). */
   focusCustomerSearch(): void {
-    (document.getElementById('pos-customer-search') as HTMLInputElement | null)?.focus();
+    if (!this.canViewCustomers()) return;
+    this.customerLookupOpen.set(true);
   }
 
   private closeTopmostPanel(): void {
+    if (this.customerLookupOpen()) { this.customerLookupOpen.set(false); return; }
     if (this.showQuickCustomerModal()) { this.closeQuickCustomerModal(); return; }
     if (this.showProductBrowser()) { this.closeProductBrowser(); return; }
     if (this.showHeldSalesPanel()) { this.showHeldSalesPanel.set(false); return; }
@@ -709,80 +753,59 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     });
   }
 
+  // POS reads go through /api/pos/* (sales.create), never the Product/Category Management endpoints.
   private loadCategories(): void {
-    this.http.get<any>(`${environment.apiUrl}/categories`).subscribe({
-      next: (res) => this.categories.set(res.data || res || []),
-      error: () => {}
+    this.posService.getCategories().subscribe({
+      next: (res) => this.categories.set((res?.data ?? []).map(c => ({ id: c.id, name: c.name }))),
+      // Filtering is optional: the browser still lists every product under "All".
+      error: () => this.categories.set([])
     });
   }
 
   private loadProducts(): void {
     this.isLoadingProducts.set(true);
-    const params = new HttpParams()
-      .set('pageSize', '200')
-      .set('isActive', 'true');
+    this.productsLoadError.set(null);
+    const outletId = this.authService.getUserValue()?.outletId ?? null;
 
-    this.http.get<any>(`${environment.apiUrl}/products`, { params }).subscribe({
+    this.posService.getCatalogue(outletId).subscribe({
       next: (res) => {
-        const raw = res.data?.products || res.data || res || [];
-        const mapped: PosProduct[] = [];
-        for (const p of raw) {
-          if (p.variants && p.variants.length > 0) {
-            for (const v of p.variants) {
-              const basePrice = Number(p.basePrice ?? p.sellingPrice ?? p.price ?? 0);
-              const variantPrice = Number(
-                v.finalPrice
-                  ?? (Number.isFinite(basePrice) ? basePrice + Number(v.priceAdjustment ?? 0) : undefined)
-                  ?? v.sellingPrice
-                  ?? v.price
-                  ?? p.basePrice
-                  ?? p.sellingPrice
-                  ?? p.price
-                  ?? 0
-              );
-
-              mapped.push({
-                variantId: v.id,
-                productId: p.id,
-                productName: p.name,
-                variantName: v.name,
-                name: p.name + (v.name ? ` - ${v.name}` : ''),
-                productCode: p.productCode || v.productCode || '',
-                sku: v.sku || p.sku || '',
-                barcode: v.barcode || p.barcode || '',
-                attributes: v.attributes || '',
-                price: Number.isFinite(variantPrice) ? variantPrice : 0,
-                stockQty: v.stockQuantity ?? v.stock ?? 0,
-                categoryId: p.categoryId,
-                categoryName: p.categoryName,
-                primaryImageThumb: p.primaryImageThumb,
-              });
-            }
-          } else {
-            const basePrice = Number(p.basePrice ?? p.sellingPrice ?? p.price ?? 0);
-            mapped.push({
-              variantId: p.defaultVariantId ?? p.id,
-              productId: p.id,
-              productName: p.name,
-              variantName: '',
-              name: p.name,
-              productCode: p.productCode || '',
-              sku: p.sku || '',
-              barcode: p.barcode || '',
-              attributes: '',
-              price: Number.isFinite(basePrice) ? basePrice : 0,
-              stockQty: p.stockQuantity ?? p.stock ?? 0,
-              categoryId: p.categoryId,
-              categoryName: p.categoryName,
-              primaryImageThumb: p.primaryImageThumb,
-            });
+        const items = res?.data ?? [];
+        const stock: Record<number, number> = {};
+        const mapped: PosProduct[] = items.map(item => {
+          if (outletId && item.stockQty !== null && item.stockQty !== undefined) {
+            stock[item.variantId] = Number(item.stockQty);
           }
-        }
+          return {
+            variantId: item.variantId,
+            productId: item.productId,
+            productName: item.productName,
+            variantName: item.variantName,
+            name: item.productName + (item.variantName ? ` - ${item.variantName}` : ''),
+            productCode: item.productCode || '',
+            sku: item.sku || '',
+            barcode: item.barcode || '',
+            attributes: item.attributes || '',
+            price: Number.isFinite(Number(item.listPrice)) ? Number(item.listPrice) : 0,
+            stockQty: Number(item.stockQty ?? 0),
+            categoryId: item.categoryId,
+            categoryName: item.categoryName ?? '',
+            primaryImageThumb: item.primaryImageThumb ?? '',
+          };
+        });
+        this.outletStockByVariant.update(map => ({ ...stock, ...map }));
         this.allProducts.set(mapped);
         this.isLoadingProducts.set(false);
       },
-      error: () => this.isLoadingProducts.set(false)
+      error: (err) => {
+        this.productsLoadError.set(posCatalogueErrorMessage(err));
+        this.isLoadingProducts.set(false);
+      }
     });
+  }
+
+  retryLoadProducts(): void {
+    this.loadCategories();
+    this.loadProducts();
   }
 
   private loadTerminals(outletId: number): void {
@@ -1099,6 +1122,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       this.cartItems.set([...items, {
         variantId: product.variantId,
         productName: product.name,
+        displayName: this.getPrimaryName(product),
         variantSku: product.sku,
         barcode: product.barcode || undefined,
         variantLabel: this.getVariantDetails(product),
@@ -1429,6 +1453,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       mobile: '',
       address: ''
     });
+    this.quickCustomerDuplicate.set(null);
     this.showQuickCustomerModal.set(true);
   }
 
@@ -1445,6 +1470,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   saveQuickCustomer(): void {
+    if (this.isSavingCustomer()) return;
     if (!this.canCreateCustomers()) {
       this.alertService.error('You do not have permission to create customers.');
       return;
@@ -1465,26 +1491,49 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     }
 
     this.isSavingCustomer.set(true);
+    this.quickCustomerDuplicate.set(null);
 
-    this.customerService.create({
-      name,
-      phone: mobile,
-      email: form.email.trim() || undefined,
-    }).subscribe({
+    this.posService.createCustomer({ name, phone: mobile }).subscribe({
       next: (res) => {
-        const created = (res?.data ?? res) as CustomerDto;
+        const created = res?.data;
         if (created?.id) {
-          this.selectCustomer(created);
+          this.selectCustomer(this.toSelectableCustomer(created));
           this.alertService.success('Customer created and selected.');
         }
         this.isSavingCustomer.set(false);
         this.showQuickCustomerModal.set(false);
       },
+      // Recoverable errors keep the modal and the entered values so the cashier can correct and retry.
       error: (err) => {
-        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        const body = readApiErrorBody(err) as { errorCode?: string; data?: Partial<PosCustomerLookupDto> } | null;
+        const existing = body?.errorCode === 'CUSTOMER_PHONE_EXISTS' ? body.data : null;
+        if (existing?.id) {
+          this.quickCustomerDuplicate.set({ id: existing.id, name: existing.name ?? '', phone: existing.phone ?? null });
+        } else {
+          this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        }
         this.isSavingCustomer.set(false);
       }
     });
+  }
+
+  /** Selects the customer that already owns the entered phone instead of creating a duplicate. */
+  selectDuplicateCustomer(): void {
+    const existing = this.quickCustomerDuplicate();
+    if (!existing) return;
+    this.selectCustomer(this.toSelectableCustomer(existing));
+    this.quickCustomerDuplicate.set(null);
+    this.showQuickCustomerModal.set(false);
+  }
+
+  private toSelectableCustomer(customer: PosCustomerLookupDto): CustomerDto {
+    return {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone ?? undefined,
+      loyaltyPoints: 0,
+      createdAt: new Date(0).toISOString()
+    };
   }
 
   removeFromCart(index: number): void {
@@ -1555,12 +1604,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   clearCart(): void {
     this.cartItems.set([]);
     this.discountPercent.set(0);
-    this.cashTendered.set(0);
+    this.resetPayments();
     this.selectedCustomer.set(this.walkInCustomer);
     this.customerSearchQuery.set('');
-    this.paymentMethod.set('cash');
-    this.splitPayments.set([]);
-    this.useSplitPayment.set(false);
     this.checkoutNotice.set(null);
     this.selectedSalespersonId.set(this.defaultSalespersonId);
   }
@@ -1643,13 +1689,17 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   private doCustomerSearch(query: string): void {
-    const params = new HttpParams().set('q', query);
-    this.http.get<any>(`${environment.apiUrl}/customers/search`, { params }).subscribe({
+    // Checkout uses the minimal POS customer lookup (sales.create), not Customer Management.
+    this.posService.searchCustomers(query).subscribe({
       next: (res) => {
-        this.customerResults.set(res.data || res || []);
+        this.customerResults.set((res?.data ?? []).map(customer => this.toSelectableCustomer(customer)));
         this.showCustomerDropdown.set(true);
       },
-      error: () => {}
+      // 403/other failures: the error interceptor shows the notice (never signs out); drop stale results.
+      error: () => {
+        this.customerResults.set([]);
+        this.showCustomerDropdown.set(false);
+      }
     });
   }
 
@@ -1658,6 +1708,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.customerSearchQuery.set(customer.name);
     this.showCustomerDropdown.set(false);
     this.customerResults.set([]);
+    this.customerLookupOpen.set(false);
   }
 
   clearCustomer(): void {
@@ -1753,20 +1804,47 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  private paymentError(): string | null {
-    if (this.paymentMethod() === 'cash' && !this.useSplitPayment() && this.cashTendered() < this.payableAmount()) {
-      return 'Cash tendered is less than total amount';
+  /** Mirrors the server payment planner: amounts ≥ 0 with 2 decimals, total = payable, cash tendered ≥ cash amount. */
+  paymentError(): string | null {
+    const amounts = [this.cashBreakdown(), this.cardBreakdown(), this.mobileBreakdown()];
+    if (amounts.some(amount => !Number.isFinite(amount) || amount < 0)) {
+      return 'Payment amounts cannot be negative.';
     }
 
-    if (this.useSplitPayment() && Math.abs(this.splitTotal() - this.payableAmount()) > 0.01) {
-      return `Split payment total (${this.currencyService.format(this.splitTotal())}) must equal sale total (${this.currencyService.format(this.payableAmount())})`;
+    const difference = this.paymentDifference();
+    if (Math.abs(difference) > 0.004) {
+      return difference > 0
+        ? `Payments are ${this.currencyService.format(difference)} short of the payable amount (${this.currencyService.format(this.payableAmount())}).`
+        : `Payments exceed the payable amount (${this.currencyService.format(this.payableAmount())}) by ${this.currencyService.format(-difference)}.`;
     }
 
-    if (this.useSplitPayment() && this.splitTenderError()) {
-      return this.splitTenderError();
+    if (this.cashBreakdown() > 0 && this.roundMoney(this.cashTendered()) < this.cashBreakdown()) {
+      return 'Cash tendered is less than the cash amount.';
     }
 
     return null;
+  }
+
+  /**
+   * Server contract (CreateSaleDto / SalePaymentPlanner): one method → PaymentMethod + CashTendered (cash only);
+   * several methods → Payments[] with Tendered on the cash row. Zero amounts are never sent.
+   */
+  private paymentPayload(): { paymentMethod: string; cashTendered?: number; payments?: CreateSalePaymentDto[] } {
+    const active = this.activePayments();
+    const tendered = this.roundMoney(this.cashTendered());
+    if (active.length <= 1) {
+      const method = active[0]?.method ?? 'cash';
+      return { paymentMethod: method, cashTendered: method === 'cash' ? tendered : undefined };
+    }
+
+    return {
+      paymentMethod: this.paymentMethod(),
+      payments: active.map(row => ({
+        method: row.method,
+        amount: row.amount,
+        tendered: row.method === 'cash' ? tendered : undefined
+      }))
+    };
   }
 
   private submitSale(outletId: number): void {
@@ -1792,9 +1870,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       items: this.cartItems().map(i => ({ variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, discountAmount: i.discountAmount })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
-      paymentMethod: this.paymentMethod(),
-      cashTendered: this.paymentMethod() === 'cash' && !this.useSplitPayment() ? this.cashTendered() : undefined,
-      payments: this.useSplitPayment() ? this.splitPayments() : undefined,
+      ...this.paymentPayload(),
       salespersonUserId: this.selectedSalespersonId() ?? undefined
     };
     const signature = JSON.stringify(attemptPayload);
@@ -1819,10 +1895,10 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
-      paymentMethod: this.paymentMethod(),
+      paymentMethod: attemptPayload.paymentMethod,
       cashTendered: attemptPayload.cashTendered,
       idempotencyKey,
-      payments: this.useSplitPayment() ? this.splitPayments() : undefined,
+      payments: attemptPayload.payments,
       salespersonUserId: attemptPayload.salespersonUserId
     };
 
@@ -1951,6 +2027,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       if (remaining <= 0) {
         return;
       }
+      applyReceiptPrintPage(this.receiptOutputMode());
       window.print();
       remaining -= 1;
       if (remaining > 0) {
@@ -2084,6 +2161,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   startNewSale(): void {
+    clearReceiptPrintPage();
     this.clearCart();
     this.showReceiptModal.set(false);
     this.completedSale.set(null);
@@ -2093,8 +2171,33 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     this.focusSmartSearch();
   }
 
+  /** Ctrl+1/2/3: the whole payable on one method (Cash returns to following the remainder) and focus its field. */
   setPaymentMethod(method: string): void {
-    this.paymentMethod.set(method);
+    this.manualCashAmount.set(null);
+    this.cardAmount.set(method === 'card' ? this.payableAmount() : 0);
+    this.mobileAmount.set(method === 'mobile' ? this.payableAmount() : 0);
+    setTimeout(() => (document.getElementById(`pos-pay-${method}`) as HTMLInputElement | null)?.focus());
+  }
+
+  /** Tender-table edit. An empty Cash field returns Cash to the automatic remainder; empty Card/Mobile mean zero. */
+  onPaymentAmountChange(method: 'cash' | 'card' | 'mobile', value: number | string | null): void {
+    const text = value === null || value === undefined ? '' : String(value).trim();
+    const parsed = text === '' ? null : Number(text);
+    const amount = parsed === null || !Number.isFinite(parsed) ? null : this.roundMoney(Math.max(0, parsed));
+    if (method === 'cash') {
+      this.manualCashAmount.set(amount);
+    } else if (method === 'card') {
+      this.cardAmount.set(amount ?? 0);
+    } else {
+      this.mobileAmount.set(amount ?? 0);
+    }
+  }
+
+  private resetPayments(): void {
+    this.cashTendered.set(0);
+    this.cardAmount.set(0);
+    this.mobileAmount.set(0);
+    this.manualCashAmount.set(null);
   }
 
   onDiscountChange(val: string): void {
@@ -2261,7 +2364,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
           };
         }));
         this.discountPercent.set(data.discountPercent);
-        this.paymentMethod.set(data.paymentMethod);
+        this.setPaymentMethod(data.paymentMethod || 'cash');
         this.selectedCustomer.set(
           data.customerId && data.customerId > 0
             ? {
@@ -2302,53 +2405,6 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         if (user?.outletId) this.posService.loadHeldSales(user.outletId);
       },
       error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
-    });
-  }
-
-  // ── Split Payment ─────────────────────────────────────────────────────────
-
-  toggleSplitPayment(): void {
-    this.useSplitPayment.update(v => !v);
-    if (this.useSplitPayment()) {
-      // Seed with single full payment as a starting point
-      this.splitPayments.set([{ method: this.paymentMethod(), amount: this.totalAmount() }]);
-    } else {
-      this.splitPayments.set([]);
-    }
-  }
-
-  addSplitRow(): void {
-    const remaining = this.splitRemaining();
-    this.splitPayments.update(rows => [...rows, { method: 'cash', amount: remaining }]);
-  }
-
-  removeSplitRow(index: number): void {
-    this.splitPayments.update(rows => rows.filter((_, i) => i !== index));
-  }
-
-  updateSplitMethod(index: number, method: string): void {
-    this.splitPayments.update(rows => {
-      const updated = [...rows];
-      updated[index] = { ...updated[index], method };
-      return updated;
-    });
-  }
-
-  updateSplitAmount(index: number, val: string): void {
-    const n = parseFloat(val);
-    this.splitPayments.update(rows => {
-      const updated = [...rows];
-      updated[index] = { ...updated[index], amount: isNaN(n) ? 0 : n };
-      return updated;
-    });
-  }
-
-  updateSplitTendered(index: number, val: string): void {
-    const n = parseFloat(val);
-    this.splitPayments.update(rows => {
-      const updated = [...rows];
-      updated[index] = { ...updated[index], tendered: isNaN(n) ? undefined : n };
-      return updated;
     });
   }
 }

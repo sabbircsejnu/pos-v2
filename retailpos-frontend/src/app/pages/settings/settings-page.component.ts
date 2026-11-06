@@ -1,3 +1,4 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -19,7 +20,6 @@ import {
   CurrencySettings,
   PosSettings,
   UpdatePosSettingsRequest,
-  COMMON_TIME_ZONES,
   DEFAULT_CURRENCY_SETTINGS,
   SUPPORTED_CURRENCIES,
 } from '../../models/settings.model';
@@ -55,6 +55,7 @@ const EMPTY_POS_FORM: PosSettingsForm = {
   styleUrls: ['./settings-page.component.css']
 })
 export class SettingsPageComponent implements OnInit {
+  private readonly companyDates = inject(CompanyDateService);
   private readonly auth = inject(AuthService);
 
   activeTab = signal<SettingsTab>('company');
@@ -62,7 +63,6 @@ export class SettingsPageComponent implements OnInit {
   isSaving = signal(false);
 
   supportedCurrencies = SUPPORTED_CURRENCIES;
-  readonly timeZoneSuggestions = COMMON_TIME_ZONES;
   currencyPreviewAmount = 1234567.89;
 
   company = signal<CompanySettings>({
@@ -239,6 +239,7 @@ export class SettingsPageComponent implements OnInit {
     this.isSaving.set(true);
     this.settingsService.updateCompanySettings(this.company()).subscribe({
       next: () => {
+        this.companyDates.setTimeZone(this.company().timeZone);
         this.alertService.success('Company settings saved successfully');
         this.isSaving.set(false);
       },

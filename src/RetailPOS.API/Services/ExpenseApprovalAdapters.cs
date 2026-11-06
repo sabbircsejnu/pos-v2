@@ -62,7 +62,7 @@ public sealed class ExpenseApprovalJournalPoster(
                     journal.ReferenceNumber,
                     journal.Description,
                     journal.OutletId,
-                    null,
+                    journal.WarehouseId,
                     null,
                     null,
                     journal.Lines.Select(line => new ManualJournalDraftLineInput(
@@ -71,7 +71,7 @@ public sealed class ExpenseApprovalJournalPoster(
                         line.DebitAmount,
                         line.CreditAmount,
                         line.OutletId,
-                        null,
+                        line.WarehouseId,
                         null,
                         null,
                         null,

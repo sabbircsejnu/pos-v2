@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+using RetailPOS.Application.AccountingConfiguration.Queries;
 using RetailPOS.Application.ChartAccounts;
 using RetailPOS.Application.ChartAccounts.Abstractions;
 using RetailPOS.Application.ChartAccounts.Commands;
@@ -33,6 +35,15 @@ public sealed class ChartAccountCommandStore(
         NormalBalanceTypes.Credit
     };
 
+    // Lists, not arrays: array.Contains does not translate in EF Core 9 under C# 14.
+    private static readonly List<string> UnapprovedExpenseStatuses =
+        [ExpenseStatuses.Draft, ExpenseStatuses.Submitted, ExpenseStatuses.Rejected];
+
+    private static readonly List<string> UnapprovedOtherIncomeStatuses =
+        [OtherIncomeStatuses.Draft, OtherIncomeStatuses.Submitted, OtherIncomeStatuses.Rejected];
+
+    private static readonly List<string> UnapprovedSupplierPaymentStatuses = ["draft", "pending", "submitted", "rejected"];
+
     public async Task<ChartAccountReadModel> CreateAsync(
         long businessId,
         long? actorUserId,
@@ -47,6 +58,8 @@ public sealed class ChartAccountCommandStore(
 
         await EnsureUniqueCodeAsync(businessId, accountCode, cancellationToken);
         await EnsureValidParentAsync(businessId, command.ParentAccountId, accountType, cancellationToken);
+        if (command.IsExpensePaymentAccount)
+            await EnsureExpensePaymentFlagAllowedAsync(businessId, null, accountType, cancellationToken);
 
         var account = new ChartAccount
         {
@@ -59,6 +72,7 @@ public sealed class ChartAccountCommandStore(
             IsSystemAccount = false,
             IsControlAccount = command.IsControlAccount,
             AllowManualPosting = command.AllowManualPosting,
+            IsExpensePaymentAccount = command.IsExpensePaymentAccount,
             IsActive = command.IsActive,
             DisplayOrder = command.DisplayOrder,
             CreatedAt = now,
@@ -94,13 +108,23 @@ public sealed class ChartAccountCommandStore(
                 cancellationToken)
             ?? throw new KeyNotFoundException(
                 $"Chart account with ID {command.Id} was not found.");
-        var before = Map(account);
         var normalizedName = NormalizeRequired(command.AccountName, nameof(command.AccountName), 150);
 
         if (account.IsSystemAccount && !command.IsActive)
         {
             throw new InvalidOperationException("System accounts cannot be deactivated.");
         }
+
+        // Only an Active-to-Inactive change needs the lock and the shared dependency rule.
+        await using var deactivation = account.IsActive && !command.IsActive
+            ? await LockForDeactivationAsync(businessId, account, cancellationToken)
+            : null;
+        if (account.IsActive && !command.IsActive)
+        {
+            await EnsureCanDeactivateAsync(businessId, account.Id, cancellationToken);
+        }
+
+        var before = Map(account);
 
         if (account.IsSystemAccount)
         {
@@ -135,7 +159,11 @@ public sealed class ChartAccountCommandStore(
             command.Id,
             command.ParentAccountId,
             cancellationToken);
+        if (command.IsExpensePaymentAccount == true)
+            await EnsureExpensePaymentFlagAllowedAsync(businessId, account.Id, account.AccountType, cancellationToken);
 
+        // A client that does not send the flag leaves it unchanged.
+        account.IsExpensePaymentAccount = command.IsExpensePaymentAccount ?? account.IsExpensePaymentAccount;
         account.AccountName = normalizedName;
         account.ParentAccountId = command.ParentAccountId;
         account.IsControlAccount = command.IsControlAccount;
@@ -158,6 +186,11 @@ public sealed class ChartAccountCommandStore(
             before,
             after,
             actorUserId);
+        if (deactivation is not null)
+        {
+            await deactivation.CommitAsync(cancellationToken);
+        }
+
         return after;
     }
 
@@ -172,7 +205,6 @@ public sealed class ChartAccountCommandStore(
                 cancellationToken)
             ?? throw new KeyNotFoundException(
                 $"Chart account with ID {accountId} was not found.");
-        var before = Map(account);
 
         if (account.IsSystemAccount)
         {
@@ -184,21 +216,15 @@ public sealed class ChartAccountCommandStore(
             return false;
         }
 
-        if (await HasActiveChildrenAsync(businessId, accountId, cancellationToken))
+        await using var deactivation = await LockForDeactivationAsync(businessId, account, cancellationToken);
+        if (!account.IsActive)
         {
-            throw new InvalidOperationException("Account cannot be deactivated while it has active child accounts.");
+            return false;
         }
 
-        if (await IsReferencedByJournalAsync(accountId, cancellationToken))
-        {
-            throw new InvalidOperationException("Account cannot be deactivated because it is referenced by journal transactions.");
-        }
+        await EnsureCanDeactivateAsync(businessId, accountId, cancellationToken);
 
-        if (await IsReferencedByConfigurationAsync(businessId, accountId, cancellationToken))
-        {
-            throw new InvalidOperationException("Account cannot be deactivated because it is used in accounting configuration.");
-        }
-
+        var before = Map(account);
         account.IsActive = false;
         account.UpdatedAt = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -214,7 +240,100 @@ public sealed class ChartAccountCommandStore(
             before,
             Map(account),
             actorUserId);
+        if (deactivation is not null)
+        {
+            await deactivation.CommitAsync(cancellationToken);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Serializes a deactivation against a category being mapped to the account, which takes a shared lock on the same
+    /// row. The account is reloaded because its status may have changed while waiting.
+    /// </summary>
+    private async Task<IDbContextTransaction?> LockForDeactivationAsync(
+        long businessId,
+        ChartAccount account,
+        CancellationToken cancellationToken)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            return null;
+        }
+
+        var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM chart_accounts WHERE business_id = {businessId} AND id = {account.Id} FOR UPDATE",
+                cancellationToken);
+            await dbContext.Entry(account).ReloadAsync(cancellationToken);
+        }
+
+        return transaction;
+    }
+
+    private async Task EnsureCanDeactivateAsync(
+        long businessId,
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        var reason = ChartAccountDeactivationPolicy.RefusalReason(
+            await LoadDependenciesAsync(businessId, accountId, cancellationToken));
+        if (reason is not null)
+        {
+            throw new InvalidOperationException(reason);
+        }
+    }
+
+    private async Task<ChartAccountDependencies> LoadDependenciesAsync(
+        long businessId,
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        return new ChartAccountDependencies(
+            ActiveExpenseCategories: await dbContext.ExpenseCategories.CountAsync(
+                category => category.BusinessId == businessId
+                    && category.ExpenseAccountId == accountId
+                    && category.IsActive,
+                cancellationToken),
+            ActiveChildAccounts: await dbContext.ChartAccounts.CountAsync(
+                account => account.BusinessId == businessId
+                    && account.ParentAccountId == accountId
+                    && account.IsActive,
+                cancellationToken),
+            MappedInConfiguration: await IsReferencedByConfigurationAsync(businessId, accountId, cancellationToken),
+            ReferencedByJournals: await dbContext.JournalEntryLines.AnyAsync(
+                line => line.AccountId == accountId,
+                cancellationToken),
+            ActiveBankAccounts: await dbContext.BankAccounts.CountAsync(
+                bank => bank.BusinessId == businessId
+                    && bank.ChartAccountId == accountId
+                    && bank.IsActive,
+                cancellationToken),
+            UnapprovedExpenses: await dbContext.Expenses.CountAsync(
+                expense => expense.BusinessId == businessId
+                    && UnapprovedExpenseStatuses.Contains(expense.Status)
+                    && (expense.ExpenseAccountId == accountId
+                        || expense.PaymentAccountId == accountId
+                        || (expense.ExpenseCategory != null && expense.ExpenseCategory.ExpenseAccountId == accountId)),
+                cancellationToken),
+            UnapprovedOtherIncome: await dbContext.OtherIncomeEntries.CountAsync(
+                entry => entry.BusinessId == businessId
+                    && UnapprovedOtherIncomeStatuses.Contains(entry.Status)
+                    && (entry.IncomeAccountId == accountId || entry.PaymentAccountId == accountId),
+                cancellationToken),
+            UnapprovedSupplierPayments: await dbContext.SupplierPayments.CountAsync(
+                payment => payment.BusinessId == businessId
+                    && UnapprovedSupplierPaymentStatuses.Contains(payment.Status)
+                    && payment.PaymentAccountId == accountId,
+                cancellationToken)
+                + await dbContext.SupplierAdvances.CountAsync(
+                    advance => advance.BusinessId == businessId
+                        && UnapprovedSupplierPaymentStatuses.Contains(advance.Status)
+                        && advance.PaymentAccountId == accountId,
+                    cancellationToken));
     }
 
     private async Task RecordAuditAsync(
@@ -339,61 +458,26 @@ public sealed class ChartAccountCommandStore(
         }
     }
 
-    private Task<bool> HasActiveChildrenAsync(
-        long businessId,
-        long accountId,
-        CancellationToken cancellationToken) =>
-        dbContext.ChartAccounts.AnyAsync(
-            account => account.BusinessId == businessId
-                && account.ParentAccountId == accountId
-                && account.IsActive,
-            cancellationToken);
-
-    private Task<bool> IsReferencedByJournalAsync(
-        long accountId,
-        CancellationToken cancellationToken) =>
-        dbContext.JournalEntryLines.AnyAsync(
-            line => line.AccountId == accountId,
-            cancellationToken);
-
     private async Task<bool> IsReferencedByConfigurationAsync(
         long businessId,
         long accountId,
         CancellationToken cancellationToken)
     {
-        var businessReferenced = await dbContext.AccountingConfigurations.AnyAsync(configuration =>
-            configuration.BusinessId == businessId
-            && (configuration.CashAccountId == accountId
-                || configuration.PettyCashAccountId == accountId
-                || configuration.DefaultBankAccountId == accountId
-                || configuration.InventoryAccountId == accountId
-                || configuration.SalesAccountId == accountId
-                || configuration.SalesDiscountAccountId == accountId
-                || configuration.SalesReturnAccountId == accountId
-                || configuration.CogsAccountId == accountId
-                || configuration.InventoryShortageAccountId == accountId
-                || configuration.InventoryGainAccountId == accountId
-                || configuration.SupplierPayableAccountId == accountId
-                || configuration.CustomerAdvanceAccountId == accountId
-                || configuration.OtherIncomeAccountId == accountId
-                || configuration.OwnerCapitalAccountId == accountId
-                || configuration.OwnerDrawingsAccountId == accountId
-                || configuration.RetainedEarningsAccountId == accountId
-                || configuration.RoundingDifferenceAccountId == accountId
-                || configuration.CashDifferenceGainAccountId == accountId
-                || configuration.CashDifferenceLossAccountId == accountId),
-            cancellationToken);
-
-        if (businessReferenced)
+        // The posting resolver's own slot lists, so a newly added slot is protected without another copy of them.
+        var configuration = await dbContext.AccountingConfigurations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(row => row.BusinessId == businessId, cancellationToken);
+        if (configuration is not null
+            && PostingAccountResolutionPolicy.GetGlobalAccountMappings(configuration).Any(mapping => mapping.AccountId == accountId))
         {
             return true;
         }
 
-        return await dbContext.AccountingOutletConfigurations.AnyAsync(configuration =>
-                configuration.BusinessId == businessId
-                && (configuration.OutletCashAccountId == accountId
-                    || configuration.OutletPettyCashAccountId == accountId
-                    || configuration.OutletBankAccountId == accountId),
+        return await dbContext.AccountingOutletConfigurations.AnyAsync(row =>
+                row.BusinessId == businessId
+                && (row.OutletCashAccountId == accountId
+                    || row.OutletPettyCashAccountId == accountId
+                    || row.OutletBankAccountId == accountId),
             cancellationToken);
     }
 
@@ -449,5 +533,28 @@ public sealed class ChartAccountCommandStore(
             account.IsControlAccount,
             account.AllowManualPosting,
             account.IsActive,
-            account.DisplayOrder);
+            account.DisplayOrder,
+            account.IsExpensePaymentAccount);
+
+    /// <summary>Only funding-type accounts can be flagged; supplier payable is refused at expense approval anyway.</summary>
+    private async Task EnsureExpensePaymentFlagAllowedAsync(
+        long businessId,
+        long? accountId,
+        string accountType,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(accountType, ChartAccountTypes.Asset, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(accountType, ChartAccountTypes.Liability, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Only Asset or Liability accounts can be expense payment accounts.");
+        }
+
+        if (accountId.HasValue && await dbContext.AccountingConfigurations.AnyAsync(
+                configuration => configuration.BusinessId == businessId
+                    && configuration.SupplierPayableAccountId == accountId.Value,
+                cancellationToken))
+        {
+            throw new InvalidOperationException("Supplier payable cannot be an expense payment account.");
+        }
+    }
 }

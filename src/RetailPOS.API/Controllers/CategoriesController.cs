@@ -4,13 +4,16 @@ using MediatR;
 using RetailPOS.Application.Categories.Commands;
 using RetailPOS.Application.Categories.Contracts;
 using RetailPOS.Application.Categories.Queries;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Category;
 
 namespace RetailPOS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "categories.view")]
+// Authenticated by default; each action declares its own policy so the flat list can serve the
+// Product Create/Edit picker without granting Category Management.
+[Authorize]
 public class CategoriesController : ControllerBase
 {
     private readonly ISender _sender;
@@ -28,6 +31,7 @@ public class CategoriesController : ControllerBase
     /// Get all categories as flat list
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = LookupAuthorizationPolicies.CategoryList)]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAllCategories()
     {
         try
@@ -57,6 +61,7 @@ public class CategoriesController : ControllerBase
     /// Get all categories as hierarchical tree structure
     /// </summary>
     [HttpGet("tree")]
+    [Authorize(Policy = "categories.view")]
     public async Task<ActionResult<IEnumerable<CategoryTreeDto>>> GetCategoryTree(
         CancellationToken cancellationToken)
     {
@@ -89,6 +94,7 @@ public class CategoriesController : ControllerBase
     /// Get category by ID
     /// </summary>
     [HttpGet("{id}")]
+    [Authorize(Policy = "categories.view")]
     public async Task<ActionResult<CategoryDto>> GetCategoryById(
         long id,
         CancellationToken cancellationToken)
@@ -118,6 +124,7 @@ public class CategoriesController : ControllerBase
     /// Get children of a specific category
     /// </summary>
     [HttpGet("{id}/children")]
+    [Authorize(Policy = "categories.view")]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategoryChildren(
         long id,
         CancellationToken cancellationToken)
@@ -151,6 +158,7 @@ public class CategoriesController : ControllerBase
     /// Create new category
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "categories.view")]
     [Authorize(Policy = "categories.create")]
     public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CreateCategoryDto dto)
     {
@@ -213,6 +221,7 @@ public class CategoriesController : ControllerBase
     /// Update existing category
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "categories.view")]
     [Authorize(Policy = "categories.edit")]
     public async Task<ActionResult<CategoryDto>> UpdateCategory(
         long id,
@@ -264,6 +273,7 @@ public class CategoriesController : ControllerBase
     /// Delete category
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "categories.view")]
     [Authorize(Policy = "categories.delete")]
     public async Task<ActionResult> DeleteCategory(long id, CancellationToken cancellationToken)
     {
@@ -300,6 +310,7 @@ public class CategoriesController : ControllerBase
     /// Move category to a different parent
     /// </summary>
     [HttpPut("{id}/move")]
+    [Authorize(Policy = "categories.view")]
     [Authorize(Policy = "categories.edit")]
     public async Task<ActionResult<CategoryDto>> MoveCategory(
         long id,

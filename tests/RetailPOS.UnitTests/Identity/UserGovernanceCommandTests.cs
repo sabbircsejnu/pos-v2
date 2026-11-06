@@ -153,6 +153,18 @@ public sealed class UserGovernanceCommandTests
         public Task<long> CountActiveSuperAdminsAsync(CancellationToken cancellationToken) =>
             Task.FromResult(ActiveSuperAdminCount);
 
+        public Task<UserContextAccessReadModel?> FindContextAccessAsync(long userId, CancellationToken cancellationToken) =>
+            Task.FromResult<UserContextAccessReadModel?>(null);
+
+        public Task<IReadOnlyList<string>> FindPermissionOverridesAsync(long userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task<IReadOnlyList<UserGovernanceContextRole>> ListBusinessContextRolesAsync(
+            long businessId,
+            IReadOnlyCollection<string> defaultRoleNames,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<UserGovernanceContextRole>>([]);
+
         public Task<UserReadModel> CreateAsync(
             UserGovernanceProfile profile,
             string password,

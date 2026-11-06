@@ -53,6 +53,7 @@ public sealed class OpenCashSessionCommandHandlerTests
     {
         public Mock<ICashSessionStore> Store { get; } = new();
         public Mock<IBusinessPosSettingsStore> Settings { get; } = new();
+        public Mock<ICompanyTimeZoneProvider> Zones { get; } = new();
         public RecordingCashSessionEvents Events { get; } = new();
         public NoopCashSessionTransaction Transaction { get; } = new();
         public CashSession? Added { get; private set; }
@@ -78,6 +79,7 @@ public sealed class OpenCashSessionCommandHandlerTests
                     Added = session;
                 })
                 .ReturnsAsync(CashSessionAddResult.Created);
+            Zones.Setup(z => z.GetTimeZoneIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(businessZone);
             Settings.Setup(s => s.GetAsync(1, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new BusinessPosSettingsSnapshot(
                     1, hours, businessZone, true, 10m, "VAT", false, 0m, 1, null, null, true));
@@ -86,6 +88,7 @@ public sealed class OpenCashSessionCommandHandlerTests
                 Store.Object,
                 authorizer.Object,
                 Settings.Object,
+                Zones.Object,
                 Mock.Of<ICashSessionOpenAuditWriter>(),
                 Mock.Of<ICashSessionOpenedPublisher>(),
                 Events,
@@ -113,9 +116,20 @@ public sealed class OpenCashSessionCommandHandlerTests
     }
 
     [Fact]
-    public async Task Outlet_time_zone_override_wins_over_the_business_default()
+    public async Task Outlet_time_zone_setting_is_ignored_and_the_company_zone_decides_the_business_date()
     {
         var harness = new Harness(outletZone: "America/New_York");
+
+        await harness.Handler.Handle(new OpenCashSessionCommand(5001, 8001, 0m, null, 7001), CancellationToken.None);
+
+        Assert.Equal("Asia/Dhaka", harness.Added!.TimeZoneIdSnapshot);
+        Assert.Equal(new DateTime(2026, 11, 4), harness.Added.BusinessDate);
+    }
+
+    [Fact]
+    public async Task Company_zone_of_the_business_decides_the_business_date()
+    {
+        var harness = new Harness(businessZone: "America/New_York");
 
         await harness.Handler.Handle(new OpenCashSessionCommand(5001, 8001, 0m, null, 7001), CancellationToken.None);
 

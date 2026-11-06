@@ -1,5 +1,6 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -16,6 +17,7 @@ import { OpeningBalanceStatusDto } from '../../models/accounting.model';
   styleUrls: ['./opening-balance.component.css']
 })
 export class OpeningBalanceComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   status = signal<OpeningBalanceStatusDto | null>(null);
   isLoading = signal(false);
   isPosting = signal(false);
@@ -78,8 +80,8 @@ export class OpeningBalanceComponent implements OnInit {
     this.isPosting.set(true);
     this.accountingService.adjustOpeningBalance(openingBalanceId, {
       reason: this.adjustmentNotes().trim(),
-      adjustmentBusinessDate: new Date().toISOString(),
-      postingDate: new Date().toISOString(),
+      adjustmentBusinessDate: this.companyToday.todayIso(),
+      postingDate: this.companyToday.todayIso(),
       description: this.adjustmentNotes().trim(),
       referenceNumber: `ADJ-${openingBalanceId}`,
       lines: [

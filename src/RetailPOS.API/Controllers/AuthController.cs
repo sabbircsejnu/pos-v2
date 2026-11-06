@@ -295,6 +295,23 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>The roles and locations the caller may switch to; never includes anything else.</summary>
+    [Authorize]
+    [HttpGet("switch-options")]
+    public async Task<ActionResult<UserContextOptionsDto>> GetSwitchOptions(CancellationToken cancellationToken)
+    {
+        var realUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var options = await _sender.Send(new GetUserContextOptionsQuery(realUserId), cancellationToken);
+        return Ok(new UserContextOptionsDto
+        {
+            CanSwitch = options.CanSwitch,
+            AllowAllLocations = options.AllowAllLocations,
+            Roles = options.Roles.Select(role => new UserContextOptionDto { Id = role.Id, Name = role.Name }).ToList(),
+            Outlets = options.Outlets.Select(location => new UserContextOptionDto { Id = location.Id, Name = location.Name }).ToList(),
+            Warehouses = options.Warehouses.Select(location => new UserContextOptionDto { Id = location.Id, Name = location.Name }).ToList()
+        });
+    }
+
     [Authorize]
     [HttpPost("switch-role")]
     public async Task<ActionResult<LoginResponseDto>> SwitchRole(
@@ -305,7 +322,12 @@ public class AuthController : ControllerBase
         try
         {
             var response = ToResponse(await _sender.Send(
-                new SwitchRoleCommand(realUserId, request.ActingRole, request.ActingOutletId),
+                new SwitchRoleCommand(
+                    realUserId,
+                    request.ActingRole,
+                    request.ActingOutletId,
+                    request.ActingLocationType,
+                    request.ActingLocationId),
                 cancellationToken));
 
             try
@@ -313,8 +335,11 @@ public class AuthController : ControllerBase
                 await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
                     AuditActionType.RoleSwitch,
                     AuditModule.Auth,
-                    $"User {realUserId} switched to {request.ActingRole}" +
-                    (request.ActingOutletId.HasValue ? $" @ outlet {request.ActingOutletId}" : ""),
+                    $"User {realUserId} switched to {response.User.ActingRoleName}"
+                        + $" @ {response.User.ActingLocationType}"
+                        + ((response.User.ActingOutletId ?? response.User.ActingWarehouseId) is long locationId
+                            ? $" {locationId}"
+                            : ""),
                     "User",
                     realUserId.ToString())), cancellationToken);
             }
@@ -360,7 +385,12 @@ public class AuthController : ControllerBase
         try
         {
             var response = ToResponse(await _sender.Send(
-                new ReturnOwnerCommand(realUserId),
+                new ReturnOwnerCommand(
+                    realUserId,
+                    string.Equals(
+                        User.FindFirst(RoleSwitchClaims.IsRoleSwitched)?.Value,
+                        "true",
+                        StringComparison.OrdinalIgnoreCase)),
                 cancellationToken));
 
             try
@@ -368,7 +398,7 @@ public class AuthController : ControllerBase
                 await _sender.Send(new RecordAuditEventCommand(new AuditEventWriteRequest(
                     AuditActionType.RoleSwitch,
                     AuditModule.Auth,
-                    $"User {realUserId} returned to Owner Mode",
+                    $"User {realUserId} returned to their own context",
                     "User",
                     realUserId.ToString())), cancellationToken);
             }
@@ -467,6 +497,9 @@ public class AuthController : ControllerBase
                     ActingRoleName = result.User.ActingRoleName,
                     ActingOutletId = result.User.ActingOutletId,
                     ActingOutletName = result.User.ActingOutletName,
+                    ActingLocationType = result.User.ActingLocationType,
+                    ActingWarehouseId = result.User.ActingWarehouseId,
+                    ActingWarehouseName = result.User.ActingWarehouseName,
                     IsRoleSwitched = result.User.IsRoleSwitched,
                     IsBusinessOwner = result.User.IsBusinessOwner,
                     MustResetPassword = result.User.MustResetPassword
@@ -488,6 +521,9 @@ public class AuthController : ControllerBase
             ActingRoleName = profile.ActingRoleName,
             ActingOutletId = profile.ActingOutletId,
             ActingOutletName = profile.ActingOutletName,
+            ActingLocationType = profile.ActingLocationType,
+            ActingWarehouseId = profile.ActingWarehouseId,
+            ActingWarehouseName = profile.ActingWarehouseName,
             IsRoleSwitched = profile.IsRoleSwitched,
             IsBusinessOwner = profile.IsBusinessOwner,
             MustResetPassword = profile.MustResetPassword

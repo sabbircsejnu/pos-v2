@@ -1,11 +1,16 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using RetailPOS.Application.Pos;
 using RetailPOS.Application.Sales.Abstractions;
 using RetailPOS.Application.Sales.ReadModels;
+using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.Sales;
 
-public sealed class SaleReadStore(RetailPOSDbContext dbContext) : ISaleReadStore
+public sealed class SaleReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones) : ISaleReadStore
 {
     private static SaleReadModel ToReadModel(RetailPOS.Core.Entities.Sale sale) =>
         new(
@@ -66,9 +71,51 @@ public sealed class SaleReadStore(RetailPOSDbContext dbContext) : ISaleReadStore
     public async Task<SaleReadModel?> FindForReceiptAsync(
         long saleId,
         CancellationToken cancellationToken)
-        => await FindByIdAsync(saleId, includeTerminal: true, cancellationToken);
+    {
+        var entity = await LoadByIdAsync(saleId, includeTerminal: true, cancellationToken);
+        if (entity is null)
+            return null;
+
+        var businessId = entity.BusinessId ?? entity.Outlet?.BusinessId;
+        var businessZone = businessId.HasValue
+            ? await timeZones.GetTimeZoneIdAsync(businessId.Value, cancellationToken)
+            : BusinessPosSettings.DefaultTimeZone;
+
+        var poweredBy = businessId.HasValue
+            ? await dbContext.Businesses
+                .AsNoTracking()
+                .Where(business => business.Id == businessId.Value)
+                .Select(business => new { business.ShowPoweredByOnReceipt, business.PoweredByText })
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
+        return ToReadModel(entity) with
+        {
+            CustomerPhone = entity.Customer?.Phone,
+            OutletPrint = entity.Outlet is null
+                ? null
+                : new SaleOutletPrintReadModel(
+                    entity.Outlet.InvoicePrintBranchName,
+                    entity.Outlet.BinNumber,
+                    entity.Outlet.Mushak,
+                    entity.Outlet.ReturnExchangePolicy,
+                    entity.Outlet.VatLawNotification),
+            EffectiveTimeZoneId = businessZone,
+            ShowPoweredByOnReceipt = poweredBy?.ShowPoweredByOnReceipt ?? false,
+            PoweredByText = poweredBy?.PoweredByText
+        };
+    }
 
     private async Task<SaleReadModel?> FindByIdAsync(
+        long saleId,
+        bool includeTerminal,
+        CancellationToken cancellationToken)
+    {
+        var sale = await LoadByIdAsync(saleId, includeTerminal, cancellationToken);
+        return sale is null ? null : ToReadModel(sale);
+    }
+
+    private async Task<RetailPOS.Core.Entities.Sale?> LoadByIdAsync(
         long saleId,
         bool includeTerminal,
         CancellationToken cancellationToken)
@@ -90,18 +137,12 @@ public sealed class SaleReadStore(RetailPOSDbContext dbContext) : ISaleReadStore
             query = query.Include(item => item.Terminal);
         }
 
-        var sale = await query.FirstOrDefaultAsync(item => item.Id == saleId, cancellationToken);
-
-        if (sale is null)
-        {
-            return null;
-        }
-
-        return ToReadModel(sale);
+        return await query.FirstOrDefaultAsync(item => item.Id == saleId, cancellationToken);
     }
 
     public async Task<SaleSearchReadModel> SearchAsync(
         SaleSearchCriteria criteria,
+        SaleReadScope scope,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Sales
@@ -111,7 +152,7 @@ public sealed class SaleReadStore(RetailPOSDbContext dbContext) : ISaleReadStore
             .Include(sale => sale.Customer)
             .Include(sale => sale.Cashier)
             .Include(sale => sale.Items)
-            .AsQueryable();
+            .WhereReadScope(scope);
 
         if (criteria.OutletId.HasValue)
         {

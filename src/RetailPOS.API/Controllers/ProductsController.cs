@@ -15,7 +15,8 @@ namespace RetailPOS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "products.view")]
+// Authenticated by default; each action declares its policy so editing a product implies reading that record.
+[Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly ILogger<ProductsController> _logger;
@@ -94,6 +95,7 @@ public class ProductsController : ControllerBase
     /// Get all products
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "products.view")]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll(CancellationToken cancellationToken)
     {
         try
@@ -119,6 +121,7 @@ public class ProductsController : ControllerBase
     /// Search products with filters and pagination
     /// </summary>
     [HttpPost("search")]
+    [Authorize(Policy = "products.view")]
     public async Task<ActionResult<ProductListDto>> Search([FromBody] ProductSearchDto searchDto)
     {
         try
@@ -175,6 +178,7 @@ public class ProductsController : ControllerBase
     /// Get product by ID
     /// </summary>
     [HttpGet("{id}")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductRecordRead)]
     public async Task<ActionResult<ProductDto>> GetById(
         long id, CancellationToken cancellationToken,
         [FromQuery] long? outletId = null, [FromQuery] long? warehouseId = null)
@@ -216,6 +220,7 @@ public class ProductsController : ControllerBase
     /// Get product by SKU
     /// </summary>
     [HttpGet("sku/{sku}")]
+    [Authorize(Policy = "products.view")]
     public async Task<ActionResult<ProductDto>> GetBySku(string sku, CancellationToken cancellationToken)
     {
         try
@@ -245,6 +250,7 @@ public class ProductsController : ControllerBase
     /// Get product by Barcode
     /// </summary>
     [HttpGet("barcode/{barcode}")]
+    [Authorize(Policy = "products.view")]
     public async Task<ActionResult<ProductDto>> GetByBarcode(string barcode, CancellationToken cancellationToken)
     {
         try
@@ -274,6 +280,7 @@ public class ProductsController : ControllerBase
     /// Get products by category
     /// </summary>
     [HttpGet("category/{categoryId}")]
+    [Authorize(Policy = "products.view")]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetByCategory(
         long categoryId,
         CancellationToken cancellationToken)
@@ -401,6 +408,7 @@ public class ProductsController : ControllerBase
     /// Delete a product
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "products.view")]
     [Authorize(Policy = "products.delete")]
     public async Task<ActionResult> Delete(long id, CancellationToken cancellationToken)
     {
@@ -434,6 +442,7 @@ public class ProductsController : ControllerBase
     /// Generate SKU for a product name
     /// </summary>
     [HttpPost("generate-sku")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductCodeGeneration)]
     public async Task<ActionResult<string>> GenerateSku(
         [FromBody] string productName,
         CancellationToken cancellationToken)
@@ -458,6 +467,7 @@ public class ProductsController : ControllerBase
     /// Generate a unique EAN-13 barcode for a product
     /// </summary>
     [HttpPost("generate-barcode")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductCodeGeneration)]
     public async Task<ActionResult<string>> GenerateBarcode(
         [FromQuery] long? categoryId,
         CancellationToken cancellationToken)

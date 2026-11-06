@@ -2,9 +2,28 @@ namespace RetailPOS.Application.Identity.Permissions;
 
 public static class PermissionCatalog
 {
+    /// <summary>Configure a user's context switching with mapped roles and selected locations.</summary>
+    public const string UserContextAccessManage = "users.context_access.manage";
+
+    /// <summary>Additionally grant All Business Roles or All Business Locations.</summary>
+    public const string UserContextAccessGrantAll = "users.context_access.grant_all";
+
+    /// <summary>Read the whole Sales &amp; Finance dashboard of the current Business. Grants no change to any transaction.</summary>
+    public const string DashboardSalesFinanceView = "dashboard.sales_finance.view";
+
+    /// <summary>Read the whole Inventory Intelligence dashboard of the current Business. Grants no change to any transaction.</summary>
+    public const string DashboardInventoryIntelligenceView = "dashboard.inventory_intelligence.view";
+
+    /// <summary>
+    /// Business-wide Expense Category configuration, including which ledger account each category debits. Deliberately
+    /// has no alias: entering or editing expenses does not imply it.
+    /// </summary>
+    public const string ExpenseCategoriesManage = "accounting.expense_categories.manage";
+
     public static readonly string[] All = new[]
     {
         "users.view", "users.create", "users.edit", "users.delete",
+        UserContextAccessManage, UserContextAccessGrantAll,
         "roles.view", "roles.create", "roles.edit", "roles.delete",
         "products.view", "products.create", "products.edit", "products.delete",
         "products.view_cost",
@@ -36,6 +55,7 @@ public static class PermissionCatalog
         "accounts.view", "accounts.create", "accounts.edit", "accounts.delete",
         "transactions.view", "transactions.create", "transactions.edit", "transactions.delete",
         "expenses.view", "expenses.create", "expenses.edit", "expenses.delete",
+        DashboardSalesFinanceView, DashboardInventoryIntelligenceView,
         "accounting.dashboard.view",
         "accounting.chart_accounts.view", "accounting.chart_accounts.create", "accounting.chart_accounts.edit",
         "accounting.configuration.view", "accounting.configuration.edit",
@@ -47,6 +67,7 @@ public static class PermissionCatalog
         "accounting.reconciliation.close", "accounting.reconciliation.reopen", "accounting.adjustments.propose", "accounting.adjustments.approve", "accounting.adjustments.reverse", "accounting.exceptions.manage",
         "accounting.manual_journals.view", "accounting.manual_journals.create", "accounting.manual_journals.update", "accounting.manual_journals.submit", "accounting.manual_journals.approve", "accounting.manual_journals.reject", "accounting.manual_journals.cancel", "accounting.manual_journals.post", "accounting.manual_journals.reverse",
         "accounting.expenses.view", "accounting.expenses.create", "accounting.expenses.edit", "accounting.expenses.submit", "accounting.expenses.approve", "accounting.expenses.reject", "accounting.expenses.cancel",
+        ExpenseCategoriesManage,
         "accounting.supplier_payments.view", "accounting.supplier_payments.create", "accounting.supplier_payments.submit", "accounting.supplier_payments.approve", "accounting.supplier_payments.reject", "accounting.supplier_payments.cancel",
         "accounting.supplier_advances.view", "accounting.supplier_advances.create", "accounting.supplier_advances.submit", "accounting.supplier_advances.approve", "accounting.supplier_advances.reject", "accounting.supplier_advances.cancel",
         "accounting.financial_years.view", "accounting.financial_years.manage",

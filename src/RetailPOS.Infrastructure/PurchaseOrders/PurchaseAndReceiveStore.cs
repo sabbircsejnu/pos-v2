@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using RetailPOS.Application.Inventory.Costing;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Commands;
 using RetailPOS.Core.Entities;
@@ -159,7 +160,14 @@ public sealed class PurchaseAndReceiveStore(
                     StockLedgerReferenceType.Grn,
                     grn.Id,
                     $"System auto-GRN from {purchaseOrder.PoNumber}",
-                    command.UserId);
+                    command.UserId,
+                    // The value PurchaseReceiptJournalPoster debits to Inventory for the line.
+                    GrnLedgerCost.Resolve(
+                        receiptItem.ReceivedQty,
+                        receiptItem.UnitCost,
+                        receiptItem.ReceivedQty * receiptItem.UnitCost,
+                        purchaseOrderItem.UnitPrice,
+                        purchaseOrderItem.Discount));
             }
 
             await journalPoster.PostAsync(

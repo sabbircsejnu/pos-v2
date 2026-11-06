@@ -253,10 +253,13 @@
 }
 
 .receipt-modal.thermal-mode {
-  max-width: 320px;
+  max-width: calc(80mm + 28px);
   border-radius: 6px;
   padding: 14px;
-  font-family: "Courier New", Consolas, monospace;
+}
+
+.receipt-multiline {
+  white-space: pre-line;
 }
 
 .receipt-modal.a4-mode {
@@ -988,5 +991,40 @@ body.pos-fullscreen .rp-shell-content {
   .rp-shell-main,
   .rp-shell-content {
     padding: 0 !important;
+  }
+
+  /* While a POS receipt is open, it is the only thing on the page: everything off its ancestor chain goes. */
+  body:has(#receipt-print) *:not(:has(#receipt-print)):not(#receipt-print):not(#receipt-print *) {
+    display: none !important;
+  }
+
+  body:has(#receipt-print),
+  body:has(#receipt-print) *:has(#receipt-print) {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+    transform: none !important;
+  }
+
+  #receipt-print {
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #receipt-print .no-print {
+    display: none !important;
   }
 }

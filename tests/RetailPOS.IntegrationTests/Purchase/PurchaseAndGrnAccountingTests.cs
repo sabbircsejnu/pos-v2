@@ -12,6 +12,8 @@ using RetailPOS.Core.Entities;
 using RetailPOS.Core.Entities.Audit;
 using RetailPOS.Infrastructure.Audit;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Purchase;
 
 public class PurchaseAndGrnAccountingTests
@@ -111,7 +113,8 @@ public class PurchaseAndGrnAccountingTests
         var poster = new GrnCompletionAccountingPosterAdapter(
             sender.Object,
             configurationService.Object,
-            payableWriter.Object);
+            payableWriter.Object,
+            TestCompanySettings.Provider("America/New_York"));
 
         var journalEntryId = await poster.PostReceiptAndCreatePayableAsync(
             grn,
@@ -127,6 +130,9 @@ public class PurchaseAndGrnAccountingTests
                     command.BusinessId == 1
                     && command.ActorUserId == 77
                     && command.IdempotencyDiscriminator == "grn:400"
+                    && command.Journal.TransactionDate == grn.ReceivedDate
+                    && command.Journal.PostingDate == new DateTime(2026, 3, 9, 0, 0, 0, DateTimeKind.Utc)
+                    && command.Journal.BusinessDate == new DateTime(2026, 3, 9, 0, 0, 0, DateTimeKind.Utc)
                     && command.Journal.JournalType == "PurchaseReceiptPosting"
                     && command.Journal.ReferenceType == "Grn"
                     && command.Journal.ReferenceId == "400"
@@ -312,7 +318,8 @@ public class PurchaseAndGrnAccountingTests
         configurationService.Setup(x => x.ResolvePostingAccountAsync(PostingAccountSlots.SupplierPayable, null)).ReturnsAsync(new PostingAccountResolutionDto { Slot = PostingAccountSlots.SupplierPayable, AccountId = 2, Source = "GlobalConfiguration" });
         var poster = new PurchaseReceiptJournalPoster(
             journalCommands.Object,
-            configurationService.Object);
+            configurationService.Object,
+            TestCompanySettings.Provider("America/New_York"));
 
         await poster.PostAsync(grn, purchaseOrder, 1, CancellationToken.None);
 
@@ -323,6 +330,8 @@ public class PurchaseAndGrnAccountingTests
         Assert.Equal(77, create.ActorUserId);
         Assert.Equal("PurchaseReceiptPosting", create.Journal.JournalType);
         Assert.Equal(grn.ReceivedDate, create.Journal.TransactionDate);
+        Assert.Equal(new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc), create.Journal.PostingDate);
+        Assert.Equal(new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc), create.Journal.BusinessDate);
         Assert.Equal("Grn", create.Journal.ReferenceType);
         Assert.Equal("400", create.Journal.ReferenceId);
         Assert.Equal("GRN-000400", create.Journal.ReferenceNumber);

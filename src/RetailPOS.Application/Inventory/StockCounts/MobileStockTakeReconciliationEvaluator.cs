@@ -135,8 +135,12 @@ public static class MobileStockTakeReconciliationEvaluator
                 && observed < baseline.SubmittedAtUtc.Value
                     ? observed
                     : baseline.SubmittedAtUtc.Value;
-            var inWindow = entries.Where(entry => entry.CreatedAtUtc <= upperBound).ToArray();
-            postCount += entries.Length - inWindow.Length;
+            // A cost correction moves no stock, so it says nothing about the count.
+            var stockEntries = entries
+                .Where(entry => entry.TransactionType != StockLedgerTransactionType.CostCorrection)
+                .ToArray();
+            var inWindow = stockEntries.Where(entry => entry.CreatedAtUtc <= upperBound).ToArray();
+            postCount += stockEntries.Length - inWindow.Length;
             if (inWindow.Length == 0)
                 continue;
 
@@ -152,7 +156,8 @@ public static class MobileStockTakeReconciliationEvaluator
                     case StockLedgerTransactionType.TransferOut:
                     case StockLedgerTransactionType.ReturnTransferIn:
                     case StockLedgerTransactionType.ReturnTransferOut:
-                    case StockLedgerTransactionType.TransferRejection: transfers++; break;
+                    case StockLedgerTransactionType.TransferRejection:
+                    case StockLedgerTransactionType.TransferDiscrepancy: transfers++; break;
                     case StockLedgerTransactionType.Adjustment: adjustments++; break;
                     case StockLedgerTransactionType.Grn: receipts++; break;
                     default: other++; break;

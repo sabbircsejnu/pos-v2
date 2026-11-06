@@ -12,10 +12,10 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
 {
     public async Task<GrnReadModel?> FindByIdAsync(
         long grnId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Grns
+        var grn = await dbContext.Grns
             .AsNoTracking()
             .Include(grn => grn.PurchaseOrder)
                 .ThenInclude(order => order.Supplier)
@@ -30,37 +30,29 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
                 .ThenInclude(item => item.PurchaseOrderItem)
                     .ThenInclude(item => item.Variant)
                         .ThenInclude(variant => variant.Product)
-            .AsQueryable();
-
-        if (businessId.HasValue)
-            query = query.WhereBusiness(businessId.Value);
-
-        var grn = await query.FirstOrDefaultAsync(
-            candidate => candidate.Id == grnId,
-            cancellationToken);
+            .WhereReadScope(scope)
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == grnId,
+                cancellationToken);
         return grn is null ? null : GrnReadModelMapper.Map(grn);
     }
 
     public async Task<GrnVarianceReadModel?> FindVarianceByIdAsync(
         long grnId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Grns
+        var grn = await dbContext.Grns
             .AsNoTracking()
             .Include(grn => grn.PurchaseOrder)
             .Include(grn => grn.Items)
                 .ThenInclude(item => item.PurchaseOrderItem)
                     .ThenInclude(item => item.Variant)
                         .ThenInclude(variant => variant.Product)
-            .AsQueryable();
-
-        if (businessId.HasValue)
-            query = query.WhereBusiness(businessId.Value);
-
-        var grn = await query.FirstOrDefaultAsync(
-            candidate => candidate.Id == grnId,
-            cancellationToken);
+            .WhereReadScope(scope)
+            .FirstOrDefaultAsync(
+                candidate => candidate.Id == grnId,
+                cancellationToken);
         if (grn is null)
             return null;
 
@@ -81,7 +73,7 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
     public async Task<IReadOnlyList<GrnReadModel>> FindAllAsync(
         long? purchaseOrderId,
         string? status,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Grns
@@ -107,23 +99,16 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
             query = query.Where(grn => grn.Status.ToLower() == normalizedStatus);
         }
 
-        if (businessId.HasValue)
-            query = query.WhereBusiness(businessId.Value);
-
         var grns = await query
+            .WhereReadScope(scope)
             .OrderByDescending(grn => grn.ReceivedDate)
             .ToListAsync(cancellationToken);
         return grns.Select(GrnReadModelMapper.Map).ToArray();
     }
 
     public async Task<GrnSearchReadModel> SearchAsync(
-        long? purchaseOrderId,
-        string? status,
-        DateTime? startDate,
-        DateTime? endDate,
-        int pageNumber,
-        int pageSize,
-        long? businessId,
+        GrnSearchCriteria criteria,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Grns
@@ -140,43 +125,46 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
             .Include(grn => grn.Items)
             .AsQueryable();
 
-        if (purchaseOrderId.HasValue)
-            query = query.Where(grn => grn.PoId == purchaseOrderId.Value);
+        if (criteria.PurchaseOrderId.HasValue)
+            query = query.Where(grn => grn.PoId == criteria.PurchaseOrderId.Value);
 
-        if (!string.IsNullOrWhiteSpace(status))
+        if (!string.IsNullOrWhiteSpace(criteria.Status))
         {
-            var normalizedStatus = status.ToLower();
+            var normalizedStatus = criteria.Status.ToLower();
             query = query.Where(grn => grn.Status.ToLower() == normalizedStatus);
         }
 
-        if (startDate.HasValue)
-            query = query.Where(grn => grn.ReceivedDate >= startDate.Value);
+        if (criteria.StartDate.HasValue)
+            query = query.Where(grn => grn.ReceivedDate >= criteria.StartDate.Value);
 
-        if (endDate.HasValue)
-            query = query.Where(grn => grn.ReceivedDate <= endDate.Value);
+        if (criteria.EndDate.HasValue)
+            query = query.Where(grn => grn.ReceivedDate <= criteria.EndDate.Value);
 
-        if (businessId.HasValue)
-            query = query.WhereBusiness(businessId.Value);
+        query = query
+            .WhereReadScope(scope)
+            .WhereDestination(criteria.LocationType, criteria.LocationId)
+            .WhereReceivedDate(criteria.ReceivedDate);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var grns = await query
             .OrderByDescending(grn => grn.ReceivedDate)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+            .ThenByDescending(grn => grn.Id)
+            .Skip((criteria.PageNumber - 1) * criteria.PageSize)
+            .Take(criteria.PageSize)
             .ToListAsync(cancellationToken);
 
         return new GrnSearchReadModel(
             grns.Select(GrnReadModelMapper.Map).ToArray(),
             totalCount,
-            pageNumber,
-            pageSize);
+            criteria.PageNumber,
+            criteria.PageSize);
     }
 
     public async Task<IReadOnlyList<PendingGrnPurchaseOrderReadModel>> FindPendingAsync(
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.PurchaseOrders
+        var orders = await dbContext.PurchaseOrders
             .AsNoTracking()
             .Include(order => order.Supplier)
             .Include(order => order.Warehouse)
@@ -186,12 +174,8 @@ public sealed class GrnReadStore(RetailPOSDbContext dbContext) :
                     .ThenInclude(variant => variant.Product)
                         .ThenInclude(product => product.Images.Where(image => image.IsPrimary))
             .Where(order => order.Status.ToLower() == "approved"
-                || order.Status.ToLower() == "partial");
-
-        if (businessId.HasValue)
-            query = query.WhereBusiness(businessId.Value);
-
-        var orders = await query
+                || order.Status.ToLower() == "partial")
+            .WhereReadScope(scope)
             .OrderBy(order => order.OrderDate)
             .ToListAsync(cancellationToken);
 

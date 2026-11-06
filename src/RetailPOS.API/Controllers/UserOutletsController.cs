@@ -26,7 +26,7 @@ public class UserOutletsController : ControllerBase
 
     /// <param name="policy">
     /// Optional operation policy: InventoryStockView (default), StockCountOperation,
-    /// StockTransferSource or StockTransferDestination.
+    /// StockTransferSource, StockTransferDestination, GrnView or ExpenseOperation.
     /// </param>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<AuthorizedOutletsDto>>> GetAuthorizedOutlets(

@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +15,8 @@ interface AccountRow { account: BalanceSheetAccount; depth: number; }
 
 @Component({ selector: 'app-balance-sheet-report', standalone: true, imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule], templateUrl: './balance-sheet-report.component.html' })
 export class BalanceSheetReportComponent implements OnInit {
-  readonly asOfDate = signal(new Date().toISOString().slice(0, 10));
+  private readonly companyToday = inject(CompanyDateService);
+  readonly asOfDate = signal(this.companyToday.todayIso());
   readonly comparisonAsOfDate = signal('');
   readonly locationId = signal<number | null>(null);
   readonly locationType = signal<'outlet' | 'warehouse'>('outlet');

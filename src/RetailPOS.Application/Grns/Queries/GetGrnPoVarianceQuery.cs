@@ -9,17 +9,17 @@ public sealed record GetGrnPoVarianceQuery(long PurchaseOrderId) : IQuery<GrnPoV
 
 public sealed class GetGrnPoVarianceQueryHandler(
     IGrnPoVarianceReadStore store,
-    IGrnTenantScope tenantScope)
+    IGrnReadScopeProvider scopeProvider)
     : IRequestHandler<GetGrnPoVarianceQuery, GrnPoVarianceReadModel>
 {
     public async Task<GrnPoVarianceReadModel> Handle(
         GetGrnPoVarianceQuery request,
         CancellationToken cancellationToken)
     {
-        var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
+        var scope = await scopeProvider.GetAsync(cancellationToken);
         var variance = await store.FindByPurchaseOrderIdAsync(
             request.PurchaseOrderId,
-            businessId,
+            scope,
             cancellationToken);
         return variance ?? throw new KeyNotFoundException(
             $"Purchase order with ID {request.PurchaseOrderId} not found");

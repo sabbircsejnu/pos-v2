@@ -3,6 +3,8 @@ using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Inventory.Abstractions;
 using RetailPOS.Application.Inventory.ReadModels;
 using RetailPOS.Application.Inventory.StockTransfers;
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 
 namespace RetailPOS.Application.Inventory.Queries;
 
@@ -86,7 +88,8 @@ public sealed record GetProductLedgerReportQuery(ProductLedgerReportFilter Filte
 
 public sealed class GetProductLedgerReportQueryHandler(
     IInventoryReportReadScopeProvider scopeProvider,
-    IProductLedgerReportReadStore store)
+    IProductLedgerReportReadStore store,
+    ICurrentCompanyTimeZone timeZones)
     : IRequestHandler<GetProductLedgerReportQuery, ProductLedgerReportReadModel>
 {
     public async Task<ProductLedgerReportReadModel> Handle(
@@ -94,7 +97,15 @@ public sealed class GetProductLedgerReportQueryHandler(
         CancellationToken cancellationToken)
     {
         var scope = await scopeProvider.GetAsync(cancellationToken);
-        return await store.GetAsync(scope, request.Filter, cancellationToken);
+        var (from, to) = await StockReportDateWindow.ResolveAsync(
+            request.Filter.DateFrom,
+            request.Filter.DateTo,
+            timeZones,
+            cancellationToken);
+        return await store.GetAsync(
+            scope,
+            request.Filter with { DateFrom = from, DateTo = to },
+            cancellationToken);
     }
 }
 
@@ -103,7 +114,8 @@ public sealed record GetStockTransactionReportQuery(StockTransactionReportFilter
 
 public sealed class GetStockTransactionReportQueryHandler(
     IInventoryReportReadScopeProvider scopeProvider,
-    IStockTransactionReportReadStore store)
+    IStockTransactionReportReadStore store,
+    ICurrentCompanyTimeZone timeZones)
     : IRequestHandler<GetStockTransactionReportQuery, StockTransactionReportReadModel>
 {
     public async Task<StockTransactionReportReadModel> Handle(
@@ -111,7 +123,17 @@ public sealed class GetStockTransactionReportQueryHandler(
         CancellationToken cancellationToken)
     {
         var scope = await scopeProvider.GetAsync(cancellationToken);
-        return await store.GetAsync(scope, request.Filter, cancellationToken);
+        var filter = request.Filter;
+        var (from, to) = await StockReportDateWindow.ResolveAsync(
+            filter.DateFrom,
+            filter.DateTo,
+            timeZones,
+            cancellationToken);
+        var report = await store.GetAsync(
+            scope,
+            filter with { DateFrom = from, DateTo = to },
+            cancellationToken);
+        return report with { DateFrom = filter.DateFrom, DateTo = filter.DateTo };
     }
 }
 
@@ -120,7 +142,8 @@ public sealed record GetStockMovementReportQuery(StockMovementReportFilter Filte
 
 public sealed class GetStockMovementReportQueryHandler(
     IInventoryReportReadScopeProvider scopeProvider,
-    IStockMovementReportReadStore store)
+    IStockMovementReportReadStore store,
+    ICurrentCompanyTimeZone timeZones)
     : IRequestHandler<GetStockMovementReportQuery, StockMovementReportReadModel>
 {
     public async Task<StockMovementReportReadModel> Handle(
@@ -128,7 +151,15 @@ public sealed class GetStockMovementReportQueryHandler(
         CancellationToken cancellationToken)
     {
         var scope = await scopeProvider.GetAsync(cancellationToken);
-        return await store.GetAsync(scope, request.Filter, cancellationToken);
+        var (from, to) = await StockReportDateWindow.ResolveAsync(
+            request.Filter.DateFrom,
+            request.Filter.DateTo,
+            timeZones,
+            cancellationToken);
+        return await store.GetAsync(
+            scope,
+            request.Filter with { DateFrom = from, DateTo = to },
+            cancellationToken);
     }
 }
 

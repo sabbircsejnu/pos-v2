@@ -43,7 +43,17 @@ public sealed class IdentityReadStore(RetailPOSDbContext dbContext) : IRoleReadS
             return null;
         }
 
-        return (await MapDetailRowsAsync([user], cancellationToken))[0];
+        var contextAccess = await dbContext.Users
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == userId)
+            .Select(candidate => new UserContextAccessReadModel(
+                candidate.ContextSwitchEnabled,
+                candidate.ContextLocationScope,
+                candidate.ContextRoleScope,
+                candidate.ContextRoles.OrderBy(mapping => mapping.RoleId).Select(mapping => mapping.RoleId).ToArray()))
+            .FirstAsync(cancellationToken);
+
+        return (await MapDetailRowsAsync([user], cancellationToken))[0] with { ContextAccess = contextAccess };
     }
 
     public Task<IReadOnlyList<UserReadModel>> ListByOutletAsync(

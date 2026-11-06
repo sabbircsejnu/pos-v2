@@ -1,7 +1,7 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { inject as injectCompanyDates } from '@angular/core';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -18,6 +18,7 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./transactions-list.component.css']
 })
 export class TransactionsListComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   // Filters
   filterAccountId = signal<number | undefined>(undefined);
@@ -31,7 +32,7 @@ export class TransactionsListComponent implements OnInit {
   formAmount = signal<number>(0);
   formType = signal('debit');
   formDescription = signal('');
-  formDate = signal(new Date().toISOString().split('T')[0]);
+  formDate = signal(this.companyToday.todayIso());
 
   constructor(
     public accountingService: AccountingService,
@@ -70,7 +71,7 @@ export class TransactionsListComponent implements OnInit {
     this.formAmount.set(0);
     this.formType.set('debit');
     this.formDescription.set('');
-    this.formDate.set(new Date().toISOString().split('T')[0]);
+    this.formDate.set(this.companyToday.todayIso());
     this.showModal.set(true);
   }
 

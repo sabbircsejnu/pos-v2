@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.AccountingReports.Abstractions;
 using RetailPOS.Application.AccountingReports.ReadModels;
@@ -6,7 +7,9 @@ using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.AccountingReports;
 
-public sealed class BalanceSheetReadStore(RetailPOSDbContext dbContext)
+public sealed class BalanceSheetReadStore(
+    RetailPOSDbContext dbContext,
+    ICompanyTimeZoneProvider timeZones)
     : IBalanceSheetReadStore
 {
     public async Task<BalanceSheetReportReadModel> GetBalanceSheetAsync(
@@ -15,7 +18,7 @@ public sealed class BalanceSheetReadStore(RetailPOSDbContext dbContext)
         CancellationToken cancellationToken)
     {
         ValidateLocationType(filter.LocationType);
-        var asOfDate = (filter.AsOfDate ?? DateTime.UtcNow).Date;
+        var asOfDate = (filter.AsOfDate ?? await timeZones.GetTodayAsync(businessId, cancellationToken)).Date;
         var configuration = await dbContext.AccountingConfigurations
             .AsNoTracking()
             .SingleOrDefaultAsync(configuration => configuration.BusinessId == businessId, cancellationToken)

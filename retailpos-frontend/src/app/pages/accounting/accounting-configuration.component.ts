@@ -6,11 +6,13 @@ import { AccountingService } from '../../services/accounting.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { AuthService } from '../../services/auth.service';
+import { ChartAccountRow } from '../../models/accounting.model';
+import { UiAlertComponent, UiCardComponent } from '../../components/shared/ui';
 
 @Component({
   selector: 'app-accounting-configuration',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UiAlertComponent, UiCardComponent],
   templateUrl: './accounting-configuration.component.html'
 })
 export class AccountingConfigurationComponent implements OnInit {
@@ -22,6 +24,8 @@ export class AccountingConfigurationComponent implements OnInit {
   readonly vatReceivableAccountId = signal<number | null>(null);
   readonly liabilityAccounts = signal<any[]>([]);
   readonly assetAccounts = signal<any[]>([]);
+  readonly savingPaymentFlagId = signal<number | null>(null);
+  readonly paymentFlagError = signal<string | null>(null);
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
   readonly error = signal<string | null>(null);
@@ -78,6 +82,30 @@ export class AccountingConfigurationComponent implements OnInit {
       error: error => {
         this.alerts.error(this.errors.extractErrorMessage(error));
         this.isSaving.set(false);
+      }
+    });
+  }
+
+  /** Asset and liability accounts accounting may enable for expenses; supplier payable is refused at approval. */
+  paymentCandidateAccounts(): ChartAccountRow[] {
+    const supplierPayableId = this.configuration()?.supplierPayableAccountId;
+    return [...this.assetAccounts(), ...this.liabilityAccounts()].filter(account => account.id !== supplierPayableId);
+  }
+
+  setPaymentFlag(account: ChartAccountRow, checkbox: HTMLInputElement): void {
+    this.savingPaymentFlagId.set(account.id);
+    this.paymentFlagError.set(null);
+    this.accounting.setChartAccountExpensePaymentFlag(account, checkbox.checked).subscribe({
+      next: response => {
+        const replace = (rows: any[]) => rows.map(row => row.id === account.id ? response.data : row);
+        this.assetAccounts.update(replace);
+        this.liabilityAccounts.update(replace);
+        this.savingPaymentFlagId.set(null);
+      },
+      error: error => {
+        this.paymentFlagError.set(this.errors.extractErrorMessage(error));
+        checkbox.checked = account.isExpensePaymentAccount;
+        this.savingPaymentFlagId.set(null);
       }
     });
   }

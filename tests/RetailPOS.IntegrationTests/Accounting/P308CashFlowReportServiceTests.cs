@@ -12,6 +12,8 @@ using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.AccountingReports;
 using RetailPOS.Infrastructure.Data;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Accounting;
 
 public class P308CashFlowReportServiceTests
@@ -233,6 +235,7 @@ public class P308CashFlowReportServiceTests
         services.AddSingleton(tenantScope.Object);
         services.AddSingleton(resolver.Object);
         services.AddSingleton(ownerAccounts.Object);
+        services.AddSingleton(TestCompanySettings.Provider());
         using var serviceProvider = services.BuildServiceProvider();
         return await serviceProvider.GetRequiredService<ISender>().Send(query);
     }

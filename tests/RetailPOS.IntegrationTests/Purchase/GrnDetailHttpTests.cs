@@ -14,6 +14,8 @@ namespace RetailPOS.Tests.Purchase;
 public sealed class GrnDetailHttpTests(RetailPosApiFactory factory)
     : IClassFixture<RetailPosApiFactory>
 {
+    private static readonly GrnReadScope Scope = new(1, false, [], [30]);
+
     [Fact]
     public async Task GetById_PreservesPermissionEnvelopeProjectionAndBusinessScope()
     {
@@ -48,21 +50,21 @@ public sealed class GrnDetailHttpTests(RetailPosApiFactory factory)
                     "Received intact")
             ]);
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.FindByIdAsync(40, 1, It.IsAny<CancellationToken>()))
+        store.Setup(port => port.FindByIdAsync(40, Scope, It.IsAny<CancellationToken>()))
             .ReturnsAsync(readModel);
-        store.Setup(port => port.FindByIdAsync(41, 1, It.IsAny<CancellationToken>()))
+        store.Setup(port => port.FindByIdAsync(41, Scope, It.IsAny<CancellationToken>()))
             .ReturnsAsync((GrnReadModel?)null);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        var readScope = new Mock<IGrnReadScopeProvider>();
+        readScope.Setup(port => port.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Scope);
 
         using var app = factory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IGrnReadStore>();
                 services.AddScoped<IGrnReadStore>(_ => store.Object);
-                services.RemoveAll<IGrnTenantScope>();
-                services.AddScoped<IGrnTenantScope>(_ => tenantScope.Object);
+                services.RemoveAll<IGrnReadScopeProvider>();
+                services.AddScoped<IGrnReadScopeProvider>(_ => readScope.Object);
             }));
 
         using var deniedClient = CreateClient(app.CreateClient(), "purchase.view");
@@ -97,9 +99,9 @@ public sealed class GrnDetailHttpTests(RetailPosApiFactory factory)
         var missing = await client.GetAsync("/api/grns/41");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
 
-        store.Verify(port => port.FindByIdAsync(40, 1, It.IsAny<CancellationToken>()), Times.Once);
-        store.Verify(port => port.FindByIdAsync(41, 1, It.IsAny<CancellationToken>()), Times.Once);
-        tenantScope.Verify(port => port.GetBusinessIdAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        store.Verify(port => port.FindByIdAsync(40, Scope, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(port => port.FindByIdAsync(41, Scope, It.IsAny<CancellationToken>()), Times.Once);
+        readScope.Verify(port => port.GetAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     private static HttpClient CreateClient(HttpClient client, string permissions)

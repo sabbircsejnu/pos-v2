@@ -11,7 +11,7 @@ public sealed class CreateBusinessCommandHandlerTests
     public async Task Handle_RejectsMissingRequiredBusinessNameBeforeCallingStore()
     {
         var store = new Mock<IBusinessOnboardingWriteStore>(MockBehavior.Strict);
-        var handler = new CreateBusinessCommandHandler(store.Object);
+        var handler = new CreateBusinessCommandHandler(store.Object, Mock.Of<IBusinessTargetAccess>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(CreateCommand() with { BusinessName = "  " }, CancellationToken.None));
@@ -24,7 +24,7 @@ public sealed class CreateBusinessCommandHandlerTests
     public async Task Handle_RejectsMissingWarehouseManagerWhenWarehouseIsRequested()
     {
         var store = new Mock<IBusinessOnboardingWriteStore>(MockBehavior.Strict);
-        var handler = new CreateBusinessCommandHandler(store.Object);
+        var handler = new CreateBusinessCommandHandler(store.Object, Mock.Of<IBusinessTargetAccess>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(
@@ -46,7 +46,7 @@ public sealed class CreateBusinessCommandHandlerTests
             .ReturnsAsync(new BusinessOnboardingWriteResult(
                 BusinessOnboardingStatus.DuplicateEmailsInRequest,
                 Emails: ["owner@example.test"]));
-        var handler = new CreateBusinessCommandHandler(store.Object);
+        var handler = new CreateBusinessCommandHandler(store.Object, Mock.Of<IBusinessTargetAccess>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(request, CancellationToken.None));
@@ -68,7 +68,7 @@ public sealed class CreateBusinessCommandHandlerTests
         var request = CreateCommand();
         store.Setup(writeStore => writeStore.CreateBusinessAsync(request, CancellationToken.None))
             .ReturnsAsync(new BusinessOnboardingWriteResult(BusinessOnboardingStatus.Created, result));
-        var handler = new CreateBusinessCommandHandler(store.Object);
+        var handler = new CreateBusinessCommandHandler(store.Object, Mock.Of<IBusinessTargetAccess>());
 
         var created = await handler.Handle(request, CancellationToken.None);
 

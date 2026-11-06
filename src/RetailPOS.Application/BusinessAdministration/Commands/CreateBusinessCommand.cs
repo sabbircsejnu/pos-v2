@@ -22,17 +22,24 @@ public sealed record CreateBusinessCommand(
     bool CreateDefaultWarehouse,
     string? DefaultWarehouseName,
     string? WarehouseManagerName,
-    string? WarehouseManagerEmail) : ICommand<BusinessOnboardingReadModel>;
+    string? WarehouseManagerEmail,
+    bool ShowPoweredByOnReceipt = false,
+    string? PoweredByText = null) : ICommand<BusinessOnboardingReadModel>;
 
-public sealed class CreateBusinessCommandHandler(IBusinessOnboardingWriteStore store)
+public sealed class CreateBusinessCommandHandler(
+    IBusinessOnboardingWriteStore store,
+    IBusinessTargetAccess targetAccess)
     : IRequestHandler<CreateBusinessCommand, BusinessOnboardingReadModel>
 {
     public async Task<BusinessOnboardingReadModel> Handle(
         CreateBusinessCommand request,
         CancellationToken cancellationToken)
     {
+        targetAccess.RequirePlatformSuperAdmin();
         ValidateRequest(request);
-        var result = await store.CreateBusinessAsync(request, cancellationToken);
+        var result = await store.CreateBusinessAsync(
+            request with { PoweredByText = BusinessReceiptFooterRules.NormalizePoweredByText(request.PoweredByText) },
+            cancellationToken);
 
         return result.Status switch
         {

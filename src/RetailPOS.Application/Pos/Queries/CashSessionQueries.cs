@@ -114,6 +114,7 @@ public sealed class GetCashSessionOpenContextQueryHandler(
     ICashSessionStore store,
     ICashSessionOutletAuthorizer outletAuthorizer,
     RetailPOS.Application.Settings.Abstractions.IBusinessPosSettingsStore settingsStore,
+    RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneProvider timeZones,
     TimeProvider clock)
     : IRequestHandler<GetCashSessionOpenContextQuery, CashSessionOpenContextReadModel>
 {
@@ -125,7 +126,7 @@ public sealed class GetCashSessionOpenContextQueryHandler(
         var context = await store.GetOpenContextAsync(outletId, cancellationToken)
             ?? throw new KeyNotFoundException($"Outlet with ID {outletId} not found.");
         var settings = await settingsStore.GetAsync(context.BusinessId, cancellationToken);
-        var zone = CashSessionTime.ResolveEffectiveTimeZoneId(context.OutletTimeZoneId, settings.DefaultTimeZoneId);
+        var zone = await timeZones.GetTimeZoneIdAsync(context.BusinessId, cancellationToken);
         var now = clock.GetUtcNow().UtcDateTime;
         var occupied = context.TerminalIdsWithOpenSession ?? [];
         return new CashSessionOpenContextReadModel(
@@ -143,7 +144,7 @@ public sealed class GetCashSessionOpenContextQueryHandler(
 }
 
 /// <summary>
-/// Daily Sales for an outlet business date (default: the current one in the effective time zone). Read-only and
+/// Daily Sales for an outlet business date (default: the current one in the Company time zone). Read-only and
 /// Business/Outlet scoped through the same authorizer as the session queries.
 /// </summary>
 public sealed record GetBusinessDaySalesQuery(long OutletId, DateTime? BusinessDate = null) : IQuery<BusinessDaySalesReadModel>;
@@ -153,6 +154,7 @@ public sealed class GetBusinessDaySalesQueryHandler(
     ICashSessionQueryStore queryStore,
     ICashSessionOutletAuthorizer outletAuthorizer,
     RetailPOS.Application.Settings.Abstractions.IBusinessPosSettingsStore settingsStore,
+    RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneProvider timeZones,
     TimeProvider clock)
     : IRequestHandler<GetBusinessDaySalesQuery, BusinessDaySalesReadModel>
 {
@@ -162,7 +164,7 @@ public sealed class GetBusinessDaySalesQueryHandler(
         var context = await store.GetOpenContextAsync(outletId, cancellationToken)
             ?? throw new KeyNotFoundException($"Outlet with ID {outletId} not found.");
         var settings = await settingsStore.GetAsync(context.BusinessId, cancellationToken);
-        var zone = CashSessionTime.ResolveEffectiveTimeZoneId(context.OutletTimeZoneId, settings.DefaultTimeZoneId);
+        var zone = await timeZones.GetTimeZoneIdAsync(context.BusinessId, cancellationToken);
         var now = clock.GetUtcNow().UtcDateTime;
         var today = CashSessionTime.BusinessDateFor(now, zone);
         var date = request.BusinessDate?.Date ?? today;
@@ -184,6 +186,60 @@ public sealed class GetBusinessDaySalesQueryHandler(
             totals.VoidedCount,
             totals.RefundedCount,
             totals.RefundedOriginalTotal);
+    }
+}
+
+/// <summary>
+/// Daily Target, sales and signed variance for an outlet business date (FR-TARGET-04). The sales figure is the dashboard's
+/// net sales excluding VAT, the approved target metric, and both come from the same calculator and read store.
+/// </summary>
+public sealed record GetBusinessDayTargetQuery(long OutletId, DateTime? BusinessDate = null) : IQuery<BusinessDayTargetReadModel>;
+
+public sealed class GetBusinessDayTargetQueryHandler(
+    ICashSessionStore store,
+    ICashSessionOutletAuthorizer outletAuthorizer,
+    RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneProvider timeZones,
+    RetailPOS.Application.Outlets.SalesTargets.IOutletSalesTargetReadStore targetStore,
+    RetailPOS.Application.OwnerDashboards.ISalesFinanceReadStore salesStore,
+    TimeProvider clock)
+    : IRequestHandler<GetBusinessDayTargetQuery, BusinessDayTargetReadModel>
+{
+    public async Task<BusinessDayTargetReadModel> Handle(GetBusinessDayTargetQuery request, CancellationToken cancellationToken)
+    {
+        var outletId = await outletAuthorizer.AuthorizeReadAsync(request.OutletId, cancellationToken);
+        var context = await store.GetOpenContextAsync(outletId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Outlet with ID {outletId} not found.");
+        var zone = await timeZones.GetTimeZoneIdAsync(context.BusinessId, cancellationToken);
+        var now = clock.GetUtcNow().UtcDateTime;
+        var today = CashSessionTime.BusinessDateFor(now, zone);
+        var date = request.BusinessDate?.Date ?? today;
+        if (date > today)
+            throw new ArgumentException("The business date cannot be in the future.");
+
+        var businessDate = DateOnly.FromDateTime(date);
+        var scope = new RetailPOS.Application.OwnerDashboards.OwnerDashboardScope(
+            context.BusinessId, zone, DateOnly.FromDateTime(today), [], [], [], null, false, false);
+        var facts = await salesStore.GetSalesFactsAsync(scope, [outletId], businessDate, businessDate, cancellationToken);
+        var schedules = await targetStore.GetSchedulesAsync(context.BusinessId, [outletId], cancellationToken);
+        var schedule = schedules.GetValueOrDefault(outletId)
+            ?? RetailPOS.Application.Outlets.SalesTargets.OutletSalesTargetSchedule.Empty(outletId);
+
+        var figures = RetailPOS.Application.OwnerDashboards.SalesTargetPerformance.ForShowroom(
+            schedule, businessDate, businessDate, facts.Days);
+        var netSales = facts.Days.Sum(day => day.NetSales);
+        var outcome = RetailPOS.Application.OwnerDashboards.SalesTargetPerformance.Evaluate(
+            figures.ComparableSales, figures.Period.Target, figures.Status);
+        var hasComparison = figures.Status == RetailPOS.Application.OwnerDashboards.MetricStatuses.Ok;
+
+        return new BusinessDayTargetReadModel(
+            outletId,
+            businessDate,
+            netSales,
+            figures.Period.Target,
+            hasComparison ? netSales - figures.Period.Target!.Value : null,
+            outcome.AchievementPercent,
+            figures.Status,
+            now);
     }
 }
 

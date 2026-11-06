@@ -6,28 +6,23 @@ public interface IGrnReadStore
 {
     Task<GrnReadModel?> FindByIdAsync(
         long grnId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 
     Task<GrnVarianceReadModel?> FindVarianceByIdAsync(
         long grnId,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<GrnReadModel>> FindAllAsync(
         long? purchaseOrderId,
         string? status,
-        long? businessId,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 
     Task<GrnSearchReadModel> SearchAsync(
-        long? purchaseOrderId,
-        string? status,
-        DateTime? startDate,
-        DateTime? endDate,
-        int pageNumber,
-        int pageSize,
-        long? businessId,
+        GrnSearchCriteria criteria,
+        GrnReadScope scope,
         CancellationToken cancellationToken);
 }
 

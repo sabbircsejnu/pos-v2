@@ -29,6 +29,26 @@ public sealed class SearchCustomersQueryHandler(ICustomerReadStore readStore)
     }
 }
 
+/// <summary>POS Checkout customer picker: name or phone only, same Business scope, active filter and 10-row limit.</summary>
+public sealed record PosQuickSearchCustomersQuery(string Query)
+    : IRequest<IReadOnlyList<CustomerReadModel>>;
+
+public sealed class PosQuickSearchCustomersQueryHandler(ICustomerReadStore readStore)
+    : IRequestHandler<PosQuickSearchCustomersQuery, IReadOnlyList<CustomerReadModel>>
+{
+    public const int Limit = 10;
+
+    public async Task<IReadOnlyList<CustomerReadModel>> Handle(
+        PosQuickSearchCustomersQuery request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Query))
+            return [];
+
+        return await readStore.QuickSearchByNameOrPhoneAsync(request.Query.Trim(), Limit, cancellationToken);
+    }
+}
+
 public sealed record QuickSearchCustomersQuery(string Query)
     : IRequest<IReadOnlyList<CustomerReadModel>>;
 

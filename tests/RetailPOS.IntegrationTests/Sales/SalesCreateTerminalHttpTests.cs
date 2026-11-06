@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using Moq;
 using Swashbuckle.AspNetCore.Swagger;
 using RetailPOS.API.DTOs.Sale;
+using RetailPOS.Application.Settings;
 using RetailPOS.Core.Entities;
 using RetailPOS.Infrastructure.Audit;
 using RetailPOS.Infrastructure.Data;
@@ -138,7 +139,11 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                 Name = "Restricted outlet",
                 Address = "Dhaka"
             });
-            var today = DateTime.UtcNow.Date;
+            // The summary reads the company day, which starts at 18:00 UTC in Asia/Dhaka. Seeding on the UTC date
+            // puts these sales on yesterday's company day whenever the test runs after 18:00 UTC.
+            var zone = BusinessPosSettings.DefaultTimeZone;
+            var companyToday = CompanyDates.CalendarDateOf(DateTime.UtcNow, zone);
+            var dayStartUtc = CompanyDates.DayWindow(companyToday, companyToday, zone).FromUtc!.Value;
             db.Sales.AddRange(
                 new Sale
                 {
@@ -146,7 +151,7 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                     SaleNumber = "SUMMARY-1001",
                     OutletId = 5001,
                     CashierId = 7001,
-                    SaleDate = today.AddHours(1),
+                    SaleDate = dayStartUtc.AddHours(1),
                     TotalAmount = 100m,
                     Discount = 10m,
                     Tax = 5m,
@@ -159,7 +164,7 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                     SaleNumber = "SUMMARY-1002",
                     OutletId = 5001,
                     CashierId = 7001,
-                    SaleDate = today.AddHours(2),
+                    SaleDate = dayStartUtc.AddHours(2),
                     TotalAmount = 50m,
                     Discount = 2m,
                     Tax = 3m,
@@ -172,7 +177,7 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                     SaleNumber = "SUMMARY-1003",
                     OutletId = 5001,
                     CashierId = 7001,
-                    SaleDate = today.AddHours(3),
+                    SaleDate = dayStartUtc.AddHours(3),
                     TotalAmount = 500m,
                     Discount = 50m,
                     Tax = 25m,
@@ -185,7 +190,7 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                     SaleNumber = "SUMMARY-1004",
                     OutletId = 5001,
                     CashierId = 7001,
-                    SaleDate = today.AddDays(-1),
+                    SaleDate = dayStartUtc.AddHours(-1),
                     TotalAmount = 700m,
                     Discount = 70m,
                     Tax = 35m,

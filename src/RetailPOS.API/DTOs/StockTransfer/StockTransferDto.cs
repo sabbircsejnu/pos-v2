@@ -34,4 +34,7 @@ public class StockTransferDto
     public string? CreatorName { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<StockTransferItemDto> Items { get; set; } = new();
+    public long? OriginalTransferId { get; set; }
+    public long? ReturnTransferId { get; set; }
+    public string? ReturnTransferNo { get; set; }
 }

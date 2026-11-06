@@ -91,6 +91,10 @@ public sealed class BusinessAdministrationReadStore(RetailPOSDbContext dbContext
             business.Users.LongCount(),
             business.Outlets.LongCount(),
             business.Warehouses.LongCount(),
-            owner?.Email);
+            owner?.Email)
+        {
+            ShowPoweredByOnReceipt = business.ShowPoweredByOnReceipt,
+            PoweredByText = business.PoweredByText
+        };
     }
 }

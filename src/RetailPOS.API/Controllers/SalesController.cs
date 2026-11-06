@@ -1,3 +1,5 @@
+using RetailPOS.Application.Settings;
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
@@ -9,6 +11,7 @@ using RetailPOS.API.Services;
 using RetailPOS.Core.Entities.Audit;
 using RetailPOS.Application.AuditEvents.Abstractions;
 using RetailPOS.Application.AuditEvents.Commands;
+using RetailPOS.Application.Sales.Abstractions;
 using RetailPOS.Application.Sales.Queries;
 using RetailPOS.Application.Sales.ReadModels;
 using RetailPOS.Application.Sales.Commands;
@@ -24,17 +27,23 @@ public class SalesController : ControllerBase
     private readonly IFeatureEntitlementService _featureEntitlement;
     private readonly ILogger<SalesController> _logger;
     private readonly ISender _sender;
+    private readonly ICurrentCompanyTimeZone _companyTimeZone;
+    private readonly ISaleReadScopeProvider _saleReadScope;
 
     public SalesController(
         IUserOutletAccessService outletAccess,
         IFeatureEntitlementService featureEntitlement,
         ILogger<SalesController> logger,
-        ISender sender)
+        ISender sender,
+        ICurrentCompanyTimeZone companyTimeZone,
+        ISaleReadScopeProvider saleReadScope)
     {
         _outletAccess = outletAccess;
         _featureEntitlement = featureEntitlement;
         _logger = logger;
         _sender = sender;
+        _companyTimeZone = companyTimeZone;
+        _saleReadScope = saleReadScope;
     }
 
     /// <summary>List sales with filters (query string)</summary>
@@ -54,7 +63,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var sale = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await _outletAccess.ResolveAndAuthorizeLocationAsync(sale.OutletId, "outlet");
+        await _saleReadScope.GetAsync(sale.OutletId, cancellationToken);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(ToDto(sale)));
     }
 
@@ -118,7 +127,13 @@ public class SalesController : ControllerBase
             OutletAddress = document.Header.OutletAddress,
             Phone = document.Header.Phone,
             BinOrVatNo = document.Header.BinOrVatNo,
-            HeaderText = document.Header.HeaderText
+            HeaderText = document.Header.HeaderText,
+            ConcernOf = document.Header.ConcernOf,
+            BranchName = document.Header.BranchName,
+            ShowroomHotline = document.Header.ShowroomHotline,
+            CentralHotline = document.Header.CentralHotline,
+            Website = document.Header.Website,
+            TaxIdentityLine = document.Header.TaxIdentityLine
         },
         SaleInfo = new ReceiptSaleInfoDto
         {
@@ -128,7 +143,9 @@ public class SalesController : ControllerBase
             Terminal = document.SaleInfo.Terminal,
             CustomerName = document.SaleInfo.CustomerName,
             Salesperson = document.SaleInfo.Salesperson,
-            BusinessDate = document.SaleInfo.BusinessDate
+            BusinessDate = document.SaleInfo.BusinessDate,
+            CustomerMobile = document.SaleInfo.CustomerMobile,
+            InvoiceDateText = document.SaleInfo.InvoiceDateText
         },
         Items = document.Items.Select(item => new ReceiptLineItemDto
         {
@@ -139,7 +156,9 @@ public class SalesController : ControllerBase
             Discount = item.Discount,
             LineTotal = item.LineTotal,
             VatRate = item.VatRate,
-            VatAmount = item.VatAmount
+            VatAmount = item.VatAmount,
+            PrintName = item.PrintName,
+            DiscountPercent = item.DiscountPercent
         }).ToList(),
         Payments = document.Payments.Select(payment => new ReceiptPaymentDto
         {
@@ -149,6 +168,10 @@ public class SalesController : ControllerBase
             Change = payment.Change
         }).ToList(),
         TaxInclusive = document.TaxInclusive,
+        AmountInWords = document.AmountInWords,
+        PaymentLines = document.PaymentLines
+            .Select(line => new ReceiptPaymentLineDto { Label = line.Label, Amount = line.Amount })
+            .ToList(),
         Summary = new ReceiptSummaryDto
         {
             ItemCount = document.Summary.ItemCount,
@@ -170,7 +193,9 @@ public class SalesController : ControllerBase
             ShowBarcode = document.Footer.ShowBarcode,
             ShowQr = document.Footer.ShowQr,
             CodeValue = document.Footer.CodeValue,
-            GeneratedAt = document.Footer.GeneratedAt
+            GeneratedAt = document.Footer.GeneratedAt,
+            VatLawNotification = document.Footer.VatLawNotification,
+            PoweredByText = document.Footer.PoweredByText
         }
     };
 
@@ -178,7 +203,6 @@ public class SalesController : ControllerBase
         SaleSearchDto searchDto,
         CancellationToken cancellationToken)
     {
-        searchDto.OutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(searchDto.OutletId);
         var criteria = new SaleSearchCriteria(
             searchDto.OutletId,
             searchDto.CashierId,
@@ -206,7 +230,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var existing = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await EnsureSaleOutletAuthorizedAsync(ToDto(existing));
+        await _saleReadScope.GetAsync(existing.OutletId, cancellationToken);
 
         var sale = await _sender.Send(
             new PrintSaleReceiptCommand(id, TryGetCurrentUserId()),
@@ -222,7 +246,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var existing = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await EnsureSaleOutletAuthorizedAsync(ToDto(existing));
+        await _saleReadScope.GetAsync(existing.OutletId, cancellationToken);
 
         var document = await _sender.Send(
             new GenerateSaleReceiptDocumentCommand(id, mode, TryGetCurrentUserId()),
@@ -238,7 +262,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var existing = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await EnsureSaleOutletAuthorizedAsync(ToDto(existing));
+        await _saleReadScope.GetAsync(existing.OutletId, cancellationToken);
 
         var pdf = await _sender.Send(
             new GenerateSaleReceiptPdfCommand(id, mode, TryGetCurrentUserId()),
@@ -255,7 +279,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var existing = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await EnsureSaleOutletAuthorizedAsync(ToDto(existing));
+        await _saleReadScope.GetAsync(existing.OutletId, cancellationToken);
 
         await _sender.Send(
             new RegisterSaleReceiptAttemptCommand(
@@ -275,7 +299,7 @@ public class SalesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var existing = await _sender.Send(new GetSaleByIdQuery(id), cancellationToken);
-        await EnsureSaleOutletAuthorizedAsync(ToDto(existing));
+        await _saleReadScope.GetAsync(existing.OutletId, cancellationToken);
 
         var sale = await _sender.Send(
             new ReprintSaleReceiptCommand(id, TryGetCurrentUserId()),
@@ -291,7 +315,6 @@ public class SalesController : ControllerBase
         [FromQuery] long? outletId = null,
         CancellationToken cancellationToken = default)
     {
-        outletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
         var summary = await _sender.Send(
             new GetSaleTodaySummaryQuery(outletId),
             cancellationToken);
@@ -331,16 +354,24 @@ public class SalesController : ControllerBase
 
         if (dto.SalesDate.HasValue)
         {
-            if (dto.SalesDate.Value > now)
+            var companyZone = await _companyTimeZone.GetTimeZoneIdAsync(HttpContext.RequestAborted);
+            var companyToday = CompanyDates.CalendarDateOf(now, companyZone);
+            var requestedDate = CompanyDates.CalendarDateOf(dto.SalesDate.Value, companyZone);
+            if (requestedDate > companyToday
+                || (dto.SalesDate.Value.Kind != DateTimeKind.Unspecified && dto.SalesDate.Value.ToUniversalTime() > now))
             {
                 return BadRequest(ApiResponse<SaleDto>.ErrorResponse("Sales Order Date cannot be in the future."));
             }
 
-            if (!canBackdate && dto.SalesDate.Value.Date < now.Date)
+            if (!canBackdate && requestedDate < companyToday)
             {
                 return BadRequest(ApiResponse<SaleDto>.ErrorResponse("You are not allowed to create backdated POS sales."));
             }
+
+            // A picked date means that day in the Company zone, not midnight UTC.
+            dto.SalesDate = CompanyDates.StartUtc(dto.SalesDate.Value, companyZone);
         }
+
 
         if (!canBackdate)
         {
@@ -427,7 +458,9 @@ public class SalesController : ControllerBase
             var createdAt = sale.CreatedAt;
             var salesDate = sale.SaleDate;
 
-            if (salesDate.Date >= createdAt.Date)
+            var companyZone = await _companyTimeZone.GetTimeZoneIdAsync(CancellationToken.None);
+            if (CompanyDates.DateFor(salesDate, companyZone) >= CompanyDates.DateFor(createdAt, companyZone))
+
             {
                 return;
             }
@@ -518,8 +551,8 @@ public class SalesController : ControllerBase
 
     private async Task EnsureSaleOutletAuthorizedAsync(SaleDto sale)
     {
-        // Throws UnauthorizedAccessException for non-BusinessOwner trying to touch
-        // a sale that belongs to an outlet outside their authorized set.
+        // Void and Refund change money and stock, so they follow the outlet policy even for a Business Owner
+        // whose read access is Business-wide. Throws UnauthorizedAccessException outside it.
         await _outletAccess.ResolveAndAuthorizeLocationAsync(sale.OutletId, "outlet");
     }
 

@@ -8,7 +8,8 @@ public sealed record SalesReportFilter(
     long? OutletId,
     string? PaymentMethod,
     int Limit = 10,
-    long? CashierId = null);
+    long? CashierId = null,
+    string? TimeZoneId = null);
 
 public sealed record SalesReportSummaryReadModel(
     decimal TotalRevenue,

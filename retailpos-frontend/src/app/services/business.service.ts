@@ -7,6 +7,7 @@ import {
   BusinessSummaryDto,
   CreateBusinessRequestDto,
   CreateBusinessResponseDto,
+  UpdateBusinessReceiptFooterDto,
   UpdateBusinessStatusDto
 } from '../models/business.model';
 import { Outlet, CreateOutletRequest, UpdateOutletRequest } from '../models/outlet.model';
@@ -60,6 +61,10 @@ export class BusinessService {
 
   updateSubscription(businessId: number, dto: any): Observable<ApiResponse<BusinessSummaryDto>> {
     return this.http.patch<ApiResponse<BusinessSummaryDto>>(`${this.apiUrl}/${businessId}/subscription`, dto);
+  }
+
+  updateReceiptFooter(businessId: number, dto: UpdateBusinessReceiptFooterDto): Observable<ApiResponse<BusinessSummaryDto>> {
+    return this.http.patch<ApiResponse<BusinessSummaryDto>>(`${this.apiUrl}/${businessId}/receipt-footer`, dto);
   }
 
   // ── Business Setup: Outlets (Super Admin scoped by BusinessId) ─────────────

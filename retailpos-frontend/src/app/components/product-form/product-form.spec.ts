@@ -35,6 +35,7 @@ interface SetupOptions {
   queryParams?: Record<string, string>;
   taxSettings?: { taxEnabled: boolean; defaultTaxRate: number };
   taxSettingsResult?: Subject<unknown>;
+  categoriesResult?: Subject<unknown>;
 }
 
 describe('ProductForm (shared UI migration)', () => {
@@ -106,7 +107,7 @@ describe('ProductForm (shared UI migration)', () => {
         { provide: ProductService, useValue: productService },
         { provide: SettingsService, useValue: settingsService },
         { provide: ProductImageService, useValue: imageService },
-        { provide: CategoryService, useValue: { getAllCategories: () => of({ data: [{ id: 1, name: 'Beverages' }, { id: 2, name: 'Homeware' }] }) } },
+        { provide: CategoryService, useValue: { getAllCategories: () => options.categoriesResult ?? of({ data: [{ id: 1, name: 'Beverages' }, { id: 2, name: 'Homeware' }] }) } },
         { provide: CurrencyService, useValue: { symbol: signal('$') } },
         { provide: ProductVariationService, useValue: { getProductVariations: () => of([]), getCombinations: () => of([]) } },
         { provide: VariationService, useValue: { variations: signal([]), loadVariations: () => undefined } }
@@ -382,8 +383,11 @@ describe('ProductForm (shared UI migration)', () => {
       await settle();
       expect(router.navigate).toHaveBeenCalledWith(['/products']);
     });
+  });
 
+  describe('product images (products.edit is required for every image change)', () => {
     it('uploads queued images after creating, warns about failures and then opens the product', async () => {
+      await setup({ permissions: ['products.create', 'products.edit'] });
       await fillValid();
       const good = new File(['a'], 'good.png', { type: 'image/png' });
       const bad = new File(['b'], 'bad.png', { type: 'image/png' });
@@ -391,7 +395,9 @@ describe('ProductForm (shared UI migration)', () => {
         { file: good, previewUrl: 'blob:good' },
         { file: bad, previewUrl: 'blob:bad' }
       ]);
-      imageService.upload.mockImplementation((_id: number, f: File) => (f.name === 'bad.png' ? throwError(() => new Error('x')) : of({})));
+      imageService.upload.mockImplementation((_id: number, f: File) => (f.name === 'bad.png'
+        ? throwError(() => ({ error: { message: 'The file is corrupted.' } }))
+        : of({})));
       button('Save Product').click();
       await settle();
       create$.next({ data: { id: 9 } });
@@ -399,7 +405,30 @@ describe('ProductForm (shared UI migration)', () => {
       expect(imageService.upload).toHaveBeenCalledWith(9, good);
       expect(imageService.upload).toHaveBeenCalledWith(9, bad);
       expect(alerts.config()).toMatchObject({ type: 'warning', title: 'Some Images Failed' });
-      expect(alerts.config()!.message).toContain('bad.png');
+      expect(alerts.config()!.message).toContain('bad.png (The file is corrupted.)');
+      expect(router.navigate).toHaveBeenCalledWith(['/products', 'edit', 9], { queryParams: {} });
+    });
+
+    it('shows the image controls when the user can edit products', async () => {
+      await setup({ permissions: ['products.create', 'products.edit'] });
+      expect(q('app-product-image-uploader .pu-drop')).not.toBeNull();
+      expect(text('app-product-image-uploader')).not.toContain('requires the Edit Products permission');
+    });
+
+    it('hides image upload and explains why for a create-only user, and never uploads after saving', async () => {
+      await setup({ permissions: ['products.create'] });
+      expect(q('app-product-image-uploader .pu-drop')).toBeNull();
+      expect(text('app-product-image-uploader')).toContain('Adding, replacing or removing product images requires the Edit Products permission.');
+
+      await fillValid();
+      // Even a queued file (for example from an earlier session state) is not sent without products.edit.
+      cmp.imageUploader!.pendingFiles.set([{ file: new File(['a'], 'a.png', { type: 'image/png' }), previewUrl: 'blob:a' }]);
+      button('Save Product').click();
+      await settle();
+      create$.next({ data: { id: 9 } });
+      await settle();
+
+      expect(imageService.upload).not.toHaveBeenCalled();
       expect(router.navigate).toHaveBeenCalledWith(['/products', 'edit', 9], { queryParams: {} });
     });
   });
@@ -683,6 +712,35 @@ describe('ProductForm (shared UI migration)', () => {
       expect(text('app-ui-alert[data-variant="danger"]')).toContain('Barcode already used');
       expect(location.back).not.toHaveBeenCalled();
       expect(button('Save Product').getAttribute('aria-busy')).toBeNull();
+    });
+  });
+
+  describe('reference data access denied (403)', () => {
+    it('shows an inline access-denied state for categories, keeps the form usable and never signs out', async () => {
+      const categories$ = new Subject<unknown>();
+      const tax$ = new Subject<unknown>();
+      await setup({ categoriesResult: categories$, taxSettingsResult: tax$ });
+      await type('Product Name', 'Premium Mug');
+
+      categories$.error({ status: 403 });
+      tax$.error({ status: 403 });
+      await settle();
+
+      expect(field('Category').textContent).toContain('You do not have access to the category list.');
+      expect(field('Tax Rate').textContent).toContain('Leave blank to use the Business default rate. Enter 0');
+      expect(control<HTMLInputElement>('Product Name').value).toBe('Premium Mug');
+      expect(router.navigate).not.toHaveBeenCalled();
+      expect(location.back).not.toHaveBeenCalled();
+    });
+
+    it('shows a retryable message for non-authorization category failures', async () => {
+      const categories$ = new Subject<unknown>();
+      await setup({ categoriesResult: categories$ });
+
+      categories$.error({ status: 500 });
+      await settle();
+
+      expect(field('Category').textContent).toContain('Categories could not be loaded. Please try again.');
     });
   });
 

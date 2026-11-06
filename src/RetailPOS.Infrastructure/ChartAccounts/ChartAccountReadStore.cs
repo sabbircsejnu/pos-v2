@@ -73,5 +73,6 @@ public sealed class ChartAccountReadStore(RetailPOSDbContext dbContext)
             account.IsControlAccount,
             account.AllowManualPosting,
             account.IsActive,
-            account.DisplayOrder);
+            account.DisplayOrder,
+            account.IsExpensePaymentAccount);
 }

@@ -7,6 +7,17 @@ public interface IExpenseReadStore
         bool includeInactive,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ExpensePaymentAccountReadModel>> GetPaymentAccountsAsync(
+        long businessId,
+        string? paymentSource,
+        long? outletId,
+        long? warehouseId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ExpenseAccountOptionReadModel>> GetEligibleExpenseAccountsAsync(
+        long businessId,
+        CancellationToken cancellationToken);
+
     Task<ExpenseListReadModel> SearchAsync(
         ExpenseSearchFilter filter,
         CancellationToken cancellationToken);
@@ -29,6 +40,17 @@ public sealed record ExpenseCategoryReadModel(
     string? ExpenseAccountName,
     bool IsActive);
 
+public sealed record ExpensePaymentAccountReadModel(
+    long Id,
+    string AccountCode,
+    string AccountName,
+    string AccountType);
+
+public sealed record ExpenseAccountOptionReadModel(
+    long Id,
+    string AccountCode,
+    string AccountName);
+
 public sealed record ExpenseSearchFilter(
     long BusinessId,
     string? Category,
@@ -37,7 +59,8 @@ public sealed record ExpenseSearchFilter(
     DateTime? StartDate,
     DateTime? EndDate,
     int PageNumber,
-    int PageSize);
+    int PageSize,
+    long? WarehouseId = null);
 
 public sealed record ExpenseReadModel(
     long Id,
@@ -69,7 +92,9 @@ public sealed record ExpenseReadModel(
     bool SelfApprovedUnderOwnerException = false,
     long? CreatedBy = null,
     long? SubmittedBy = null,
-    long? ApprovedBy = null);
+    long? ApprovedBy = null,
+    long? WarehouseId = null,
+    string? WarehouseName = null);
 
 public sealed record ExpenseListReadModel(
     IReadOnlyList<ExpenseReadModel> Expenses,

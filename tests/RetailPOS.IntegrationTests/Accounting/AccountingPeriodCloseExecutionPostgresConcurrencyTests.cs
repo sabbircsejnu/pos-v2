@@ -22,6 +22,7 @@ public sealed class AccountingPeriodCloseExecutionPostgresConcurrencyTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.PeriodClosePrepare,
+            PostgresTestDatabaseStrategy.FreshMigration,
             async database =>
             {
                 var now = DateTime.UtcNow;

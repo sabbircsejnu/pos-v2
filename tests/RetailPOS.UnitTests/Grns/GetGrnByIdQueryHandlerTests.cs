@@ -2,13 +2,23 @@ using Moq;
 using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.Grns.Queries;
 using RetailPOS.Application.Grns.ReadModels;
+using RetailPOS.Application.Settings.Abstractions;
 
 namespace RetailPOS.Tests.Grns;
 
 public sealed class GetGrnByIdQueryHandlerTests
 {
+    private static readonly GrnReadScope Scope = new(1, false, [201], [301]);
+
+    private static Mock<IGrnReadScopeProvider> ScopeProvider(CancellationToken cancellationToken)
+    {
+        var provider = new Mock<IGrnReadScopeProvider>();
+        provider.Setup(port => port.GetAsync(cancellationToken)).ReturnsAsync(Scope);
+        return provider;
+    }
+
     [Fact]
-    public async Task Handle_UsesBusinessScopeAndReturnsMappedGrn()
+    public async Task Handle_UsesReadScopeAndReturnsMappedGrn()
     {
         using var cancellation = new CancellationTokenSource();
         var expected = new GrnReadModel(
@@ -28,40 +38,35 @@ public sealed class GetGrnByIdQueryHandlerTests
             new DateTime(2026, 3, 10),
             []);
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.FindByIdAsync(40, 1, cancellation.Token))
+        store.Setup(port => port.FindByIdAsync(40, Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new GetGrnByIdQueryHandler(store.Object, tenantScope.Object);
+        var provider = ScopeProvider(cancellation.Token);
+        var handler = new GetGrnByIdQueryHandler(store.Object, provider.Object);
 
         var result = await handler.Handle(new GetGrnByIdQuery(40), cancellation.Token);
 
         Assert.Same(expected, result);
-        tenantScope.Verify(port => port.GetBusinessIdAsync(cancellation.Token), Times.Once);
-        store.Verify(port => port.FindByIdAsync(40, 1, cancellation.Token), Times.Once);
+        provider.Verify(port => port.GetAsync(cancellation.Token), Times.Once);
+        store.Verify(port => port.FindByIdAsync(40, Scope, cancellation.Token), Times.Once);
     }
 
     [Fact]
-    public async Task Handle_ReturnsLegacyNotFoundErrorForMissingOrOtherBusinessGrn()
+    public async Task Handle_OutOfScopeGrn_IsIndistinguishableFromMissing()
     {
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.FindByIdAsync(40, 2, It.IsAny<CancellationToken>()))
+        store.Setup(port => port.FindByIdAsync(40, Scope, It.IsAny<CancellationToken>()))
             .ReturnsAsync((GrnReadModel?)null);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(2);
-        var handler = new GetGrnByIdQueryHandler(store.Object, tenantScope.Object);
+        var handler = new GetGrnByIdQueryHandler(store.Object, ScopeProvider(CancellationToken.None).Object);
 
         var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             handler.Handle(new GetGrnByIdQuery(40), CancellationToken.None));
 
         Assert.Equal("GRN with ID 40 not found", exception.Message);
-        store.Verify(port => port.FindByIdAsync(40, 2, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(port => port.FindByIdAsync(40, Scope, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task GetGrns_PropagatesFiltersBusinessAndCancellation()
+    public async Task GetGrns_PropagatesFiltersScopeAndCancellation()
     {
         using var cancellation = new CancellationTokenSource();
         var expected = new[]
@@ -84,41 +89,40 @@ public sealed class GetGrnByIdQueryHandlerTests
                 [])
         };
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.FindAllAsync(20, "FULL", 1, cancellation.Token))
+        store.Setup(port => port.FindAllAsync(20, "FULL", Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new GetGrnsQueryHandler(store.Object, tenantScope.Object);
+        var handler = new GetGrnsQueryHandler(store.Object, ScopeProvider(cancellation.Token).Object);
 
         var result = await handler.Handle(
             new GetGrnsQuery(20, "FULL"),
             cancellation.Token);
 
         Assert.Same(expected, result);
-        store.Verify(port => port.FindAllAsync(20, "FULL", 1, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindAllAsync(20, "FULL", Scope, cancellation.Token), Times.Once);
     }
 
     [Fact]
-    public async Task SearchGrns_PropagatesFiltersBusinessAndCancellation()
+    public async Task SearchGrns_PropagatesLegacyFiltersScopeAndCancellation()
     {
         using var cancellation = new CancellationTokenSource();
         var expected = new GrnSearchReadModel([], 4, 2, 2);
+        var criteria = new GrnSearchCriteria(
+            20,
+            "FULL",
+            new DateTime(2026, 3, 10),
+            new DateTime(2026, 3, 12),
+            null,
+            null,
+            null,
+            2,
+            2);
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.SearchAsync(
-                20,
-                "FULL",
-                new DateTime(2026, 3, 10),
-                new DateTime(2026, 3, 12),
-                2,
-                2,
-                1,
-                cancellation.Token))
+        store.Setup(port => port.SearchAsync(criteria, Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new SearchGrnsQueryHandler(store.Object, tenantScope.Object);
+        var handler = new SearchGrnsQueryHandler(
+            store.Object,
+            ScopeProvider(cancellation.Token).Object,
+            Mock.Of<ICompanyTimeZoneProvider>());
 
         var result = await handler.Handle(
             new SearchGrnsQuery(
@@ -131,52 +135,40 @@ public sealed class GetGrnByIdQueryHandlerTests
             cancellation.Token);
 
         Assert.Same(expected, result);
-        store.Verify(port => port.SearchAsync(
-            20,
-            "FULL",
-            new DateTime(2026, 3, 10),
-            new DateTime(2026, 3, 12),
-            2,
-            2,
-            1,
-            cancellation.Token), Times.Once);
+        store.Verify(port => port.SearchAsync(criteria, Scope, cancellation.Token), Times.Once);
     }
 
     [Fact]
-    public async Task PendingGrnPurchaseOrders_PropagatesBusinessAndCancellation()
+    public async Task PendingGrnPurchaseOrders_PropagatesReadScopeAndCancellation()
     {
         using var cancellation = new CancellationTokenSource();
         IReadOnlyList<PendingGrnPurchaseOrderReadModel> expected = [];
         var store = new Mock<IPendingGrnPurchaseOrderReadStore>();
-        store.Setup(port => port.FindPendingAsync(1, cancellation.Token))
+        store.Setup(port => port.FindPendingAsync(Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new GetPendingGrnPurchaseOrdersQueryHandler(store.Object, tenantScope.Object);
+        var handler = new GetPendingGrnPurchaseOrdersQueryHandler(
+            store.Object,
+            ScopeProvider(cancellation.Token).Object);
 
         var result = await handler.Handle(
             new GetPendingGrnPurchaseOrdersQuery(),
             cancellation.Token);
 
         Assert.Same(expected, result);
-        store.Verify(port => port.FindPendingAsync(1, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindPendingAsync(Scope, cancellation.Token), Times.Once);
     }
 
     [Fact]
-    public async Task GetVariance_UsesBusinessScopeAndPreservesNotFoundError()
+    public async Task GetVariance_UsesReadScopeAndPreservesNotFoundError()
     {
         using var cancellation = new CancellationTokenSource();
         var expected = new GrnVarianceReadModel(40, 20, "full", []);
         var store = new Mock<IGrnReadStore>();
-        store.Setup(port => port.FindVarianceByIdAsync(40, 1, cancellation.Token))
+        store.Setup(port => port.FindVarianceByIdAsync(40, Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        store.Setup(port => port.FindVarianceByIdAsync(999, 1, cancellation.Token))
+        store.Setup(port => port.FindVarianceByIdAsync(999, Scope, cancellation.Token))
             .ReturnsAsync((GrnVarianceReadModel?)null);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new GetGrnVarianceQueryHandler(store.Object, tenantScope.Object);
+        var handler = new GetGrnVarianceQueryHandler(store.Object, ScopeProvider(cancellation.Token).Object);
 
         var result = await handler.Handle(new GetGrnVarianceQuery(40), cancellation.Token);
 
@@ -184,24 +176,21 @@ public sealed class GetGrnByIdQueryHandlerTests
         var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             handler.Handle(new GetGrnVarianceQuery(999), cancellation.Token));
         Assert.Equal("GRN with ID 999 not found", exception.Message);
-        store.Verify(port => port.FindVarianceByIdAsync(40, 1, cancellation.Token), Times.Once);
-        store.Verify(port => port.FindVarianceByIdAsync(999, 1, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindVarianceByIdAsync(40, Scope, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindVarianceByIdAsync(999, Scope, cancellation.Token), Times.Once);
     }
 
     [Fact]
-    public async Task GetPoVariance_UsesBusinessScopeAndPreservesNotFoundError()
+    public async Task GetPoVariance_UsesReadScopeAndPreservesNotFoundError()
     {
         using var cancellation = new CancellationTokenSource();
         var expected = new GrnPoVarianceReadModel(20, "approved", 3, 1, []);
         var store = new Mock<IGrnPoVarianceReadStore>();
-        store.Setup(port => port.FindByPurchaseOrderIdAsync(20, 1, cancellation.Token))
+        store.Setup(port => port.FindByPurchaseOrderIdAsync(20, Scope, cancellation.Token))
             .ReturnsAsync(expected);
-        store.Setup(port => port.FindByPurchaseOrderIdAsync(999, 1, cancellation.Token))
+        store.Setup(port => port.FindByPurchaseOrderIdAsync(999, Scope, cancellation.Token))
             .ReturnsAsync((GrnPoVarianceReadModel?)null);
-        var tenantScope = new Mock<IGrnTenantScope>();
-        tenantScope.Setup(port => port.GetBusinessIdAsync(cancellation.Token))
-            .ReturnsAsync(1);
-        var handler = new GetGrnPoVarianceQueryHandler(store.Object, tenantScope.Object);
+        var handler = new GetGrnPoVarianceQueryHandler(store.Object, ScopeProvider(cancellation.Token).Object);
 
         var result = await handler.Handle(new GetGrnPoVarianceQuery(20), cancellation.Token);
 
@@ -209,7 +198,7 @@ public sealed class GetGrnByIdQueryHandlerTests
         var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             handler.Handle(new GetGrnPoVarianceQuery(999), cancellation.Token));
         Assert.Equal("Purchase order with ID 999 not found", exception.Message);
-        store.Verify(port => port.FindByPurchaseOrderIdAsync(20, 1, cancellation.Token), Times.Once);
-        store.Verify(port => port.FindByPurchaseOrderIdAsync(999, 1, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindByPurchaseOrderIdAsync(20, Scope, cancellation.Token), Times.Once);
+        store.Verify(port => port.FindByPurchaseOrderIdAsync(999, Scope, cancellation.Token), Times.Once);
     }
 }

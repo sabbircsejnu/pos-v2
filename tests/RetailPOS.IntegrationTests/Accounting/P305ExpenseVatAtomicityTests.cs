@@ -112,7 +112,9 @@ public sealed class P305ExpenseVatAtomicityTests : IDisposable
             NullLogger<ExpenseCommandStore>.Instance,
             poster,
             accountResolver,
-            new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy());
+            new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy(),
+            new RetailPOS.IntegrationTests.Infrastructure.AllowAllExpenseLocations(),
+            new RetailPOS.IntegrationTests.Infrastructure.SequentialExpenseNumbers());
     }
 
     private static void Seed(RetailPOSDbContext db)
@@ -127,7 +129,8 @@ public sealed class P305ExpenseVatAtomicityTests : IDisposable
         db.SaveChanges();
     }
 
-    private static ChartAccount Account(long id, string name, string type, string normal) => new() { Id = id, BusinessId = 1, AccountCode = id.ToString(), AccountName = name, AccountType = type, NormalBalanceType = normal, IsActive = true };
+    private static ChartAccount Account(long id, string name, string type, string normal) => new() { Id = id, BusinessId = 1, AccountCode = id.ToString(), AccountName = name, AccountType = type, NormalBalanceType = normal, IsActive = true,
+            IsExpensePaymentAccount = id is 101 };
 
     private sealed class ThrowOnExpenseApprovalSaveInterceptor : SaveChangesInterceptor
     {

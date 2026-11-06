@@ -25,7 +25,21 @@ public sealed record OutletPosSetupInput(
     bool CanManageTerminals)
 {
     public static OutletPosSetupInput None { get; } = new(null, null, null, false);
+
+    /// <summary>Invoice print settings; null leaves all of them unchanged.</summary>
+    public OutletInvoicePrintInput? InvoicePrint { get; init; }
+
+    /// <summary>Weekly off days and sales targets; null leaves them unchanged.</summary>
+    public SalesTargets.OutletSalesTargetInput? SalesTargets { get; init; }
 }
+
+/// <summary>Printed-invoice settings of an Outlet. A null member is left unchanged and an empty one clears the value.</summary>
+public sealed record OutletInvoicePrintInput(
+    string? BranchName,
+    string? BinNumber,
+    string? Mushak,
+    string? ReturnExchangePolicy,
+    string? VatLawNotification);
 
 public static class OutletSetupErrorCodes
 {
@@ -37,6 +51,7 @@ public static class OutletSetupErrorCodes
     public const string InvalidTerminal = "TERMINAL_INVALID";
     public const string TerminalHasOpenSession = "TERMINAL_HAS_OPEN_SESSION";
     public const string TerminalHasHistory = "TERMINAL_HAS_HISTORY";
+    public const string InvalidPrintSetting = "OUTLET_PRINT_SETTING_INVALID";
 }
 
 /// <summary>A refused Outlet POS-setup change; maps to HTTP 409 with a stable code.</summary>
@@ -48,6 +63,10 @@ public sealed class OutletSetupException(string code, string message) : InvalidO
 public static partial class OutletPosSetupRules
 {
     public const int MaxTerminalNameLength = 120;
+    public const int MaxPrintBranchNameLength = 150;
+    public const int MaxPrintBinLength = 50;
+    public const int MaxPrintMushakLength = 50;
+    public const int MaxPrintPolicyLength = 2000;
 
     public static string NormalizeInvoicePrefix(string? prefix)
     {
@@ -89,6 +108,20 @@ public static partial class OutletPosSetupRules
             throw new OutletSetupException(
                 OutletSetupErrorCodes.InvalidTerminal,
                 $"A terminal name is required and must be at most {MaxTerminalNameLength} characters.");
+        return normalized;
+    }
+
+    /// <summary>Null stays null (unchanged). Otherwise the trimmed text with LF line breaks; empty clears the setting.</summary>
+    public static string? NormalizePrintText(string? value, int maxLength, string label)
+    {
+        if (value is null)
+            return null;
+
+        var normalized = value.Replace("\r\n", "\n").Replace('\r', '\n').Trim();
+        if (normalized.Length > maxLength)
+            throw new OutletSetupException(
+                OutletSetupErrorCodes.InvalidPrintSetting,
+                $"{label} must be at most {maxLength} characters.");
         return normalized;
     }
 

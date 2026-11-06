@@ -175,9 +175,21 @@ public sealed class StockTransferReadStore(RetailPOSDbContext dbContext)
         IReadOnlyList<StockTransfer> transfers,
         CancellationToken cancellationToken)
     {
+        var transferIds = transfers.Select(transfer => transfer.Id).ToList();
+        var systemReturns = await dbContext.StockTransfers
+            .AsNoTracking()
+            .Include(transfer => transfer.Items)
+            .Where(transfer => transfer.OriginalTransferId != null
+                && transferIds.Contains(transfer.OriginalTransferId.Value))
+            .ToDictionaryAsync(transfer => transfer.OriginalTransferId!.Value, cancellationToken);
+
         var result = new List<StockTransferReadModel>(transfers.Count);
         foreach (var transfer in transfers)
         {
+            systemReturns.TryGetValue(transfer.Id, out var systemReturn);
+            var isInTransit = transfer.Status.Equals(StockTransfer.StatusInTransit, StringComparison.OrdinalIgnoreCase);
+            var returnInTransit = systemReturn is not null
+                && systemReturn.Status.Equals(StockTransfer.StatusInTransit, StringComparison.OrdinalIgnoreCase);
             result.Add(new StockTransferReadModel(
                 transfer.Id,
                 transfer.TransferNo,
@@ -230,7 +242,20 @@ public sealed class StockTransferReadStore(RetailPOSDbContext dbContext)
                     item.AcceptedQuantity,
                     item.RejectedQuantity,
                     item.UnitCost,
-                    item.Remarks)).ToArray()));
+                    item.Remarks,
+                    item.MissingQuantity,
+                    item.DamagedQuantity,
+                    isInTransit && !transfer.OriginalTransferId.HasValue ? ResolveTransferQuantity(item) : 0,
+                    isInTransit && transfer.OriginalTransferId.HasValue
+                        ? ResolveTransferQuantity(item)
+                        : returnInTransit
+                            ? systemReturn!.Items
+                                .Where(line => line.VariantId == item.VariantId)
+                                .Sum(ResolveTransferQuantity)
+                            : 0)).ToArray(),
+                transfer.OriginalTransferId,
+                systemReturn?.Id,
+                systemReturn?.TransferNo));
         }
 
         return result;

@@ -18,6 +18,7 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./sales-report.component.css']
 })
 export class SalesReportComponent implements OnInit {
+  private readonly companyToday = injectCompanyDates(CompanyDateService);
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   startDate = signal('');
   endDate = signal('');
@@ -35,42 +36,38 @@ export class SalesReportComponent implements OnInit {
     this.loadAll();
   }
 
-  private fmt(d: Date): string {
-    return d.toISOString().substring(0, 10);
+  /** Quick ranges are calendar days in the Company time zone, never the browser's or UTC. */
+  private shiftDays(iso: string, days: number): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
   }
 
   setToday(): void {
-    const today = this.fmt(new Date());
+    const today = this.companyToday.todayIso();
     this.startDate.set(today);
     this.endDate.set(today);
     this.loadAll();
   }
 
   setThisWeek(): void {
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const start = new Date(now.setDate(diff));
-    const end = new Date();
-    this.startDate.set(this.fmt(start));
-    this.endDate.set(this.fmt(end));
+    const today = this.companyToday.todayIso();
+    const [year, month, day] = today.split('-').map(Number);
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    this.startDate.set(this.shiftDays(today, weekday === 0 ? -6 : 1 - weekday));
+    this.endDate.set(today);
     this.loadAll();
   }
 
   setThisMonth(): void {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    this.startDate.set(this.fmt(start));
-    this.endDate.set(this.fmt(new Date()));
+    this.startDate.set(this.companyToday.firstOfMonthIso());
+    this.endDate.set(this.companyToday.todayIso());
     this.loadAll();
   }
 
   setLastMonth(): void {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    this.startDate.set(this.fmt(start));
-    this.endDate.set(this.fmt(end));
+    const lastDay = this.shiftDays(this.companyToday.firstOfMonthIso(), -1);
+    this.startDate.set(`${lastDay.slice(0, 8)}01`);
+    this.endDate.set(lastDay);
     this.loadAll();
   }
 

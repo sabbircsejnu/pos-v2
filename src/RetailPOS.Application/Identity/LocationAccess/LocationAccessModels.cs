@@ -6,7 +6,9 @@ public sealed record UserOutletAccessContext(
     bool IsBusinessOwner,
     long? EffectiveBusinessId,
     long? EffectiveOutletId,
-    bool HasWildcardPermission = false);
+    bool HasWildcardPermission = false,
+    long? EffectiveWarehouseId = null,
+    bool IsContextSwitched = false);
 
 public sealed record AuthorizedLocationReadModel(long Id, string Name, string Type);
 
@@ -26,7 +28,9 @@ public sealed record AuthorizedOutletsReadModel(
 public sealed record UserLocationAccessUser(
     long? BusinessId,
     long? OutletId,
-    string? InventoryLocationAccessScope);
+    string? InventoryLocationAccessScope,
+    bool ContextSwitchEnabled = false,
+    string? ContextLocationScope = null);
 
 public sealed record UserOutletAssignmentReadModel(
     long AssignmentId,

@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -15,8 +16,9 @@ import { CurrencyService } from '../../services/currency.service';
   templateUrl: './cash-book-report.component.html'
 })
 export class CashBookReportComponent implements OnInit {
-  readonly fromDate = signal(new Date().toISOString().slice(0, 10));
-  readonly toDate = signal(new Date().toISOString().slice(0, 10));
+  private readonly companyToday = inject(CompanyDateService);
+  readonly fromDate = signal(this.companyToday.todayIso());
+  readonly toDate = signal(this.companyToday.todayIso());
   readonly outletId = signal<number | null>(null);
   readonly warehouseId = signal<number | null>(null);
   readonly accountSlots = signal<string[]>(['cash', 'petty_cash', 'bank']);

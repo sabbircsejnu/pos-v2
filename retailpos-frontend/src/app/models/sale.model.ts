@@ -116,6 +116,8 @@ export interface SaleSummaryDto {
 export interface CartItem {
   variantId: number;
   productName: string;
+  /** Display only: the product name without its variant suffix (the variant is shown separately). */
+  displayName?: string;
   variantSku: string;
   quantity: number;
   unitPrice: number;
@@ -249,6 +251,12 @@ export interface ReceiptDocumentDto {
     phone?: string;
     binOrVatNo?: string;
     headerText?: string;
+    concernOf?: string | null;
+    branchName?: string | null;
+    showroomHotline?: string | null;
+    centralHotline?: string | null;
+    website?: string | null;
+    taxIdentityLine?: string | null;
   };
   saleInfo: {
     invoiceNumber: string;
@@ -258,6 +266,9 @@ export interface ReceiptDocumentDto {
     customerName: string;
     salesperson?: string | null;
     businessDate?: string | null;
+    customerMobile?: string | null;
+    /** The sale time in the outlet's time zone, formatted by the server. */
+    invoiceDateText?: string | null;
   };
   items: Array<{
     productName: string;
@@ -268,6 +279,8 @@ export interface ReceiptDocumentDto {
     lineTotal: number;
     vatRate?: number | null;
     vatAmount?: number | null;
+    printName?: string | null;
+    discountPercent?: number | null;
   }>;
   summary: {
     itemCount: number;
@@ -289,7 +302,12 @@ export interface ReceiptDocumentDto {
     showQr: boolean;
     codeValue?: string;
     generatedAt: string;
+    vatLawNotification?: string | null;
+    /** Platform-controlled; null when the Business has the footer disabled. */
+    poweredByText?: string | null;
   };
+  amountInWords?: string | null;
+  paymentLines?: Array<{ label: string; amount: number }>;
   /** Every recorded payment; cash rows carry tendered and change. */
   payments?: Array<{ method: string; amount: number; tendered?: number | null; change: number }>;
   /** True when the selling prices already included VAT. */

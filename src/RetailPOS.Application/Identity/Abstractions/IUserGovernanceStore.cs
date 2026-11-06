@@ -13,6 +13,14 @@ public interface IUserGovernanceStore
     Task<UserGovernanceRole?> FindRoleAsync(long roleId, CancellationToken cancellationToken);
     Task<bool> EmailExistsAsync(string email, long? exceptUserId, CancellationToken cancellationToken);
     Task<long> CountActiveSuperAdminsAsync(CancellationToken cancellationToken);
+    Task<UserContextAccessReadModel?> FindContextAccessAsync(long userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> FindPermissionOverridesAsync(long userId, CancellationToken cancellationToken);
+
+    /// <summary>Default business roles plus roles held by a user of this business, unfiltered.</summary>
+    Task<IReadOnlyList<UserGovernanceContextRole>> ListBusinessContextRolesAsync(
+        long businessId,
+        IReadOnlyCollection<string> defaultRoleNames,
+        CancellationToken cancellationToken);
 
     Task<UserReadModel> CreateAsync(
         UserGovernanceProfile profile,
@@ -57,6 +65,15 @@ public sealed record UserGovernanceTarget(
 
 public sealed record UserGovernanceRole(long Id, string Name);
 
+public sealed record UserGovernanceContextRole(long Id, string Name, string Permissions);
+
+/// <summary>Null on a profile means "leave the user's context access unchanged".</summary>
+public sealed record UserContextAccessInput(
+    bool Enabled,
+    string? LocationScope,
+    string? RoleScope,
+    IReadOnlyList<long>? RoleIds);
+
 public sealed record UserGovernanceProfile(
     string? Name,
     string? Email,
@@ -69,4 +86,5 @@ public sealed record UserGovernanceProfile(
     string? InventoryLocationAccessScope,
     long? BusinessId,
     IReadOnlyList<string?>? UserPermissions,
-    bool IsActive);
+    bool IsActive,
+    UserContextAccessInput? ContextAccess = null);

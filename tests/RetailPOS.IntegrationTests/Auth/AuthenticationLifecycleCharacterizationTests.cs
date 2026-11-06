@@ -395,7 +395,7 @@ public sealed class AuthenticationLifecycleCharacterizationTests
     }
 
     [Fact]
-    public async Task RoleSwitch_UsesPersistedBusinessOwnerAndRefreshReturnsToRealRole()
+    public async Task RoleSwitch_UsesPersistedBusinessOwnerAndRefreshKeepsAuthorizedContext()
     {
         using var factory = new RetailPosApiFactory();
         var ownerRole = new Role
@@ -469,9 +469,11 @@ public sealed class AuthenticationLifecycleCharacterizationTests
         Assert.Equal(System.Net.HttpStatusCode.OK, refreshResponse.StatusCode);
         var refreshed = await refreshResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
         Assert.NotNull(refreshed);
-        Assert.Equal(RoleSwitchClaims.BusinessOwnerRoleName, refreshed!.User.RoleName);
-        Assert.False(refreshed.User.IsRoleSwitched);
-        Assert.DoesNotContain("acting_role", new JwtSecurityTokenHandler().ReadJwtToken(refreshed.Token)
+        Assert.Equal("Cashier", refreshed!.User.RoleName);
+        Assert.Equal(RoleSwitchClaims.BusinessOwnerRoleName, refreshed.User.RealRoleName);
+        Assert.True(refreshed.User.IsRoleSwitched);
+        Assert.Equal(outlet.Id, refreshed.User.ActingOutletId);
+        Assert.Contains("acting_role", new JwtSecurityTokenHandler().ReadJwtToken(refreshed.Token)
             .Claims.Select(claim => claim.Type));
 
         using var returnOwnerResponse = await client.PostAsync("/api/auth/return-owner", content: null);

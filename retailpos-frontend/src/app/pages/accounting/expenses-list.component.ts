@@ -15,11 +15,12 @@ import { ExpenseCategoryDto, ExpenseDto } from '../../models/accounting.model';
 import { CashSessionService, CashSessionTerminalOption } from '../../services/cash-session.service';
 import { UiDialogComponent } from '../../components/shared/ui/ui-dialog.component';
 import { paymentSourceLabel, payoutState } from './expense-payment-sources';
+import { ExpenseAttachmentsComponent } from './expense-attachments.component';
 
 @Component({
   selector: 'app-expenses-list',
   standalone: true,
-  imports: [UiDateInputDirective, CommonModule, FormsModule, UiDialogComponent],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, UiDialogComponent, ExpenseAttachmentsComponent],
   templateUrl: './expenses-list.component.html',
   styleUrls: ['./expenses-list.component.css']
 })
@@ -43,6 +44,8 @@ export class ExpensesListComponent implements OnInit {
   readonly sourceLabel = paymentSourceLabel;
   readonly payout = payoutState;
   private readonly cashSessions = injectCompanyDates(CashSessionService);
+
+  attachmentsExpense = signal<ExpenseDto | null>(null);
 
   // Drawer payout dialog: the cashier picks the terminal whose open session pays the cash out.
   payingExpense = signal<ExpenseDto | null>(null);
@@ -130,6 +133,11 @@ export class ExpensesListComponent implements OnInit {
 
   createExpense(): void {
     this.router.navigate(['/expenses/create']);
+  }
+
+  openAttachments(expense: ExpenseDto, event: Event): void {
+    event.stopPropagation();
+    this.attachmentsExpense.set(expense);
   }
 
   editExpense(id: number, event: Event): void {

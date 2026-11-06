@@ -70,4 +70,5 @@ public sealed record ProcessedProductImage(
     byte[] MediumWebp,
     byte[] ThumbWebp,
     int Width,
-    int Height);
+    int Height,
+    string OriginalMimeType);

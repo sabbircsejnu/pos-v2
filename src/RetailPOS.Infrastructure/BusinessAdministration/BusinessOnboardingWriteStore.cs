@@ -91,6 +91,8 @@ public sealed class BusinessOnboardingWriteStore(
                 Phone = request.BusinessPhone?.Trim(),
                 Address = request.BusinessAddress?.Trim(),
                 IsActive = true,
+                ShowPoweredByOnReceipt = request.ShowPoweredByOnReceipt,
+                PoweredByText = request.PoweredByText,
                 CreatedAt = now,
                 UpdatedAt = now
             };

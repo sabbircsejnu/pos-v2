@@ -17,14 +17,19 @@ interface PendingFile { file: File; previewUrl: string; }
   template: `
     <div class="space-y-3">
 
-      <!-- Drop zone: always visible (pending queue in create mode) -->
-      <label class="pu-drop">
+      <!-- Image changes need products.edit (enforced by the API); without it the media is view-only. -->
+      <app-ui-alert *ngIf="!canEdit" variant="info">
+        Adding, replacing or removing product images requires the Edit Products permission.
+      </app-ui-alert>
+
+      <!-- Drop zone: pending queue in create mode, direct upload in edit mode -->
+      <label class="pu-drop" *ngIf="canEdit">
         <span class="pu-drop__icon" aria-hidden="true"><i class="fas fa-cloud-upload-alt"></i></span>
         <span class="pu-drop__title">
           <strong>Click to upload</strong> or drop images here
         </span>
         <span class="pu-drop__rules">
-          JPG / PNG / WEBP, {{ rules.minDim }}–{{ rules.maxDim }} px, &lt;{{ rules.maxBytes / (1024*1024) }} MB
+          JPG / PNG / WEBP, up to {{ rules.maxBytes / (1024*1024) }} MB. Large images are optimized automatically.
         </span>
         <input type="file" class="sr-only" multiple
                aria-label="Upload product images"
@@ -62,10 +67,10 @@ interface PendingFile { file: File; previewUrl: string; }
             <button type="button" title="View" aria-label="View image" (click)="open(img)">
               <i class="fas fa-eye" aria-hidden="true"></i>
             </button>
-            <button type="button" title="Set primary" aria-label="Set as primary image" *ngIf="!img.isPrimary" (click)="setPrimary(img)">
+            <button type="button" title="Set primary" aria-label="Set as primary image" *ngIf="canEdit && !img.isPrimary" (click)="setPrimary(img)">
               <i class="fas fa-star" aria-hidden="true"></i>
             </button>
-            <button type="button" title="Delete" aria-label="Delete image" class="pu-tools__danger" (click)="remove(img)">
+            <button type="button" title="Delete" aria-label="Delete image" class="pu-tools__danger" *ngIf="canEdit" (click)="remove(img)">
               <i class="fas fa-times" aria-hidden="true"></i>
             </button>
           </div>
@@ -193,7 +198,7 @@ interface PendingFile { file: File; previewUrl: string; }
       display: block;
       width: 100%;
       height: 7rem;
-      object-fit: cover;
+      object-fit: contain;
       background: var(--rp-color-surface-muted);
     }
 
@@ -270,6 +275,8 @@ export class ProductImageUploaderComponent implements OnChanges, OnDestroy {
   svc = inject(ProductImageService);
 
   @Input() productId: number | null = null;
+  /** Upload, set-primary and delete require products.edit; the server enforces it, the UI only avoids a 403. */
+  @Input() canEdit = true;
   @Output() primaryChanged = new EventEmitter<ProductImage | null>();
 
   rules = PRODUCT_IMAGE_RULES;
@@ -296,7 +303,7 @@ export class ProductImageUploaderComponent implements OnChanges, OnDestroy {
   }
 
   async onFiles(files: FileList | null) {
-    if (!files) return;
+    if (!files || !this.canEdit) return;
     this.failures.set([]);
     for (let i = 0; i < files.length; i++) {
       const f = files.item(i);
@@ -339,10 +346,12 @@ export class ProductImageUploaderComponent implements OnChanges, OnDestroy {
     if (!this.rules.allowedMimes.includes(f.type)) return 'Only JPG, PNG, or WEBP allowed.';
     if (f.size > this.rules.maxBytes) return `File too large (max ${this.rules.maxBytes / (1024 * 1024)} MB).`;
     const dim = await this.readDimensions(f);
-    if (!dim) return 'Could not read image dimensions.';
-    if (dim.w < this.rules.minDim || dim.h < this.rules.minDim
-        || dim.w > this.rules.maxDim || dim.h > this.rules.maxDim) {
-      return `Dimensions must be ${this.rules.minDim}–${this.rules.maxDim} px on each side. Got ${dim.w}×${dim.h}.`;
+    if (!dim) return 'The file is not a valid JPG, PNG, or WEBP image, or it is corrupted.';
+    if (dim.w < this.rules.minDim || dim.h < this.rules.minDim) {
+      return `Image is too small: each side must be at least ${this.rules.minDim} px. Got ${dim.w}×${dim.h}.`;
+    }
+    if (dim.w * dim.h > this.rules.maxPixels) {
+      return `Image is too large to process: the limit is ${this.rules.maxPixels / 1_000_000} megapixels. Got ${dim.w}×${dim.h}.`;
     }
     return null;
   }
@@ -375,12 +384,12 @@ export class ProductImageUploaderComponent implements OnChanges, OnDestroy {
   open(img: ProductImage) { this.lightboxImage.set(img); }
 
   setPrimary(img: ProductImage) {
-    if (!this.productId) return;
+    if (!this.productId || !this.canEdit) return;
     this.svc.setPrimary(this.productId, img.id).subscribe(() => this.reload());
   }
 
   remove(img: ProductImage) {
-    if (!this.productId) return;
+    if (!this.productId || !this.canEdit) return;
     if (img.isPrimary && this.images().length > 1) {
       const ok = confirm('This is the primary image. Another image will be promoted automatically. Continue?');
       if (!ok) return;

@@ -24,6 +24,9 @@ public class UserInfoDto
     public string? ActingRoleName { get; set; }
     public long? ActingOutletId { get; set; }
     public string? ActingOutletName { get; set; }
+    public string? ActingLocationType { get; set; }
+    public long? ActingWarehouseId { get; set; }
+    public string? ActingWarehouseName { get; set; }
     public bool IsRoleSwitched { get; set; }
     public bool IsBusinessOwner { get; set; }
     public bool MustResetPassword { get; set; }

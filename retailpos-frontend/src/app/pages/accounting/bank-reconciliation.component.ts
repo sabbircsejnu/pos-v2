@@ -1,7 +1,8 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
 import { AuthService } from '../../services/auth.service';
@@ -11,6 +12,7 @@ import { BankAccountOption, ReconciliationCandidate, ReconciliationCalculation, 
 
 @Component({ selector: 'app-bank-reconciliation', standalone: true, imports: [AppDatePipe, UiDateInputDirective, CommonModule, FormsModule], templateUrl: './bank-reconciliation.component.html', styleUrls: ['./bank-reconciliation.component.css'] })
 export class BankReconciliationComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   accounts = signal<BankAccountOption[]>([]); sessions = signal<ReconciliationSession[]>([]); session = signal<ReconciliationSession | null>(null); calculation = signal<ReconciliationCalculation | null>(null); statements = signal<StatementLine[]>([]); gl = signal<ReconciliationCandidate[]>([]); imports = signal<StatementImport[]>([]); adjustments = signal<StatementAdjustment[]>([]); exceptions = signal<StatementException[]>([]); matches = signal<ReconciliationMatchDetail[]>([]); settlements = signal<SettlementBatch[]>([]); selectedStatement = signal<Set<number>>(new Set()); selectedGl = signal<Set<number>>(new Set()); selectedFile = signal<File | null>(null); error = signal<string | null>(null); isLoading = signal(false); notice = signal<string | null>(null);
   bankAccountId: number | null = null; periodStart = this.dateOffset(-30); periodEnd = this.today(); search = '';
   constructor(public accounting: AccountingService, public auth: AuthService, private alerts: AlertService, private errors: ErrorHandlerService) {}
@@ -38,6 +40,6 @@ export class BankReconciliationComponent implements OnInit {
   reopen(): void { const s = this.session(); if (!s) return; const reason = prompt('Reason for reopening'); if (!reason) return; this.accounting.reopenReconciliation(s.id, reason).subscribe({ next: () => { this.notice.set('Reconciliation reopened.'); this.refresh(); }, error: e => this.fail(e) }); }
   can(permission: string): boolean { return this.auth.hasPermission(permission); }
   private fail(error: unknown): void { this.isLoading.set(false); this.error.set(this.errors.extractErrorMessage(error)); this.alerts.error(this.error() || 'Request failed.'); }
-  private today(): string { return new Date().toISOString().slice(0, 10); }
-  private dateOffset(days: number): string { const date = new Date(); date.setDate(date.getDate() + days); return date.toISOString().slice(0, 10); }
+  private today(): string { return this.companyToday.todayIso(); }
+  private dateOffset(days: number): string { return this.companyToday.todayIso(days); }
 }

@@ -296,7 +296,7 @@ This document and its companion LLD are **the intended blueprint**, not a claim 
 | D6 | Product, Variant and Category business-owned, shared among outlets **within the same business**; audit ownership before migration | FR-CAT-01 |
 | D7 | Independent approval required by default for POS Drawer/Petty Cash expenses; ordinary users and AccountsAdmin cannot self-approve; Business Owner exception only by explicit setting and full audit | FR-EXP-APP-01 |
 | D8 | Super Admin may sell only with explicit business/outlet/terminal and sales.create; owners may choose own-business outlets; others assigned outlets; separate session permissions | FR-AUTH-01 |
-| D9 | Business default IANA timezone, optional outlet override; server derives opening business date and snapshots effective timezone/open instant/date/duration; cutoff UTC | FR-TIME-04 |
+| D9 | Amended 5 Nov 2026 (owner decision): every Business has one Company time zone (IANA) and outlets no longer override it; server derives opening business date and snapshots the zone/open instant/date/duration; cutoff UTC. Sessions opened earlier keep their snapshots. | FR-TIME-04 |
 | D10 | Atomic validated sale/payment/stock/immutable financial intent/outbox; asynchronous idempotent GL journal; reconciliation/alert states; sale not rolled back by downstream GL failure | FR-GL-01 |
 | D11 | Outlet Create/Onboarding suggests editable `Counter 1` draft, persists only confirmed rows; no active terminal blocks POS; one auto-selects, multiple explicit; history safeguards | FR-TERM-04 |
 | D12 | Dedicated direct-completion Late Sales workflow, historical reporting, independent original/entry dates, original price, current-stock deduction, reconciliations, distinct references and all-consumer integration | §§21–25 |
@@ -326,7 +326,7 @@ This document and its companion LLD are **the intended blueprint**, not a claim 
 
 **FR-CFG-01.** `MaxCashSessionDurationHours` is persisted per business in PostgreSQL, default 20, allowed configured value >0 and ≤20 (smaller values allowed). Restrict setting changes to authorized admins; audit old/new actor and UTC; new setting applies only to subsequently opened sessions. `DurationSnapshotHours` immutable per session. Warnings display at two and one hours before the effective cutoff (thus 18h/19h for default 20h); server/UTC commit gate is authoritative for shorter durations as well.
 
-**FR-TIME-04.** Business holds default IANA TimeZoneId; outlet optionally overrides it. At session open the server resolves zone, opening UTC instant, date in that zone, and duration and stores all as immutable snapshots. `cash_sessions.business_date` uses a SQL date, not timestamptz; checkout sale copies its session BusinessDate. Host OS/browser timezone and Npgsql legacy DateTime.Kind must not affect expiry or BusinessDate. Test DST, midnight, UTC and Asia/Dhaka.
+**FR-TIME-04.** (Amended 5 Nov 2026.) Each Business holds one Company IANA TimeZoneId, which decides every calendar date in the system; outlets do not override it. At session open the server resolves zone, opening UTC instant, date in that zone, and duration and stores all as immutable snapshots. `cash_sessions.business_date` uses a SQL date, not timestamptz; checkout sale copies its session BusinessDate. Host OS/browser timezone and Npgsql legacy DateTime.Kind must not affect expiry or BusinessDate. Test DST, midnight, UTC and Asia/Dhaka.
 
 **FR-CS-04R.** Stored status is Open or Closed. Overdue is a read-time operational condition: `nowUtc >= OpenedAtUtc + DurationSnapshotHours` while Open. It blocks new sale and re-opening the same terminal until closed; existing overdue session can be closed with no role bypass. Persisted one-open-session uniqueness applies to all stored Open rows, including derived overdue. Serialize sale/close and enforce cutoff at final commit gate.
 
@@ -390,7 +390,7 @@ This document and its companion LLD are **the intended blueprint**, not a claim 
 |---|---|
 | AC-19 | Business A cannot search/use B's product, category, variant, customer, held sale or replacement reference; shared product is accessible across A's own outlets only. |
 | AC-20 | Terminal suggestion is never auto-persisted; one active auto-selects, many require explicit selection; no active terminal blocks; history/delete/session guards hold. |
-| AC-21 | Non-UTC and DST time zones yield correct outlet-local BusinessDate and strict configured cutoff; shorter D3 snapshot unaffected by later settings change; status Overdue derived. |
+| AC-21 | Non-UTC and DST time zones yield correct Company-zone BusinessDate and strict configured cutoff; shorter D3 snapshot unaffected by later settings change; status Overdue derived. |
 | AC-22 | Two cashiers/sales concurrently with close/double close cannot attach a sale to already-closed session or lose payment effects; opening cutoff strictly enforced. |
 | AC-23 | Void in older session and cash payout from current session affect only paying drawer once, original close snapshot immutable. |
 | AC-24 | A variance session closes without live GL success; variance requires approval; failed posting retries idempotently; zero variance no adjustment journal. |
@@ -413,3 +413,30 @@ This document and its companion LLD are **the intended blueprint**, not a claim 
 - Existing approved UX, sales targets, VAT/tender/receipt, hold/recall, cashier/salesperson and session views remain required; any future UI refit must follow repository design-system tokens and accessibility.
 - PostgreSQL-backed integration tests not run in Rev 3. Run only against isolated Test stack with `RETAILPOS_TEST_POSTGRES` explicitly set; remove unsafe Development fallback before testing. Use migration-built schema rather than EnsureCreated-only fixtures. Migration application to persistent Development/Production requires separate explicit approval.
 - Returns/Exchange SRD, Loyalty P0 gates, production data quality, legal tax-point/closed-period interpretation and measured NFRs remain implementation/test dependencies, not authorization for silent policy changes. Do not claim final implementation readiness solely on document freeze.
+
+## 27. Addendum (2026-11-06): Outlet tabs, weekly off days and sales targets
+
+This addendum extends §5.2 and §16.5. It does not remove any approved decision. D05 stands: First Half is 1–15, Second Half is 16–month end, and there is no 14-day rolling period (owner confirmation, 2026-11-06). Findings are in `OUTLET_SALES_TARGET_GAP_ANALYSIS.md`.
+
+**FR-OUTLET-TABS-01** Outlet Create and Edit have three tabs: Outlet Details (outlet fields, Weekly Off Days, POS Terminals), Invoice Settings (invoice prefix, invoice printing) and Sales Target. Switching tabs keeps unsaved values. A tab with an invalid field shows an error marker, and a failed save opens the first such tab.
+
+**FR-OFFDAY-01** Each outlet has zero or more recurring weekly off days. None selected means it trades every day. All seven are refused.
+
+**FR-OFFDAY-02** Off days affect target calculation only. They do not authorize or block sales, change warehouse permissions or stock movements, or alter recorded sales.
+
+**FR-TARGET-05** A weekly off day has a target of zero. On such a day no shortfall is reported, and any sales remain counted as sales.
+
+**FR-TARGET-06** When targets are enabled, every open weekday needs a nonnegative amount of at most two decimals. Zero is allowed. This refines FR-TARGET-01: "Not configured" now means targets are disabled or no version covers the date.
+
+**FR-TARGET-07** Changes are effective-dated and start today at the earliest, so past results never change. Reopening a closed day shows its earlier amount but never restores it unseen.
+
+**FR-TARGET-08** An override applies only when the requested range is exactly its calendar period, and it replaces that period's total. It is never spread over daily targets. Any other range uses the daily targets. An override does not revive a period in which targets were disabled or not configured.
+
+**Acceptance examples**
+
+| Given | Result |
+|---|---|
+| Sat 15,000, Sun 12,000, Mon 12,000, Tue closed, Wed 12,000, Thu 16,000, Fri 20,000 | Weekly target 87,000 |
+| 100 a day, closed Tuesdays, November 2026 | Monthly target 2,600 (26 working days) |
+| Closed Tuesday with 500 of sales | Target 0, status Scheduled Off Day, no shortfall, 500 stays in sales |
+| Three of five showrooms configured, All Showrooms | Total marked Partial with coverage shown |

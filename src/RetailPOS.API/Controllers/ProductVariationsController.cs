@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using MediatR;
 using RetailPOS.API.DTOs.Product;
 using RetailPOS.API.Models;
@@ -8,7 +9,8 @@ using RetailPOS.Application.Products.Queries;
 
 namespace RetailPOS.API.Controllers;
 
-[Authorize(Policy = "products.view")]
+// Authenticated by default; each action declares its policy so editing a product implies reading that record.
+[Authorize]
 [ApiController]
 [Route("api/products/{productId}/variations")]
 public class ProductVariationsController : ControllerBase
@@ -28,6 +30,7 @@ public class ProductVariationsController : ControllerBase
     /// Get variations assigned to a product
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductRecordRead)]
     public async Task<ActionResult<ApiResponse<List<ProductVariationDto>>>> GetProductVariations(
         long productId,
         CancellationToken cancellationToken)
@@ -83,6 +86,7 @@ public class ProductVariationsController : ControllerBase
     /// Get all combinations for a product
     /// </summary>
     [HttpGet("combinations")]
+    [Authorize(Policy = LookupAuthorizationPolicies.ProductRecordRead)]
     public async Task<ActionResult<ApiResponse<List<CombinationDto>>>> GetCombinations(
         long productId,
         CancellationToken cancellationToken)

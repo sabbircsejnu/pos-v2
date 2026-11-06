@@ -5,6 +5,7 @@ using RetailPOS.API.DTOs.Outlet;
 using RetailPOS.Application.Outlets;
 using RetailPOS.Application.Outlets.Commands;
 using RetailPOS.Application.Outlets.Queries;
+using RetailPOS.Application.Outlets.SalesTargets;
 using MediatR;
 
 namespace RetailPOS.API.Controllers;
@@ -65,6 +66,30 @@ public class OutletsController : ControllerBase
     }
 
     /// <summary>
+    /// Get an outlet's weekly off days, sales target history and the periods containing a reference date
+    /// </summary>
+    [HttpGet("{id}/sales-targets")]
+    public async Task<ActionResult<OutletSalesTargetConfigurationReadModel>> GetSalesTargets(
+        long id,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var configuration = await _sender.Send(new GetOutletSalesTargetsQuery(id, referenceDate), cancellationToken);
+            if (configuration == null)
+                return NotFound(new { error = $"Outlet with ID {id} not found" });
+
+            return Ok(new { data = configuration, message = "Sales targets retrieved successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving sales targets of outlet {Id}", id);
+            return StatusCode(500, new { error = "An error occurred while retrieving the sales targets" });
+        }
+    }
+
+    /// <summary>
     /// Create a new outlet
     /// </summary>
     [HttpPost]
@@ -87,7 +112,16 @@ public class OutletsController : ControllerBase
                     dto.Address,
                     dto.ContactNumber,
                     dto.ManagerId,
-                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals)),
+                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals) with
+                    {
+                        InvoicePrint = new OutletInvoicePrintInput(
+                            dto.InvoicePrintBranchName,
+                            dto.BinNumber,
+                            dto.Mushak,
+                            dto.ReturnExchangePolicy,
+                            dto.VatLawNotification),
+                        SalesTargets = ToSalesTargets(dto.SalesTargets)
+                    }),
                 cancellationToken);
             var outlet = MapOutlet(result);
             return CreatedAtAction(
@@ -139,7 +173,16 @@ public class OutletsController : ControllerBase
                     dto.Address,
                     dto.ContactNumber,
                     dto.ManagerId,
-                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals)),
+                    ToPosSetup(dto.InvoicePrefix, dto.TimeZoneId, dto.Terminals) with
+                    {
+                        InvoicePrint = new OutletInvoicePrintInput(
+                            dto.InvoicePrintBranchName,
+                            dto.BinNumber,
+                            dto.Mushak,
+                            dto.ReturnExchangePolicy,
+                            dto.VatLawNotification),
+                        SalesTargets = ToSalesTargets(dto.SalesTargets)
+                    }),
                 cancellationToken);
             var outlet = MapOutlet(result);
             return Ok(new { data = outlet, message = "Outlet updated successfully" });
@@ -280,6 +323,16 @@ public class OutletsController : ControllerBase
             terminals?.Select(terminal => new OutletTerminalInput(terminal.Id, terminal.Name, terminal.IsActive)).ToList(),
             User.HasPermission("outlets.terminals.manage"));
 
+    private static OutletSalesTargetInput? ToSalesTargets(OutletSalesTargetsDto? dto) =>
+        dto is null
+            ? null
+            : new OutletSalesTargetInput(
+                dto.IsEnabled,
+                dto.EffectiveFrom,
+                dto.Days.Select(day => new OutletSalesTargetDayInput((DayOfWeek)day.DayOfWeek, day.IsOffDay, day.TargetAmount)).ToList(),
+                dto.Overrides?.Select(item => new OutletSalesTargetOverrideInput(item.PeriodType, item.PeriodFrom, item.OverrideAmount, item.Reason)).ToList(),
+                dto.ExpectedVersionNo);
+
     private static OutletDto MapOutlet(OutletReadModel outlet) => new()
     {
         Id = outlet.Id,
@@ -294,6 +347,11 @@ public class OutletsController : ControllerBase
         InvoicePrefix = outlet.InvoicePrefix,
         InvoicePrefixLocked = outlet.InvoicePrefixLocked,
         TimeZoneId = outlet.TimeZoneId,
+        InvoicePrintBranchName = outlet.InvoicePrintBranchName,
+        BinNumber = outlet.BinNumber,
+        Mushak = outlet.Mushak,
+        ReturnExchangePolicy = outlet.ReturnExchangePolicy,
+        VatLawNotification = outlet.VatLawNotification,
         Terminals = (outlet.Terminals ?? [])
             .Select(terminal => new OutletTerminalDto
             {

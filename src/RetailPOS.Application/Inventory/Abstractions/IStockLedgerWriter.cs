@@ -39,4 +39,22 @@ public interface IStockLedgerWriter
         DateTime? businessDate = null,
         long? movementSequence = null,
         long? reversalOfMovementId = null);
+
+    /// <summary>
+    /// Records stock that documents prove cost nothing. A supplied zero alone is not reliable: the other methods
+    /// record it as unreliable, so a caller must have checked the evidence before using this one.
+    /// </summary>
+    void WriteVerifiedZeroCostEntry(
+        long variantId,
+        long locationId,
+        string locationType,
+        string transactionType,
+        int qtyIn,
+        int qtyOut,
+        int balanceAfter,
+        string referenceType,
+        long referenceId,
+        string? remarks = null,
+        long? createdBy = null,
+        DateTime? createdAt = null);
 }

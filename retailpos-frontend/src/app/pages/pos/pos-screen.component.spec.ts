@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 
 import { PosScreenComponent } from './pos-screen.component';
@@ -58,6 +58,10 @@ describe('PosScreenComponent dropdown behavior', () => {
     getPosSettings: vi.fn().mockReturnValue(of({ data: posSettings })),
     cartPrices: vi.fn().mockReturnValue(of({ data: [pricedRow()] })),
     lookup: vi.fn().mockReturnValue(of({ data: null })),
+    getCatalogue: vi.fn().mockReturnValue(of({ data: [] })),
+    getCategories: vi.fn().mockReturnValue(of({ data: [] })),
+    searchCustomers: vi.fn().mockReturnValue(of({ data: [] })),
+    createCustomer: vi.fn(),
     stockHint: vi.fn().mockReturnValue(of({ data: { availableQty: 7 } })),
     reportDiscountAudit: vi.fn().mockReturnValue(of({ success: true })),
     holdSale: vi.fn(),
@@ -108,6 +112,8 @@ describe('PosScreenComponent dropdown behavior', () => {
     posServiceMock.getSalespersons.mockReturnValue(of({ data: { salespersons: [], defaultSalespersonUserId: null, defaultSource: 'none' } }));
     posServiceMock.getPosSettings.mockReturnValue(of({ data: posSettings }));
     posServiceMock.cartPrices.mockReturnValue(of({ data: [pricedRow()] }));
+    posServiceMock.getCatalogue.mockReturnValue(of({ data: [] }));
+    posServiceMock.getCategories.mockReturnValue(of({ data: [] }));
     authServiceMock.hasPermission.mockReturnValue(true);
 
     await TestBed.configureTestingModule({
@@ -410,7 +416,7 @@ describe('PosScreenComponent dropdown behavior', () => {
       }]);
       component.selectedTerminalId.set(8001);
       component.activeCashSession.set({ id: 1, openedAt: new Date().toISOString(), isOverdue: false } as any);
-      component.paymentMethod.set('cash');
+      component.setPaymentMethod('cash');
       component.cashTendered.set(500);
     }
 
@@ -884,23 +890,19 @@ describe('PosScreenComponent dropdown behavior', () => {
     it('shows change and keeps only the cash allocation as net cash retained in a split payment', () => {
       const component = TestBed.createComponent(PosScreenComponent).componentInstance;
       readyForCheckout(component);
-      component.useSplitPayment.set(true);
-      component.splitPayments.set([
-        { method: 'cash', amount: 60, tendered: 100 },
-        { method: 'card', amount: 50 },
-      ]);
+      component.onPaymentAmountChange('card', 50);
+      component.cashTendered.set(100);
 
       expect(component.payableAmount()).toBe(110);
+      expect(component.cashBreakdown()).toBe(60);
+      expect(component.isSplitPayment()).toBe(true);
       expect(component.change()).toBe(40);
       expect(component.netCashRetained()).toBe(60);
       expect(component.cashTenderedTotal()).toBe(100);
       expect(component.canCompleteSale()).toBe(true);
 
-      component.splitPayments.set([
-        { method: 'cash', amount: 60, tendered: 50 },
-        { method: 'card', amount: 50 },
-      ]);
-      expect(component.splitTenderError()).toContain('cannot be less');
+      component.cashTendered.set(50);
+      expect(component.paymentError()).toContain('less than the cash amount');
       expect(component.canCompleteSale()).toBe(false);
     });
 
@@ -921,6 +923,478 @@ describe('PosScreenComponent dropdown behavior', () => {
     it('never shows a browser-derived business date when no session is open', () => {
       const component = TestBed.createComponent(PosScreenComponent).componentInstance;
       expect(component.headerBusinessDate()).toBeNull();
+    });
+  });
+
+  describe('POS customer lookup authorization', () => {
+    it('searches customers through the POS lookup (sales.create), never Customer Management', () => {
+      posServiceMock.searchCustomers.mockReturnValue(of({ data: [{ id: 41, name: 'Ayesha', phone: '01700000000' }] }));
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      (component as any).doCustomerSearch('aye');
+
+      expect(posServiceMock.searchCustomers).toHaveBeenCalledWith('aye');
+      expect(httpClientMock.get.mock.calls.map((call: any[]) => String(call[0])).some(url => url.includes('/customers/search'))).toBe(false);
+      expect(component.customerResults()).toEqual([
+        expect.objectContaining({ id: 41, name: 'Ayesha', phone: '01700000000' })
+      ]);
+      expect(component.customerResults()[0].email).toBeUndefined();
+      expect(component.showCustomerDropdown()).toBe(true);
+    });
+
+    it('drops stale results on 403 and keeps the sale in place', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+      component.customerResults.set([{ id: 9, name: 'Stale', loyaltyPoints: 0, createdAt: '' }]);
+      posServiceMock.searchCustomers.mockReturnValue(throwError(() => ({ status: 403 })));
+
+      (component as any).doCustomerSearch('aye');
+
+      expect(component.customerResults()).toEqual([]);
+      expect(component.showCustomerDropdown()).toBe(false);
+      expect(component.selectedCustomer()?.id).toBe(0);
+    });
+  });
+
+  describe('POS Quick Customer (sales.create, POST /api/pos/customers)', () => {
+    function openQuickCustomer(name = 'Rahim Uddin', mobile = '01711000009') {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+      component.quickAddCustomer();
+      component.updateQuickCustomerField('displayName', name);
+      component.updateQuickCustomerField('mobile', mobile);
+      return { fixture, component };
+    }
+
+    beforeEach(() => {
+      // A cashier: POS sale permission only, no Customer Management.
+      authServiceMock.hasPermission.mockImplementation((p: string) => p === 'sales.create');
+    });
+
+    afterEach(() => {
+      authServiceMock.hasPermission.mockImplementation(() => true);
+      errorHandlerServiceMock.extractErrorMessage.mockReturnValue('error');
+    });
+
+    it('is offered to a cashier with sales.create and withheld without it', () => {
+      const { component } = openQuickCustomer();
+      expect(component.canCreateCustomers()).toBe(true);
+      expect(component.showQuickCustomerModal()).toBe(true);
+
+      authServiceMock.hasPermission.mockImplementation((p: string) => p === 'customers.create');
+      const withoutSale = TestBed.createComponent(PosScreenComponent).componentInstance;
+      expect(withoutSale.canCreateCustomers()).toBe(false);
+      withoutSale.quickAddCustomer();
+      expect(withoutSale.showQuickCustomerModal()).toBe(false);
+    });
+
+    it('creates through the POS endpoint with name and phone only, selects the customer and closes', () => {
+      posServiceMock.createCustomer.mockReturnValue(of({ data: { id: 77, name: 'Rahim Uddin', phone: '01711000009' } }));
+      const { component } = openQuickCustomer();
+
+      component.saveQuickCustomer();
+
+      expect(posServiceMock.createCustomer).toHaveBeenCalledWith({ name: 'Rahim Uddin', phone: '01711000009' });
+      expect(customerServiceMock.create).not.toHaveBeenCalled();
+      expect(component.selectedCustomer()).toMatchObject({ id: 77, name: 'Rahim Uddin', phone: '01711000009' });
+      expect(component.showQuickCustomerModal()).toBe(false);
+      expect(component.isSavingCustomer()).toBe(false);
+    });
+
+    it('requires a name and a mobile number before calling the server', () => {
+      const { component } = openQuickCustomer('Rahim Uddin', '  ');
+      component.saveQuickCustomer();
+      expect(alertServiceMock.error).toHaveBeenCalledWith('Mobile is required.');
+      expect(posServiceMock.createCustomer).not.toHaveBeenCalled();
+    });
+
+    it('blocks a second submit while the first is in flight', () => {
+      const pending = new Subject<unknown>();
+      posServiceMock.createCustomer.mockReturnValue(pending);
+      const { component } = openQuickCustomer();
+
+      component.saveQuickCustomer();
+      component.saveQuickCustomer();
+
+      expect(posServiceMock.createCustomer).toHaveBeenCalledTimes(1);
+      expect(component.isSavingCustomer()).toBe(true);
+    });
+
+    it('on a duplicate phone keeps the form, offers the existing customer and selects it on request', () => {
+      posServiceMock.createCustomer.mockReturnValue(throwError(() => ({
+        status: 409,
+        error: { success: false, errorCode: 'CUSTOMER_PHONE_EXISTS', data: { id: 12, name: 'Existing Rahim', phone: '01711000009' } }
+      })));
+      const { fixture, component } = openQuickCustomer();
+
+      component.saveQuickCustomer();
+      fixture.detectChanges();
+
+      expect(component.showQuickCustomerModal()).toBe(true);
+      expect(component.quickCustomerForm()).toMatchObject({ displayName: 'Rahim Uddin', mobile: '01711000009' });
+      expect(component.quickCustomerDuplicate()).toEqual({ id: 12, name: 'Existing Rahim', phone: '01711000009' });
+      expect((fixture.nativeElement as HTMLElement).querySelector('.pos-qc-duplicate')?.textContent).toContain('Existing Rahim');
+      expect(alertServiceMock.error).not.toHaveBeenCalled();
+
+      component.selectDuplicateCustomer();
+
+      expect(component.selectedCustomer()).toMatchObject({ id: 12, name: 'Existing Rahim' });
+      expect(component.showQuickCustomerModal()).toBe(false);
+    });
+
+    it('keeps the entered values and shows the server message on a recoverable error', () => {
+      posServiceMock.createCustomer.mockReturnValue(throwError(() => ({ status: 400, error: { message: 'Phone number is not valid.' } })));
+      errorHandlerServiceMock.extractErrorMessage.mockReturnValue('Phone number is not valid.');
+      const { component } = openQuickCustomer('Rahim Uddin', '12');
+
+      component.saveQuickCustomer();
+
+      expect(alertServiceMock.error).toHaveBeenCalledWith('Phone number is not valid.');
+      expect(component.showQuickCustomerModal()).toBe(true);
+      expect(component.quickCustomerForm()).toMatchObject({ displayName: 'Rahim Uddin', mobile: '12' });
+      expect(component.isSavingCustomer()).toBe(false);
+    });
+
+    it('no longer asks for an email address', () => {
+      const { fixture } = openQuickCustomer();
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('#pos-qc-email')).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('#pos-qc-mobile')).not.toBeNull();
+    });
+  });
+
+  describe('Phase 4 POS catalogue authorization', () => {
+    const catalogueItem = (overrides: Record<string, unknown> = {}) => ({
+      variantId: 9811,
+      productId: 9111,
+      productName: 'Catalogue shirt',
+      variantName: 'Red',
+      productCode: 'SHIRT',
+      sku: 'CAT-SHIRT-RED',
+      barcode: 'CAT-BC-RED',
+      attributes: '',
+      categoryId: 9011,
+      categoryName: 'Apparel',
+      listPrice: 12,
+      primaryImageThumb: null,
+      stockQty: 7,
+      ...overrides,
+    });
+
+    function requestedUrls(): string[] {
+      return httpClientMock.get.mock.calls.map((call: any[]) => String(call[0]));
+    }
+
+    it('loads products and categories from the POS endpoints, never the Product/Category Management APIs', () => {
+      posServiceMock.getCatalogue.mockReturnValue(of({ data: [
+        catalogueItem(),
+        catalogueItem({ variantId: 9821, productId: 9112, productName: 'Sourdough', variantName: 'Default', productCode: 'BREAD', sku: 'CAT-BREAD', barcode: null, categoryId: 9012, categoryName: 'Bakery', stockQty: 0 }),
+      ] }));
+      posServiceMock.getCategories.mockReturnValue(of({ data: [
+        { id: 9011, name: 'Apparel', parentCategoryId: null, displayOrder: 1 },
+        { id: 9012, name: 'Bakery', parentCategoryId: null, displayOrder: 2 },
+      ] }));
+      // A seller without products.view/categories.view: the screen must not depend on them.
+      authServiceMock.hasPermission.mockImplementation((p: string) => !['products.view', 'categories.view', '*'].includes(p));
+
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+
+      expect(posServiceMock.getCatalogue).toHaveBeenCalledWith(3);
+      expect(posServiceMock.getCategories).toHaveBeenCalled();
+      expect(requestedUrls().some(url => /\/(products|categories)(\/|\?|$)/.test(url))).toBe(false);
+
+      expect(component.categories()).toEqual([{ id: 9011, name: 'Apparel' }, { id: 9012, name: 'Bakery' }]);
+      expect(component.allProducts().map(p => p.variantId)).toEqual([9811, 9821]);
+      const red = component.allProducts()[0];
+      expect(red.name).toBe('Catalogue shirt - Red');
+      expect(red.price).toBe(12);
+      expect(red.barcode).toBe('CAT-BC-RED');
+      // Catalogue stock is the authorized outlet's quantity.
+      expect(component.getStockStatusText(red)).toBe('Current Stock: 7');
+      expect(component.getStockStatusClass(component.allProducts()[1])).toBe('stock-out');
+
+      component.selectCategory(9012);
+      expect(component.filteredProducts().map(p => p.variantId)).toEqual([9821]);
+      component.selectCategory(null);
+      component.smartSearchQuery.set('cat-bc-red');
+      expect(component.smartSearchResults().map(p => p.variantId)).toEqual([9811]);
+
+      expect(component.productsLoadError()).toBeNull();
+      expect(alertServiceMock.error).not.toHaveBeenCalled();
+    });
+
+    it('shows no permission error during initialization when the POS permissions are present', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+
+      expect(alertServiceMock.error).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.productsLoadError()).toBeNull();
+      expect(fixture.nativeElement.textContent).not.toContain('You do not have permission to perform this action');
+    });
+
+    it('reports the real cause of a catalogue failure instead of a generic permission error', () => {
+      const cases: Array<[any, string]> = [
+        [{ status: 0 }, 'Unable to reach the server'],
+        [{ status: 400, originalError: { status: 400, error: { errorCode: 'business_context_required', message: 'A validated Business scope is required.' } } }, 'Select a Business'],
+        [{ status: 403, originalError: { status: 403, error: { success: false, message: 'Access to outlet 5002 is not allowed.' } } }, 'Access to outlet 5002 is not allowed.'],
+        [{ status: 403, message: 'You do not have permission to perform this action.', error: { message: 'You do not have permission to perform this action.' }, originalError: { status: 403, error: null } }, 'not permitted to sell at this outlet'],
+        [{ status: 500, originalError: { status: 500, error: { message: 'boom' } } }, 'Products could not be loaded. Please try again.'],
+      ];
+
+      for (const [error, expected] of cases) {
+        posServiceMock.getCatalogue.mockReturnValueOnce(throwError(() => error));
+        const fixture = TestBed.createComponent(PosScreenComponent);
+        fixture.detectChanges();
+        const message = fixture.componentInstance.productsLoadError() ?? '';
+        expect(message).toContain(expected);
+        expect(message).not.toContain('You do not have permission to perform this action');
+        expect(fixture.componentInstance.isLoadingProducts()).toBe(false);
+      }
+      expect(alertServiceMock.error).not.toHaveBeenCalled();
+    });
+
+    it('keeps the product browser usable when categories fail and retries both reads', () => {
+      posServiceMock.getCategories.mockReturnValueOnce(throwError(() => ({ status: 500 })));
+      posServiceMock.getCatalogue.mockReturnValueOnce(throwError(() => ({ status: 0 })));
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance;
+      expect(component.categories()).toEqual([]);
+      expect(component.productsLoadError()).toContain('Unable to reach the server');
+
+      posServiceMock.getCatalogue.mockReturnValue(of({ data: [catalogueItem()] }));
+      component.retryLoadProducts();
+      expect(component.productsLoadError()).toBeNull();
+      expect(component.allProducts().map(p => p.variantId)).toEqual([9811]);
+      expect(posServiceMock.getCategories).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('prototype-aligned checkout layout', () => {
+    function cartLine(overrides: Record<string, unknown> = {}) {
+      return {
+        variantId: 7, productName: 'Oxford Shirt - Navy', displayName: 'Oxford Shirt', variantSku: 'SKU-7', variantLabel: 'Navy',
+        quantity: 2, unitPrice: 100, discountPercent: 10, discountAmount: 20, subtotal: 180, taxRate: 10, taxClassification: 'standard',
+        ...overrides,
+      } as any;
+    }
+
+    it('reconciles MRP Total − Discount + VAT with the payable total and line totals with the summary', () => {
+      const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+      component.posSettings.set(posSettings);
+      component.cartItems.set([cartLine(), cartLine({ variantId: 8, quantity: 1, unitPrice: 50, discountPercent: 0, discountAmount: 0, subtotal: 50 })]);
+      component.discountPercent.set(10);
+
+      expect(component.grossTotal()).toBe(250);
+      expect(component.totalDiscount()).toBeCloseTo(20 + component.discountAmount(), 2);
+      const viaSummary = component.grossTotal() - component.totalDiscount() + component.taxAmount();
+      expect(viaSummary).toBeCloseTo(component.totalAmount(), 2);
+      const viaLines = component.lineTotal(0) + component.lineTotal(1) - component.discountAmount();
+      expect(viaLines).toBeCloseTo(component.totalAmount(), 2);
+      expect(component.lineTax(0) + component.lineTax(1)).toBeCloseTo(component.taxAmount(), 2);
+    });
+
+    it('shows the product name and the variant on separate lines', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.componentInstance.cartItems.set([cartLine()]);
+      fixture.detectChanges();
+      const row = (fixture.nativeElement as HTMLElement).querySelector('.pos-product')!;
+      expect(row.querySelector('strong')!.textContent!.trim()).toBe('Oxford Shirt');
+      expect(row.textContent).toContain('Navy');
+      expect(row.textContent).toContain('SKU / Barcode: SKU-7');
+    });
+
+    it('opens the customer Lookup dialog with F3 and closes it when a customer is selected', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      component.handleKeyboardShortcuts(new KeyboardEvent('keydown', { key: 'F3' }));
+      expect(component.customerLookupOpen()).toBe(true);
+
+      component.selectCustomer({ id: 42, name: 'Nadia Islam', phone: '01700000000' } as any);
+      expect(component.customerLookupOpen()).toBe(false);
+      expect(component.selectedCustomer()?.name).toBe('Nadia Islam');
+    });
+
+    it('does not open the Lookup dialog without the customer view permission', () => {
+      authServiceMock.hasPermission.mockImplementation((p: string) => p !== 'customers.view' && p !== '*');
+      const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+      component.focusCustomerSearch();
+      expect(component.customerLookupOpen()).toBe(false);
+    });
+
+    it('renders no loyalty UI while the loyalty module is hidden', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(text).not.toMatch(/loyalty|redeem points/i);
+    });
+  });
+
+  describe('Phase 4 checkout corrections', () => {
+    function pricedCart(component: PosScreenComponent, lines: Array<Record<string, unknown>> = []) {
+      component.posSettings.set({ ...posSettings, taxEnabled: false, defaultTaxRate: 0 });
+      component.cartItems.set((lines.length ? lines : [{}]).map((overrides, index) => ({
+        variantId: 100 + index, productName: `Item ${index}`, variantSku: `SKU-${index}`,
+        quantity: 1, unitPrice: 100, discountPercent: 0, discountAmount: 0, subtotal: 100,
+        taxRate: 0, taxClassification: 'standard',
+        ...overrides,
+      })) as any);
+      component.selectedTerminalId.set(8001);
+      component.activeCashSession.set({ id: 1, openedAt: new Date().toISOString(), isOverdue: false } as any);
+    }
+
+    describe('mutually exclusive discounts', () => {
+      it('disables the invoice discount while an item discount exists, and item discounts while an invoice discount exists', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component, [{ discountPercent: 10, discountAmount: 10, subtotal: 90 }, {}]);
+        expect(component.itemDiscountDisabled()).toBe(false);
+        expect(component.invoiceDiscountDisabled()).toBe(true);
+        expect(component.discountLockReason()).toContain('remove them to use an invoice discount');
+
+        pricedCart(component, [{}, {}]);
+        component.discountPercent.set(5);
+        expect(component.invoiceDiscountDisabled()).toBe(false);
+        expect(component.itemDiscountDisabled()).toBe(true);
+        expect(component.discountLockReason()).toContain('remove it to use item discounts');
+      });
+
+      it('keeps item discounts editable for a user with sales.discount.apply under the configured limit', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component);
+        expect(component.canApplyDiscount()).toBe(true);
+        expect(component.itemDiscountDisabled()).toBe(false);
+
+        component.posSettings.set({ ...posSettings, canApplyDiscount: false });
+        expect(component.itemDiscountDisabled()).toBe(true);
+        expect(component.discountLockReason()).toContain('permission');
+
+        component.posSettings.set({ ...posSettings, maxManualDiscountPercent: 0, canOverrideDiscountLimit: false });
+        expect(component.itemDiscountDisabled()).toBe(true);
+        expect(component.discountLockReason()).toContain('limit 0%');
+
+        component.posSettings.set({ ...posSettings, maxManualDiscountPercent: 0, canOverrideDiscountLimit: true });
+        expect(component.itemDiscountDisabled()).toBe(false);
+      });
+
+      it('allocates an invoice discount across lines with the server largest-remainder rule (100 / 3 = 33.34 + 33.33 + 33.33)', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component, [{}, {}, {}]);
+        component.posSettings.set({ ...posSettings, taxEnabled: false, maxManualDiscountPercent: 50 });
+        component.discountPercent.set(100 / 3);
+
+        expect(component.discountAmount()).toBe(100);
+        const shares = [0, 1, 2].map(i => component.lineInvoiceDiscountShare(i));
+        expect(shares).toEqual([33.34, 33.33, 33.33]);
+        expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 2);
+        expect(component.taxCalculation().lines.every(line => line.base >= 0)).toBe(true);
+        expect(component.totalAmount()).toBe(200);
+      });
+    });
+
+    describe('three-field payments', () => {
+      it('defaults the whole payable to Cash and sends a single cash payment with cashTendered', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component);
+        component.cashTendered.set(150);
+        saleServiceMock.createSale.mockReturnValue(of({ data: { id: 0 } }));
+
+        expect(component.cashBreakdown()).toBe(100);
+        expect(component.isSplitPayment()).toBe(false);
+        expect(component.change()).toBe(50);
+        component.completeSale();
+
+        const dto = saleServiceMock.createSale.mock.calls[0][0];
+        expect(dto.paymentMethod).toBe('cash');
+        expect(dto.cashTendered).toBe(150);
+        expect(dto.payments).toBeUndefined();
+      });
+
+      it('sends a single card payment without cashTendered when Card covers the payable', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component);
+        component.onPaymentAmountChange('card', '100');
+        saleServiceMock.createSale.mockReturnValue(of({ data: { id: 0 } }));
+
+        expect(component.cashBreakdown()).toBe(0);
+        expect(component.canCompleteSale()).toBe(true);
+        component.completeSale();
+
+        const dto = saleServiceMock.createSale.mock.calls[0][0];
+        expect(dto.paymentMethod).toBe('card');
+        expect(dto.cashTendered).toBeUndefined();
+        expect(dto.payments).toBeUndefined();
+      });
+
+      it('treats several non-zero amounts as a split payment with Tendered on the cash row', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component, [{ unitPrice: 150, subtotal: 150 }, {}]);
+        component.onPaymentAmountChange('card', 100);
+        component.onPaymentAmountChange('mobile', 50);
+        component.cashTendered.set(200);
+        saleServiceMock.createSale.mockReturnValue(of({ data: { id: 0 } }));
+
+        expect(component.cashBreakdown()).toBe(100);
+        component.completeSale();
+
+        const dto = saleServiceMock.createSale.mock.calls[0][0];
+        expect(dto.payments).toEqual([
+          { method: 'cash', amount: 100, tendered: 200 },
+          { method: 'card', amount: 100, tendered: undefined },
+          { method: 'mobile', amount: 50, tendered: undefined },
+        ]);
+        expect(dto.cashTendered).toBeUndefined();
+        expect(component.change()).toBe(100);
+      });
+
+      it('blocks checkout when typed payments do not add up to the payable and lets an empty Cash return to auto', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component);
+        component.onPaymentAmountChange('cash', '40');
+        component.onPaymentAmountChange('card', '40');
+        expect(component.paymentDifference()).toBe(20);
+        expect(component.paymentError()).toContain('short');
+        expect(component.canCompleteSale()).toBe(false);
+
+        component.onPaymentAmountChange('card', '80');
+        expect(component.paymentError()).toContain('exceed');
+
+        component.onPaymentAmountChange('cash', '');
+        expect(component.cashIsAuto()).toBe(true);
+        expect(component.cashBreakdown()).toBe(20);
+      });
+
+      it('Ctrl+2 moves the whole payable to Card', () => {
+        const component = TestBed.createComponent(PosScreenComponent).componentInstance;
+        pricedCart(component);
+        component.handleKeyboardShortcuts(new KeyboardEvent('keydown', { key: '2', ctrlKey: true }));
+        expect(component.cardBreakdown()).toBe(100);
+        expect(component.cashBreakdown()).toBe(0);
+        expect(component.paymentMethod()).toBe('card');
+      });
+    });
+
+    it('shows the context bar as "Label: value" with the backend terminal name and code', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      const component = fixture.componentInstance;
+      expect(component.terminalLabel({ name: 'B1-T1-T01', code: 'B1-T1-T01' })).toBe('B1-T1-T01');
+      expect(component.terminalLabel({ name: 'Counter 1', code: 'B1-T1-T01' })).toBe('Counter 1 · B1-T1-T01');
+      fixture.detectChanges();
+      const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.pos-ctx__label')).map(el => el.textContent?.trim());
+      expect(labels).toEqual(expect.arrayContaining(['Outlet:', 'Terminal:', 'Sales Order Number:']));
+    });
+
+    it('does not offer a split-payment toggle', () => {
+      const fixture = TestBed.createComponent(PosScreenComponent);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toMatch(/Split Payment|Add Method/);
     });
   });
 });

@@ -187,9 +187,26 @@ public class RbacPermissionConsistencyTests
     {
         var controller = File.ReadAllText(Path.Combine(RepoRoot, "src", "RetailPOS.API", "Controllers", "AccountingExpensesController.cs"));
 
-        Assert.Matches("HttpGet\\(\"categories\"\\)\\]\\s*\\[Authorize\\(Policy = \"accounting.expenses.view\"\\)\\]", controller);
-        Assert.Matches("HttpPost\\(\"categories\"\\)\\]\\s*\\[Authorize\\(Policy = \"accounting.expenses.edit\"\\)\\]", controller);
-        Assert.Matches("HttpPut\\(\"categories/\\{id:long\\}\"\\)\\]\\s*\\[Authorize\\(Policy = \"accounting.expenses.edit\"\\)\\]", controller);
+        // Reading categories is part of entering an expense, so create/edit roles can read them too; D3 gives the
+        // business-wide writes and their account lookup a permission of their own.
+        Assert.Matches("HttpGet\\(\"categories\"\\)\\]\\s*\\[Authorize\\(Policy = LookupAuthorizationPolicies.ExpenseCategoryRead\\)\\]", controller);
+        Assert.Matches("HttpPost\\(\"categories\"\\)\\]\\s*\\[Authorize\\(Policy = PermissionCatalog.ExpenseCategoriesManage\\)\\]", controller);
+        Assert.Matches("HttpPut\\(\"categories/\\{id:long\\}\"\\)\\]\\s*\\[Authorize\\(Policy = PermissionCatalog.ExpenseCategoriesManage\\)\\]", controller);
+        Assert.Matches("HttpGet\\(\"expense-accounts\"\\)\\]\\s*\\[Authorize\\(Policy = PermissionCatalog.ExpenseCategoriesManage\\)\\]", controller);
+    }
+
+    [Fact]
+    public void ExpenseCategoryManagement_IsNotImpliedByAnyAliasOrSeededNonOwnerRole()
+    {
+        const string manage = "accounting.expense_categories.manage";
+
+        Assert.Equal([manage], RetailPOS.Application.Identity.Permissions.PermissionCatalog.ExpandClaims(manage));
+        Assert.False(RetailPOS.Application.Identity.Permissions.PermissionCatalog.IsGranted(["accounting.expenses.edit", "expenses.edit"], manage));
+        Assert.True(RetailPOS.Application.Identity.Permissions.PermissionCatalog.IsGranted(["*"], manage));
+        Assert.DoesNotContain(manage, RetailPOS.Application.BusinessAdministration.BusinessRolePermissions.OutletManager);
+        Assert.DoesNotContain(manage, RetailPOS.Application.BusinessAdministration.BusinessRolePermissions.WarehouseManager);
+        Assert.DoesNotContain(manage, RetailPOS.Application.BusinessAdministration.BusinessRolePermissions.AccountsAdmin);
+        Assert.DoesNotContain(manage, RetailPOS.Application.Authorization.AccountingManagerPermissions.All);
     }
 
     private static IEnumerable<string> CodesIn(params string[] relativePath) =>

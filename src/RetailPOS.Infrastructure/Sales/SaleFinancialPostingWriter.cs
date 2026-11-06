@@ -1,3 +1,4 @@
+using RetailPOS.Application.Settings.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using RetailPOS.Application.Pos;
 using RetailPOS.Application.Pos.Abstractions;
@@ -17,6 +18,7 @@ public sealed class SaleFinancialPostingWriter(
     RetailPOSDbContext dbContext,
     ICashSessionEventWriter eventWriter,
     TimeProvider clock,
+    ICompanyTimeZoneProvider timeZones,
     SaleFinancialPostingSignal? signal = null) : ISaleFinancialPostingWriter
 {
     public async Task<SaleFinancialPosting> AppendSaleAsync(Sale sale, CancellationToken cancellationToken)
@@ -45,7 +47,7 @@ public sealed class SaleFinancialPostingWriter(
             reversalType,
             actorUserId,
             clock.GetUtcNow().UtcDateTime,
-            await ResolveTimeZoneIdAsync(businessId, sale.OutletId, cancellationToken));
+            await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken));
         return await AddAsync(posting, sale, cancellationToken);
     }
 
@@ -81,19 +83,6 @@ public sealed class SaleFinancialPostingWriter(
                 }),
             cancellationToken);
         return posting;
-    }
-
-    private async Task<string> ResolveTimeZoneIdAsync(long businessId, long outletId, CancellationToken cancellationToken)
-    {
-        var outletZone = await dbContext.Outlets.AsNoTracking()
-            .Where(outlet => outlet.Id == outletId)
-            .Select(outlet => outlet.TimeZoneId)
-            .FirstOrDefaultAsync(cancellationToken);
-        var businessZone = await dbContext.BusinessPosSettings.AsNoTracking()
-            .Where(settings => settings.BusinessId == businessId)
-            .Select(settings => settings.DefaultTimeZoneId)
-            .FirstOrDefaultAsync(cancellationToken);
-        return CashSessionTime.ResolveEffectiveTimeZoneId(outletZone, businessZone ?? BusinessPosSettings.DefaultTimeZone);
     }
 
     // Sales created before Business tenancy may carry no Business of their own; their outlet decides.

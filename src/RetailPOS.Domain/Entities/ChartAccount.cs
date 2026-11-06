@@ -28,6 +28,10 @@ public class ChartAccount
     public bool IsSystemAccount { get; set; }
     public bool IsControlAccount { get; set; }
     public bool AllowManualPosting { get; set; } = true;
+
+    /// <summary>Accounting has marked this Asset/Liability account as a funding account selectable on expenses.</summary>
+    public bool IsExpensePaymentAccount { get; set; }
+
     public bool IsActive { get; set; } = true;
     public int DisplayOrder { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

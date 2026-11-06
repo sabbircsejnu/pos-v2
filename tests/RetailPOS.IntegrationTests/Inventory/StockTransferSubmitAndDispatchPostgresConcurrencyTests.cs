@@ -147,6 +147,8 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
                 await using (var seed = await CreateMigratedContextAsync(database.ConnectionString))
                 {
                     await SeedAsync(seed);
+                    seed.StockLedgers.Add(StockCostTestData.Receipt(301, 11, "outlet", 10, 10m));
+                    await seed.SaveChangesAsync();
                     var timestamp = DateTime.UtcNow;
                     foreach (var transferId in new long[] { 601, 602 })
                     {
@@ -433,13 +435,19 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
                         .Include(row => row.Items)
                         .SingleAsync(row => row.TransferType == StockTransfer.TransferTypeReturn
                             && row.Notes!.Contains("TRF-TEST-603"));
-                    Assert.Equal(StockTransfer.StatusDraft, returnTransfer.Status);
+                    Assert.Equal(StockTransfer.StatusInTransit, returnTransfer.Status);
+                    Assert.Equal(603, returnTransfer.OriginalTransferId);
                     Assert.Equal(2, returnTransfer.Items.Single().Quantity);
-                    Assert.Equal(0m, returnTransfer.Items.Single().UnitCost);
-                    Assert.Single(await verify.StockLedgers
+                    Assert.Equal(10m, returnTransfer.Items.Single().UnitCost);
+                    Assert.Empty(await verify.StockLedgers
                         .Where(row => row.ReferenceType == StockLedgerReferenceType.StockTransfer
                             && row.ReferenceId == 603
                             && row.TransactionType == StockLedgerTransactionType.TransferIn)
+                        .ToArrayAsync());
+                    Assert.Single(await verify.StockLedgers
+                        .Where(row => row.ReferenceType == StockLedgerReferenceType.StockTransfer
+                            && row.ReferenceId == 603
+                            && row.TransactionType == StockLedgerTransactionType.TransferRejection)
                         .ToArrayAsync());
                 }
 
@@ -461,7 +469,7 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
                         cacheInvalidator.Object,
                         CreateScopeProvider().Object);
                     await Assert.ThrowsAsync<DbUpdateException>(() =>
-                        ReceiveAsync(rollbackHandler, 604, acceptedQuantity: 1, rejectedQuantity: 0));
+                        ReceiveAsync(rollbackHandler, 604, acceptedQuantity: 2, rejectedQuantity: 0));
                 }
 
                 await using (var final = await CreateMigratedContextAsync(database.ConnectionString))
@@ -617,6 +625,7 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             new StockTransferRejectionStore(
                 dbContext,
                 CreateStockLedgerWriter(dbContext),
+                Mock.Of<IStockTransferReceiptAuditWriter>(),
                 NullLogger<StockTransferRejectionStore>.Instance),
             new StockTransferReadStore(dbContext));
 
@@ -629,6 +638,7 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             new StockTransferReceiveStore(
                 dbContext,
                 CreateStockLedgerWriter(dbContext),
+                Mock.Of<IStockTransferReceiptAuditWriter>(),
                 NullLogger<StockTransferReceiveStore>.Instance),
             cacheInvalidator,
             new StockTransferReadStore(dbContext));
@@ -1043,5 +1053,12 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             if (!barrier.SignalAndWait(TimeSpan.FromSeconds(30)))
                 throw new TimeoutException("Timed out waiting for concurrent Stock Transfer dispatch.");
         }
+
+        public void WriteVerifiedZeroCostEntry(
+            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
+            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            DateTime? createdAt = null) =>
+            inner.WriteVerifiedZeroCostEntry(variantId, locationId, locationType, transactionType, qtyIn, qtyOut,
+                balanceAfter, referenceType, referenceId, remarks, createdBy, createdAt);
     }
 }

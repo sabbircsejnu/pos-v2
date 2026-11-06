@@ -125,6 +125,18 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     { value: 'warehouse' as PurchaseLocationType, label: 'Warehouse', count: this.authorizedWarehouses().length }
   ]);
   hasAnyLocation = computed(() => this.authorizedOutlets().length + this.authorizedWarehouses().length > 0);
+
+  /** Purchase & Receive follows the GRN location rules, which are narrower than the PO destination list. */
+  private receivableLocations = signal<AuthorizedOutletsDto | null>(null);
+  canReceiveAtDestination = computed(() => {
+    const access = this.receivableLocations();
+    const id = this.locationId();
+    if (!access || !id) {
+      return true;
+    }
+    const locations = this.locationType() === 'outlet' ? access.outlets : access.warehouses;
+    return locations.some(location => location.id === id);
+  });
   selectedLocationTypeLabel = computed(() => getPurchaseLocationTypeLabel(this.locationType()));
   selectedLocationName = computed(() =>
     this.availableLocations().find(location => location.id === this.locationId())?.name ?? '');
@@ -165,6 +177,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     // Load suppliers and the user's authorized destination locations immediately
     this.loadSuppliers();
     this.loadLocations();
+    this.loadReceivableLocations();
     this.loadVariationMetadata();
 
     if (id) {
@@ -241,6 +254,17 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         this.locationsLoading.set(false);
         this.locationsError.set(this.errorHandler.extractErrorMessage(err));
       }
+    });
+  }
+
+  private loadReceivableLocations(): void {
+    if (!this.canPurchaseAndReceive() || this.isEditMode()) {
+      return;
+    }
+    // If this fails the button stays available and the server still enforces the rule.
+    this.locationAccess.load('GrnView').subscribe({
+      next: (response) => this.receivableLocations.set(response.data),
+      error: () => this.receivableLocations.set(null)
     });
   }
 
@@ -788,6 +812,11 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     }
 
     if (!this.validateForm()) {
+      return;
+    }
+
+    if (!this.canReceiveAtDestination()) {
+      this.alertService.error('You are not assigned to this location, so you cannot receive goods into it.');
       return;
     }
 

@@ -211,7 +211,8 @@ public sealed class PurchaseLocationDestinationHttpTests(RetailPosApiFactory fac
             withOutlet: true,
             withWarehouse: true,
             accessScope: User.InventoryAccessAssignedOnly,
-            assignedOutletId: OutletId);
+            assignedOutletId: OutletId,
+            step5Warehouse: false);
         using var client = CreateClient(app);
 
         var otherBusinessOutlet = await client.PostAsJsonAsync(
@@ -249,7 +250,9 @@ public sealed class PurchaseLocationDestinationHttpTests(RetailPosApiFactory fac
     {
         using var app = CreateApp();
         await SeedAsync(app.Services, withOutlet: true, withWarehouse: true,
-            accessScope: User.InventoryAccessAssignedOnly);
+            accessScope: User.InventoryAccessAssignedOnly,
+            step5Outlet: false,
+            step5Warehouse: false);
         using var client = CreateClient(app);
         client.DefaultRequestHeaders.Remove("X-Test-Role");
         client.DefaultRequestHeaders.Add("X-Test-Role", "BusinessOwner");
@@ -345,7 +348,9 @@ public sealed class PurchaseLocationDestinationHttpTests(RetailPosApiFactory fac
         bool withOutlet,
         bool withWarehouse,
         string accessScope = User.InventoryAccessAll,
-        long? assignedOutletId = null)
+        long? assignedOutletId = null,
+        bool step5Outlet = true,
+        bool step5Warehouse = true)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
@@ -392,6 +397,10 @@ public sealed class PurchaseLocationDestinationHttpTests(RetailPosApiFactory fac
             PasswordHash = "test",
             InventoryLocationAccessScope = accessScope
         });
+        if (withOutlet && step5Outlet)
+            db.UserOutletAssignments.Add(new UserOutletAssignment { Id = 1, UserId = UserId, OutletId = OutletId, BusinessId = BusinessId });
+        if (withWarehouse && step5Warehouse)
+            db.UserWarehouseAssignments.Add(new UserWarehouseAssignment { Id = 1, UserId = UserId, WarehouseId = WarehouseId, BusinessId = BusinessId });
         await db.SaveChangesAsync();
     }
 

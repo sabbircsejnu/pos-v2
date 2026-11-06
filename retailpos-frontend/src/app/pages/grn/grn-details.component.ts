@@ -8,7 +8,6 @@ import { GrnService } from '../../services/grn.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
-import { SettingsService } from '../../services/settings.service';
 import { Grn } from '../../models/grn.model';
 
 @Component({
@@ -26,7 +25,6 @@ export class GrnDetailsComponent implements OnInit {
   isLoading = signal(false);
   isCompleting = signal(false);
   isPdfDownloading = signal(false);
-  businessTimeZone = signal<string>('Asia/Dhaka');
 
   constructor(
     private grnService: GrnService,
@@ -35,30 +33,14 @@ export class GrnDetailsComponent implements OnInit {
     private route: ActivatedRoute,
     private alertService: AlertService,
     private errorHandler: ErrorHandlerService,
-    private documentPdfService: DocumentPdfService,
-    private settingsService: SettingsService
+    private documentPdfService: DocumentPdfService
   ) {}
 
   ngOnInit(): void {
-    this.loadBusinessTimeZone();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.loadGrn(+id);
     }
-  }
-
-  private loadBusinessTimeZone(): void {
-    this.settingsService.getCompanySettings().subscribe({
-      next: (res) => {
-        const tz = res?.data?.timeZone;
-        if (typeof tz === 'string' && tz.trim()) {
-          this.businessTimeZone.set(tz.trim());
-        }
-      },
-      error: () => {
-        // Fall back to default timezone if settings cannot be loaded.
-      }
-    });
   }
 
   loadGrn(id: number): void {
@@ -170,6 +152,6 @@ export class GrnDetailsComponent implements OnInit {
 
   formatDateTime(date: string): string {
     if (!date) return '-';
-    return this.companyDates.format(date, true, this.businessTimeZone());
+    return this.companyDates.format(date, true, this.companyDates.timeZone());
   }
 }

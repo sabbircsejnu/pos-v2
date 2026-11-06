@@ -33,7 +33,7 @@ public sealed class CashBookScopedResolutionTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CashBookReadModel(DateTime.UtcNow.Date, DateTime.UtcNow.Date, []));
 
-        await new GetCashBookQueryHandler(store.Object, resolver.Object, tenant.Object)
+        await new GetCashBookQueryHandler(store.Object, resolver.Object, tenant.Object, Mock.Of<RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneProvider>(provider => provider.GetTimeZoneIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()) == Task.FromResult("Asia/Dhaka")))
             .Handle(new GetCashBookQuery(
                 new CashBookFilter(null, null, null, null, null, null, null), []),
                 CancellationToken.None);

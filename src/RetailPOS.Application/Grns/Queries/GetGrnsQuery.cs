@@ -10,18 +10,18 @@ public sealed record GetGrnsQuery(long? PurchaseOrderId, string? Status)
 
 public sealed class GetGrnsQueryHandler(
     IGrnReadStore store,
-    IGrnTenantScope tenantScope)
+    IGrnReadScopeProvider scopeProvider)
     : IRequestHandler<GetGrnsQuery, IReadOnlyList<GrnReadModel>>
 {
     public async Task<IReadOnlyList<GrnReadModel>> Handle(
         GetGrnsQuery request,
         CancellationToken cancellationToken)
     {
-        var businessId = await tenantScope.GetBusinessIdAsync(cancellationToken);
+        var scope = await scopeProvider.GetAsync(cancellationToken);
         return await store.FindAllAsync(
             request.PurchaseOrderId,
             request.Status,
-            businessId,
+            scope,
             cancellationToken);
     }
 }

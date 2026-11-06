@@ -13,6 +13,8 @@ using RetailPOS.Infrastructure.Data;
 using RetailPOS.Infrastructure.Repositories;
 using RetailPOS.Infrastructure.Sales;
 
+using RetailPOS.Tests.Infrastructure;
+
 namespace RetailPOS.Tests.Sales;
 
 public sealed class SaleVoidCommandTests
@@ -121,7 +123,7 @@ public sealed class SaleVoidCommandTests
         var cache = new Mock<IPosCacheService>();
         var handler = new VoidSaleCommandHandler(
             new SaleVoidStore(db),
-            new SaleReadStore(db),
+            new SaleReadStore(db, TestCompanySettings.Provider()),
             authorizer.Object,
             SaleCreationCommandTestFactory.FinancialPostings(db),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(
@@ -203,7 +205,7 @@ public sealed class SaleVoidCommandTests
             .Returns(Task.CompletedTask);
         return new VoidSaleCommandHandler(
             new SaleVoidStore(db),
-            new SaleReadStore(db),
+            new SaleReadStore(db, TestCompanySettings.Provider()),
             CreateOutletAuthorizer(),
             SaleCreationCommandTestFactory.FinancialPostings(db),
             new SaleVoidStockLedgerWriter(new RetailPOS.Infrastructure.ReadStores.StockLedgerWriter(

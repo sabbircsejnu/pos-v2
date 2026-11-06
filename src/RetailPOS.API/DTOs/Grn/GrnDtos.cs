@@ -103,6 +103,13 @@ public class GrnSearchDto
     public string? Status { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    /// <summary>outlet | warehouse</summary>
+    public string? LocationType { get; set; }
+    public long? LocationId { get; set; }
+    /// <summary>Inclusive date in the Company Settings time zone (yyyy-MM-dd).</summary>
+    public DateOnly? FromDate { get; set; }
+    /// <summary>Inclusive date in the Company Settings time zone (yyyy-MM-dd).</summary>
+    public DateOnly? ToDate { get; set; }
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }

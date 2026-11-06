@@ -1,5 +1,6 @@
 using RetailPOS.Infrastructure.Products;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 
 namespace RetailPOS.Tests.Products;
 
@@ -49,7 +50,154 @@ public sealed class ProductImageProcessorSecurityTests
         var finished = await Task.WhenAny(decode, Task.Delay(TimeSpan.FromSeconds(10)));
 
         Assert.Same(decode, finished);
-        await Assert.ThrowsAsync<UnknownImageFormatException>(() => decode);
+        // Reported as a validation error (HTTP 400), but still refused by format sniffing before any decoder runs.
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => decode);
+        Assert.IsType<UnknownImageFormatException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task ADecompressionBombIsRejectedFromItsHeaderBeforeThePixelsAreDecoded()
+    {
+        var decode = Task.Run(async () =>
+        {
+            await using var stream = new MemoryStream(PngHeaderDeclaring(30_000, 30_000));
+            await new ProductImageProcessor().ProcessAsync(stream, CancellationToken.None);
+        });
+        var finished = await Task.WhenAny(decode, Task.Delay(TimeSpan.FromSeconds(10)));
+
+        Assert.Same(decode, finished);
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => decode);
+        Assert.Equal("Image is too large to process: the limit is 50 megapixels. Got 30000x30000.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ATruncatedImageIsRejectedAsCorrupted()
+    {
+        using var source = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(900, 900);
+        await using var png = new MemoryStream();
+        await source.SaveAsPngAsync(png);
+        var truncated = png.ToArray()[..40];
+
+        await using var stream = new MemoryStream(truncated);
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            new ProductImageProcessor().ProcessAsync(stream, CancellationToken.None));
+
+        Assert.Equal("The file is not a valid JPG, PNG, or WEBP image, or it is corrupted.", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("png")]
+    [InlineData("webp")]
+    public async Task AFileCutOffHalfwayThroughItsPixelDataIsRejectedAsCorrupted(string format)
+    {
+        using var source = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(900, 900);
+        var noise = new Random(7);
+        source.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < rows.Height; y++)
+            {
+                noise.NextBytes(System.Runtime.InteropServices.MemoryMarshal.AsBytes(rows.GetRowSpan(y)));
+            }
+        });
+        await using var encoded = new MemoryStream();
+        if (format == "png")
+        {
+            await source.SaveAsPngAsync(encoded);
+        }
+        else
+        {
+            await source.SaveAsWebpAsync(encoded);
+        }
+        var whole = encoded.ToArray();
+
+        await using var stream = new MemoryStream(whole[..(whole.Length / 2)]);
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            new ProductImageProcessor().ProcessAsync(stream, CancellationToken.None));
+
+        Assert.Equal("The file is not a valid JPG, PNG, or WEBP image, or it is corrupted.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ARotatedPhotoIsUprightInEveryVariantAndCarriesNoExifMetadata()
+    {
+        using var source = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1600, 1200);
+        source.Metadata.ExifProfile = new ExifProfile();
+        source.Metadata.ExifProfile.SetValue(ExifTag.Orientation, (ushort)6);
+        await using var jpeg = new MemoryStream();
+        await source.SaveAsJpegAsync(jpeg);
+        jpeg.Position = 0;
+
+        var result = await new ProductImageProcessor().ProcessAsync(jpeg, CancellationToken.None);
+
+        Assert.Equal((1200, 1600), (result.Width, result.Height));
+        using var medium = Image.Load(result.MediumWebp);
+        Assert.Equal((900, 1200), (medium.Width, medium.Height));
+        Assert.Null(medium.Metadata.ExifProfile);
+        using var thumb = Image.Load(result.ThumbWebp);
+        Assert.Equal((150, 200), (thumb.Width, thumb.Height));
+        Assert.Null(thumb.Metadata.ExifProfile);
+    }
+
+    [Fact]
+    public async Task AHeavyFileWithinTheDimensionCapIsCompressedWithoutResizing()
+    {
+        using var source = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1000, 1000);
+        var noise = new Random(42);
+        source.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < rows.Height; y++)
+            {
+                noise.NextBytes(System.Runtime.InteropServices.MemoryMarshal.AsBytes(rows.GetRowSpan(y)));
+            }
+        });
+        await using var png = new MemoryStream();
+        await source.SaveAsPngAsync(png);
+        var uploaded = png.ToArray();
+        Assert.InRange(uploaded.Length, 2 * 1024 * 1024 + 1, 5 * 1024 * 1024);
+        await using var stream = new MemoryStream(uploaded);
+
+        var result = await new ProductImageProcessor().ProcessAsync(stream, CancellationToken.None);
+
+        Assert.Equal("image/webp", result.OriginalMimeType);
+        Assert.True(result.Original.Length < uploaded.Length, "the stored copy must be smaller than the upload");
+        Assert.Equal((1000, 1000), (result.Width, result.Height));
+    }
+
+    /// <summary>A structurally valid PNG whose header claims the given size but carries no pixel data.</summary>
+    private static byte[] PngHeaderDeclaring(int width, int height)
+    {
+        var header = new byte[13];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(header, width);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4), height);
+        header[8] = 8; // bit depth
+        header[9] = 6; // RGBA
+
+        using var png = new MemoryStream();
+        png.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        WriteChunk(png, "IHDR", header);
+        WriteChunk(png, "IDAT", []);
+        WriteChunk(png, "IEND", []);
+        return png.ToArray();
+    }
+
+    private static void WriteChunk(Stream target, string type, byte[] data)
+    {
+        Span<byte> number = stackalloc byte[4];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(number, data.Length);
+        target.Write(number);
+        byte[] typed = [.. System.Text.Encoding.ASCII.GetBytes(type), .. data];
+        target.Write(typed);
+        var crc = 0xFFFFFFFFu;
+        foreach (var value in typed)
+        {
+            crc ^= value;
+            for (var bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+            }
+        }
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(number, ~crc);
+        target.Write(number);
     }
 
     [Fact]

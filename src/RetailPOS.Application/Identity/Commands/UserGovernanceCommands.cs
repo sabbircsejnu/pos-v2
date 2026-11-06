@@ -76,8 +76,18 @@ public sealed class CreateUserCommandHandler(
                 }
             }
 
-            return await store.CreateAsync(
+            var profile = await UserContextAccessRules.AuthorizeAsync(
+                store,
+                context,
+                actor,
                 request.Profile,
+                targetUserId: null,
+                role.Name,
+                businessId,
+                transactionToken);
+
+            return await store.CreateAsync(
+                profile,
                 request.Password ?? throw new InvalidOperationException("Password is required"),
                 businessId,
                 actor.Id,
@@ -148,9 +158,19 @@ public sealed class UpdateUserCommandHandler(
                 throw new InvalidOperationException("At least one active Super Admin must remain.");
             }
 
+            var profile = await UserContextAccessRules.AuthorizeAsync(
+                store,
+                context,
+                actor,
+                request.Profile,
+                target.Id,
+                role.Name,
+                actorIsSuperAdmin ? request.Profile.BusinessId ?? target.BusinessId : target.BusinessId,
+                transactionToken);
+
             return await store.UpdateAsync(
                 request.Id,
-                request.Profile,
+                profile,
                 actorIsSuperAdmin,
                 actor.Id,
                 transactionToken);

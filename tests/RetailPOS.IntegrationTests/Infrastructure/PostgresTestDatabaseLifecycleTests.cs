@@ -12,6 +12,7 @@ public sealed class PostgresTestDatabaseLifecycleTests
         await PostgresTestDatabase.RunAsync(
             ResolveBaseConnectionString(),
             PostgresTestDatabasePrefix.AccountingSequence,
+            PostgresTestDatabaseStrategy.Lifecycle,
             async database =>
             {
                 name = database.Name;
@@ -30,6 +31,7 @@ public sealed class PostgresTestDatabaseLifecycleTests
             PostgresTestDatabase.RunAsync(
                 ResolveBaseConnectionString(),
                 PostgresTestDatabasePrefix.SaleCreation,
+                PostgresTestDatabaseStrategy.Lifecycle,
                 database =>
                 {
                     name = database.Name;
@@ -46,10 +48,12 @@ public sealed class PostgresTestDatabaseLifecycleTests
     {
         await using var first = await PostgresTestDatabase.CreateAsync(
             ResolveBaseConnectionString(),
-            PostgresTestDatabasePrefix.AccountingSequence);
+            PostgresTestDatabasePrefix.AccountingSequence,
+            PostgresTestDatabaseStrategy.Lifecycle);
         var second = await PostgresTestDatabase.CreateAsync(
             ResolveBaseConnectionString(),
-            PostgresTestDatabasePrefix.AccountingSequence);
+            PostgresTestDatabasePrefix.AccountingSequence,
+            PostgresTestDatabaseStrategy.Lifecycle);
 
         try
         {
@@ -85,7 +89,8 @@ public sealed class PostgresTestDatabaseLifecycleTests
     {
         await using var database = await PostgresTestDatabase.CreateAsync(
             ResolveBaseConnectionString(),
-            PostgresTestDatabasePrefix.MigrationBaseline);
+            PostgresTestDatabasePrefix.MigrationBaseline,
+            PostgresTestDatabaseStrategy.Lifecycle);
         var adminBuilder = new NpgsqlConnectionStringBuilder(ResolveBaseConnectionString())
         {
             Database = "postgres"
@@ -122,7 +127,7 @@ public sealed class PostgresTestDatabaseLifecycleTests
     {
         foreach (var prefix in Enum.GetValues<PostgresTestDatabasePrefix>())
         {
-            var database = await PostgresTestDatabase.CreateAsync(ResolveBaseConnectionString(), prefix);
+            var database = await PostgresTestDatabase.CreateAsync(ResolveBaseConnectionString(), prefix, PostgresTestDatabaseStrategy.Lifecycle);
             await using (database)
             {
                 await using var connection = new NpgsqlConnection(database.ConnectionString);
@@ -139,9 +144,9 @@ public sealed class PostgresTestDatabaseLifecycleTests
     public async Task DisposeAsync_ClearsPoolAndTerminatesOnlyOwnedActiveConnections()
     {
         await using var database = await PostgresTestDatabase.CreateAsync(
-            ResolveBaseConnectionString(), PostgresTestDatabasePrefix.AccountingSequence);
+            ResolveBaseConnectionString(), PostgresTestDatabasePrefix.AccountingSequence, PostgresTestDatabaseStrategy.Lifecycle);
         await using var other = await PostgresTestDatabase.CreateAsync(
-            ResolveBaseConnectionString(), PostgresTestDatabasePrefix.AccountingSequence);
+            ResolveBaseConnectionString(), PostgresTestDatabasePrefix.AccountingSequence, PostgresTestDatabaseStrategy.Lifecycle);
         await using var active = new NpgsqlConnection(database.ConnectionString);
         await using var otherActive = new NpgsqlConnection(other.ConnectionString);
         await active.OpenAsync();

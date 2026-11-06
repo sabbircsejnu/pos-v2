@@ -13,6 +13,12 @@ public class Business
     public int? MaxOutlets { get; set; }
     public int? MaxUsers { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Platform-controlled: whether receipts print <see cref="PoweredByText"/>. Only a Platform Super Admin may change it.</summary>
+    public bool ShowPoweredByOnReceipt { get; set; }
+
+    /// <summary>Platform-controlled receipt footer text, e.g. "Powered by: Irani Mart Technology".</summary>
+    public string? PoweredByText { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

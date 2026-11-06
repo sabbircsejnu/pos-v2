@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -17,6 +18,7 @@ import { AccountingPeriodDto, CreateAccountingPeriodDto, CreateFinancialYearDto,
   styleUrls: ['./financial-years.component.css']
 })
 export class FinancialYearsComponent implements OnInit {
+  private readonly companyToday = inject(CompanyDateService);
   years = signal<FinancialYearDto[]>([]);
   periods = signal<AccountingPeriodDto[]>([]);
   selectedYearId = signal<number | null>(null);
@@ -27,14 +29,14 @@ export class FinancialYearsComponent implements OnInit {
 
   yearCode = signal('');
   yearName = signal('');
-  yearStartDate = signal(new Date().toISOString().split('T')[0]);
-  yearEndDate = signal(new Date().toISOString().split('T')[0]);
+  yearStartDate = signal(this.companyToday.todayIso());
+  yearEndDate = signal(this.companyToday.todayIso());
   yearIsCurrent = signal(false);
 
   periodNumber = signal(1);
   periodName = signal('');
-  periodStartDate = signal(new Date().toISOString().split('T')[0]);
-  periodEndDate = signal(new Date().toISOString().split('T')[0]);
+  periodStartDate = signal(this.companyToday.todayIso());
+  periodEndDate = signal(this.companyToday.todayIso());
 
   constructor(
     public accountingService: AccountingService,
@@ -80,8 +82,8 @@ export class FinancialYearsComponent implements OnInit {
     this.editingYearId.set(null);
     this.yearCode.set('');
     this.yearName.set('');
-    this.yearStartDate.set(new Date().toISOString().split('T')[0]);
-    this.yearEndDate.set(new Date().toISOString().split('T')[0]);
+    this.yearStartDate.set(this.companyToday.todayIso());
+    this.yearEndDate.set(this.companyToday.todayIso());
     this.yearIsCurrent.set(false);
   }
 
@@ -196,8 +198,8 @@ export class FinancialYearsComponent implements OnInit {
         this.alertService.success('Accounting period created');
         this.periodName.set('');
         this.periodNumber.set(this.periodNumber() + 1);
-        this.periodStartDate.set(new Date().toISOString().split('T')[0]);
-        this.periodEndDate.set(new Date().toISOString().split('T')[0]);
+        this.periodStartDate.set(this.companyToday.todayIso());
+        this.periodEndDate.set(this.companyToday.todayIso());
         this.loadPeriods(yearId);
         this.isSavingPeriod.set(false);
       },

@@ -270,6 +270,13 @@ public class SalesControllerActorTests
             Times.Never);
     }
 
+    private static RetailPOS.Application.Settings.Abstractions.ICurrentCompanyTimeZone CompanyZone()
+    {
+        var zone = new Mock<RetailPOS.Application.Settings.Abstractions.ICurrentCompanyTimeZone>();
+        zone.Setup(port => port.GetTimeZoneIdAsync(It.IsAny<CancellationToken>())).ReturnsAsync("Asia/Dhaka");
+        return zone.Object;
+    }
+
     private static SalesController CreateController(
         ClaimsPrincipal user,
         ISender? sender = null,
@@ -279,7 +286,9 @@ public class SalesControllerActorTests
             outletAccess ?? Mock.Of<IUserOutletAccessService>(),
             featureEntitlement ?? Mock.Of<IFeatureEntitlementService>(),
             Mock.Of<ILogger<SalesController>>(),
-            sender ?? Mock.Of<ISender>())
+            sender ?? Mock.Of<ISender>(),
+            CompanyZone(),
+            Mock.Of<RetailPOS.Application.Sales.Abstractions.ISaleReadScopeProvider>())
         {
             ControllerContext = new ControllerContext
             {

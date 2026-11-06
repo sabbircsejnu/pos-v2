@@ -85,7 +85,15 @@ public sealed class PurchaseDocumentPdfBoundaryTests(RetailPosApiFactory factory
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
             Assert.Contains(message, await response.Content.ReadAsStringAsync());
         }
+
+        // The export follows the GRN location rules: without a Step 5 assignment the GRN looks missing.
+        using var unassigned = CreateClient(factory.CreateClient(), "purchases.view,grn.view", userId: 8);
+        var unassignedExport = await unassigned.GetAsync("/api/documents/grn/40/pdf");
+        Assert.Equal(HttpStatusCode.NotFound, unassignedExport.StatusCode);
+        Assert.Contains("GRN with ID 40 not found", await unassignedExport.Content.ReadAsStringAsync());
+
         using var superAdmin = factory.CreateClient();
+        superAdmin.DefaultRequestHeaders.Add("X-Test-UserId", "7");
         superAdmin.DefaultRequestHeaders.Add("X-Test-Role", SystemRoleNames.SuperAdmin);
         superAdmin.DefaultRequestHeaders.Add("X-Test-Permissions", "purchases.view,grn.view");
         superAdmin.DefaultRequestHeaders.Add("X-Test-BusinessId", "2");
@@ -93,16 +101,18 @@ public sealed class PurchaseDocumentPdfBoundaryTests(RetailPosApiFactory factory
 
         // A Super Admin is scoped to the selected Business and never reads another Business's documents.
         using var wrongBusinessSuperAdmin = factory.CreateClient();
+        wrongBusinessSuperAdmin.DefaultRequestHeaders.Add("X-Test-UserId", "7");
         wrongBusinessSuperAdmin.DefaultRequestHeaders.Add("X-Test-Role", SystemRoleNames.SuperAdmin);
         wrongBusinessSuperAdmin.DefaultRequestHeaders.Add("X-Test-Permissions", "purchases.view,grn.view");
         wrongBusinessSuperAdmin.DefaultRequestHeaders.Add("X-Test-BusinessId", "1");
         Assert.Equal(HttpStatusCode.NotFound, (await wrongBusinessSuperAdmin.GetAsync("/api/documents/grn/41/pdf")).StatusCode);
     }
 
-    private static HttpClient CreateClient(HttpClient client, string permissions)
+    private static HttpClient CreateClient(HttpClient client, string permissions, long userId = 7)
     {
         client.DefaultRequestHeaders.Add("X-Test-BusinessId", "1");
         client.DefaultRequestHeaders.Add("X-Test-OutletId", "999");
+        client.DefaultRequestHeaders.Add("X-Test-UserId", userId.ToString());
         client.DefaultRequestHeaders.Add("X-Test-Role", "WarehouseManager");
         client.DefaultRequestHeaders.Add("X-Test-Permissions", permissions);
         return client;
@@ -134,7 +144,10 @@ internal static class PurchaseDocumentSeed
     public static void Add(RetailPOSDbContext db)
     {
         db.Businesses.AddRange(new Business { Id = 1, Name = "Business 1" }, new Business { Id = 2, Name = "Business 2" });
-        db.Users.Add(new User { Id = 7, BusinessId = 1, Name = "Buyer", Email = "buyer@example.test", PasswordHash = "test" });
+        db.Users.AddRange(
+            new User { Id = 7, BusinessId = 1, Name = "Buyer", Email = "buyer@example.test", PasswordHash = "test" },
+            new User { Id = 8, BusinessId = 1, Name = "Unassigned", Email = "unassigned@example.test", PasswordHash = "test" });
+        db.UserWarehouseAssignments.Add(new UserWarehouseAssignment { Id = 1, UserId = 7, WarehouseId = 30, BusinessId = 1 });
         db.Suppliers.AddRange(new Supplier { Id = 10, BusinessId = 1, Name = "Supplier 1", Address = "Vendor address" },
             new Supplier { Id = 11, BusinessId = 2, Name = "Supplier 2" });
         db.Warehouses.AddRange(new Warehouse { Id = 30, BusinessId = 1, Name = "Warehouse 1", Address = "Dock" },

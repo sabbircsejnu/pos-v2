@@ -130,6 +130,12 @@ public sealed class AuthenticationCommandRelationalTests
 
         public AuthenticationCredentials IssueForRefresh(
             AuthenticationProfileData profile,
+            IReadOnlyCollection<string> effectivePermissions,
+            AuthenticationActingRoleClaims? actingRole) =>
+            IssueForRefresh(profile, effectivePermissions);
+
+        public AuthenticationCredentials IssueForRefresh(
+            AuthenticationProfileData profile,
             IReadOnlyCollection<string> effectivePermissions) =>
             new("access-token", "refresh-token", DateTime.UtcNow.AddMinutes(30), DateTime.UtcNow.AddDays(7));
 

@@ -1,10 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { BehaviorSubject, of, throwError } from 'rxjs';
-import { User } from '../../models/auth.models';
+import { User, UserContextOptions } from '../../models/auth.models';
 import { AuthService } from '../../services/auth.service';
 import { MenuService } from '../../services/menu.service';
-import { OutletService } from '../../services/outlet.service';
 import { NavbarComponent } from './navbar.component';
 
 const OWNER: User = {
@@ -16,11 +15,20 @@ const OWNER: User = {
   isBusinessOwner: true
 } as User;
 
+const OWNER_OPTIONS: UserContextOptions = {
+  canSwitch: true,
+  allowAllLocations: true,
+  roles: [{ id: 1, name: 'Cashier' }, { id: 2, name: 'OutletManager' }],
+  outlets: [{ id: 5, name: 'Main Outlet' }, { id: 6, name: 'Second Outlet' }],
+  warehouses: [{ id: 9, name: 'Main Warehouse' }]
+};
+
 describe('NavbarComponent presentation', () => {
   let fixture: ComponentFixture<NavbarComponent>;
   let user$: BehaviorSubject<User | null>;
   let auth: {
     currentUser$: BehaviorSubject<User | null>;
+    getSwitchOptions: ReturnType<typeof vi.fn>;
     switchRole: ReturnType<typeof vi.fn>;
     returnOwnerMode: ReturnType<typeof vi.fn>;
     logout: ReturnType<typeof vi.fn>;
@@ -40,6 +48,7 @@ describe('NavbarComponent presentation', () => {
     user$ = new BehaviorSubject<User | null>(OWNER);
     auth = {
       currentUser$: user$,
+      getSwitchOptions: vi.fn(() => of(OWNER_OPTIONS)),
       switchRole: vi.fn(() => of({})),
       returnOwnerMode: vi.fn(() => of({})),
       logout: vi.fn()
@@ -51,8 +60,7 @@ describe('NavbarComponent presentation', () => {
       providers: [
         provideRouter([]),
         { provide: AuthService, useValue: auth },
-        { provide: MenuService, useValue: menu },
-        { provide: OutletService, useValue: { getAllOutlets: () => of({ data: [{ id: 5, name: 'Main Outlet' }] }) } }
+        { provide: MenuService, useValue: menu }
       ]
     });
     router = TestBed.inject(Router);
@@ -119,27 +127,164 @@ describe('NavbarComponent presentation', () => {
     await settle();
 
     expect(q('label[for="acting-role-select"]')).not.toBeNull();
-    expect(q('label[for="acting-outlet-select"]')).not.toBeNull();
+    expect(q('label[for="acting-location-type-select"]')).not.toBeNull();
+    expect(q('label[for="acting-location-select"]')).not.toBeNull();
     const apply = q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary');
     expect(apply.disabled).toBe(true);
     expect(q('#outlet-switcher-panel').textContent).toContain('Owner Mode (All Outlets)');
   });
 
-  it('switches role and outlet with the unchanged request payload', async () => {
+  const selectValue = async (selector: string, value: string) => {
+    const select = q<HTMLSelectElement>(selector);
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    await settle();
+  };
+
+  const selectLocation = async (name: string) => {
+    const select = q<HTMLSelectElement>('#acting-location-select');
+    const option = Array.from(select.options).find(candidate => candidate.text.trim() === name)!;
+    select.value = option.value;
+    select.dispatchEvent(new Event('change'));
+    await settle();
+  };
+
+  it('offers only the roles and locations returned by the server', async () => {
     q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
     await settle();
 
-    const role = q<HTMLSelectElement>('#acting-role-select');
-    role.value = 'Cashier';
-    role.dispatchEvent(new Event('change'));
+    const roles = Array.from(q<HTMLSelectElement>('#acting-role-select').options).map(o => o.text.trim());
+    expect(roles).toEqual(['Select role', 'Cashier', 'OutletManager']);
+    const types = Array.from(q<HTMLSelectElement>('#acting-location-type-select').options).map(o => o.text.trim());
+    expect(types).toEqual(['Outlet', 'Warehouse', 'All Locations']);
+  });
+
+  it('requires an outlet, then switches with the chosen location', async () => {
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
     await settle();
+    await selectValue('#acting-role-select', 'Cashier');
 
     const apply = q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary');
+    expect(apply.disabled).toBe(true);
+
+    await selectLocation('Second Outlet');
     expect(apply.disabled).toBe(false);
     apply.click();
 
-    expect(auth.switchRole).toHaveBeenCalledWith({ actingRole: 'Cashier', actingOutletId: undefined });
+    expect(auth.switchRole).toHaveBeenCalledWith({
+      actingRole: 'Cashier',
+      actingLocationType: 'outlet',
+      actingLocationId: 6
+    });
     expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('auto-selects a single warehouse after choosing the warehouse type', async () => {
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
+    await settle();
+    await selectValue('#acting-role-select', 'Cashier');
+    await selectValue('#acting-location-type-select', 'warehouse');
+    await settle();
+
+    q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary').click();
+
+    expect(auth.switchRole).toHaveBeenCalledWith({
+      actingRole: 'Cashier',
+      actingLocationType: 'warehouse',
+      actingLocationId: 9
+    });
+  });
+
+  it('activates the All Locations context without naming a location', async () => {
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
+    await settle();
+    await selectValue('#acting-role-select', 'Cashier');
+    await selectValue('#acting-location-type-select', 'all');
+
+    expect(root().querySelector('#acting-location-select')).toBeNull();
+    q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary').click();
+
+    expect(auth.switchRole).toHaveBeenCalledWith({
+      actingRole: 'Cashier',
+      actingLocationType: 'all',
+      actingLocationId: undefined
+    });
+  });
+
+  it('hides All Locations when the server does not allow it', async () => {
+    auth.getSwitchOptions.mockReturnValue(of({
+      ...OWNER_OPTIONS,
+      allowAllLocations: false,
+      roles: [{ id: 3, name: 'Warehouse Clerk' }],
+      outlets: [],
+      warehouses: [{ id: 9, name: 'Main Warehouse' }]
+    }));
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
+    await settle();
+    await fixture.whenStable();
+    await settle();
+
+    const types = Array.from(q<HTMLSelectElement>('#acting-location-type-select').options).map(o => o.text.trim());
+    expect(types).toEqual(['Warehouse']);
+
+    // One role and one warehouse: the only valid context is ready to activate.
+    expect(q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary').disabled).toBe(false);
+  });
+
+  it('hides the switcher from a user with nothing to switch to', async () => {
+    auth.getSwitchOptions.mockReturnValue(of({
+      canSwitch: false,
+      allowAllLocations: false,
+      roles: [],
+      outlets: [],
+      warehouses: []
+    }));
+    user$.next({ ...OWNER, id: 2, isBusinessOwner: false, roleName: 'Cashier' });
+    await settle();
+
+    expect(root().querySelector('button[aria-label="Outlet switcher"]')).toBeNull();
+  });
+
+  it('lets a switched user whose access was removed return to their own role', async () => {
+    auth.getSwitchOptions.mockReturnValue(of({
+      canSwitch: false,
+      allowAllLocations: false,
+      roles: [],
+      outlets: [],
+      warehouses: []
+    }));
+    user$.next({
+      ...OWNER,
+      id: 2,
+      isBusinessOwner: false,
+      isRoleSwitched: true,
+      actingRoleName: 'Cashier',
+      actingWarehouseName: 'Main Warehouse'
+    });
+    await settle();
+
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
+    await settle();
+
+    expect(q('#outlet-switcher-panel').textContent).toContain('Cashier @ Main Warehouse');
+    expect(root().querySelector('#acting-role-select')).toBeNull();
+    const back = q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--success');
+    expect(back.textContent).toContain('Return to My Role');
+    back.click();
+    expect(auth.returnOwnerMode).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows access denied without logging out when the server refuses the switch', async () => {
+    auth.switchRole.mockReturnValue(throwError(() => ({ status: 403 })));
+    q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
+    await settle();
+    await selectValue('#acting-role-select', 'Cashier');
+    await selectValue('#acting-location-type-select', 'all');
+    q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary').click();
+    await settle();
+
+    expect(q('#outlet-switcher-panel [role="alert"]').textContent).toContain('not allowed');
+    expect(auth.logout).not.toHaveBeenCalled();
   });
 
   it('announces a failed role switch as an alert without leaving the page', async () => {
@@ -147,10 +292,8 @@ describe('NavbarComponent presentation', () => {
     q<HTMLButtonElement>('button[aria-label="Outlet switcher"]').click();
     await settle();
 
-    const role = q<HTMLSelectElement>('#acting-role-select');
-    role.value = 'Cashier';
-    role.dispatchEvent(new Event('change'));
-    await settle();
+    await selectValue('#acting-role-select', 'Cashier');
+    await selectValue('#acting-location-type-select', 'all');
     q<HTMLButtonElement>('#outlet-switcher-panel button.rp-btn--primary').click();
     await settle();
 

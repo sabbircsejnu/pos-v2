@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Infrastructure.Data;
 using RetailPOS.Infrastructure.Grns;
 using RetailPOS.Infrastructure.PurchaseOrders;
@@ -8,6 +9,8 @@ namespace RetailPOS.Tests.Purchase;
 
 public sealed class PurchaseDocumentReadStoreRelationalTests
 {
+    private static readonly GrnReadScope BusinessOne = new(1, true, [], []);
+
     [Fact]
     public async Task PdfReadStores_PreserveEveryProjectionAndTrustedScope()
     {
@@ -36,7 +39,7 @@ public sealed class PurchaseDocumentReadStoreRelationalTests
         Assert.Null(await orders.FindByIdAsync(999, null, CancellationToken.None));
 
         var grn = Assert.IsType<RetailPOS.Application.Grns.ReadModels.GrnReadModel>(
-            await grns.FindByIdAsync(40, 1, CancellationToken.None));
+            await grns.FindByIdAsync(40, BusinessOne, CancellationToken.None));
         Assert.Equal(20, grn.PurchaseOrderId);
         Assert.Equal("Supplier 1", grn.SupplierName);
         Assert.Equal("Warehouse 1", grn.WarehouseName);
@@ -50,15 +53,15 @@ public sealed class PurchaseDocumentReadStoreRelationalTests
         Assert.Equal(10m, item.UnitPrice);
         Assert.Equal(8m, item.UnitCost);
         Assert.Equal("Item notes", item.Notes);
-        Assert.Null(await grns.FindByIdAsync(41, 1, CancellationToken.None));
-        Assert.NotNull(await grns.FindByIdAsync(41, null, CancellationToken.None));
-        Assert.Null(await grns.FindByIdAsync(999, null, CancellationToken.None));
+        Assert.Null(await grns.FindByIdAsync(41, BusinessOne, CancellationToken.None));
+        Assert.NotNull(await grns.FindByIdAsync(41, new GrnReadScope(2, true, [], []), CancellationToken.None));
+        Assert.Null(await grns.FindByIdAsync(999, BusinessOne, CancellationToken.None));
 
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             orders.FindByIdAsync(20, 1, cancellation.Token));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            grns.FindByIdAsync(40, 1, cancellation.Token));
+            grns.FindByIdAsync(40, BusinessOne, cancellation.Token));
     }
 }

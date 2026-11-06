@@ -86,10 +86,14 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
         if (accessScope == User.InventoryAccessSpecific)
         {
             var outletAssignments = (await store.ListActiveOutletAssignmentsAsync(userId))
+                .Where(assignment => assignment.OutletName is not null &&
+                    (!effectiveBusinessId.HasValue || assignment.OutletBusinessId == effectiveBusinessId))
                 .OrderByDescending(assignment => assignment.IsPrimary)
                 .ThenBy(assignment => assignment.OutletName)
                 .ToList();
             var warehouseAssignments = (await store.ListActiveWarehouseAssignmentsAsync(userId))
+                .Where(assignment => assignment.WarehouseName is not null &&
+                    (!effectiveBusinessId.HasValue || assignment.WarehouseBusinessId == effectiveBusinessId))
                 .OrderByDescending(assignment => assignment.IsPrimary)
                 .ThenBy(assignment => assignment.WarehouseName)
                 .ToList();
@@ -113,15 +117,22 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
             var (destinationOutlets, destinationWarehouses) =
                 await LoadDestinationLocationsAsync(effectiveBusinessId);
 
-            var defaultOutletId = user.OutletId;
-            var defaultLocationId = defaultOutletId
-                ?? outletAssignments.FirstOrDefault(assignment => assignment.IsPrimary)?.OutletId
-                ?? warehouseAssignments.FirstOrDefault(assignment => assignment.IsPrimary)?.WarehouseId
-                ?? outlets.FirstOrDefault()?.Id
-                ?? warehouses.FirstOrDefault()?.Id;
-            var defaultLocationType = defaultOutletId.HasValue || outlets.Count > 0
-                ? "outlet"
-                : warehouses.Count > 0 ? "warehouse" : null;
+            await AddActingLocationsAsync(context, user, userId, effectiveBusinessId, outlets, warehouses);
+            var preferredOutletId = context.IsContextSwitched
+                && outlets.Any(outlet => outlet.Id == context.EffectiveOutletId)
+                ? context.EffectiveOutletId
+                : user.OutletId;
+            // A Default Outlet only counts when the user can actually use it.
+            long? defaultOutletId = outlets.Any(outlet => outlet.Id == preferredOutletId) ? preferredOutletId : null;
+            var (defaultLocationId, defaultLocationType) = ResolveAssignedDefault(
+                defaultOutletId,
+                outletAssignments,
+                warehouseAssignments);
+            if (!defaultLocationId.HasValue && warehouses.Count > 0)
+            {
+                (defaultLocationId, defaultLocationType) = (warehouses[0].Id, "warehouse");
+            }
+
 
             return new AuthorizedOutletsReadModel(
                 outlets,
@@ -136,7 +147,15 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
                 defaultLocationType);
         }
 
-        var assignedOutletId = context.EffectiveOutletId ?? user.OutletId;
+        var assignedOutletId = await IsActingLocationAuthorizedAsync(
+            context,
+            user,
+            userId,
+            effectiveBusinessId,
+            context.EffectiveOutletId,
+            isWarehouse: false)
+            ? context.EffectiveOutletId ?? user.OutletId
+            : user.OutletId;
         var assignedWarehouse = (await store.ListActiveWarehouseAssignmentsAsync(userId))
             .OrderByDescending(assignment => assignment.IsPrimary)
             .ThenBy(assignment => assignment.AssignmentId)
@@ -163,6 +182,8 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
                 "warehouse"));
         }
 
+        await AddActingLocationsAsync(context, user, userId, effectiveBusinessId, outletsList, warehousesList);
+
         var (destinationOutletsAssigned, destinationWarehousesAssigned) =
             await LoadDestinationLocationsAsync(effectiveBusinessId);
         var defaultLocationIdAssigned = outletsList.FirstOrDefault()?.Id
@@ -176,7 +197,7 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
             warehousesList,
             destinationOutletsAssigned,
             destinationWarehousesAssigned,
-            assignedOutletId,
+            outletsList.Any(outlet => outlet.Id == assignedOutletId) ? assignedOutletId : null,
             context.IsBusinessOwner,
             IsGlobalAccess: false,
             User.InventoryAccessAssignedOnly,
@@ -191,13 +212,93 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
         var result = policy switch
         {
             LocationAccessPolicy.InventoryStockView => await GetAuthorizedOutletsAsync(context),
-            LocationAccessPolicy.StockCountOperation or LocationAccessPolicy.StockTransferSource =>
+            LocationAccessPolicy.StockCountOperation
+                or LocationAccessPolicy.StockTransferSource
+                or LocationAccessPolicy.GrnView
+                or LocationAccessPolicy.ExpenseOperation =>
                 await GetAssignedLocationsAsync(context),
             LocationAccessPolicy.StockTransferDestination => await GetBusinessLocationsAsync(context),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unsupported location access policy.")
         };
 
+        // The acting warehouse only preselects; every write still validates against the policy's list.
+        if (context.IsContextSwitched
+            && context.EffectiveWarehouseId is long actingWarehouseId
+            && result.Warehouses.Any(warehouse => warehouse.Id == actingWarehouseId))
+        {
+            result = result with { DefaultLocationId = actingWarehouseId, DefaultLocationType = "warehouse" };
+        }
+
         return result with { Policy = policy };
+    }
+
+    // An acting location comes from a signed but possibly stale token, so a non-owner's is
+    // re-checked against persisted state on every request.
+    private async Task<bool> IsActingLocationAuthorizedAsync(
+        UserOutletAccessContext context,
+        UserLocationAccessUser user,
+        long userId,
+        long? businessId,
+        long? locationId,
+        bool isWarehouse)
+    {
+        if (!context.IsContextSwitched || context.IsBusinessOwner || locationId is not long id)
+        {
+            return true;
+        }
+
+        if (!user.ContextSwitchEnabled || !businessId.HasValue)
+        {
+            return false;
+        }
+
+        if (user.ContextLocationScope == User.ContextLocationAll)
+        {
+            var locations = isWarehouse
+                ? await store.ListWarehousesAsync(businessId)
+                : await store.ListOutletsAsync(businessId);
+            return locations.Any(location => location.Id == id);
+        }
+
+        if (isWarehouse)
+        {
+            return (await store.ListActiveWarehouseAssignmentsAsync(userId))
+                .Any(assignment => assignment.WarehouseId == id && assignment.WarehouseBusinessId == businessId);
+        }
+
+        return user.OutletId == id
+            || (await store.ListActiveOutletAssignmentsAsync(userId))
+                .Any(assignment => assignment.OutletId == id && assignment.OutletBusinessId == businessId);
+    }
+
+    private async Task AddActingLocationsAsync(
+        UserOutletAccessContext context,
+        UserLocationAccessUser user,
+        long userId,
+        long? businessId,
+        List<AuthorizedLocationReadModel> outlets,
+        List<AuthorizedLocationReadModel> warehouses)
+    {
+        if (!context.IsContextSwitched || !businessId.HasValue)
+        {
+            return;
+        }
+
+        if (context.EffectiveOutletId is long outletId
+            && outlets.All(outlet => outlet.Id != outletId)
+            && await IsActingLocationAuthorizedAsync(context, user, userId, businessId, outletId, isWarehouse: false)
+            && (await store.ListOutletsAsync(businessId)).FirstOrDefault(outlet => outlet.Id == outletId) is { } actingOutlet)
+        {
+            outlets.Add(actingOutlet);
+        }
+
+        if (context.EffectiveWarehouseId is long warehouseId
+            && warehouses.All(warehouse => warehouse.Id != warehouseId)
+            && await IsActingLocationAuthorizedAsync(context, user, userId, businessId, warehouseId, isWarehouse: true)
+            && (await store.ListWarehousesAsync(businessId)).FirstOrDefault(warehouse => warehouse.Id == warehouseId) is { } actingWarehouse)
+        {
+            warehouses.Add(actingWarehouse);
+        }
     }
 
     // Step 5 only: the user's own active outlet/warehouse assignments inside the effective business.
@@ -424,10 +525,11 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
                 return null;
             }
 
-            return authorized.Outlets.FirstOrDefault()?.Id
-                ?? authorized.DefaultOutletId
-                ?? throw new UnauthorizedAccessException(
+            return authorized.Outlets.Count == 1
+                ? authorized.Outlets[0].Id
+                : throw new UnauthorizedAccessException(
                     "Your account is not assigned to an authorized outlet.");
+
         }
 
         if (!requestedOutletId.HasValue)
@@ -448,20 +550,44 @@ public sealed class UserOutletAccess(IUserOutletAccessStore store) : IUserOutlet
         UserOutletAccessContext context,
         long? requestedOutletId)
     {
+        // A warehouse or All Locations context is not an outlet: the transaction must name one.
+        if (context.IsContextSwitched
+            && !context.EffectiveOutletId.HasValue
+            && (!requestedOutletId.HasValue || requestedOutletId.Value <= 0))
+        {
+            throw new InvalidOperationException("OutletId is required for this transaction.");
+        }
+
         var authorized = await GetAuthorizedOutletsAsync(context);
 
         if (!authorized.IsGlobalAccess)
         {
             if (!requestedOutletId.HasValue || requestedOutletId.Value <= 0)
             {
-                var fallback = authorized.Outlets.FirstOrDefault()?.Id ?? authorized.DefaultOutletId;
-                if (!fallback.HasValue)
+                // A revoked acting outlet must not quietly move the transaction to another outlet.
+                if (context.IsContextSwitched
+                    && authorized.Outlets.All(outlet => outlet.Id != context.EffectiveOutletId))
+                {
+                    throw new UnauthorizedAccessException(
+                        "Your current outlet context is no longer authorized. Switch context and try again.");
+                }
+
+                if (authorized.Outlets.Count == 0)
                 {
                     throw new UnauthorizedAccessException(
                         "Your account is not assigned to an authorized outlet.");
                 }
 
-                return fallback.Value;
+                if (authorized.DefaultOutletId is long defaultOutletId
+                    && authorized.Outlets.Any(outlet => outlet.Id == defaultOutletId))
+                {
+                    return defaultOutletId;
+                }
+
+                // Several authorized outlets and no default: the caller must choose one.
+                return authorized.Outlets.Count == 1
+                    ? authorized.Outlets[0].Id
+                    : throw new InvalidOperationException("OutletId is required for this transaction.");
             }
 
             if (!authorized.Outlets.Any(outlet => outlet.Id == requestedOutletId.Value))

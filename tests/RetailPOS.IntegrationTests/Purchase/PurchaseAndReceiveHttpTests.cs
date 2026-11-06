@@ -234,6 +234,7 @@ public sealed class PurchaseAndReceiveHttpTests(RetailPosApiFactory factory)
             BusinessId = 1,
             Name = "HTTP Purchase Warehouse"
         });
+        db.UserWarehouseAssignments.Add(new UserWarehouseAssignment { Id = 1, UserId = 321, WarehouseId = 1101, BusinessId = 1 });
         await db.SaveChangesAsync();
     }
 }

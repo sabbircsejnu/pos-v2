@@ -50,7 +50,11 @@ public class GrnsController : ControllerBase
                 searchDto.StartDate,
                 searchDto.EndDate,
                 searchDto.PageNumber,
-                searchDto.PageSize),
+                searchDto.PageSize,
+                searchDto.LocationType,
+                searchDto.LocationId,
+                searchDto.FromDate,
+                searchDto.ToDate),
             cancellationToken);
         return Ok(ApiResponse<GrnListDto>.SuccessResponse(new GrnListDto
         {

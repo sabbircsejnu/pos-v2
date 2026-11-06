@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, EMPTY, Observable, catchError, finalize, map, of, shareReplay, tap, throwError } from 'rxjs';
-import { LoginRequest, LoginResponse, RegisterRequest, RoleSwitchRequest, User } from '../models/auth.models';
+import { LoginRequest, LoginResponse, RegisterRequest, RoleSwitchRequest, User, UserContextOptions } from '../models/auth.models';
 import { environment } from '../../environments/environment';
 import { BusinessContextStore } from './business-context.store';
 
@@ -255,6 +255,10 @@ export class AuthService {
 
   isRoleSwitched(): boolean {
     return this.getUserValue()?.isRoleSwitched === true;
+  }
+
+  getSwitchOptions(): Observable<UserContextOptions> {
+    return this.http.get<UserContextOptions>(`${this.API_URL}/switch-options`);
   }
 
   switchRole(request: RoleSwitchRequest): Observable<LoginResponse> {

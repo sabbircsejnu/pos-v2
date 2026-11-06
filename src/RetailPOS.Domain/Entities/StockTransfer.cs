@@ -23,6 +23,12 @@ public class StockTransfer
     public long ToLocationId { get; set; }
     public string ToLocationType { get; set; } = string.Empty;
     public long? RelatedRequisitionId { get; set; }
+
+    /// <summary>
+    /// Set only on the system return that carries rejected units back. Those units never re-entered destination
+    /// stock, so this return leaves in transit without a deduction and adds to source stock only when received.
+    /// </summary>
+    public long? OriginalTransferId { get; set; }
     public string? Notes { get; set; }
     public DateTime TransferDate { get; set; }
     public string Status { get; set; } = "pending";
@@ -53,5 +59,6 @@ public class StockTransfer
     public virtual User? Updater { get; set; }
     public virtual User? Creator { get; set; }
     public virtual StockRequisition? RelatedRequisition { get; set; }
+    public virtual StockTransfer? OriginalTransfer { get; set; }
     public virtual ICollection<StockTransferItem> Items { get; set; } = new List<StockTransferItem>();
 }

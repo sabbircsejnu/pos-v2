@@ -11,4 +11,5 @@ public sealed record ChartAccountReadModel(
     bool IsControlAccount,
     bool AllowManualPosting,
     bool IsActive,
-    int DisplayOrder);
+    int DisplayOrder,
+    bool IsExpensePaymentAccount = false);

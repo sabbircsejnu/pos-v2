@@ -75,6 +75,60 @@ internal static class StockTransferWriteRules
                     location.Id == candidate.ToLocationId
                     && location.BusinessId == businessId))));
 
+    /// <summary>
+    /// Puts rejected units in return transit. They never re-entered destination stock, so nothing is deducted here;
+    /// source stock rises only when the source receives this return. The unique index allows one per transfer.
+    /// </summary>
+    public static async Task CreateSystemReturnAsync(
+        RetailPOSDbContext dbContext,
+        StockTransfer original,
+        long? actorId,
+        CancellationToken cancellationToken)
+    {
+        var lines = original.Items.Where(item => item.RejectedQuantity > 0).ToArray();
+        if (lines.Length == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        var maxId = await dbContext.StockTransfers
+            .MaxAsync(candidate => (long?)candidate.Id, cancellationToken) ?? 0;
+        dbContext.StockTransfers.Add(new StockTransfer
+        {
+            TransferNo = $"TRF-{now.Year}-{(maxId + 1):D5}",
+            TransferType = StockTransfer.TransferTypeReturn,
+            OriginalTransferId = original.Id,
+            FromLocationId = original.ToLocationId,
+            FromLocationType = original.ToLocationType,
+            ToLocationId = original.FromLocationId,
+            ToLocationType = original.FromLocationType,
+            TransferDate = now,
+            Status = StockTransfer.StatusInTransit,
+            DispatchedBy = actorId,
+            DispatchedAt = now,
+            CreatedBy = actorId,
+            CreatedAt = now,
+            Notes = $"Auto-created return transfer for rejected transfer #{original.TransferNo ?? original.Id.ToString()}.",
+            Items = lines.Select(item => new StockTransferItem
+            {
+                VariantId = item.VariantId,
+                Quantity = item.RejectedQuantity,
+                RequestedQuantity = item.RejectedQuantity,
+                TransferQuantity = item.RejectedQuantity,
+                UnitCost = item.UnitCost
+            }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// A movement that changes no quantity still takes a ledger sequence for this location, so it must conflict with
+    /// any other movement there. Saving the unchanged row bumps xmin and gives it that protection.
+    /// </summary>
+    public static void ClaimForEvidenceOnlyMovement(RetailPOSDbContext dbContext, Inventory? inventory)
+    {
+        if (inventory is not null && dbContext.Entry(inventory).State == EntityState.Unchanged)
+            dbContext.Entry(inventory).Property(row => row.Quantity).IsModified = true;
+    }
+
     public static string NormalizeTransferType(string? transferType)
     {
         var normalized = string.IsNullOrWhiteSpace(transferType)

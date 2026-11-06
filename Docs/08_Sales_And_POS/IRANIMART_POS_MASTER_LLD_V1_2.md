@@ -136,7 +136,7 @@ Use MediatR-style requests if existing solution uses MediatR/CQRS; otherwise ada
 
 1. Authenticate actor, determine `BusinessId` and allowed `OutletId`; resolve eligible `TerminalId`; reject zero/inactive/cross-outlet.
 2. Obtain terminal-scoped transaction lock or equivalent serialized uniqueness enforcement; check no open/overdue session.
-3. Read authoritative server UTC and outlet timezone. Compute immutable `BusinessDate` from opening instant. `OpeningCash >=0`; amount may be zero.
+3. Read authoritative server UTC and the Business's Company time zone. Compute immutable `BusinessDate` from opening instant. `OpeningCash >=0`; amount may be zero.
 4. Insert session with `Open` status, opening amount, notes, actor; write audit and `CashSessionOpened` outbox record in **same** transaction; commit. On duplicate key/concurrency, return existing/collision response without double open.
 5. Return persisted session and current server timestamp; Angular navigates to POS. No frontend-generated opening date as authority.
 
@@ -430,7 +430,7 @@ Normalize Bangladesh mobile numbers consistently (e.g. `017...` ↔ `+88017...`)
 
 ### 18.4 Outlet targets and projection keys
 
-For a target effective range, store weekday values and month/period-scoped overrides with an `Auto|Manual` discriminator; time boundaries use outlet timezone. For month-based target preview, iterate actual calendar days, not `(weekly target × 4)`. Aggregate actual outlet net sales by `(BusinessId, OutletId, BusinessDate, MetricDefinitionVersion)` across all terminals, with completed sales, voids, refunds and corrections applied as idempotent deltas. Store event source offsets or `ProcessedEventId` uniqueness and last-reconciled timestamp. If target projection is stale, label freshness and use a supported authoritative fallback.
+For a target effective range, store weekday values and month/period-scoped overrides with an `Auto|Manual` discriminator; time boundaries use the Company time zone. For month-based target preview, iterate actual calendar days, not `(weekly target × 4)`. Aggregate actual outlet net sales by `(BusinessId, OutletId, BusinessDate, MetricDefinitionVersion)` across all terminals, with completed sales, voids, refunds and corrections applied as idempotent deltas. Store event source offsets or `ProcessedEventId` uniqueness and last-reconciled timestamp. If target projection is stale, label freshness and use a supported authoritative fallback.
 
 ### 18.5 Detailed UI state machine
 
@@ -471,14 +471,14 @@ Product, ProductVariant and Category gain nonnullable business ownership **after
 
 Reuse `OutletWriteStore` and `OperationalLocationSourcePersistence` to atomically create/update Outlet and confirmed PosTerminal children. UI default is an **unsaved suggestion** `Counter 1` during Outlet Create and Business Onboarding. Zero active terminals is a legal Outlet state but a POS startup failure. One active terminal auto-selected; two or more **must be explicitly selected**—do not pass null and resolve first/default server side. Terminal FK delete policies change from `Sale.TerminalId SET NULL`/terminal Outlet Cascade where history loss is possible to Restrict/history-preserving semantics following migration diagnostics. Open/overdue sessions block deactivate, historical terminals cannot move or delete. TerminalCode stable outlet-scoped normalized identity.
 
-Add business-scoped POS settings in PostgreSQL with `MaxCashSessionDurationHours` default 20, valid >0≤20, write permission and audit. Effective session duration immutable at open. Business default IANA timezone, optional Outlet override; snapshot resolved `TimeZoneId` per session. Set `BusinessDate` from server UTC instant translated by TimeZoneInfo to configured zone, store as PostgreSQL `date` (`DateOnly` or explicit date type) and retain `OpenedAtUtc` as UTC instant. Do not compare Npgsql Local-kind `DateTime` ticks to UtcNow; normalize at store boundary and test TZ UTC/Asia-Dhaka/DST. Changing settings mid-session cannot mutate snapshot/cutoff.
+Add business-scoped POS settings in PostgreSQL with `MaxCashSessionDurationHours` default 20, valid >0≤20, write permission and audit. Effective session duration immutable at open. One Company IANA timezone per Business, with no Outlet override (amended 5 Nov 2026); snapshot resolved `TimeZoneId` per session. Set `BusinessDate` from server UTC instant translated by TimeZoneInfo to configured zone, store as PostgreSQL `date` (`DateOnly` or explicit date type) and retain `OpenedAtUtc` as UTC instant. Do not compare Npgsql Local-kind `DateTime` ticks to UtcNow; normalize at store boundary and test TZ UTC/Asia-Dhaka/DST. Changing settings mid-session cannot mutate snapshot/cutoff.
 
 ### 20.3 Suggested SQL entity additions (schema contract, not migration approval)
 
 | Entity / modification | Relevant columns / constraints |
 |---|---|
 | `business_pos_settings` | `business_id PK`, `max_session_hours` constrained `(0,20]`, `default_timezone_id`, audit/version |
-| `outlets` | `timezone_override_id nullable`; stable `invoice_prefix` + uniqueness/history rules |
+| `outlets` | `timezone_override_id nullable` (retained but ignored since 5 Nov 2026); stable `invoice_prefix` + uniqueness/history rules |
 | `cash_sessions` | `business_date date`, `opened_at_utc timestamptz`, `time_zone_id_snapshot`, `duration_snapshot_hours`, close snapshot, concurrency; only persisted `open/closed` |
 | `products/categories/product_variants` | business ownership, same-business parent FKs, ownership/backfill audit |
 | `customers` | BusinessId, NormalizedPhone, business-scoped unique indexes, business-protected WALKIN trigger |
@@ -611,3 +611,49 @@ The SRS v1.2 supersedes pre-verification assumptions that all sale/GL posting mu
 ## 30. Technical freeze readiness statement
 
 v1.2 is a complete proposed implementation contract incorporating the approved decisions and the verified gaps without modifying the repository. It is ready for **user/architect document review**, not a declaration of database, code or production readiness. Actual implementation must not begin without explicit approval, safe migration plan and test infrastructure isolation.
+
+## 31. Addendum (2026-11-06): Outlet sales targets as built
+
+Extends §3.1 and §18.4; SRS §27 holds the requirements. Code: `Application/Outlets/SalesTargets`, `Infrastructure/Outlets/OutletSalesTarget*`.
+
+### 31.1 Data model
+
+Migration `20261106173129_PosV2OutletSalesTargets` is additive: three new tables and no change to existing rows. An outlet with no rows reads as not configured, with no off days.
+
+| Table | Purpose | Key rules |
+|---|---|---|
+| `outlet_sales_target_versions` | One effective-dated configuration: `effective_from`, `is_enabled`, actor | Append-only. Unique `(outlet_id, version_no)` |
+| `outlet_sales_target_version_days` | Seven rows per version: `day_of_week`, `is_off_day`, `target_amount numeric(18,2)` | Unique per day. Amount nonnegative. An off day has no amount |
+| `outlet_sales_target_overrides` | Period, `calculated_amount`, `override_amount`, `version_id`, `reason`, updated and cleared actors | One active row per outlet, type and start. Reset to Auto stamps `cleared_at` and keeps the row |
+
+Weekly off days live on the version so that schedule history and target history can never disagree. Editing an active override updates its row; the previous amount is kept in the audit log.
+
+### 31.2 API
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `POST /api/outlets`, `PUT /api/outlets/{id}` | `outlets.create`, `outlets.edit` | Optional `salesTargets` block, saved in the outlet's single `SaveChanges`. Omitted means unchanged |
+| `GET /api/outlets/{id}/sales-targets?referenceDate=` | `outlets.view` | Latest, current, history, and the four periods containing the date |
+| `GET /api/cash-sessions/business-day-target?outletId=&businessDate=` | `cash_sessions.view` plus outlet authorizer | Target, net sales excluding VAT, signed variance |
+
+The write path replaces the `PUT /outlets/{id}/sales-targets` named earlier in this LLD, so there is one save path, as for terminals. No new permission keys were added. Errors return 409 with `OUTLET_TARGET_INVALID`, `OUTLET_TARGET_ALL_DAYS_OFF`, `OUTLET_TARGET_EFFECTIVE_DATE_INVALID`, `OUTLET_TARGET_OVERRIDE_INVALID` or `OUTLET_TARGET_CONFLICT`.
+
+### 31.3 Calculation (`SalesTargetCalculator`)
+
+- **Version for a date:** latest `effective_from` on or before it, then highest `version_no`.
+- **Day:** no version, a disabled version or no amount gives Not Configured. An off day gives zero. Otherwise the weekday amount.
+- **Period:** walks every calendar date and sums. Null when no date is configured.
+- **Week:** Saturday to Friday. No convention existed, so this one follows the brief and the FR-TARGET-01 order.
+- **First Half / Second Half / Month:** 1–15, 16–last day, 1–last day. Never weekly × 4.
+- **Precedence:** an override replaces the total of its exact range only.
+
+### 31.4 Saving
+
+`expectedVersionNo` must match the newest version, otherwise `OUTLET_TARGET_CONFLICT`; the unique index covers races. Saving unchanged values adds no version. `effectiveFrom` must be today or later (Company time zone, per §18.4) and not before the newest version. The form omits the block when nothing changed, and when the configuration could not be loaded.
+
+### 31.5 Known limitations
+
+- Targets use the Company time zone even when an outlet overrides its zone (D9), matching §18.4.
+- A second save on the same effective date replaces that date's figures from then on. Only past dates are protected.
+- HR weekly-off policy (`HrWeeklyOffPolicyVersion`) stays separate, so the two settings can differ.
+- The calculation reads authoritative tables. The `TargetVarianceSnapshot` projection of §3.1 is not built.

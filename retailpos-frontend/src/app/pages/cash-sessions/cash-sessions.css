@@ -38,6 +38,62 @@
 .cs-denominations { display: grid; gap: var(--rp-space-2); grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
 .cs-handover { display: grid; gap: var(--rp-space-3); grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); padding: var(--rp-space-3); border: 1px solid var(--rp-color-border); border-radius: var(--rp-radius-card); }
 
+/* ── Close Cash Session — mirrors the approved prototype ("closing" view): a centred 1080px column of
+   section cards, label-over-value session facts, a two-column reconciliation, stat tiles and a sticky bar. ── */
+.cs-closing { max-width: 67.5rem; }
+.cs-muted { color: var(--rp-color-text-secondary); }
+
+.cs-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rp-space-5) var(--rp-space-6); margin: 0; }
+.cs-info-grid dt { margin-bottom: var(--rp-space-2); color: var(--rp-color-text-secondary); font-size: var(--rp-text-helper-size); }
+.cs-info-grid dd { margin: 0; color: var(--rp-color-text-primary); font-size: var(--rp-text-body-size); font-weight: var(--rp-font-weight-semibold); }
+.cs-info-grid dd.cs-info-grid__plain { font-weight: var(--rp-font-weight-regular); }
+
+.cs-close-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rp-space-6); align-items: start; }
+.cs-close-rows { margin: 0; }
+.cs-close-row { display: flex; justify-content: space-between; gap: var(--rp-space-3); padding: var(--rp-space-3); border-bottom: 1px solid var(--rp-color-border); font-size: var(--rp-text-body-size); }
+.cs-close-row dt { color: var(--rp-color-text-primary); }
+.cs-close-row dd { margin: 0; font-weight: var(--rp-font-weight-semibold); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cs-close-row--info dt, .cs-close-row--info dd { color: var(--rp-color-text-secondary); font-weight: var(--rp-font-weight-regular); }
+.cs-close-row--highlight { background: var(--rp-color-primary-50); }
+.cs-close-row--highlight dt { font-weight: var(--rp-font-weight-semibold); }
+.cs-close-note { margin: var(--rp-space-3) 0 0; font-size: var(--rp-text-helper-size); }
+.cs-close-entry { display: grid; gap: var(--rp-space-4); }
+
+.cs-hint-box { margin: 0; padding: var(--rp-space-3) var(--rp-space-4); border-radius: var(--rp-radius-control); background: var(--rp-color-surface-muted); color: var(--rp-color-text-secondary); font-size: var(--rp-text-body-size); }
+.cs-hint-box[data-tone='neutral'] { background: var(--rp-color-success-50); color: var(--rp-color-success-700); }
+.cs-hint-box[data-tone='info'] { background: var(--rp-color-primary-50); color: var(--rp-color-primary-700); }
+.cs-hint-box[data-tone='danger'] { background: var(--rp-color-danger-50); color: var(--rp-color-danger-700); }
+
+.cs-denomination-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rp-space-4) var(--rp-space-5); margin-top: var(--rp-space-5); }
+.cs-denomination-total { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--rp-space-3); margin-top: var(--rp-space-4); padding-top: var(--rp-space-3); border-top: 1px solid var(--rp-color-border); font-size: var(--rp-text-body-size); }
+.cs-denomination-total strong { margin-left: var(--rp-space-2); font-variant-numeric: tabular-nums; }
+
+.cs-form-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rp-space-4) var(--rp-space-5); align-items: start; }
+.cs-handover-row { padding-bottom: var(--rp-space-4); margin-bottom: var(--rp-space-4); border-bottom: 1px solid var(--rp-color-border); }
+.cs-handover-row__head { display: flex; align-items: center; justify-content: space-between; gap: var(--rp-space-2); margin-bottom: var(--rp-space-3); }
+.cs-handover-row__title { margin: 0; font-size: var(--rp-text-label-size); font-weight: var(--rp-font-weight-semibold); }
+/* Able Pro input-group add-on: the currency sits in a muted box joined to the control. */
+.cs-addon { align-self: stretch; justify-content: center; min-width: 2.5rem; margin-right: calc(-1 * var(--rp-space-2)); padding: 0 var(--rp-space-3); border: 1px solid var(--rp-color-border-control); border-right: 0; border-radius: var(--rp-radius-control) 0 0 var(--rp-radius-control); background: var(--rp-color-surface-muted); color: var(--rp-color-text-secondary); font-weight: var(--rp-font-weight-medium); }
+.cs-addon + input { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cs-handover-empty { margin: 0 0 var(--rp-space-2); font-size: var(--rp-text-body-size); }
+.cs-add-handover { margin: var(--rp-space-2) 0 var(--rp-space-4); }
+.cs-readonly-field { display: grid; gap: var(--rp-form-label-gap); }
+.cs-readonly-field__label { color: var(--rp-color-text-primary); font-size: var(--rp-text-label-size); font-weight: var(--rp-font-weight-medium); }
+.cs-readonly-field__value { display: flex; align-items: center; min-height: var(--rp-control-height-md, 2.5rem); padding: 0 var(--rp-space-3); border: 1px solid var(--rp-color-border); border-radius: var(--rp-radius-control); background: var(--rp-color-surface-muted); color: var(--rp-color-text-secondary); font-size: var(--rp-text-body-size); }
+
+.cs-stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--rp-space-3); margin-bottom: var(--rp-space-4); }
+.cs-stat { padding: var(--rp-space-4); border-radius: var(--rp-radius-control); background: var(--rp-color-surface-muted); color: var(--rp-color-text-secondary); font-size: var(--rp-text-body-size); }
+.cs-stat strong { display: block; margin-top: var(--rp-space-2); color: var(--rp-color-text-primary); font-size: 1.125rem; font-weight: var(--rp-font-weight-semibold); font-variant-numeric: tabular-nums; }
+.cs-stat[data-tone='danger'] { background: var(--rp-color-danger-50); }
+.cs-stat[data-tone='danger'] strong { color: var(--rp-color-danger-700); }
+.cs-closing app-ui-card + app-ui-alert, .cs-closing app-ui-card .cs-stat-row + app-ui-alert { display: block; margin-bottom: var(--rp-space-4); }
+.cs-dialog-sub { margin: 0 0 var(--rp-space-3); font-size: var(--rp-text-helper-size); }
+.cs-closing .cs-hint-box + app-ui-form-field, .cs-dialog-sub + .cs-close-rows + .cs-hint-box { margin-top: var(--rp-space-4); }
+
+@media (max-width: 47.99rem) {
+  .cs-info-grid, .cs-close-grid, .cs-form-2, .cs-stat-row { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Hides projected header actions (a host display rule would override the [hidden] attribute). */
 .cs-hidden { display: none !important; }
 .cs-hash { font-family: monospace; font-size: var(--rp-text-helper-size); word-break: break-all; }

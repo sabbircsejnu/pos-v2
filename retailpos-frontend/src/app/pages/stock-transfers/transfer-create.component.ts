@@ -1,8 +1,8 @@
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
+import { Component, HostListener, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ProductImageService } from '../../services/product-image.service';
+import { ProductService } from '../../services/product.service';
 import { VariantSearchItem, VariantSearchPickerComponent } from '../../components/variant-search-picker/variant-search-picker.component';
 import { CreateStockTransferDto } from '../../models/stock-transfer.model';
 import { findVariantIndexById } from '../../utils/variant-selection.util';
@@ -60,6 +61,8 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
   isLoadingData = signal(false);
   isSubmitting = signal(false);
   private initialSnapshot = '';
+  private readonly route = inject(ActivatedRoute, { optional: true });
+  private readonly injector = inject(Injector);
 
   existingVariantIds = computed(() => this.lineItems().map(i => i.variantId));
   canSelectFromLocation = computed(() => this.auth.hasPermission('stock_transfers.transfer_from_any_location'));
@@ -322,6 +325,7 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
         if (this.sameLocationSelected()) {
           this.onToLocationChange(null);
         }
+        this.applyRecommendationPrefill(defaultIsSource ? defaultId : null);
         this.markAsPristine();
         this.isLoadingData.set(false);
       },
@@ -330,6 +334,67 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
         this.markAsPristine();
         this.isLoadingData.set(false);
       }
+    });
+  }
+
+  /**
+   * A dashboard recommendation arrives as query parameters. Each value is checked against the lists this form already
+   * offers, the form stays unsubmitted and editable, and the API validates the transfer again on submit.
+   */
+  private applyRecommendationPrefill(pinnedSourceId: number | null): void {
+    const params = this.route?.snapshot?.queryParamMap;
+    if (!params?.has('variantId')) {
+      return;
+    }
+
+    const fromId = Number(params.get('fromLocationId'));
+    const toId = Number(params.get('toLocationId'));
+    const variantId = Number(params.get('variantId'));
+    const quantity = Number(params.get('quantity'));
+    const sku = params.get('sku') ?? '';
+    const sourceAllowed = this.sourceOutlets().some((location: any) => location.id === fromId)
+      && (this.canSelectFromLocation() || pinnedSourceId === fromId);
+    const destinationAllowed = fromId !== toId
+      && this.destinationOutlets().some((location: any) => location.id === toId);
+    if (params.get('fromLocationType') !== 'outlet' || params.get('toLocationType') !== 'outlet'
+      || !sourceAllowed || !destinationAllowed || !Number.isInteger(variantId) || variantId <= 0
+      || !Number.isInteger(quantity) || quantity <= 0 || !sku) {
+      this.alertService.warning('This recommendation could not be applied to your transfer locations.');
+      return;
+    }
+
+    this.fromLocationType.set('outlet');
+    this.fromLocationId.set(fromId);
+    this.toLocationType.set('outlet');
+    this.toLocationId.set(toId);
+
+    // Live stock at the source comes from the same lookup the product search uses, not from the recommendation.
+    this.injector.get(ProductService).searchVariants(sku, 1, 20, fromId, 'outlet').subscribe({
+      next: (response: any) => {
+        const match = (response?.data || []).find((variant: any) => variant.id === variantId);
+        if (!match) {
+          this.alertService.warning('The recommended variant is no longer available at the source.');
+          this.markAsPristine();
+          return;
+        }
+
+        this.onVariantSelected({
+          id: match.id,
+          productCode: match.productCode,
+          sku: match.sku,
+          barcode: match.barcode,
+          productName: match.productName,
+          name: match.name,
+          attributes: match.attributes,
+          variantAttributes: match.variantAttributes || match.attributes,
+          variantDisplay: match.variantDisplay,
+          stockQuantity: match.stockQuantity,
+          primaryImageThumb: match.primaryImageThumb
+        });
+        this.updateTransferQuantity(0, quantity);
+        this.markAsPristine();
+      },
+      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
     });
   }
 

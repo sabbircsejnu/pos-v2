@@ -89,7 +89,8 @@ public class StockTransferRequisitionPermissionHttpTests : IClassFixture<RetailP
         Assert.Equal(3, item.Quantity);
         Assert.Equal(3, item.RequestedQuantity);
         Assert.Equal(3, item.TransferQuantity);
-        Assert.Equal(12.5m, item.UnitCost);
+        // The request sent 12.5. The cost is decided at dispatch, so the client's value is not kept.
+        Assert.Equal(0m, item.UnitCost);
         Assert.Equal("line", item.Remarks);
         Assert.Equal(50, (await db.Inventories.FindAsync(401L))?.Quantity);
         Assert.Empty(db.StockLedgers);

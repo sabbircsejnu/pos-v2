@@ -89,6 +89,12 @@ export class OutletService {
     return this.http.delete<any>(`${this.apiUrl}/${outletId}/terminals/${terminalId}`);
   }
 
+  /** Saved weekly off days, target history and the calendar periods containing the reference date. Writes go with the outlet save. */
+  getSalesTargets(outletId: number, referenceDate?: string): Observable<any> {
+    const params: Record<string, string> = referenceDate ? { referenceDate } : {};
+    return this.http.get<any>(`${this.apiUrl}/${outletId}/sales-targets`, { params });
+  }
+
   clearMessages(): void {
     this.successMessage.set(null);
     this.error.set(null);

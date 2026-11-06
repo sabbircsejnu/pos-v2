@@ -28,7 +28,10 @@ public sealed record AuthenticationActingRoleClaims(
     string ActingRoleName,
     IReadOnlyList<string> ActingPermissions,
     long? ActingOutletId,
-    string? ActingOutletName);
+    string? ActingOutletName,
+    string? ActingLocationType = null,
+    long? ActingWarehouseId = null,
+    string? ActingWarehouseName = null);
 
 public static class AuthenticationClaimNames
 {
@@ -36,6 +39,9 @@ public static class AuthenticationClaimNames
     public const string ActingRoleName = "acting_role";
     public const string ActingOutletId = "acting_outlet_id";
     public const string ActingOutletName = "acting_outlet_name";
+    public const string ActingLocationType = "acting_location_type";
+    public const string ActingWarehouseId = "acting_warehouse_id";
+    public const string ActingWarehouseName = "acting_warehouse_name";
     public const string IsRoleSwitched = "is_role_switched";
     public const string RealRoleId = "real_role_id";
     public const string RealRoleName = "real_role";

@@ -150,6 +150,7 @@ public class InventoryReceiveVisibilityHttpTests : IClassFixture<RetailPosApiFac
     public async Task TransferReceive_AppliesAcceptedQuantity_Only()
     {
         await ResetAndSeedAsync();
+        await SeedSourceCostAsync(3001, 2101, "warehouse", 10m);
         using var client = CreateClient();
         using var receiverClient = CreateOutletManagerClient();
 
@@ -194,13 +195,13 @@ public class InventoryReceiveVisibilityHttpTests : IClassFixture<RetailPosApiFac
             transfer.TransferType == StockTransfer.TransferTypeReturn
             && transfer.FromLocationId == 12
             && transfer.ToLocationId == 2101));
-        Assert.Equal(StockTransfer.StatusDraft, returnTransfer.Status);
+        Assert.Equal(StockTransfer.StatusInTransit, returnTransfer.Status);
         var returnItem = Assert.Single(db.StockTransferItems.Where(item =>
             item.TransferId == returnTransfer.Id));
         Assert.Equal(4, returnItem.Quantity);
         Assert.Equal(4, returnItem.RequestedQuantity);
         Assert.Equal(4, returnItem.TransferQuantity);
-        Assert.Equal(0m, returnItem.UnitCost);
+        Assert.Equal(10m, returnItem.UnitCost);
     }
 
     [Fact]
@@ -372,6 +373,18 @@ public class InventoryReceiveVisibilityHttpTests : IClassFixture<RetailPosApiFac
         Assert.Equal(HttpStatusCode.OK, sendResponse.StatusCode);
 
         return created.Id;
+    }
+
+    /// <summary>Gives the source a real cost history: a transfer takes its cost from there, never from the client.</summary>
+    private async Task SeedSourceCostAsync(long variantId, long locationId, string locationType, decimal unitCost)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
+        var onHand = db.Inventories
+            .Where(row => row.VariantId == variantId && row.LocationId == locationId)
+            .Sum(row => row.Quantity);
+        db.StockLedgers.Add(StockCostTestData.Receipt(variantId, locationId, locationType, onHand, unitCost));
+        await db.SaveChangesAsync();
     }
 
     private async Task ResetAndSeedAsync(bool seedDestinationOutletInventory = false)

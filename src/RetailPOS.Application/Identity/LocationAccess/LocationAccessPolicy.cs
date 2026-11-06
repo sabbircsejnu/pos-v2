@@ -17,7 +17,16 @@ public enum LocationAccessPolicy
     StockTransferSource = 2,
 
     /// <summary>Stock transfer destination lookup. Every location of the current business, regardless of Step 3 or Step 5.</summary>
-    StockTransferDestination = 3
+    StockTransferDestination = 3,
+
+    /// <summary>GRN view, export, create, complete and purchase-and-receive. Only the user's Step 5 assignments.</summary>
+    GrnView = 4,
+
+    /// <summary>
+    /// Expense create, read and workflow. Only the user's Step 5 assignments: neither the Step 3 inventory scope nor
+    /// the default outlet grants access. Only Owner and Super Admin reach every location and business-level expenses.
+    /// </summary>
+    ExpenseOperation = 5
 }
 
 public static class LocationAccessPolicies

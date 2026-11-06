@@ -130,7 +130,7 @@ public class ExpenseCommandWorkflowTests : IDisposable
             new UpdateExpenseCommand(1, 102, expenseId, new ExpenseUpdateInput(
                 category.Id, 120m, 10m, 10m, "VAT10", true, null, 1001,
                 "EXP-AUD-2", null, null,
-                new DateTime(2026, 3, 16, 0, 0, 0, DateTimeKind.Utc), 11)),
+                new DateTime(2026, 3, 16, 0, 0, 0, DateTimeKind.Utc), 11, ExpensePaymentSources.PettyCash)),
             CancellationToken.None);
 
         var updateAudit = Assert.Single(_auditEvents, x => x.PrimaryEntity?.Type == "Expense" && x.PrimaryEntity?.Id == expenseId.ToString() && x.Summary.Contains("updated", StringComparison.Ordinal));
@@ -207,13 +207,44 @@ public class ExpenseCommandWorkflowTests : IDisposable
         Assert.Equal(0, await _db.JournalEntries.CountAsync(x => x.ReferenceType == "Expense"));
     }
 
+    [Fact]
+    public async Task Approve_CarriesTheWarehouseOntoTheJournalWithoutChangingThePostingShape()
+    {
+        _db.Warehouses.Add(new Warehouse { Id = 21, BusinessId = 1, Name = "Central", Address = "X" });
+        await _db.SaveChangesAsync();
+        var store = CreateStore();
+        var category = await new CreateExpenseCategoryCommandHandler(store).Handle(
+            new CreateExpenseCategoryCommand(1, 101, new ExpenseCategoryCommandInput("Freight", 7001, true)),
+            CancellationToken.None);
+        var expenseId = await new CreateExpenseCommandHandler(store).Handle(
+            new CreateExpenseCommand(1, 101, new ExpenseCreationInput(
+                category.Id, 40m, null, null, null, null, null, 1021,
+                null, "Freight", null,
+                new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc), null, null, 21)),
+            CancellationToken.None);
+        await new SubmitExpenseCommandHandler(store).Handle(new SubmitExpenseCommand(1, 101, expenseId), CancellationToken.None);
+
+        await new ApproveExpenseCommandHandler(store).Handle(
+            new ApproveExpenseCommand(1, 101, expenseId, null),
+            CancellationToken.None);
+
+        var journal = Assert.Single(_postedJournals);
+        Assert.Equal(21, journal.WarehouseId);
+        Assert.Null(journal.OutletId);
+        Assert.All(journal.Lines, line => Assert.Equal(21, line.WarehouseId));
+        Assert.Equal(40m, journal.Lines.Single(line => line.AccountId == 7001).DebitAmount);
+        Assert.Equal(40m, journal.Lines.Single(line => line.AccountId == 1021).CreditAmount);
+    }
+
     private ExpenseCommandStore CreateStore() => new(
         _db,
         _audit.Object,
         NullLogger<ExpenseCommandStore>.Instance,
         _journalPoster.Object,
         _accountResolver.Object,
-        new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy());
+        new RetailPOS.IntegrationTests.Infrastructure.StubMakerCheckerPolicy(),
+            new RetailPOS.IntegrationTests.Infrastructure.AllowAllExpenseLocations(),
+            new RetailPOS.IntegrationTests.Infrastructure.SequentialExpenseNumbers());
 
     private void Seed()
     {
@@ -325,6 +356,7 @@ public class ExpenseCommandWorkflowTests : IDisposable
             IsControlAccount = false,
             AllowManualPosting = true,
             IsActive = true,
+            IsExpensePaymentAccount = id is 1001 or 1021,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

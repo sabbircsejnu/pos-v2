@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
 using RetailPOS.Application.Expenses.Abstractions;
+using RetailPOS.Core.Accounting;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Entities.Audit;
 using RetailPOS.Infrastructure.Audit;
@@ -15,7 +16,9 @@ public sealed class ExpenseCommandStore(
     ILogger<ExpenseCommandStore> logger,
     IExpenseApprovalJournalPoster approvalJournalPoster,
     IExpensePostingAccountResolver postingAccountResolver,
-    IExpenseMakerCheckerPolicy makerCheckerPolicy)
+    IExpenseMakerCheckerPolicy makerCheckerPolicy,
+    IExpenseLocationAuthorizer locationAuthorizer,
+    IExpenseNumberAllocator numberAllocator)
     : IExpenseCommandStore
 {
     public async Task<ExpenseCategoryCommandResult> CreateCategoryAsync(
@@ -34,7 +37,8 @@ public sealed class ExpenseCommandStore(
             throw new InvalidOperationException($"Expense category '{name}' already exists.");
         }
 
-        var account = await GetExpenseAccountAsync(
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var account = await GetEligibleExpenseAccountAsync(
             businessId,
             input.ExpenseAccountId,
             cancellationToken);
@@ -72,6 +76,7 @@ public sealed class ExpenseCommandStore(
                     ])
             ]
         }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new ExpenseCategoryCommandResult(
             category.Id,
@@ -108,10 +113,17 @@ public sealed class ExpenseCommandStore(
             throw new InvalidOperationException($"Expense category '{name}' already exists.");
         }
 
-        var account = await GetExpenseAccountAsync(
-            businessId,
-            input.ExpenseAccountId,
-            cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        // D2 compatibility: a metadata edit leaves an existing mapping alone even if it would not be chosen today. A new
+        // account, or putting the category back into use, must pass the current rule.
+        var needsEligibleAccount = input.ExpenseAccountId != category.ExpenseAccountId
+            || (input.IsActive && !category.IsActive);
+        var account = needsEligibleAccount
+            ? await GetEligibleExpenseAccountAsync(businessId, input.ExpenseAccountId, cancellationToken)
+            : await dbContext.ChartAccounts.AsNoTracking().FirstAsync(
+                chartAccount => chartAccount.BusinessId == businessId && chartAccount.Id == category.ExpenseAccountId,
+                cancellationToken);
         var oldName = category.Name;
         var oldExpenseAccountId = category.ExpenseAccountId;
         var oldIsActive = category.IsActive;
@@ -143,6 +155,7 @@ public sealed class ExpenseCommandStore(
                     ])
             ]
         }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new ExpenseCategoryCommandResult(
             category.Id,
@@ -166,17 +179,29 @@ public sealed class ExpenseCommandStore(
             ?? throw new InvalidOperationException(
                 $"Expense category with ID {input.ExpenseCategoryId} is not active or was not found.");
 
-        var paymentAccount = await GetPaymentAccountAsync(
+        if (input.OutletId.HasValue && input.WarehouseId.HasValue)
+            throw new InvalidOperationException("An expense belongs to an outlet or a warehouse, not both.");
+        await locationAuthorizer.AuthorizeAsync(input.OutletId, input.WarehouseId, cancellationToken);
+        await ValidateOptionalOutletAsync(businessId, input.OutletId, cancellationToken);
+        await ValidateOptionalWarehouseAsync(businessId, input.WarehouseId, cancellationToken);
+        var paymentSource = NormalizePaymentSource(input.PaymentSource, input.OutletId);
+        var paymentAccount = await GetSelectablePaymentAccountAsync(
             businessId,
             input.PaymentAccountId,
+            paymentSource,
+            input.OutletId,
             cancellationToken);
 
-        await ValidateOptionalOutletAsync(businessId, input.OutletId, cancellationToken);
-        var paymentSource = NormalizePaymentSource(input.PaymentSource, input.OutletId);
-
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var expense = new Expense
         {
+            ExpenseNumber = await numberAllocator.AllocateAsync(
+                businessId,
+                input.OutletId,
+                input.WarehouseId,
+                actorUserId,
+                cancellationToken),
             BusinessId = businessId,
             PaymentSource = paymentSource,
             Category = category.Name,
@@ -196,6 +221,7 @@ public sealed class ExpenseCommandStore(
             AttachmentPath = NormalizeOptional(input.AttachmentPath, 500),
             ExpenseDate = input.ExpenseDate.Date,
             OutletId = input.OutletId,
+            WarehouseId = input.WarehouseId,
             Status = ExpenseStatuses.Draft,
             CreatedBy = actorUserId,
             CreatedAt = now,
@@ -205,10 +231,7 @@ public sealed class ExpenseCommandStore(
 
         dbContext.Expenses.Add(expense);
         await dbContext.SaveChangesAsync(cancellationToken);
-        expense.ExpenseNumber = $"EXP-{expense.Id:D6}";
-        await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Expense {ExpenseId} created", expense.Id);
         await auditService.RecordAsync(new AuditEventInput
         {
             ActionType = AuditActionType.Create,
@@ -231,10 +254,14 @@ public sealed class ExpenseCommandStore(
                         ("ExpenseCategoryId", null, expense.ExpenseCategoryId),
                         ("PaymentAccountId", null, expense.PaymentAccountId),
                         ("OutletId", null, expense.OutletId),
+                        ("WarehouseId", null, expense.WarehouseId),
+                        ("ExpenseNumber", null, expense.ExpenseNumber),
                         ("ReferenceNumber", null, expense.ReferenceNumber)
                     ])
             ]
         }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        logger.LogInformation("Expense {ExpenseId} created", expense.Id);
 
         return expense.Id;
     }
@@ -251,9 +278,14 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (!string.Equals(expense.Status, ExpenseStatuses.Draft, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(expense.Status, ExpenseStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Expenses in status '{expense.Status}' cannot be edited.");
+
+        // The immutable reference carries the location prefix, so the location is fixed at creation.
+        if (input.OutletId != expense.OutletId || input.WarehouseId != expense.WarehouseId)
+            throw new InvalidOperationException("An expense's location cannot be changed after it is created.");
 
         var category = await GetActiveExpenseCategoryAsync(
             businessId,
@@ -261,12 +293,13 @@ public sealed class ExpenseCommandStore(
             cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Expense category with ID {input.ExpenseCategoryId} is not active or was not found.");
-        var paymentAccount = await GetPaymentAccountAsync(
+        var paymentSource = NormalizePaymentSource(input.PaymentSource, input.OutletId);
+        var paymentAccount = await GetSelectablePaymentAccountAsync(
             businessId,
             input.PaymentAccountId,
+            paymentSource,
+            input.OutletId,
             cancellationToken);
-        await ValidateOptionalOutletAsync(businessId, input.OutletId, cancellationToken);
-        var paymentSource = NormalizePaymentSource(input.PaymentSource, input.OutletId);
 
         var previousAmount = expense.Amount;
         var previousVatRate = expense.VatRate;
@@ -276,7 +309,6 @@ public sealed class ExpenseCommandStore(
         var previousTaxInclusive = expense.TaxInclusive;
         var previousCategoryId = expense.ExpenseCategoryId;
         var previousPaymentAccountId = expense.PaymentAccountId;
-        var previousOutletId = expense.OutletId;
         var previousReferenceNumber = expense.ReferenceNumber;
 
         expense.Category = category.Name;
@@ -295,7 +327,6 @@ public sealed class ExpenseCommandStore(
         expense.Description = NormalizeOptional(input.Description, 500);
         expense.AttachmentPath = NormalizeOptional(input.AttachmentPath, 500);
         expense.ExpenseDate = input.ExpenseDate.Date;
-        expense.OutletId = input.OutletId;
         expense.PaymentSource = paymentSource;
         expense.UpdatedAt = DateTime.UtcNow;
         expense.UpdatedBy = actorUserId;
@@ -327,7 +358,6 @@ public sealed class ExpenseCommandStore(
                         ("TaxInclusive", previousTaxInclusive, expense.TaxInclusive),
                         ("ExpenseCategoryId", previousCategoryId, expense.ExpenseCategoryId),
                         ("PaymentAccountId", previousPaymentAccountId, expense.PaymentAccountId),
-                        ("OutletId", previousOutletId, expense.OutletId),
                         ("ReferenceNumber", previousReferenceNumber, expense.ReferenceNumber)
                     ])
             ]
@@ -347,6 +377,7 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (!string.Equals(expense.Status, ExpenseStatuses.Draft, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(expense.Status, ExpenseStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
         {
@@ -397,6 +428,7 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (!string.Equals(expense.Status, ExpenseStatuses.Submitted, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -421,10 +453,10 @@ public sealed class ExpenseCommandStore(
             throw new InvalidOperationException($"Expense category '{category.Name}' is inactive.");
         }
 
-        var resolvedExpenseAccount = await GetExpenseAccountAsync(
-            businessId,
-            expenseAccountId ?? category.ExpenseAccountId,
-            cancellationToken);
+        // Choosing a different account here is a new mapping decision; the category's own mapping keeps working as saved.
+        var resolvedExpenseAccount = expenseAccountId.HasValue && expenseAccountId.Value != category.ExpenseAccountId
+            ? await GetEligibleExpenseAccountAsync(businessId, expenseAccountId.Value, cancellationToken)
+            : await GetExpenseAccountAsync(businessId, category.ExpenseAccountId, cancellationToken);
         var paymentAccountId = expense.PaymentAccountId
             ?? throw new InvalidOperationException("Payment account is required before approval.");
         var paymentAccount = await GetPaymentAccountAsync(
@@ -448,12 +480,20 @@ public sealed class ExpenseCommandStore(
                 "Supplier payable cannot be used as the payment account for RM-05 expense approval until supplier-linked allocation workflow exists.");
         }
 
+        // D4 also holds at approval: a record that disagrees is rejected and corrected on edit, never pushed through.
+        await EnsurePaymentSourceAllowsAccountAsync(
+            businessId,
+            expense.PaymentSource,
+            paymentAccount,
+            expense.OutletId,
+            cancellationToken);
+
         var vatAmount = expense.VatAmount.GetValueOrDefault();
         var taxableAmount = expense.TaxableAmount ?? expense.Amount;
         var lines = new List<ExpenseApprovalJournalLineInput>
         {
-            new(resolvedExpenseAccount.Id, expense.Description, taxableAmount, 0, expense.OutletId),
-            new(paymentAccount.Id, expense.Description, 0, taxableAmount + vatAmount, expense.OutletId)
+            new(resolvedExpenseAccount.Id, expense.Description, taxableAmount, 0, expense.OutletId, expense.WarehouseId),
+            new(paymentAccount.Id, expense.Description, 0, taxableAmount + vatAmount, expense.OutletId, expense.WarehouseId)
         };
         if (vatAmount > 0m)
         {
@@ -467,7 +507,8 @@ public sealed class ExpenseCommandStore(
                 "Input VAT",
                 vatAmount,
                 0,
-                expense.OutletId));
+                expense.OutletId,
+                expense.WarehouseId));
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -495,7 +536,8 @@ public sealed class ExpenseCommandStore(
                     ? $"Expense {expense.ExpenseNumber ?? expense.Id.ToString()}"
                     : expense.Description,
                 expense.OutletId,
-                lines),
+                lines,
+                expense.WarehouseId),
             cancellationToken);
 
         expense.ExpenseAccountId = resolvedExpenseAccount.Id;
@@ -546,6 +588,7 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (!string.Equals(expense.Status, ExpenseStatuses.Submitted, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -594,6 +637,7 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (string.Equals(expense.Status, ExpenseStatuses.Approved, StringComparison.OrdinalIgnoreCase)
             || string.Equals(expense.Status, ExpenseStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
@@ -642,6 +686,7 @@ public sealed class ExpenseCommandStore(
                 entry => entry.BusinessId == businessId && entry.Id == expenseId,
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Expense with ID {expenseId} not found");
+        await locationAuthorizer.AuthorizeAsync(expense.OutletId, expense.WarehouseId, cancellationToken);
         if (!string.Equals(expense.Status, ExpenseStatuses.Draft, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Only Draft expenses can be deleted.");
 
@@ -701,6 +746,46 @@ public sealed class ExpenseCommandStore(
         if (!string.Equals(account.AccountType, ChartAccountTypes.Expense, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
                 $"Account '{account.AccountCode}' is not a valid expense posting account.");
+        return account;
+    }
+
+    /// <summary>
+    /// The D2 rule for newly choosing an account. Inside the transaction that saves a category mapping, the shared row
+    /// lock stops a concurrent deactivation from slipping between this check and the commit. The approval override runs
+    /// before its transaction, so there the lock adds nothing; the journal engine re-checks the account is active.
+    /// </summary>
+    private async Task<ChartAccount> GetEligibleExpenseAccountAsync(
+        long businessId,
+        long accountId,
+        CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM chart_accounts WHERE business_id = {businessId} AND id = {accountId} FOR SHARE",
+                cancellationToken);
+        }
+
+        var account = await dbContext.ChartAccounts
+            .FirstOrDefaultAsync(
+                chartAccount => chartAccount.BusinessId == businessId && chartAccount.Id == accountId,
+                cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Expense account {accountId} was not found in this business.");
+        var hasActiveChildren = await dbContext.ChartAccounts.AnyAsync(
+            child => child.BusinessId == businessId && child.ParentAccountId == accountId && child.IsActive,
+            cancellationToken);
+
+        var refusal = ExpenseAccountEligibilityPolicy.RefusalReason(new ExpenseAccountFacts(
+            account.AccountCode,
+            account.AccountType,
+            account.IsActive,
+            account.IsSystemAccount,
+            account.IsControlAccount,
+            account.AllowManualPosting,
+            hasActiveChildren));
+        if (refusal is not null)
+            throw new InvalidOperationException(refusal);
         return account;
     }
 
@@ -784,6 +869,58 @@ public sealed class ExpenseCommandStore(
             throw new InvalidOperationException(
                 $"Account '{account.AccountCode}' is not a valid payment or payable account.");
         return account;
+    }
+
+    /// <summary>
+    /// The rule for choosing an account on create and edit. Approval keeps <see cref="GetPaymentAccountAsync"/>, so
+    /// expenses already in the workflow are not stranded when accounting changes the flag.
+    /// </summary>
+    private async Task<ChartAccount> GetSelectablePaymentAccountAsync(
+        long businessId,
+        long accountId,
+        string? paymentSource,
+        long? outletId,
+        CancellationToken cancellationToken)
+    {
+        var account = await GetPaymentAccountAsync(businessId, accountId, cancellationToken);
+        var map = await ExpensePaymentAccountMapReader.LoadAsync(dbContext, businessId, outletId, cancellationToken);
+
+        // The POS drawer's single account comes from configuration, so it does not also need the funding-account flag.
+        var isTheDrawerAccount = paymentSource == ExpensePaymentSources.PosDrawer && account.Id == map.DrawerCashAccountId;
+        if (!account.IsExpensePaymentAccount && !isTheDrawerAccount)
+            throw new InvalidOperationException(
+                $"Account '{account.AccountCode}' is not enabled as an expense payment account.");
+
+        var refusal = ExpensePaymentAccountPolicy.RefusalReason(paymentSource, account.Id, account.AccountCode, map);
+        if (refusal is not null)
+            throw new InvalidOperationException(refusal);
+        return account;
+    }
+
+    private async Task EnsurePaymentSourceAllowsAccountAsync(
+        long businessId,
+        string? paymentSource,
+        ChartAccount account,
+        long? outletId,
+        CancellationToken cancellationToken)
+    {
+        var map = await ExpensePaymentAccountMapReader.LoadAsync(dbContext, businessId, outletId, cancellationToken);
+        var refusal = ExpensePaymentAccountPolicy.RefusalReason(paymentSource, account.Id, account.AccountCode, map);
+        if (refusal is not null)
+            throw new InvalidOperationException(refusal);
+    }
+
+    private async Task ValidateOptionalWarehouseAsync(
+        long businessId,
+        long? warehouseId,
+        CancellationToken cancellationToken)
+    {
+        if (!warehouseId.HasValue)
+            return;
+        if (!await dbContext.Warehouses.AnyAsync(
+                warehouse => warehouse.Id == warehouseId.Value && warehouse.BusinessId == businessId,
+                cancellationToken))
+            throw new InvalidOperationException("Warehouse not found in this business.");
     }
 
     private async Task ValidateOptionalOutletAsync(

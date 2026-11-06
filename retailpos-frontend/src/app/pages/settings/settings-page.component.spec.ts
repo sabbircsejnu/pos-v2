@@ -62,6 +62,39 @@ describe('Company Settings date format', () => {
   });
 });
 
+describe('Company Settings concern of', () => {
+  afterEach(() => {
+    TestBed.inject(HttpTestingController).verify();
+    TestBed.resetTestingModule();
+  });
+
+  it('edits and saves the optional Concern Of value', async () => {
+    TestBed.configureTestingModule({
+      imports: [SettingsPageComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: MenuService, useValue: {} }]
+    });
+    const fixture = TestBed.createComponent(SettingsPageComponent);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/settings`).flush({
+      data: { company: { ...fixture.componentInstance.company(), concernOf: 'PARENT GROUP' } }
+    });
+    http.expectOne(`${environment.apiUrl}/settings/pos`).flush({ data: POS_SETTINGS });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#company-concern-of')!;
+    expect(input.value).toBe('PARENT GROUP');
+
+    input.value = 'NEW GROUP';
+    input.dispatchEvent(new Event('input'));
+    fixture.componentInstance.saveCompany();
+    const save = http.expectOne(`${environment.apiUrl}/settings/company`);
+    expect(save.request.body.concernOf).toBe('NEW GROUP');
+    save.flush({ data: { company: save.request.body } });
+  });
+});
+
 describe('POS settings tab', () => {
   let fixture: ComponentFixture<SettingsPageComponent>;
   let http: HttpTestingController;
@@ -120,13 +153,12 @@ describe('POS settings tab', () => {
     await setup(['settings.edit', 'sales.discount.configure']);
 
     expect(input('maxCashSessionDurationHours').value).toBe('12');
-    expect(input('defaultTimeZoneId').value).toBe('Asia/Dhaka');
+    expect(root().querySelector('input[name="defaultTimeZoneId"]')).toBeNull();
     expect(input('taxEnabled').checked).toBe(true);
     expect(input('defaultTaxRate').value).toBe('7.5');
     expect(input('taxName').value).toBe('VAT');
     expect(root().textContent).toContain('Applied when the session lifecycle is enabled');
-    expect(root().querySelector('datalist#pos-time-zones option[value="Asia/Dhaka"]')).not.toBeNull();
-    for (const name of ['maxCashSessionDurationHours', 'defaultTimeZoneId', 'defaultTaxRate']) {
+    for (const name of ['maxCashSessionDurationHours', 'defaultTaxRate']) {
       expect(root().querySelector(`label[for="${input(name).id}"]`), name).not.toBeNull();
     }
   });
@@ -169,7 +201,7 @@ describe('POS settings tab', () => {
     await setup(['sales.discount.configure']);
     expect(root().textContent).toContain('do not have permission to change');
     expect(root().querySelector('button[form="pos-settings-form"]')).toBeNull();
-    for (const name of ['maxCashSessionDurationHours', 'defaultTimeZoneId', 'taxEnabled', 'pricesIncludeTax', 'taxName', 'defaultTaxRate']) {
+    for (const name of ['maxCashSessionDurationHours', 'taxEnabled', 'pricesIncludeTax', 'taxName', 'defaultTaxRate']) {
       expect(input(name).disabled, name).toBe(true);
     }
     fixture.componentInstance.updatePosField('taxName', 'Changed');

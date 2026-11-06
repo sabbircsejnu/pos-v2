@@ -34,7 +34,8 @@ public sealed class MigrationChainValidationTests
         Assert.False(string.IsNullOrWhiteSpace(configuredConnection));
         var database = await PostgresTestDatabase.CreateAsync(
             configuredConnection,
-            PostgresTestDatabasePrefix.MigrationBaseline);
+            PostgresTestDatabasePrefix.MigrationBaseline,
+            PostgresTestDatabaseStrategy.FreshMigration);
 
         try
         {
@@ -46,22 +47,19 @@ public sealed class MigrationChainValidationTests
             var expectedMigrations = context.Database.GetMigrations().ToArray();
             Assert.NotEmpty(expectedMigrations);
             Assert.Equal("20261004095137_InitialBaseline", expectedMigrations[0]);
-            Assert.Equal("20261103144445_PosV2P4SaleSalesperson", expectedMigrations[^1]);
+            Assert.Equal("20261106173129_PosV2OutletSalesTargets", expectedMigrations[^1]);
             Assert.All(expectedMigrations.Skip(1), migration =>
                 Assert.True(string.CompareOrdinal(migration, expectedMigrations[0]) > 0));
             var employeeMigrationIndex = Array.FindIndex(expectedMigrations,
                 migration => migration.EndsWith("_Phase1DEmployeeMaster", StringComparison.Ordinal));
             Assert.True(employeeMigrationIndex > 0);
             await context.Database.MigrateAsync(expectedMigrations[employeeMigrationIndex - 1]);
-            context.Businesses.Add(new Business
-            {
-                Id = 100,
-                Name = "Existing Business Before Employee Migration",
-                IsActive = true,
-                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
-            });
-            await context.SaveChangesAsync();
+            // Raw SQL: the current model has columns this older schema does not have yet.
+            await context.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO businesses (id, name, is_active, created_at, updated_at)
+                VALUES (100, 'Existing Business Before Employee Migration', TRUE, now(), now())
+                """);
             await context.Database.MigrateAsync();
             Assert.Equal(expectedMigrations, (await context.Database.GetAppliedMigrationsAsync()).ToArray());
             Assert.Empty(await context.Database.GetPendingMigrationsAsync());

@@ -1,3 +1,4 @@
+using RetailPOS.Application.Inventory.Costing;
 namespace RetailPOS.Application.Grns.Abstractions;
 
 public interface IGrnCompletionStockLedgerWriter
@@ -14,5 +15,5 @@ public interface IGrnCompletionStockLedgerWriter
         long referenceId,
         string remarks,
         long createdBy,
-        decimal unitCost);
+        GrnLedgerCost cost);
 }

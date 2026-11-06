@@ -23,10 +23,6 @@
   overflow: visible;
 }
 
-.controls-row {
-  align-items: end;
-}
-
 .summary-card {
   border: 1px solid #dbe3ef;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -66,8 +62,25 @@
   height: 38px;
 }
 
-.preview-panel {
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+.thermal-preview-frame {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Tall enough to show about three labels; the document scrolls inside the frame for longer runs. */
+.thermal-preview {
+  display: block;
+  max-width: none;
+  height: 22rem;
+  margin: 0 auto;
+  border: 1px solid var(--rp-color-border);
+  border-radius: var(--rp-radius-md);
+}
+
+.thermal-preview-note {
+  margin: var(--rp-space-2) 0 0;
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
 }
 
 .preview-canvas {

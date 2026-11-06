@@ -115,8 +115,7 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         // Enforce outlet access scoping
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new CurrentStockFilterDto
         {
@@ -175,8 +174,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new CurrentStockFilterDto
         {
@@ -246,8 +244,7 @@ public class InventoryReportsController : ControllerBase
         if (productId <= 0)
             return BadRequest(ApiResponse<ProductLedgerReportDto>.ErrorResponse("productId is required."));
 
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new ProductLedgerFilterDto
         {
@@ -293,8 +290,7 @@ public class InventoryReportsController : ControllerBase
         if (productId <= 0)
             return BadRequest("productId is required.");
 
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new ProductLedgerFilterDto
         {
@@ -368,8 +364,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int       pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockMovementFilterDto
         {
@@ -407,8 +402,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string    format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockMovementFilterDto
         {
@@ -472,8 +466,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int     pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockValuationFilterDto
         {
@@ -507,8 +500,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string  format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockValuationFilterDto
         {
@@ -715,8 +707,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int     pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new LowStockFilterDto
         {
@@ -752,8 +743,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string  format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new LowStockFilterDto
         {
@@ -840,8 +830,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int     pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new OutOfStockFilterDto
         {
@@ -877,8 +866,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string  format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new OutOfStockFilterDto
         {
@@ -962,8 +950,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int     pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new NegativeStockFilterDto
         {
@@ -999,8 +986,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string  format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new NegativeStockFilterDto
         {
@@ -1088,8 +1074,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] int      pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockAdjustmentFilterDto
         {
@@ -1129,8 +1114,7 @@ public class InventoryReportsController : ControllerBase
         [FromQuery] string   format = "csv",
         CancellationToken cancellationToken = default)
     {
-        await ValidateInventoryLocationFiltersAsync(outletId, warehouseId);
-        var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
 
         var filter = new StockAdjustmentFilterDto
         {
@@ -1328,13 +1312,17 @@ public class InventoryReportsController : ControllerBase
         }
     }
 
-    private async Task ValidateInventoryLocationFiltersAsync(long? outletId, long? warehouseId)
+    private async Task<long?> ResolveInventoryOutletFilterAsync(long? outletId, long? warehouseId)
     {
         if (outletId.HasValue && warehouseId.HasValue)
             throw new InvalidOperationException("Specify either outletId or warehouseId, not both.");
 
-        if (warehouseId.HasValue)
-            await _outletAccess.ResolveAndAuthorizeLocationAsync(warehouseId, "warehouse");
+        if (!warehouseId.HasValue)
+            return await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+
+        // A warehouse-scoped report needs no outlet context.
+        await _outletAccess.ResolveAndAuthorizeLocationAsync(warehouseId, "warehouse");
+        return null;
     }
 
     private static StockTransferReportFilter ToStockTransferApplicationFilter(

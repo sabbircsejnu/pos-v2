@@ -75,19 +75,111 @@ public class ProductMediaUseCaseTests : IDisposable
     }
 
     [Fact]
-    public async Task UploadAsync_TooSmall_Rejected()
+    public async Task UploadAsync_BelowMinimumDimension_RejectedWithMeaningfulMessage()
     {
-        var file = MakePngForm(500, 500, "small.png");
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        var file = MakePngForm(150, 900, "small.png");
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             UploadAsync(file, isPrimary: false));
+
+        Assert.Equal("Image is too small: each side must be at least 200 px. Got 150x900.", exception.Message);
+        Assert.Empty(await _db.ProductImages.ToListAsync());
     }
 
     [Fact]
-    public async Task UploadAsync_TooLarge_Rejected()
+    public async Task UploadAsync_PortraitAboveTheOldLimit_IsAcceptedAndKeepsItsAspectRatio()
     {
-        var file = MakePngForm(1500, 1500, "big.png");
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        var file = MakePngForm(1086, 1448, "portrait.png");
+
+        var dto = await UploadAsync(file, isPrimary: false);
+
+        Assert.Equal((1086, 1448), (dto.Width, dto.Height));
+        Assert.Equal("image/png", dto.MimeType);
+        var directory = Path.Combine(_tempRoot, "uploads", "products", "42");
+        using var source = file.OpenReadStream();
+        using var expected = new MemoryStream();
+        await source.CopyToAsync(expected);
+        Assert.Equal(expected.ToArray(), await File.ReadAllBytesAsync(Path.Combine(directory, $"{dto.Id}-original.png")));
+        Assert.Equal((900, 1200), ReadSize(Path.Combine(directory, $"{dto.Id}-medium.webp")));
+        Assert.Equal((150, 200), ReadSize(Path.Combine(directory, $"{dto.Id}-thumb.webp")));
+    }
+
+    [Fact]
+    public async Task UploadAsync_OversizedImage_StoresAnOptimizedCopyAndRecordsItsRealMetadata()
+    {
+        var file = MakePngForm(3000, 4000, "huge.png");
+
+        var dto = await UploadAsync(file, isPrimary: false);
+
+        var stored = Path.Combine(_tempRoot, "uploads", "products", "42", $"{dto.Id}-original.webp");
+        Assert.Equal((1500, 2000), (dto.Width, dto.Height));
+        Assert.Equal("image/webp", dto.MimeType);
+        Assert.Equal(new FileInfo(stored).Length, dto.Size);
+        Assert.EndsWith($"{dto.Id}-original.webp", dto.OriginalUrl);
+        Assert.Equal((1500, 2000), ReadSize(stored));
+        Assert.True(dto.IsPrimary, "optimized uploads keep the first-image-is-primary rule");
+    }
+
+    [Fact]
+    public async Task UploadAsync_SmallImage_IsNotUpscaled()
+    {
+        var dto = await UploadAsync(MakePngForm(300, 400, "small-ok.png"), isPrimary: false);
+
+        var directory = Path.Combine(_tempRoot, "uploads", "products", "42");
+        Assert.Equal((300, 400), (dto.Width, dto.Height));
+        Assert.Equal((300, 400), ReadSize(Path.Combine(directory, $"{dto.Id}-medium.webp")));
+        Assert.Equal((150, 200), ReadSize(Path.Combine(directory, $"{dto.Id}-thumb.webp")));
+    }
+
+    [Fact]
+    public async Task UploadAsync_MalformedImage_ReturnsAValidationErrorAndCreatesNoRecord()
+    {
+        var bytes = Encoding.UTF8.GetBytes("not an image");
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "fake.png")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "image/png"
+        };
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             UploadAsync(file, isPrimary: false));
+
+        Assert.Equal("The file is not a valid JPG, PNG, or WEBP image, or it is corrupted.", exception.Message);
+        Assert.Empty(await _db.ProductImages.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UploadAsync_MislabelledFile_IsStoredUnderItsRealFormat()
+    {
+        var ms = new MemoryStream();
+        using (var img = new Image<Rgba32>(1000, 1000))
+        {
+            img.SaveAsWebp(ms);
+        }
+        ms.Position = 0;
+        var file = new FormFile(ms, 0, ms.Length, "file", "mislabelled.png")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "image/png"
+        };
+
+        var dto = await UploadAsync(file, isPrimary: false);
+
+        Assert.Equal("image/webp", dto.MimeType);
+        Assert.EndsWith($"{dto.Id}-original.webp", dto.OriginalUrl);
+    }
+
+    [Fact]
+    public async Task UploadAsync_OversizedImage_ExplicitPrimaryStillClearsThePreviousPrimary()
+    {
+        var first = await UploadAsync(MakePngForm(1000, 1000, "a.png"), isPrimary: false);
+
+        var second = await UploadAsync(MakePngForm(3000, 4000, "b.png"), isPrimary: true);
+
+        var primaries = await _db.ProductImages
+            .Where(i => i.ProductId == _productId && i.IsPrimary).ToListAsync();
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Equal(second.Id, Assert.Single(primaries).Id);
     }
 
     [Fact]
@@ -206,6 +298,12 @@ public class ProductMediaUseCaseTests : IDisposable
         _db.Dispose();
         _connection.Dispose();
         try { Directory.Delete(_tempRoot, recursive: true); } catch { /* best-effort */ }
+    }
+
+    private static (int Width, int Height) ReadSize(string path)
+    {
+        var info = Image.Identify(path);
+        return (info.Width, info.Height);
     }
 
     private static FormFile MakePngForm(int w, int h, string name)

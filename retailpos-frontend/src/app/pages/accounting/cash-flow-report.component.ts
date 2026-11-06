@@ -1,6 +1,7 @@
+import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AccountingService } from '../../services/accounting.service';
@@ -16,8 +17,9 @@ import { CashFlowReport, CashFlowSection } from '../../models/accounting.model';
   templateUrl: './cash-flow-report.component.html'
 })
 export class CashFlowReportComponent implements OnInit {
-  readonly fromDate = signal(new Date().toISOString().slice(0, 10));
-  readonly toDate = signal(new Date().toISOString().slice(0, 10));
+  private readonly companyToday = inject(CompanyDateService);
+  readonly fromDate = signal(this.companyToday.todayIso());
+  readonly toDate = signal(this.companyToday.todayIso());
   readonly comparisonFromDate = signal('');
   readonly comparisonToDate = signal('');
   readonly outletId = signal<number | null>(null);

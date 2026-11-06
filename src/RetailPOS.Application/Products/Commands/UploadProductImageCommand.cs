@@ -17,8 +17,8 @@ public sealed class UploadProductImageCommandHandler(
     IProductImageProcessor processor,
     IProductImageFileStore files) : IRequestHandler<UploadProductImageCommand, ProductImageReadModel>
 {
-    public const int MinDimension = 800;
-    public const int MaxDimension = 1200;
+    // Matches the thumbnail size, since images are never enlarged. Mirrored by PRODUCT_IMAGE_RULES.minDim in the frontend.
+    public const int MinDimension = 200;
     public const int MaxBytes = 5 * 1024 * 1024;
 
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -42,20 +42,18 @@ public sealed class UploadProductImageCommandHandler(
 
         await store.EnsureProductExistsAsync(request.ProductId, cancellationToken);
         var image = await processor.ProcessAsync(request.Content, cancellationToken);
-        if (image.Width < MinDimension
-            || image.Height < MinDimension
-            || image.Width > MaxDimension
-            || image.Height > MaxDimension)
+        if (image.Width < MinDimension || image.Height < MinDimension)
         {
             throw new ArgumentException(
-                $"Image dimensions must be between {MinDimension}x{MinDimension} and {MaxDimension}x{MaxDimension}px. " +
+                $"Image is too small: each side must be at least {MinDimension} px. " +
                 $"Got {image.Width}x{image.Height}.");
         }
 
+        // Metadata describes the file actually stored, which differs from the upload when it was optimized.
         var metadata = new ProductImageUploadMetadata(
             SanitizeName(request.FileName),
-            request.MimeType,
-            checked((int)request.Length),
+            image.OriginalMimeType,
+            image.Original.Length,
             image.Width,
             image.Height,
             request.IsPrimary);
@@ -63,7 +61,7 @@ public sealed class UploadProductImageCommandHandler(
         var paths = await files.SaveAsync(
             request.ProductId,
             pending.Id,
-            ExtensionFromMime(request.MimeType),
+            ExtensionFromMime(image.OriginalMimeType),
             image,
             cancellationToken);
 

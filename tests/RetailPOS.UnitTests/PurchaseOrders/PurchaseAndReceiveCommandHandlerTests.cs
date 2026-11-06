@@ -1,4 +1,5 @@
 using Moq;
+using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Commands;
 using RetailPOS.Application.PurchaseOrders.ReadModels;
@@ -23,7 +24,7 @@ public sealed class PurchaseAndReceiveCommandHandlerTests
             .ReturnsAsync(new PurchaseAndReceiveStoreResult(41, 52, false));
         readStore.Setup(value => value.FindByIdAsync(41, 7, cancellationToken))
             .ReturnsAsync(purchaseOrder);
-        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IPurchaseOrderLocationAuthorizer>());
+        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IGrnReceiptLocationAuthorizer>());
 
         var result = await handler.Handle(CreateCommand("  request-1  "), cancellationToken);
 
@@ -44,7 +45,7 @@ public sealed class PurchaseAndReceiveCommandHandlerTests
         var readStore = new Mock<IPurchaseOrderReadStore>();
         var tenantScope = new Mock<IPurchaseOrderTenantScope>();
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>())).ReturnsAsync(7);
-        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IPurchaseOrderLocationAuthorizer>());
+        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IGrnReceiptLocationAuthorizer>());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => handler.Handle(CreateCommand("  "), CancellationToken.None));
@@ -78,7 +79,7 @@ public sealed class PurchaseAndReceiveCommandHandlerTests
                 7,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(purchaseOrder);
-        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IPurchaseOrderLocationAuthorizer>());
+        var handler = new PurchaseAndReceiveCommandHandler(store.Object, readStore.Object, tenantScope.Object, Mock.Of<IGrnReceiptLocationAuthorizer>());
 
         var result = await handler.Handle(CreateCommand("request-1", items: null), CancellationToken.None);
 
@@ -93,7 +94,7 @@ public sealed class PurchaseAndReceiveCommandHandlerTests
         var store = new Mock<IPurchaseAndReceiveStore>();
         var tenantScope = new Mock<IPurchaseOrderTenantScope>();
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>())).ReturnsAsync(7);
-        var authorizer = new Mock<IPurchaseOrderLocationAuthorizer>();
+        var authorizer = new Mock<IGrnReceiptLocationAuthorizer>();
         authorizer.Setup(value => value.AuthorizeAsync("outlet", 15, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new UnauthorizedAccessException("Outlet access denied."));
         var handler = new PurchaseAndReceiveCommandHandler(
@@ -119,7 +120,7 @@ public sealed class PurchaseAndReceiveCommandHandlerTests
         var store = new Mock<IPurchaseAndReceiveStore>();
         var readStore = new Mock<IPurchaseOrderReadStore>();
         var tenantScope = new Mock<IPurchaseOrderTenantScope>();
-        var authorizer = new Mock<IPurchaseOrderLocationAuthorizer>();
+        var authorizer = new Mock<IGrnReceiptLocationAuthorizer>();
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>())).ReturnsAsync(7);
         store.Setup(value => value.ExecuteAsync(
                 It.IsAny<PurchaseAndReceiveCommand>(),

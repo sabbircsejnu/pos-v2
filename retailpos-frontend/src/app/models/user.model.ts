@@ -33,9 +33,22 @@ export interface User {
   defaultLocationId?: number | null;
   outletAssignments?: UserOutletAssignment[];
   warehouseAssignments?: UserWarehouseAssignment[];
+  contextAccess?: UserContextAccess | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UserContextAccess {
+  enabled: boolean;
+  locationScope: 'selected' | 'all';
+  roleScope: 'mapped' | 'all';
+  roleIds: number[];
+}
+
+export interface UserContextRoleOption {
+  id: number;
+  name: string;
 }
 
 export interface CreateUserDto {
@@ -51,6 +64,7 @@ export interface CreateUserDto {
   defaultLocationId?: number;
   inventoryLocationAccessScope: InventoryLocationAccessScope;
   userPermissions?: string[];
+  contextAccess?: UserContextAccess;
   isActive: boolean;
 }
 
@@ -66,6 +80,7 @@ export interface UpdateUserDto {
   defaultLocationId?: number;
   inventoryLocationAccessScope: InventoryLocationAccessScope;
   userPermissions?: string[];
+  contextAccess?: UserContextAccess;
   isActive: boolean;
 }
 

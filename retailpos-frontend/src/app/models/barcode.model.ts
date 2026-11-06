@@ -74,6 +74,8 @@ export interface BarcodePrintQueueItem {
   barcodeValue?: string;
   variantAttributes?: string;
   sellingPrice?: number;
+  /** MRP as displayed, so the PDF prints exactly the text the browser shows. */
+  priceText?: string;
   quantityPrinted: number;
 }
 
@@ -82,8 +84,13 @@ export interface RecordBarcodePrintHistoryRequest {
   templateId?: number;
   companyName?: string;
   printMode: string;
+  printLayout?: 'thermal' | 'a4';
   labelWidthMm: number;
   labelHeightMm: number;
+  marginTopMm?: number;
+  marginRightMm?: number;
+  marginBottomMm?: number;
+  marginLeftMm?: number;
   sourceModule?: string;
   sourceReferenceType?: string;
   sourceReferenceId?: number;

@@ -208,6 +208,219 @@ describe('BarcodeLabelsComponent', () => {
     expect(markup).toContain('aria-label="Barcode CM00917"');
   });
 
+  describe('print formats', () => {
+    const queueItem = (over: Record<string, unknown> = {}) => ({
+      variantId: 1001,
+      productName: 'Classic T-Shirt',
+      variantName: 'Red / Small',
+      mainProductCode: 'TSH',
+      variantSku: 'TSH-RED-S',
+      barcodeValue: 'BRC-RED-S',
+      sellingPrice: 7490,
+      quantityPrinted: 2,
+      ...over
+    });
+
+    const create = () => {
+      const fixture = TestBed.createComponent(BarcodeLabelsComponent);
+      fixture.detectChanges();
+      return { fixture, component: fixture.componentInstance };
+    };
+
+    beforeEach(() => localStorage.clear());
+    afterEach(() => {
+      document.querySelectorAll('iframe[aria-hidden]').forEach(frame => frame.remove());
+    });
+
+    it('defaults to the thermal format with browser output', () => {
+      const { component } = create();
+      expect(component.printFormat()).toBe('thermal');
+      expect(component.printOutput()).toBe('browser');
+      expect(component.printMode()).toBe('thermal');
+    });
+
+    it('records the existing history values for each format and output', () => {
+      const { component } = create();
+      component.printFormat.set('a4');
+      expect(component.printMode()).toBe('browser');
+      component.printOutput.set('pdf');
+      expect(component.printMode()).toBe('pdf');
+    });
+
+    it('applies a template size with no matching preset as a custom size', () => {
+      const { component } = create();
+      component.templates.set([{ ...seededTemplates[0], id: 2, labelWidthMm: 58, labelHeightMm: 30 }]);
+      component.changeTemplate(2);
+      expect(component.selectedLabelSize()).toBe('custom');
+      expect(component.labelSettings().widthMm).toBe(58);
+      expect(component.labelSettings().heightMm).toBe(30);
+    });
+
+    it('turns an edited dimension into a custom size and keeps the other dimension', () => {
+      const { component } = create();
+      component.changeLabelSize('50x25');
+      component.setLabelDimension('width', 58);
+      expect(component.selectedLabelSize()).toBe('custom');
+      expect(component.labelSettings().widthMm).toBe(58);
+      expect(component.labelSettings().heightMm).toBe(25);
+    });
+
+    it('builds the preview from the print document, with labels in sequence', () => {
+      const { component } = create();
+      component.changeLabelSize('50x25');
+      component.queue.set([queueItem({ quantityPrinted: 3 }), queueItem({ variantId: 2, productName: 'Second', barcodeValue: 'BRC-2', quantityPrinted: 1 })]);
+
+      const preview = component.thermalPreview()!;
+      expect(preview.shown).toBe(4);
+      expect(preview.total).toBe(4);
+
+      const html = TestBed.inject(DomSanitizer).sanitize(SecurityContext.HTML, preview.html) ?? '';
+      expect(html).toContain('Barcode BRC-RED-S');
+      expect(html.indexOf('Barcode BRC-RED-S')).toBeLessThan(html.indexOf('Barcode BRC-2'));
+    });
+
+    it('limits how many labels the preview renders but reports the full count', () => {
+      const { component } = create();
+      component.queue.set([queueItem({ quantityPrinted: 500 })]);
+      const preview = component.thermalPreview()!;
+      expect(preview.shown).toBe(12);
+      expect(preview.total).toBe(500);
+    });
+
+    it('prints every requested label on its own page through a frame with the thermal page size', () => {
+      const { component } = create();
+      component.changeLabelSize('50x25');
+      component.queue.set([queueItem({ quantityPrinted: 3 }), queueItem({ variantId: 2, barcodeValue: 'BRC-2', quantityPrinted: 2 })]);
+
+      component.printQueue();
+
+      const frame = document.querySelector('iframe[aria-hidden]') as HTMLIFrameElement;
+      const doc = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(doc.querySelector('style')!.textContent).toContain('@page { size: 50mm 25mm; margin: 0; }');
+      expect(Array.from(doc.querySelectorAll('.label .barcode svg')).map(svg => svg.getAttribute('aria-label'))).toEqual([
+        'Barcode BRC-RED-S', 'Barcode BRC-RED-S', 'Barcode BRC-RED-S', 'Barcode BRC-2', 'Barcode BRC-2'
+      ]);
+    });
+
+    it('keeps the multi-column layout in A4 mode', () => {
+      const { component } = create();
+      component.printFormat.set('a4');
+      component.queue.set([queueItem()]);
+
+      component.printQueue();
+
+      const html = (document.querySelector('iframe[aria-hidden]') as HTMLIFrameElement).srcdoc;
+      expect(html).toContain('grid-template-columns: repeat(auto-fill, minmax(60mm, 1fr))');
+      expect(html).not.toContain('@page { size');
+      expect(html.match(/class="label"/g)).toHaveLength(2);
+    });
+
+    it('calls the print dialog of the frame once it has loaded, and removes the frame afterwards', () => {
+      const { component } = create();
+      component.queue.set([queueItem()]);
+      component.printQueue();
+
+      const frame = document.querySelector('iframe[aria-hidden]') as HTMLIFrameElement;
+      const print = vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => undefined);
+      frame.onload!(new Event('load'));
+      expect(print).toHaveBeenCalledTimes(1);
+
+      frame.contentWindow!.dispatchEvent(new Event('afterprint'));
+      expect(document.querySelector('iframe[aria-hidden]')).toBeNull();
+    });
+
+    it('sends the format, margins and displayed MRP to the PDF endpoint', () => {
+      barcodeServiceMock.generatePdf.mockReturnValue(of({ body: null, headers: { get: () => null } }));
+      const { component } = create();
+      component.printOutput.set('pdf');
+      component.marginLeftMm.set(2);
+      component.queue.set([queueItem()]);
+
+      component.printQueue();
+
+      expect(barcodeServiceMock.generatePdf).toHaveBeenCalledTimes(1);
+      const [payload] = barcodeServiceMock.generatePdf.mock.calls[0];
+      expect(payload.printLayout).toBe('thermal');
+      expect(payload.printMode).toBe('pdf');
+      expect(payload.marginLeftMm).toBe(2);
+      expect(payload.items[0].priceText).toBe('MRP: 7490');
+      expect(payload.items[0].mainProductCode).toBe('TSH');
+    });
+
+    it('does not record or print when the settings are invalid', () => {
+      const { component } = create();
+      component.queue.set([queueItem()]);
+      component.setLabelDimension('width', null);
+
+      component.printQueue();
+
+      expect(component.settingsErrors()['widthMm']).toBeTruthy();
+      expect(component.thermalPreview()).toBeNull();
+      expect(barcodeServiceMock.recordPrintHistory).not.toHaveBeenCalled();
+      expect(alertServiceMock.warning).toHaveBeenCalledWith('Correct the label size and margins before printing.');
+    });
+
+    it('refuses to print an item with nothing to encode, rather than inventing a barcode', () => {
+      const { component } = create();
+      component.queue.set([queueItem({ barcodeValue: '', variantSku: '' })]);
+
+      component.printQueue();
+
+      expect(alertServiceMock.error).toHaveBeenCalledWith('Classic T-Shirt has no barcode or SKU to print.');
+      expect(barcodeServiceMock.recordPrintHistory).not.toHaveBeenCalled();
+      expect(document.querySelector('iframe[aria-hidden]')).toBeNull();
+    });
+
+    it('names a barcode CODE128 cannot encode before anything is recorded', () => {
+      const { component } = create();
+      component.queue.set([queueItem({ barcodeValue: 'বাংলা' })]);
+
+      component.printQueue();
+
+      expect(alertServiceMock.error).toHaveBeenCalledWith('Barcode "বাংলা" for Classic T-Shirt contains characters CODE128 cannot encode.');
+      expect(barcodeServiceMock.recordPrintHistory).not.toHaveBeenCalled();
+    });
+
+    it('warns when bars would be too thin for a thermal head to print reliably', () => {
+      const { component } = create();
+      component.changeLabelSize('40x25');
+      component.queue.set([queueItem({ barcodeValue: 'ABCDEFGHIJKLMNOPQRSTUVWX' })]);
+      expect(component.thinBarcodeWarning()).toContain('ABCDEFGHIJKLMNOPQRSTUVWX');
+
+      component.queue.set([queueItem({ barcodeValue: 'CM00181' })]);
+      expect(component.thinBarcodeWarning()).toBe('');
+    });
+
+    it('remembers the printer setup on this device, ahead of the template default', async () => {
+      const first = create();
+      first.component.changeLabelSize('50x25');
+      first.component.marginLeftMm.set(2.5);
+      first.component.printFormat.set('a4');
+      first.fixture.detectChanges();
+      await first.fixture.whenStable();
+
+      const second = create();
+      expect(second.component.selectedLabelSize()).toBe('50x25');
+      expect(second.component.marginLeftMm()).toBe(2.5);
+      expect(second.component.printFormat()).toBe('a4');
+    });
+
+    it('falls back to defaults when the stored setup is unreadable', () => {
+      localStorage.setItem('barcode_label_print_settings', '{not json');
+      const { component } = create();
+      expect(component.printFormat()).toBe('thermal');
+      expect(component.selectedLabelSize()).toBe('60x40');
+    });
+
+    it('offers both print formats in the settings card', () => {
+      const { fixture } = create();
+      const options = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('option')).map(option => option.textContent?.trim());
+      expect(options).toContain('Thermal Label');
+      expect(options).toContain('A4 Sheet');
+      expect(options).toContain('Custom size');
+    });
+  });
+
   it('prefills label company name from outlet when business name is missing', () => {
     authServiceMock.getUserValue.mockReturnValueOnce({ outletName: 'Banani Outlet', permissions: ['*'] });
 

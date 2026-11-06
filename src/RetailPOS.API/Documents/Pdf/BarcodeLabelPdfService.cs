@@ -17,6 +17,68 @@ public interface IBarcodeLabelPdfService
 
 public sealed class BarcodeLabelPdfService : IBarcodeLabelPdfService
 {
+    private const string ThermalLayout = "thermal";
+
+    private static DocumentPdfFileResult GenerateThermal(RecordBarcodePrintHistoryDto dto)
+    {
+        var settings = new ThermalLabelSettings(
+            (double)dto.LabelWidthMm,
+            (double)dto.LabelHeightMm,
+            (double)dto.MarginTopMm,
+            (double)dto.MarginRightMm,
+            (double)dto.MarginBottomMm,
+            (double)dto.MarginLeftMm);
+
+        var settingsProblem = ThermalLabelLayout.Validate(settings);
+        if (settingsProblem != null)
+        {
+            throw new ArgumentException(settingsProblem);
+        }
+
+        var company = string.IsNullOrWhiteSpace(dto.CompanyName) ? "Business" : dto.CompanyName.Trim();
+        var labels = new List<ThermalBarcodeLabel>();
+        foreach (var item in dto.Items)
+        {
+            var barcodeValue = string.IsNullOrWhiteSpace(item.BarcodeValue) ? item.VariantSku?.Trim() : item.BarcodeValue.Trim();
+            if (string.IsNullOrWhiteSpace(barcodeValue))
+            {
+                throw new ArgumentException($"{item.ProductName} has no barcode or SKU to print.");
+            }
+
+            var label = new ThermalBarcodeLabel(
+                company,
+                BuildThermalTitle(item),
+                ThermalLabelLayout.BuildVariantLine(item.VariantName, item.VariantSku, item.ProductName),
+                barcodeValue,
+                string.IsNullOrWhiteSpace(item.PriceText) ? $"MRP: {item.SellingPrice ?? 0:0.##}" : item.PriceText.Trim());
+
+            labels.AddRange(Enumerable.Repeat(label, Math.Max(1, item.QuantityPrinted)));
+        }
+
+        var bytes = ThermalBarcodeLabelDocument.Create(labels, settings).GeneratePdf();
+        return new DocumentPdfFileResult(bytes, $"barcode-labels-{DateTime.UtcNow:yyyyMMdd-HHmmss}.pdf");
+    }
+
+    private static string BuildThermalTitle(CreateBarcodePrintHistoryItemDto item)
+    {
+        var code = string.IsNullOrWhiteSpace(item.MainProductCode)
+            ? ExtractMainProductCode(item.VariantSku)
+            : item.MainProductCode.Trim();
+        var productName = item.ProductName?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(productName))
+        {
+            return $"{code} - {productName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return code;
+        }
+
+        return string.IsNullOrWhiteSpace(productName) ? item.VariantName?.Trim() ?? string.Empty : productName;
+    }
+
     public Task<DocumentPdfFileResult> GenerateAsync(RecordBarcodePrintHistoryDto dto, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -24,6 +86,12 @@ public sealed class BarcodeLabelPdfService : IBarcodeLabelPdfService
         if (dto.Items == null || dto.Items.Count == 0)
         {
             throw new InvalidOperationException("At least one barcode item is required to generate PDF.");
+        }
+
+        // Requests that name no layout keep the A4 sheet, which is what this endpoint has always produced.
+        if (string.Equals(dto.PrintLayout, ThermalLayout, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(GenerateThermal(dto));
         }
 
         var labelWidthMm = dto.LabelWidthMm > 0 ? (float)dto.LabelWidthMm : 60f;

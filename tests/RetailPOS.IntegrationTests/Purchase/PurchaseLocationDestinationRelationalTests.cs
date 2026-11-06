@@ -46,6 +46,7 @@ public sealed class PurchaseLocationDestinationRelationalTests
                 await SeedAsync(db, withOutlet: true, withWarehouse: false);
                 var purchaseScope = new FixedPurchaseOrderTenantScope(BusinessId);
                 var locationAuthorizer = new Mock<IPurchaseOrderLocationAuthorizer>();
+                var receiptAuthorizer = new Mock<IGrnReceiptLocationAuthorizer>();
 
                 var created = await new CreatePurchaseOrderCommandHandler(
                         new PurchaseOrderCreationStore(db),
@@ -85,14 +86,14 @@ public sealed class PurchaseLocationDestinationRelationalTests
                         It.IsAny<CancellationToken>()))
                     .ReturnsAsync(BusinessId);
 
-                await ReceiveAsync(db, created.Id, poItemId, 2, locationAuthorizer.Object, completionAuthorizer.Object);
+                await ReceiveAsync(db, created.Id, poItemId, 2, receiptAuthorizer.Object, completionAuthorizer.Object);
 
                 db.ChangeTracker.Clear();
                 var inventory = await db.Inventories.SingleAsync();
                 Assert.Equal(("outlet", OutletId, 2), (inventory.LocationType, inventory.LocationId, inventory.Quantity));
                 Assert.Equal("partial", (await db.PurchaseOrders.SingleAsync()).Status);
 
-                await ReceiveAsync(db, created.Id, poItemId, 3, locationAuthorizer.Object, completionAuthorizer.Object);
+                await ReceiveAsync(db, created.Id, poItemId, 3, receiptAuthorizer.Object, completionAuthorizer.Object);
 
                 db.ChangeTracker.Clear();
                 Assert.Equal(5, await db.Inventories.Select(item => item.Quantity).SingleAsync());
@@ -103,7 +104,10 @@ public sealed class PurchaseLocationDestinationRelationalTests
                 Assert.Empty(await db.Warehouses.ToListAsync());
                 locationAuthorizer.Verify(
                     authorizer => authorizer.AuthorizeAsync("outlet", OutletId, It.IsAny<CancellationToken>()),
-                    Times.Exactly(3));
+                    Times.Once);
+                receiptAuthorizer.Verify(
+                    authorizer => authorizer.AuthorizeAsync("outlet", OutletId, It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
                 completionAuthorizer.Verify(
                     authorizer => authorizer.AuthorizeAsync(BusinessId, OutletId, "outlet", It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
@@ -153,10 +157,10 @@ public sealed class PurchaseLocationDestinationRelationalTests
                 var outletOnly = await readStore.SearchAsync(
                     null, null, "outlet", null, null, null, 1, 10, "order_date", "desc", BusinessId, CancellationToken.None);
                 Assert.Equal(outlet.PurchaseOrder.Id, Assert.Single(outletOnly.PurchaseOrders).Id);
-                var grns = await new GrnReadStore(db).FindAllAsync(null, null, BusinessId, CancellationToken.None);
+                var grns = await new GrnReadStore(db).FindAllAsync(null, null, new GrnReadScope(BusinessId, true, [], []), CancellationToken.None);
                 Assert.Equal(2, grns.Count);
                 Assert.Contains(grns, grn => grn.LocationType == "outlet" && grn.LocationName == "Main Outlet");
-                Assert.Empty(await new GrnReadStore(db).FindAllAsync(null, null, OtherBusinessId, CancellationToken.None));
+                Assert.Empty(await new GrnReadStore(db).FindAllAsync(null, null, new GrnReadScope(OtherBusinessId, true, [], []), CancellationToken.None));
 
                 var otherBusinessHandler = CreatePurchaseAndReceiveHandler(db, OtherBusinessId);
                 var crossBusiness = await Assert.ThrowsAsync<KeyNotFoundException>(() => otherBusinessHandler.Handle(
@@ -280,7 +284,7 @@ public sealed class PurchaseLocationDestinationRelationalTests
         long purchaseOrderId,
         long poItemId,
         int quantity,
-        IPurchaseOrderLocationAuthorizer locationAuthorizer,
+        IGrnReceiptLocationAuthorizer locationAuthorizer,
         IGrnCompletionAuthorizer completionAuthorizer)
     {
         var grnScope = new Mock<IGrnTenantScope>();
@@ -341,7 +345,7 @@ public sealed class PurchaseLocationDestinationRelationalTests
                 Mock.Of<ILogger<PurchaseAndReceiveStore>>()),
             new PurchaseOrderReadStore(db),
             new FixedPurchaseOrderTenantScope(businessId),
-            Mock.Of<IPurchaseOrderLocationAuthorizer>());
+            Mock.Of<IGrnReceiptLocationAuthorizer>());
     }
 
     private static PurchaseAndReceiveCommand BuildPurchaseAndReceive(

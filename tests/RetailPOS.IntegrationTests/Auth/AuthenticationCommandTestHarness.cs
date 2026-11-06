@@ -3,9 +3,11 @@ using RetailPOS.API.DTOs.Auth;
 using RetailPOS.API.Models;
 using RetailPOS.Application.Authentication.Abstractions;
 using RetailPOS.Application.Authentication.Commands;
+using RetailPOS.Application.Authentication.Context;
 using RetailPOS.Application.Authentication.Contracts;
 using RetailPOS.Infrastructure.Authentication;
 using RetailPOS.Infrastructure.Data;
+using RetailPOS.Infrastructure.Identity;
 
 namespace RetailPOS.Tests.Auth;
 
@@ -42,7 +44,8 @@ internal sealed class AuthenticationCommandTestHarness
                 _tokenService,
                 new AuthenticationStore(_db),
                 _credentialsIssuer,
-                _refreshTokenStore)
+                _refreshTokenStore,
+                new UserContextPolicy(new AuthenticationStore(_db), new UserOutletAccessStore(_db)))
             .Handle(
                 new RefreshTokenCommand(request.Token, request.RefreshToken),
                 cancellationToken);

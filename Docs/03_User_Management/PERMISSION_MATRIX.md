@@ -75,6 +75,29 @@ Updated: 2026-06-13
 - BusinessOwner: star
 - OutletManager, Salesman, Admin, Manager, Cashier, Stock Manager, User with legacy permission sets
 
+## Owner Dashboard permissions
+
+Decided by the Business Owner on 2026-11-06. Specification: `Docs/Owner_Dashboards/01_OWNER_DASHBOARDS_SRS.md` §2.1.
+
+| Permission | Menu entry and API | Data visible |
+|---|---|---|
+| `dashboard.sales_finance.view` | Dashboard > Sales & Finance | All sales, purchase, expense, COGS, profit and cash figures of the current Business |
+| `dashboard.inventory_intelligence.view` | Dashboard > Inventory Intelligence | All stock, stock value at cost and transfer recommendations of the current Business |
+
+These grant reads only. They ignore Step 3 inventory access, Step 5 assignments and the default outlet, always stay inside the current Business, and do not allow any transaction to be changed. Creating a stock transfer still requires the existing Stock Transfer permissions and location rules.
+
+Neither key is in a seeded role template. The wildcard roles hold them automatically; any other role needs them assigned in Role Edit.
+
+## Expense Category management
+
+Decided by the Business Owner on 2026-11-06 (D3).
+
+| Permission | Menu entry and API | What it allows |
+|---|---|---|
+| `accounting.expense_categories.manage` | Finance > Expense Categories; `POST`/`PUT /api/accounting/expenses/categories`, `GET /api/accounting/expenses/expense-accounts` | Create and edit categories, change their ledger account, and activate or deactivate them, across the current Business |
+
+It has no alias and is not implied by `accounting.expenses.edit`, so roles such as OutletManager and Warehouse Manager that edit expenses do not manage categories. It grants no Chart of Accounts access. It is not in a seeded role template: the wildcard roles hold it automatically, and any other role, including Admin and Accounting Manager, needs it assigned in Role Edit.
+
 ## Role assignment policy interaction
 
 This matrix is permission-focused only. Role assignment requirements are defined separately and must be enforced alongside permissions:

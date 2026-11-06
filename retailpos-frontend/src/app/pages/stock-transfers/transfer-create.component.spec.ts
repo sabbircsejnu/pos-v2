@@ -1,13 +1,14 @@
 import { Location } from '@angular/common';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { VariantSearchPickerComponent } from '../../components/variant-search-picker/variant-search-picker.component';
 import { AlertService } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ProductImageService } from '../../services/product-image.service';
+import { ProductService } from '../../services/product.service';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { UnsavedChangesService } from '../../services/unsaved-changes.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
@@ -236,5 +237,112 @@ describe('TransferCreateComponent location selection', () => {
     } finally {
       confirm.mockRestore();
     }
+  });
+});
+
+describe('TransferCreateComponent recommendation prefill', () => {
+  const outlets = [{ id: 1, name: 'Outlet A' }, { id: 2, name: 'Outlet B' }];
+  const prefill = {
+    fromLocationId: '1',
+    fromLocationType: 'outlet',
+    toLocationId: '2',
+    toLocationType: 'outlet',
+    variantId: '11',
+    sku: 'SKU-11',
+    quantity: '5'
+  };
+  const searchVariants = vi.fn();
+  const warning = vi.fn();
+  const create = vi.fn();
+
+  async function setup(query: Record<string, string>, canSelectSource = true, defaultId: number | null = 2) {
+    searchVariants.mockReset();
+    warning.mockReset();
+    create.mockReset();
+    searchVariants.mockReturnValue(of({
+      data: [{ id: 11, sku: 'SKU-11', productName: 'Borka', productCode: 'MAIN-1', stockQuantity: 3 }]
+    }));
+    await TestBed.configureTestingModule({
+      imports: [TransferCreateComponent],
+      providers: [
+        { provide: StockTransferService, useValue: { create } },
+        { provide: UserOutletAccessService, useValue: { load: () => of({ data: {
+          outlets,
+          warehouses: [],
+          destinationOutlets: [...outlets, { id: 3, name: 'Outlet C' }],
+          destinationWarehouses: [],
+          defaultLocationType: 'outlet',
+          defaultLocationId: defaultId
+        } }) } },
+        { provide: AuthService, useValue: { hasPermission: () => canSelectSource } },
+        { provide: Router, useValue: {} },
+        { provide: Location, useValue: {} },
+        { provide: AlertService, useValue: { warning, error: vi.fn(), success: vi.fn() } },
+        { provide: ErrorHandlerService, useValue: { extractErrorMessage: () => '' } },
+        { provide: ProductImageService, useValue: {} },
+        { provide: ProductService, useValue: { searchVariants } },
+        { provide: UnsavedChangesService, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(query) } } }
+      ]
+    })
+      .overrideComponent(TransferCreateComponent, {
+        remove: { imports: [VariantSearchPickerComponent] },
+        add: { schemas: [NO_ERRORS_SCHEMA] }
+      })
+      .compileComponents();
+    const component = TestBed.createComponent(TransferCreateComponent).componentInstance;
+    component.ngOnInit();
+    return component;
+  }
+
+  it('fills locations and the line from live stock, and submits nothing', async () => {
+    const component = await setup(prefill);
+
+    expect(component.fromLocationId()).toBe(1);
+    expect(component.toLocationId()).toBe(2);
+    expect(searchVariants).toHaveBeenCalledWith('SKU-11', 1, 20, 1, 'outlet');
+    expect(component.lineItems()[0]).toMatchObject({ variantId: 11, availableStock: 3, transferQuantity: 5 });
+    expect(create).not.toHaveBeenCalled();
+    expect(component.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('flags a stale quantity above live stock through the normal validation', async () => {
+    const component = await setup(prefill);
+
+    expect(component.getTransferQuantityError(component.lineItems()[0])).toContain('cannot exceed available stock');
+    expect(component.canSubmit()).toBe(false);
+  });
+
+  it('refuses a source outside the transfer source locations', async () => {
+    const component = await setup({ ...prefill, fromLocationId: '3' });
+
+    expect(warning).toHaveBeenCalled();
+    expect(component.lineItems()).toEqual([]);
+    expect(searchVariants).not.toHaveBeenCalled();
+  });
+
+  it('refuses another source for a user pinned to their default', async () => {
+    const component = await setup(prefill, false, 2);
+
+    expect(warning).toHaveBeenCalled();
+    expect(component.lineItems()).toEqual([]);
+  });
+
+  it('refuses identical locations and malformed values', async () => {
+    await setup({ ...prefill, toLocationId: '1' });
+    expect(warning).toHaveBeenCalled();
+    TestBed.resetTestingModule();
+
+    await setup({ ...prefill, quantity: '-4' });
+    expect(warning).toHaveBeenCalled();
+    expect(searchVariants).not.toHaveBeenCalled();
+  });
+
+  it('leaves the form untouched without a recommendation', async () => {
+    const component = await setup({});
+
+    expect(searchVariants).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+    expect(component.lineItems()).toEqual([]);
   });
 });

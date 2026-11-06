@@ -121,6 +121,10 @@ public sealed class AccountingConfigurationProvisioner(
                 IsSystemAccount = true,
                 IsControlAccount = definition.IsControlAccount,
                 AllowManualPosting = definition.AllowManualPosting,
+                IsExpensePaymentAccount = definition.Code
+                    is AccountingDefaults.CashOnHandCode
+                    or AccountingDefaults.PettyCashCode
+                    or AccountingDefaults.BankCode,
                 IsActive = true,
                 DisplayOrder = definition.DisplayOrder,
                 CreatedAt = now,

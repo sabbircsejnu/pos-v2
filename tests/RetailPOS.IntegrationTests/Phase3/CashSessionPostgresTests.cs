@@ -131,7 +131,7 @@ public sealed class CashSessionPostgresTests
     {
         await using var db = Ctx(database);
         var handler = new OpenCashSessionCommandHandler(
-            new CashSessionStore(db), WriteAuthorizer(), Settings(hours, zone), Mock.Of<ICashSessionOpenAuditWriter>(),
+            new CashSessionStore(db), WriteAuthorizer(), Settings(hours, zone), TestCompanySettings.Provider(zone), Mock.Of<ICashSessionOpenAuditWriter>(),
             Mock.Of<ICashSessionOpenedPublisher>(), Events(db), clock ?? TimeProvider.System);
         return await handler.Handle(new OpenCashSessionCommand(OutletId, terminalId, opening, null, Cashier, key), CancellationToken.None);
     }

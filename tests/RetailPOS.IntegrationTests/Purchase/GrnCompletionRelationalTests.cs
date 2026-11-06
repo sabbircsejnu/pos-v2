@@ -31,6 +31,17 @@ public sealed class GrnCompletionRelationalTests
     static GrnCompletionRelationalTests() =>
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
+    private static GrnReadScope BusinessScope(long businessId) => new(businessId, true, [], []);
+
+    private static GrnSearchCriteria LegacySearch(
+        long? purchaseOrderId,
+        string? status,
+        DateTime? startDate,
+        DateTime? endDate,
+        int pageNumber,
+        int pageSize) =>
+        new(purchaseOrderId, status, startDate, endDate, null, null, null, pageNumber, pageSize);
+
     [Fact]
     public async Task Search_PreservesInclusiveDatesOrderingPagingAndBusinessScopedProjection()
     {
@@ -80,13 +91,17 @@ public sealed class GrnCompletionRelationalTests
 
                 var store = new GrnReadStore(db);
                 var firstPage = await store.SearchAsync(
-                    20, null, new DateTime(2026, 3, 10), new DateTime(2026, 3, 11),
-                    1, 1, 1, CancellationToken.None);
+                    LegacySearch(20, null, new DateTime(2026, 3, 10), new DateTime(2026, 3, 11), 1, 1),
+                    BusinessScope(1),
+                    CancellationToken.None);
                 var secondPage = await store.SearchAsync(
-                    20, null, new DateTime(2026, 3, 10), new DateTime(2026, 3, 11),
-                    2, 1, 1, CancellationToken.None);
+                    LegacySearch(20, null, new DateTime(2026, 3, 10), new DateTime(2026, 3, 11), 2, 1),
+                    BusinessScope(1),
+                    CancellationToken.None);
                 var statusFiltered = await store.SearchAsync(
-                    null, "FULL", null, null, 1, 10, 1, CancellationToken.None);
+                    LegacySearch(null, "FULL", null, null, 1, 10),
+                    BusinessScope(1),
+                    CancellationToken.None);
 
                 Assert.Equal(2, firstPage.TotalCount);
                 Assert.Equal(1, firstPage.PageNumber);
@@ -179,7 +194,7 @@ public sealed class GrnCompletionRelationalTests
                 db.ChangeTracker.Clear();
 
                 var store = new GrnReadStore(db);
-                var results = await store.FindPendingAsync(1, CancellationToken.None);
+                var results = await store.FindPendingAsync(BusinessScope(1), CancellationToken.None);
 
                 Assert.Equal([23, 20], results.Select(order => order.Id));
                 Assert.DoesNotContain(results, order => order.Id == 25);
@@ -229,7 +244,7 @@ public sealed class GrnCompletionRelationalTests
                 db.ChangeTracker.Clear();
                 var store = new GrnReadStore(db);
 
-                var result = await store.FindVarianceByIdAsync(40, 1, CancellationToken.None);
+                var result = await store.FindVarianceByIdAsync(40, BusinessScope(1), CancellationToken.None);
 
                 Assert.Equal(40, result!.GrnId);
                 Assert.Equal(20, result.PurchaseOrderId);
@@ -241,8 +256,8 @@ public sealed class GrnCompletionRelationalTests
                 Assert.Equal("GRN Test Variant", item.VariantName);
                 Assert.Equal(5, item.OrderedQuantity);
                 Assert.Equal(5, item.ReceivedQuantity);
-                Assert.Null(await store.FindVarianceByIdAsync(50, 1, CancellationToken.None));
-                Assert.Null(await store.FindVarianceByIdAsync(999, 1, CancellationToken.None));
+                Assert.Null(await store.FindVarianceByIdAsync(50, BusinessScope(1), CancellationToken.None));
+                Assert.Null(await store.FindVarianceByIdAsync(999, BusinessScope(1), CancellationToken.None));
             });
     }
 
@@ -297,7 +312,7 @@ public sealed class GrnCompletionRelationalTests
 
                 var result = await store.FindByPurchaseOrderIdAsync(
                     20,
-                    1,
+                    BusinessScope(1),
                     CancellationToken.None);
 
                 Assert.Equal(20, result!.PurchaseOrderId);
@@ -313,7 +328,7 @@ public sealed class GrnCompletionRelationalTests
                 Assert.Equal(2, item.TotalReceivedQuantity);
                 Assert.Equal(10m, item.UnitPrice);
                 Assert.Equal(18m, item.TotalReceivedCost);
-                Assert.Null(await store.FindByPurchaseOrderIdAsync(999, 1, CancellationToken.None));
+                Assert.Null(await store.FindByPurchaseOrderIdAsync(999, BusinessScope(1), CancellationToken.None));
             });
     }
 
@@ -342,7 +357,7 @@ public sealed class GrnCompletionRelationalTests
                     new GrnCreationStore(db, NullLogger<GrnCreationStore>.Instance),
                     tenantScope.Object,
                     new GrnCreationAuditWriter(audit.Object),
-                    Mock.Of<IPurchaseOrderLocationAuthorizer>());
+                    Mock.Of<IGrnReceiptLocationAuthorizer>());
 
                 var result = await handler.Handle(
                     new CreateGrnCommand(
@@ -423,7 +438,7 @@ public sealed class GrnCompletionRelationalTests
                     new GrnCreationStore(db, NullLogger<GrnCreationStore>.Instance),
                     tenantScope.Object,
                     auditWriter.Object,
-                    Mock.Of<IPurchaseOrderLocationAuthorizer>());
+                    Mock.Of<IGrnReceiptLocationAuthorizer>());
 
                 await Assert.ThrowsAsync<KeyNotFoundException>(() => handler.Handle(
                     new CreateGrnCommand(
@@ -463,7 +478,7 @@ public sealed class GrnCompletionRelationalTests
                     new GrnCreationStore(db, NullLogger<GrnCreationStore>.Instance),
                     tenantScope.Object,
                     new GrnCreationAuditWriter(audit.Object),
-                    Mock.Of<IPurchaseOrderLocationAuthorizer>());
+                    Mock.Of<IGrnReceiptLocationAuthorizer>());
 
                 var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                     handler.Handle(
@@ -525,7 +540,7 @@ public sealed class GrnCompletionRelationalTests
                 await db.SaveChangesAsync();
                 var store = new GrnReadStore(db);
 
-                var result = await store.FindByIdAsync(40, 1, CancellationToken.None);
+                var result = await store.FindByIdAsync(40, BusinessScope(1), CancellationToken.None);
                 var item = Assert.Single(result!.Items);
                 Assert.Equal(40, result.Id);
                 Assert.Equal(20, result.PurchaseOrderId);
@@ -543,9 +558,9 @@ public sealed class GrnCompletionRelationalTests
                 Assert.Equal(10m, item.UnitPrice);
                 Assert.Equal(8m, item.UnitCost);
 
-                Assert.Null(await store.FindByIdAsync(40, 2, CancellationToken.None));
+                Assert.Null(await store.FindByIdAsync(40, BusinessScope(2), CancellationToken.None));
 
-                var all = await store.FindAllAsync(null, null, 1, CancellationToken.None);
+                var all = await store.FindAllAsync(null, null, BusinessScope(1), CancellationToken.None);
                 Assert.Equal([42, 40], all.Select(grn => grn.Id));
                 var listItem = Assert.Single(all.Single(grn => grn.Id == 40).Items);
                 Assert.Equal(0, listItem.VariantId);
@@ -553,13 +568,53 @@ public sealed class GrnCompletionRelationalTests
                 Assert.Equal(8m, listItem.UnitCost);
                 Assert.Equal(
                     40,
-                    Assert.Single(await store.FindAllAsync(20, "FULL", 1, CancellationToken.None)).Id);
+                    Assert.Single(await store.FindAllAsync(20, "FULL", BusinessScope(1), CancellationToken.None)).Id);
                 Assert.Equal(
                     42,
-                    Assert.Single(await store.FindAllAsync(null, "PARTIAL", 1, CancellationToken.None)).Id);
+                    Assert.Single(await store.FindAllAsync(null, "PARTIAL", BusinessScope(1), CancellationToken.None)).Id);
                 Assert.Equal(
                     50,
-                    Assert.Single(await store.FindAllAsync(null, null, 2, CancellationToken.None)).Id);
+                    Assert.Single(await store.FindAllAsync(null, null, BusinessScope(2), CancellationToken.None)).Id);
+            });
+    }
+
+    [Fact]
+    public async Task Completion_WritesTheValueTheJournalDebitsToInventory_WhenADiscountApplies()
+    {
+        await PostgresTestDatabase.RunAsync(
+            GetPostgresConnectionString(),
+            PostgresTestDatabasePrefix.GrnCompletion,
+            async database =>
+            {
+                await using (var seed = await CreateMigratedContextAsync(database.ConnectionString))
+                {
+                    await SeedAsync(seed);
+                    await InitializeAccountingDefaultsAsync(database.ConnectionString);
+                    var orderLine = await seed.PurchaseOrderItems.SingleAsync(item => item.Id == 21);
+                    orderLine.Discount = 10m;
+                    var receiptLine = await seed.GrnItems.SingleAsync(item => item.Id == 41);
+                    receiptLine.TaxableAmount = 36m;
+                    await seed.SaveChangesAsync();
+                }
+
+                var barrier = new InitialGrnReadBarrier();
+                await using var firstContext = await CreateMigratedContextAsync(database.ConnectionString);
+                await using var secondContext = await CreateMigratedContextAsync(database.ConnectionString);
+                await Task.WhenAll(
+                    CompleteAsync(CreateSubject(firstContext, barrier).Handler),
+                    CompleteAsync(CreateSubject(secondContext, barrier).Handler));
+
+                await using var verify = await CreateMigratedContextAsync(database.ConnectionString);
+                var movement = await verify.StockLedgers.SingleAsync();
+                Assert.True(movement.IsCostValuationReliable);
+                Assert.Equal(7.2m, movement.UnitCost);
+                Assert.Equal(36m, movement.MovementValue);
+                var debit = await verify.JournalEntries
+                    .Where(entry => entry.ReferenceType == "Grn" && entry.ReferenceId == "40")
+                    .SelectMany(entry => entry.Lines)
+                    .Where(line => line.AccountId == 100)
+                    .SumAsync(line => line.DebitAmount);
+                Assert.Equal(movement.MovementValue, debit);
             });
     }
 
@@ -828,7 +883,8 @@ public sealed class GrnCompletionRelationalTests
                 journalStore,
                 new JournalEntryReadStore(db)),
             accountingConfiguration,
-            new SupplierPayableRecognitionWriter(db));
+            new SupplierPayableRecognitionWriter(db),
+                TestCompanySettings.Provider());
         var auditWriter = new GrnCompletionAuditWriterAdapter(audit.Object);
         var store = new GrnCompletionStore(
             db,

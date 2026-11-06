@@ -350,6 +350,8 @@ builder.Services.AddScoped<RetailPOS.Application.Products.Abstractions.IVariantD
     RetailPOS.Infrastructure.Products.VariantDisplayMetadataReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Pos.Abstractions.IPosProductLookupStore,
     RetailPOS.Infrastructure.Pos.PosProductLookupStore>();
+builder.Services.AddScoped<RetailPOS.Application.Pos.Abstractions.IPosCatalogueReadStore,
+    RetailPOS.Infrastructure.Pos.PosCatalogueReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Pricing.Abstractions.IPriceRuleReadStore,
     RetailPOS.Infrastructure.Pricing.PriceRuleReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Pricing.Abstractions.IPriceRuleCommandStore,
@@ -403,6 +405,8 @@ builder.Services.AddScoped<RetailPOS.Application.Pos.Abstractions.IPosCartPricin
     RetailPOS.Infrastructure.Pos.PosCartPricingStore>();
 builder.Services.AddScoped<RetailPOS.Application.Pos.Abstractions.IPosCartPriceCache,
     RetailPOS.Infrastructure.Pos.PosCartPriceCache>();
+builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleReadScopeProvider,
+    SaleReadScopeProvider>();
 builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleTodaySummaryReadStore,
     RetailPOS.Infrastructure.Sales.SaleTodaySummaryReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleSalespersonDirectory,
@@ -459,6 +463,8 @@ builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTr
     StockTransferDispatchCacheInvalidator>();
 builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTransferReceiveStore,
     RetailPOS.Infrastructure.StockTransfers.StockTransferReceiveStore>();
+builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTransferReceiptAuditWriter,
+    RetailPOS.Infrastructure.StockTransfers.StockTransferReceiptAuditWriter>();
 builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTransferReceiveCacheInvalidator,
     StockTransferReceiveCacheInvalidator>();
 builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTransferCancellationStore,
@@ -489,6 +495,7 @@ builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockAd
     StockAdjustmentApprovalCacheInvalidator>();
 builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IInventoryWriteStore,
     RetailPOS.Infrastructure.InventoryStores.InventoryWriteStore>();
+builder.Services.AddScoped<RetailPOS.Application.Authentication.Context.UserContextPolicy>();
 builder.Services.AddScoped<RetailPOS.Application.Identity.LocationAccess.IUserOutletAccess,
     RetailPOS.Application.Identity.LocationAccess.UserOutletAccess>();
 builder.Services.AddScoped<RetailPOS.Application.Identity.LocationAccess.IUserOutletAccessStore,
@@ -727,6 +734,17 @@ builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockAd
     RetailPOS.Infrastructure.InventoryReports.StockAdjustmentReportReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Inventory.Abstractions.IStockTransferReportReadStore,
     RetailPOS.Infrastructure.InventoryReports.StockTransferReportReadStore>();
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("OwnerDashboard").Get<RetailPOS.Application.OwnerDashboards.OwnerDashboardPolicy>()
+    ?? new RetailPOS.Application.OwnerDashboards.OwnerDashboardPolicy());
+builder.Services.AddScoped<RetailPOS.Application.OwnerDashboards.IOwnerDashboardScopeProvider,
+    OwnerDashboardScopeProvider>();
+builder.Services.AddScoped<RetailPOS.Application.Outlets.SalesTargets.IOutletSalesTargetReadStore,
+    RetailPOS.Infrastructure.Outlets.OutletSalesTargetReadStore>();
+builder.Services.AddScoped<RetailPOS.Application.OwnerDashboards.ISalesFinanceReadStore,
+    RetailPOS.Infrastructure.OwnerDashboards.SalesFinanceReadStore>();
+builder.Services.AddScoped<RetailPOS.Application.OwnerDashboards.IInventoryDashboardReadStore,
+    RetailPOS.Infrastructure.OwnerDashboards.InventoryDashboardReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.SalesReports.Abstractions.ISalesReportReadStore,
     RetailPOS.Infrastructure.SalesReports.SalesReportReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.SalesReports.Abstractions.ISalesReportReadScopeProvider,
@@ -861,6 +879,10 @@ builder.Services.AddScoped<RetailPOS.Application.Grns.Abstractions.IGrnPoVarianc
     RetailPOS.Infrastructure.Grns.GrnPoVarianceReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Grns.Abstractions.IGrnTenantScope,
     GrnTenantScopeAdapter>();
+builder.Services.AddScoped<RetailPOS.Application.Grns.Abstractions.IGrnReadScopeProvider,
+    GrnReadScopeProviderAdapter>();
+builder.Services.AddScoped<RetailPOS.Application.Grns.Abstractions.IGrnReceiptLocationAuthorizer,
+    GrnReceiptLocationAuthorizerAdapter>();
 builder.Services.AddScoped<IGrnCompletionAuthorizer, GrnCompletionAuthorizerAdapter>();
 builder.Services.AddScoped<IGrnCompletionStockLedgerWriter, GrnCompletionStockLedgerWriterAdapter>();
 builder.Services.AddScoped<IGrnCompletionAccountingPoster, GrnCompletionAccountingPosterAdapter>();
@@ -883,7 +905,13 @@ builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleCashSes
 builder.Services.AddScoped<RetailPOS.Application.Pos.Abstractions.ICashSessionExpiryPublisher,
     CashSessionExpiryPublisherAdapter>();
 builder.Services.AddSingleton<RetailPOS.Infrastructure.Settings.JsonSystemSettingsStore>();
+builder.Services.AddScoped<RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneProvider,
+    RetailPOS.Application.Settings.Abstractions.CompanyTimeZoneProvider>();
+builder.Services.AddScoped<RetailPOS.Application.Settings.Abstractions.ICurrentCompanyTimeZone,
+    RetailPOS.Application.Settings.Abstractions.CurrentCompanyTimeZone>();
 builder.Services.AddSingleton<RetailPOS.Application.Settings.Abstractions.ISystemSettingsStore>(sp =>
+    sp.GetRequiredService<RetailPOS.Infrastructure.Settings.JsonSystemSettingsStore>());
+builder.Services.AddSingleton<RetailPOS.Application.Settings.Abstractions.ICompanyTimeZoneSnapshot>(sp =>
     sp.GetRequiredService<RetailPOS.Infrastructure.Settings.JsonSystemSettingsStore>());
 builder.Services.AddScoped<RetailPOS.Application.Settings.Abstractions.IBusinessPosSettingsStore,
     RetailPOS.Infrastructure.Settings.BusinessPosSettingsStore>();
@@ -1007,6 +1035,24 @@ builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpenseM
     ExpenseMakerCheckerPolicy>();
 builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpenseDrawerStore,
     RetailPOS.Infrastructure.Expenses.ExpenseDrawerStore>();
+builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpenseLocationAuthorizer,
+    ExpenseLocationAuthorizer>();
+builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpenseNumberAllocator,
+    RetailPOS.Infrastructure.Expenses.ExpenseNumberAllocator>();
+builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpenseAttachmentStore,
+    RetailPOS.Infrastructure.Expenses.ExpenseAttachmentStore>();
+builder.Services.AddSingleton<RetailPOS.Application.Expenses.Abstractions.IExpenseAttachmentFileStore,
+    RetailPOS.Infrastructure.Expenses.ExpenseAttachmentFileStore>();
+builder.Services.AddOptions<RetailPOS.Application.Expenses.Abstractions.ExpenseAttachmentOptions>()
+    .Bind(builder.Configuration.GetSection(RetailPOS.Application.Expenses.Abstractions.ExpenseAttachmentOptions.SectionName))
+    .PostConfigure(options => options.StorageRoot = Path.GetFullPath(options.StorageRoot, builder.Environment.ContentRootPath))
+    .Validate(options => options.MaxFileSizeBytes > 0 && options.MaxFilesPerExpense > 0, "Expense attachment limits must be positive.")
+    .Validate(
+        options => !options.StorageRoot.StartsWith(
+            Path.GetFullPath("wwwroot", builder.Environment.ContentRootPath),
+            StringComparison.OrdinalIgnoreCase),
+        "Expense attachments must not be stored under wwwroot, which is served without authorization.")
+    .ValidateOnStart();
 builder.Services.AddScoped<RetailPOS.Application.Expenses.Abstractions.IExpensePostingAccountResolver,
     ExpenseApprovalPostingAccountResolver>();
 builder.Services.AddScoped<RetailPOS.Application.ChartAccounts.Abstractions.IChartAccountReadStore,

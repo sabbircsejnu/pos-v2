@@ -55,6 +55,17 @@ public sealed class MobileStockTakeReconciliationEvaluatorTests
     }
 
     [Fact]
+    public void CostCorrectionDuringTheCount_IsNotStockMovement()
+    {
+        var correction = Entry(2, 0, 0, 10, Start.AddMinutes(30), StockLedgerTransactionType.CostCorrection);
+
+        var result = Run(Line(observed: Start.AddHours(1)), Before(), correction);
+
+        Assert.Equal(MobileStockTakeReconciliationStatus.NoConflictDetected, result.Status);
+        Assert.Empty(result.Reasons);
+    }
+
+    [Fact]
     public void NoLedgerAndZeroBaselineWithZeroInventory_IsConsistent()
     {
         var result = Run(Line(baseline: 0, counted: 0, current: 0), new Dictionary<long, ReconciliationLedgerEntry>());
