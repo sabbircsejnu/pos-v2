@@ -674,3 +674,45 @@ Replaces the `OutletDailyTarget` sketch in the integration table; the model is i
 - Trend buckets use the same period rule. A bucket with no target returns `null`, and the chart breaks the line there.
 - Partial comparison: the sales compared are those on outlet-days with a target, including off days, so `netSales` can be larger than the sales behind the percentage. The note says so.
 - A "This Month" preset ending today is not an exact month, so a monthly override is not used for it; the daily targets are.
+
+## Addendum (2026-11-07): Stock in transit
+
+Resolves LLD-D03 and SRS D-08 for transit only; damaged and reserved stock are unchanged.
+
+**Source of truth.** No new balance, table or posting is added. A transfer in status `in_transit` is the existing record of stock between locations:
+- Dispatch deducts the source and writes a `transfer_out` ledger row carrying the value that left.
+- Nothing reaches the destination until receipt.
+- Receipt or rejection settles the whole transfer at once. Accepted units are added at the destination. Rejected units go back on a system return (`original_transfer_id`), which is itself `in_transit` until the source receives it. Missing and damaged units are recorded as a discrepancy.
+
+So a unit is either on hand somewhere or on exactly one in-transit line, never both. Drafts, submitted, approved, cancelled, received, partially received and rejected transfers contribute nothing to transit. The pending-inbound and pending-outbound figures used by transfer opportunities are unchanged.
+
+**Value.** Each line is valued exactly as `StockTransferCostFlow` will value its receipt:
+- For an ordinary transfer, its share of the dispatch row's value, with cost corrections applied.
+- For a system return, the rejected share of the original dispatch.
+- Plus packaging value capitalized into prepared packs on the line.
+
+An unreliable dispatch row leaves the line unvalued: null, never zero, and listed in the data-quality warnings. A zero value counts only when the origin is proven free. On-hand value plus in-transit value is therefore unchanged by dispatch, receipt and rejection, and changes only by the value of units recorded missing or damaged.
+
+**Units.** Quantities are grouped by base unit and never added across units (BI-002).
+
+**API** (`dashboard.inventory_intelligence.view`):
+- `inventory/summary` adds:
+  - `inTransit`: `{ incoming, outgoing, businessWide }`, where each side is `{ quantityByUnit, valuation, transfers, lines }`;
+  - `totalAccountedByUnit` and `totalAccountedValuation`.
+
+  For all locations, incoming and outgoing are the same lines, counted once. For one location, incoming lines end there and outgoing lines left it. Total accounted stock is on-hand plus incoming, so outgoing stock counts at its destination and the locations add up to the business total. Existing fields are unchanged; `totalStockValue` and `quantityByUnit` remain on-hand only.
+- `inventory/locations` adds `incoming` and `outgoing` per location, and `inTransit` (each line once) for the response.
+- New: `GET inventory/in-transit?from&to&locationId&locationType&categoryId&search&direction&page&pageSize`. It returns `{ context, rows: PagedResult<InTransitLine>, summary }`, with the oldest dispatch first. `direction` is `incoming` or `outgoing` and needs a location; anything else is a 400.
+
+**UI.** The cards are labelled On-hand Stock Value and On-hand Quantity. New cards show In Transit and Total Accounted Stock, with tooltips. Each location row lists its incoming and outgoing transit. A new "Stock In Transit" table offers an Incoming/Outgoing filter when a location is selected.
+
+**Cost visibility.** In-transit value follows the existing dashboard stock value rule (U-14, still open). It does not check `products.view_cost` separately.
+
+**Known limits (owner decisions, not changed):**
+- **T-1:** Transfers post no journal, so the GL Inventory account still holds in-transit value. The accounting Inventory Valuation report (`api/accounting/reports/inventory-valuation`) replays only location ledgers, so its ledger-vs-GL difference includes in-transit value. Adding transit there changes an accepted accounting report and needs approval.
+- **T-2:** Missing and damaged transfer units leave the stock ledger with no journal. Their value is a permanent ledger-vs-GL difference until an approved write-off treatment exists.
+
+**Tests:**
+- PostgreSQL: `UomPostgresHttpTests.InTransit` covers dispatch with m, ml and pcs, location view, by-location, list, full receipt, partial receipt with rejection and loss, full rejection, drafts/approved/cancelled, concurrent receipts, and endpoint validation and permission.
+- Unit: `InTransitStockTests`.
+- Frontend: `owner-dashboard-pages.spec.ts`, "with stock in transit".
