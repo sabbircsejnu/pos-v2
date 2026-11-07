@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { Component, ElementRef, Injector, OnInit, ViewChild, afterNextRender, inject, signal, computed } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -19,7 +20,7 @@ import { UI_KIT } from '../shared/ui';
 @Component({
   selector: 'app-product-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, CombinationManagerComponent, ProductImageUploaderComponent, ...UI_KIT],
+  imports: [CommonModule, FormsModule, RouterLink, CombinationManagerComponent, ProductImageUploaderComponent, ...UI_KIT],
   templateUrl: './product-form.html',
   styleUrl: './product-form.css',
 })
@@ -79,6 +80,8 @@ export class ProductForm implements OnInit {
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   /** Product image upload/replace/delete requires products.edit, also on Create (the upload follows the first save). */
   canEditImages = computed(() => this.auth.hasPermission('products.edit'));
+  /** The standard variant of a product without variants: its units and prices are set on that variant. */
+  standardVariantId = signal<number | null>(null);
 
   readonly setupChecklist = computed(() => {
     const basic = !!this.name().trim() && !!this.productCode().trim();
@@ -181,6 +184,7 @@ export class ProductForm implements OnInit {
           this.taxRate.set(product.taxRate ?? null);
           this.taxClassification.set(product.taxClassification ?? null);
           this.hasVariants.set(product.hasVariants);
+          this.standardVariantId.set(!product.hasVariants && product.variants?.length === 1 ? product.variants[0].id : null);
           this.status.set(product.status ?? 'active');
         }
       },

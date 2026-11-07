@@ -36,6 +36,7 @@ interface SetupOptions {
   taxSettings?: { taxEnabled: boolean; defaultTaxRate: number };
   taxSettingsResult?: Subject<unknown>;
   categoriesResult?: Subject<unknown>;
+  product?: Record<string, unknown>;
 }
 
 describe('ProductForm (shared UI migration)', () => {
@@ -83,7 +84,7 @@ describe('ProductForm (shared UI migration)', () => {
     const permissions = options.permissions ?? ['products.view_cost'];
     create$ = new Subject();
     productService = {
-      getById: vi.fn(() => of({ data: PRODUCT })),
+      getById: vi.fn(() => of({ data: options.product ?? PRODUCT })),
       create: vi.fn(() => create$),
       update: vi.fn(() => of({ data: PRODUCT })),
       generateSku: vi.fn(() => of({ data: 'MUG-GEN-1' })),
@@ -776,5 +777,27 @@ describe('ProductForm (shared UI migration)', () => {
       fixture = TestBed.createComponent(ProductForm);
       await settle();
     }
+  });
+
+  describe('Units & Pricing entry point', () => {
+    const unitsCard = () => qa('app-ui-card').find(card => card.textContent!.includes('Units & Pricing'))!;
+
+    it('says units unlock after the first save when creating', async () => {
+      await setup({ permissions: ['products.create', 'products.edit'] });
+      expect(unitsCard().textContent).toContain('Units unlock after the first save');
+      expect(unitsCard().querySelector('a')).toBeNull();
+    });
+
+    it('links a simple product straight to its standard variant', async () => {
+      await setup({ id: '7', permissions: ['products.edit'], product: { ...PRODUCT, hasVariants: false, variants: [{ id: 70 }] } });
+      const link = unitsCard().querySelector('a')!;
+      expect(link.getAttribute('href')).toBe('/products/7/variants/70/units');
+    });
+
+    it('points a product with variants to the action on each variant', async () => {
+      await setup({ id: '7', permissions: ['products.edit'], product: { ...PRODUCT, hasVariants: true, variants: [{ id: 70 }, { id: 71 }] } });
+      expect(unitsCard().querySelector('a')).toBeNull();
+      expect(unitsCard().textContent).toContain('Each variant has its own units');
+    });
   });
 });

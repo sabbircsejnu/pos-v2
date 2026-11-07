@@ -220,6 +220,18 @@
                   title="Stock Transactions">
                   <i class="fas fa-chart-bar" aria-hidden="true"></i>
                 </a>
+                @if (canEditUnits()) {
+                  <a
+                    appUiButton
+                    variant="ghost"
+                    size="sm"
+                    [iconOnly]="true"
+                    [routerLink]="['/products', productId, 'variants', combo.id, 'units']"
+                    [attr.aria-label]="'Units and pricing of ' + combo.combinationName"
+                    title="Units & Pricing">
+                    <i class="fas fa-ruler-combined" aria-hidden="true"></i>
+                  </a>
+                }
                 <button
                   appUiButton
                   type="button"

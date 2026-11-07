@@ -378,4 +378,17 @@ describe('CombinationManagerComponent (variant management)', () => {
       expect(warning.querySelector('a')!.getAttribute('href')).toBe('/variations');
     });
   });
+
+  describe('Units & Pricing action', () => {
+    it('links every variant to its units page for a user who may edit products', async () => {
+      await setup({ permissions: ['products.edit'] });
+      const links = qa<HTMLAnchorElement>('a[title="Units & Pricing"]').map(a => a.getAttribute('href'));
+      expect(links).toEqual(['/products/7/variants/100/units', '/products/7/variants/101/units']);
+    });
+
+    it('is not offered without products.edit', async () => {
+      await setup({ permissions: ['products.view_cost'] });
+      expect(qa('a[title="Units & Pricing"]')).toHaveLength(0);
+    });
+  });
 });

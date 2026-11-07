@@ -182,6 +182,22 @@
           }
         </app-ui-card>
 
+        <app-ui-card title="Units & Pricing" subtitle="Base unit, purchase units, selling packs, custom quantity prices and promotions.">
+          @if (!isEditMode() || !productId()) {
+            <p class="pf-note">Units unlock after the first save. Until then the product sells in pcs as usual.</p>
+          } @else if (standardVariantId()) {
+            <a appUiButton variant="outline" size="sm"
+               [routerLink]="['/products', productId(), 'variants', standardVariantId(), 'units']">
+              <i class="fas fa-ruler-combined mr-1" aria-hidden="true"></i> Units &amp; Pricing
+            </a>
+            <p class="pf-note">Leave it unset to keep selling in pcs.</p>
+          } @else if (hasVariants()) {
+            <p class="pf-note">Each variant has its own units. Use the <i class="fas fa-ruler-combined" aria-hidden="true"></i> action on a variant in the Variants section.</p>
+          } @else {
+            <p class="pf-note">Units are set per variant. This product has no variant yet.</p>
+          }
+        </app-ui-card>
+
         <app-ui-card title="Media" subtitle="Upload images, set primary media, and maintain gallery quality.">
           <app-product-image-uploader [productId]="productId()" [canEdit]="canEditImages()"></app-product-image-uploader>
         </app-ui-card>

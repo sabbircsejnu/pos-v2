@@ -56,6 +56,8 @@ export class CombinationManagerComponent implements OnInit {
 
   private auth = inject(AuthService);
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
+  /** Units & Pricing is part of the product's setup, so it follows the product edit permission. */
+  canEditUnits = computed(() => this.auth.hasPermission('products.edit'));
 
   constructor(
     private productVariationService: ProductVariationService,
