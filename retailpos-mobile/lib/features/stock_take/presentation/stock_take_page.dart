@@ -703,6 +703,22 @@ final class _IdentityField extends StatelessWidget {
   );
 }
 
+/// The error for a count this screen cannot hold, or null when it is a whole
+/// number of pieces. Items stocked in ml, g, m and other measured units are
+/// counted on the web, where decimal counts are supported.
+String? stockTakeWholeCountError(String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return null;
+  final whole = int.tryParse(text);
+  if (whole != null) {
+    return whole < 0 ? 'A count cannot be negative.' : null;
+  }
+  if (num.tryParse(text) != null) {
+    return 'Whole pieces only. Count measured items on the web.';
+  }
+  return 'Enter a whole number.';
+}
+
 final class StockTakeCountControls extends StatelessWidget {
   const StockTakeCountControls({
     this.quantity,
@@ -750,6 +766,10 @@ final class StockTakeCountControls extends StatelessWidget {
                     labelText: 'Count',
                     border: OutlineInputBorder(),
                   ),
+                  // This screen counts whole pieces. A measured count such as
+                  // 2.5 ml is refused out loud, never cut down or dropped.
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: stockTakeWholeCountError,
                   onChanged: enabled
                       ? (value) {
                           final parsed = int.tryParse(value);

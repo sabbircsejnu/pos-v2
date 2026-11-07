@@ -5,6 +5,46 @@ import 'package:iranimart_business_mobile/features/stock_take/domain/stock_take_
 import 'package:iranimart_business_mobile/features/stock_take/presentation/stock_take_page.dart';
 
 void main() {
+
+  test('a measured count is refused out loud, never truncated', () {
+    expect(stockTakeWholeCountError('12'), isNull);
+    expect(stockTakeWholeCountError(''), isNull);
+    expect(
+      stockTakeWholeCountError('2.5'),
+      'Whole pieces only. Count measured items on the web.',
+    );
+    expect(stockTakeWholeCountError('-1'), 'A count cannot be negative.');
+    expect(stockTakeWholeCountError('abc'), 'Enter a whole number.');
+  });
+
+  testWidgets('typing a decimal count shows the error and reports nothing', (
+    tester,
+  ) async {
+    final reported = <int>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StockTakeCountControls(
+            quantity: 3,
+            enabled: true,
+            onChanged: reported.add,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-take-quantity')),
+      '2.5',
+    );
+    await tester.pump();
+
+    expect(
+      find.text('Whole pieces only. Count measured items on the web.'),
+      findsOneWidget,
+    );
+    expect(reported, isEmpty);
+  });
   testWidgets('Stock Take overview keeps session lists unavailable', (
     tester,
   ) async {
