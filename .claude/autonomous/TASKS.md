@@ -32,3 +32,11 @@ Spec: `Docs/Unit_Of_Measurement/`. Audit and decisions: `Docs/Unit_Of_Measuremen
 | UOM-07 | Valuation, dashboards, reports | Integration tests | done |
 | UOM-08 | Angular UI | Vitest, build | done |
 | UOM-09 | Full regression, report | verify-build | done |
+| UOM-10 | I02 multiple partial refunds, I04 unified refund UI | Refund PostgreSQL tests, Vitest | done |
+| UOM-11 | I03 promotion eligibility per selling option | Promotion PostgreSQL tests, Vitest | done |
+| UOM-12 | I01 permission matrix, I05 P1 proofs | Permission and accounting tests | done |
+| UOM-13 | Gaps: whole-pack transfer receipt, open prepared packs, rejected-only GRN, slow movers, labels, Flutter guard | Gap tests, unit, flutter | done |
+| UOM-14 | Migration prepared, backed up, rehearsed | Rehearsal totals identical | done |
+| UOM-15 | Final verification report | Report exists | done |
+| UOM-16 | Apply migration to Development | History shows both migrations; totals match | blocked (U-06) |
+| UOM-17 | Browser walk-through and responsive checks | Real browser | blocked (no browser tool) |

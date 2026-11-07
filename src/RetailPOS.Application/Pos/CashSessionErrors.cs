@@ -19,6 +19,7 @@ public static class CashSessionErrorCodes
     public const string HandoverExceedsCount = "CASH_SESSION_HANDOVER_EXCEEDS_COUNT";
     public const string IdempotencyConflict = "CASH_SESSION_IDEMPOTENCY_CONFLICT";
     public const string TimeZoneInvalid = "CASH_SESSION_TIMEZONE_INVALID";
+    public const string CashRefundAmountMismatch = "CASH_REFUND_AMOUNT_MISMATCH";
     public const string CashRefundSessionRequired = "CASH_REFUND_SESSION_REQUIRED";
     public const string CashRefundPolicyUndefined = "CASH_REFUND_POLICY_UNDEFINED";
     public const string ExpenseMakerChecker = "EXPENSE_MAKER_CHECKER_VIOLATION";

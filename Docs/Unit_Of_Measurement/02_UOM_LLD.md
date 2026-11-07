@@ -481,3 +481,21 @@ These are implementation blockers, **not approval for D13+**:
 ## 24. Definition of done
 
 All D01–D12 approved outcomes have automated and real-workflow verification, including Attar 500 ml purchase/12 ml or custom sale, multi-package GRN, stock transfer/count/adjustment, optional packaging and pack-state, condition-based returns and optional repacking. Authoritative inventory/ledger/GL conserve quantity/value and report partial reliability honestly. All old products behave as `pcs`, no D13 features creep in. Provide exact changed files, migrations, tests, accounting reconciliation and release blockers.
+
+## Addendum — implementation of I01–I05 (2026-11-07)
+
+- **Refunds:**
+  - New tables `sale_refunds` and `sale_refund_payments`. `sale_return_lines` gains `sale_refund_id`, `net_amount` and `vat_amount`. `sale_items` gains `returned_quantity`, with the check `0 <= returned_quantity <= quantity`.
+  - `sale_financial_postings.sale_refund_id` is unique when set. The per-sale unique index now applies only to rows without one.
+  - Source keys: the first refund keeps `sale:{id}:reversal:v1` and the journal reference `{id}`; later refunds use `sale:{id}:refund:{n}:v1` and `{id}:R{n}`.
+  - Shares are cumulative: each refund takes `share(before + now) − share(before)`. Payment allocation is weighted by what each payment still holds.
+  - The sale row is locked with `FOR UPDATE` before it is read.
+- **Promotions:**
+  - `variant_selling_options.apply_automatic_pricing_rules` (existing rows false).
+  - `POST /api/pos/cart-prices` accepts `sellingOptionId` and `enteredQuantity`, and returns `lineGross` and `rulesNotApplied`.
+  - Sale lines may send `expectedLineGross`; a difference is refused with `SALE_PRICE_CHANGED`.
+- **Prepared packs:** `POST /api/v1/uom/pack-state/open-prepared` (`inventory.pack_state.manage`).
+- **Transfers:** a single-form line can be received in part, in whole packs. A missing or damaged prepared pack is refused.
+- **GRN:** a line may carry only damaged or rejected quantity, which posts nothing.
+- **Slow movers:** measured units are judged by stock cover against `SourceExcessCoverageDays`.
+- **Migration:** `20261107084952_PosV2UomRefundsAndPromotionEligibility`.

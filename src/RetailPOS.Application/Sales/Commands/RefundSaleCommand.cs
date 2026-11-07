@@ -297,8 +297,8 @@ public sealed class RefundSaleCommandHandler(
             var heldCash = snapshot.Payments.Any(payment => string.Equals(payment.Method, "cash", StringComparison.OrdinalIgnoreCase));
             if (heldCash && requested is { } stated && stated != cashShare)
                 throw new CashSessionException(
-                    CashSessionErrorCodes.CashRefundPolicyUndefined,
-                    $"The cash share of this refund is {cashShare:F2}, not {stated:F2}.");
+                    CashSessionErrorCodes.CashRefundAmountMismatch,
+                    $"The cash share of this refund is {cashShare:F2}, not {stated:F2}. Leave the cash amount out and it is worked out for you.");
             if (cashShare <= 0m)
                 return 0m;
             requested = cashShare;

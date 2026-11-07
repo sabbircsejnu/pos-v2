@@ -18,10 +18,13 @@ None of these stop the build. Details: `Docs/Unit_Of_Measurement/IMPLEMENTATION_
 
 | ID | Decision needed | Owner | Current fallback | Status |
 |---|---|---|---|---|
-| U-01 | Approve the six new permission keys. | Business owner | Keys live; BusinessOwner by wildcard; other roles via Role Edit | open |
-| U-02 | Allow more than one refund per sale (RET-002)? | Business owner, finance | One refund per sale | open |
-| U-03 | Should pricing rules apply to pack and custom prices? | Business owner | They do not | open |
-| U-04 | Show the refund button for pcs-only sales? | Business owner | Hidden | open |
-| U-05 | Sign off repack Pattern P1. | Finance | Implemented and proven by test | open |
-| U-06 | Apply the migration to Development. | Tech lead | Created, not applied | open |
-| U-07 | Update Flutter stock take for fractional quantities before wiring it to the API. | Tech lead | Not connected, so nothing fails today | open |
+| U-01 | Approve the six new permission keys. | Business owner | Approved (I01), verified by a permission matrix test | resolved |
+| U-02 | Allow more than one refund per sale (RET-002)? | Business owner, finance | Approved (I02) and implemented | resolved |
+| U-03 | Should pricing rules apply to pack and custom prices? | Business owner | Approved per option (I03) and implemented | resolved |
+| U-04 | Show the refund button for pcs-only sales? | Business owner | Approved (I04): shown for every eligible sale | resolved |
+| U-05 | Sign off repack Pattern P1. | Finance | Approved (I05); all twelve proofs pass | resolved |
+| U-06 | Apply the migration to Development. | Tech lead | Approved for Development; gates passed and rehearsed, but this session was not permitted to run it | blocked |
+| U-07 | Update Flutter stock take for fractional quantities before wiring it to the API. | Tech lead | Decimal counts are now refused with a message; decimal mobile counting not built | mitigated |
+| U-08 | Confirm that opening a prepared pack may return a reusable bottle to packaging stock at its capitalized value (SRS PACK-006/REP-008). | Finance | Implemented as the same treatment as the approved repack reversal | open |
+| U-09 | VAT report omits SalesReturnPosting refund VAT (existed before UOM). | Finance, tech lead | Journals correct; report incomplete | open |
+| U-10 | Remove the rehearsal DB uom_restore_check_20261107094240 (test server) and container /tmp files; the session safety check blocked the deletion. | Tech lead | Disposable, harmless | open |

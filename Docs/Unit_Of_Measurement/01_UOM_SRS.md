@@ -298,3 +298,18 @@ These are **not D13+ business scope expansions**: confirm with existing approved
 ## 23. Definition of done
 
 D01–D12 implementation is complete when all supported flows use canonical base unit and immutable conversion snapshots; pricing, stock quantity, packaging cost, pack state, returns and repacking reconcile; Inventory Intelligence displays meaningful per-unit quantities and reliable monetary totals; old `pcs` behaviour is preserved; docs/tests/security gates pass. No D13+ functionality may be silently introduced.
+
+## Addendum — owner decisions I01–I05 (2026-11-07)
+
+These approved decisions refine the requirements above. Where they differ, they govern.
+
+- **I01:** the permission keys `uom.view`, `uom.manage`, `inventory.pack_state.view`, `inventory.pack_state.manage`, `inventory.repacking.view` and `inventory.repacking.execute` are approved. POS, purchase and inventory staff read unit setups through their own operational permissions.
+- **I02 (refines RET-002):** a sale may have several partial refunds. Each one records its lines, condition, amounts and payment split, and posts its own journal exactly once.
+  - Cumulative returned quantity never exceeds the quantity sold.
+  - Sale status is `partially_refunded` until nothing remains, then `refunded`.
+  - Sales refunded before this decision stay closed.
+- **I03 (refines D01):** automatic pricing rules may apply to a selling option when that option allows it. New packs default off, new custom quantities on.
+  - A pack's rule minimum counts packs, not base units.
+  - A custom quantity takes only percentage rules without a minimum. Any other rule is not applied and is named to the cashier.
+- **I04 (refines RET-007):** one refund workflow and dialog serves legacy `pcs`, unit and mixed sales, with the same server safeguards.
+- **I05:** Pattern P1 (one Inventory account; packaging value capitalized into prepared packs and released through COGS) is approved, subject to the reconciliation tests passing.

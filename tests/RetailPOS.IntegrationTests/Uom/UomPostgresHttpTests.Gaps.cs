@@ -161,6 +161,11 @@ public sealed partial class UomPostgresHttpTests
             var rejected = await db.GrnItems.AsNoTracking().SingleAsync(row => row.PurchaseOrderItem.VariantId == attar);
             Assert.Equal(0m, rejected.ReceivedQty);
             Assert.Equal(5m, rejected.RejectedQuantity);
+
+            // A receipt that brought nothing carries no cost: the next sale falls back as if there were no receipt, never to 0.
+            await db.Products.Where(row => row.Id == attar).ExecuteUpdateAsync(setters => setters.SetProperty(row => row.CostPrice, 7m));
+            var store = new RetailPOS.Infrastructure.Sales.SaleCreationStore(db, null!);
+            Assert.Equal(7m, await store.ResolveHistoricalUnitCostSnapshotAsync(attar, CancellationToken.None));
         });
     }
 }

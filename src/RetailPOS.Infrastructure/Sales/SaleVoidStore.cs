@@ -66,15 +66,23 @@ public sealed class SaleVoidStore(RetailPOSDbContext dbContext) : ISaleVoidStore
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Locked for the rest of the void or refund (after the sale row, the same order everywhere). A concurrent sale of the
+    /// same item then waits instead of making this transaction fail on a stale row version.
+    /// </summary>
     public Task<Inventory?> FindOutletInventoryAsync(
         long variantId,
         long outletId,
         CancellationToken cancellationToken) =>
-        dbContext.Inventories.FirstOrDefaultAsync(
-            inventory => inventory.VariantId == variantId &&
-                         inventory.LocationId == outletId &&
-                         inventory.LocationType == "outlet",
-            cancellationToken);
+        dbContext.Database.IsNpgsql()
+            ? dbContext.Inventories
+                .FromSqlInterpolated($"SELECT *, xmin FROM inventories WHERE variant_id = {variantId} AND location_id = {outletId} AND location_type = 'outlet' FOR UPDATE")
+                .FirstOrDefaultAsync(cancellationToken)
+            : dbContext.Inventories.FirstOrDefaultAsync(
+                inventory => inventory.VariantId == variantId &&
+                             inventory.LocationId == outletId &&
+                             inventory.LocationType == "outlet",
+                cancellationToken);
 
     public Task<Customer?> FindCustomerForUpdateAsync(
         long customerId,

@@ -163,9 +163,20 @@ public sealed class CreateSaleCommandHandler(
                         : priced[index].FinalPrice))
                 .Where(change => Math.Abs(change.SubmittedUnitPrice - change.CurrentUnitPrice) > PriceTolerance)
                 .Concat(request.Items
-                    .Select((item, index) => (Item: item, LineGross: priced[index].LineGross))
-                    .Where(line => line.Item.ExpectedLineGross is { } expected && line.LineGross is { } gross && Math.Abs(expected - gross) > PriceTolerance)
-                    .Select(line => new SalePriceChange(line.Item.VariantId, line.Item.ExpectedLineGross!.Value, line.LineGross!.Value)))
+                    .Select((item, index) => (
+                        Item: item,
+                        LineGross: priced[index].LineGross,
+                        // A pack's discounted price is already asserted per pack. A custom line's discount lives only in
+                        // its amount, so without a stated amount the list amount is what the client priced.
+                        Listed: uomLines[index].Resolution is { Option.Kind: RetailPOS.Core.Entities.Uom.SellingOptionKinds.Custom } custom
+                            ? custom.LineGross
+                            : (decimal?)null))
+                    // A line amount the cashier saw must still be the amount, and a promotion is never applied unseen.
+                    .Where(line => line.LineGross is { } gross
+                        && (line.Item.ExpectedLineGross is { } expected
+                            ? Math.Abs(expected - gross) > PriceTolerance
+                            : line.Listed is { } listed && Math.Abs(listed - gross) > PriceTolerance))
+                    .Select(line => new SalePriceChange(line.Item.VariantId, line.Item.ExpectedLineGross ?? line.Listed!.Value, line.LineGross!.Value)))
                 .ToArray();
             if (priceChanges.Length > 0)
                 throw new SaleCheckoutConflictException(

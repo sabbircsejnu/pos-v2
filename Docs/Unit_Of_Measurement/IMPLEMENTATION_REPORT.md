@@ -1,5 +1,14 @@
 # UOM v1 — Implementation Report
 
+> **Update 2026-11-07:** the owner approved decisions I01–I05, and the follow-up work is in `UOM_FINAL_VERIFICATION_REPORT.md`, which supersedes §2, §8 and §11 below where they differ. In short:
+> - **I02:** a sale can be refunded several times.
+> - **I03:** promotions apply per selling option.
+> - **I04:** the refund button shows for every eligible sale.
+> - **I01 and I05:** confirmed by tests.
+> - **Gaps closed:** whole-pack partial transfer receipt, opening prepared packs, and GRN lines with nothing accepted.
+>
+> The status is still IMPLEMENTED — VERIFICATION PENDING, because the Development migration could not be applied from this session and no browser was available.
+
 **Date:** 2026-11-07. **Branch:** `staging`, local commits `8fe3aaea` to `781ba61b` plus this report; nothing pushed.
 
 ## Final status: IMPLEMENTED — VERIFICATION PENDING
@@ -22,14 +31,14 @@ The Attar example, verified on PostgreSQL: 1 jar at ৳1,000 becomes 500 ml at �
 
 | Decision | Status | Notes |
 |---|---|---|
-| D01 Unit and pack prices, custom quantities | Done | Prices stand alone; pricing rules do not apply to them (§11) |
+| D01 Unit and pack prices, custom quantities | Done | Prices stand alone; automatic promotions apply per option when switched on (I03) |
 | D02 Hybrid conversions | Done | Physical units use standard factors; packaging sizes are per product |
 | D03 Fixed packs and custom quantity at POS | Done | Keyboard picker; browser unverified |
 | D04 Packaging inventory and cost | Done | Consumed once, in COGS; shortage blocks the sale |
 | D05 Configurable precision | Done | 0–4 per unit; excess is rejected, never rounded |
 | D06 Multiple purchase units and packs | Done | With defaults |
 | D07 Versioning and snapshots | Done | Stale requests get `UOM_CONFIG_CHANGED` |
-| D08 Condition-based returns | **Partial** | One refund per sale, as the existing accounting allows (§11) |
+| D08 Condition-based returns | Done | Several partial refunds per sale since I02 (see the verification report) |
 | D09 Unit-aware transfer, count, adjustment | **Done with limits** | See §11 for sealed and prepared limits |
 | D10 Sealed and loose | Done | Multiple sizes; open is audited; balances reconcile to stock |
 | D11 GRN physical confirmation | **Done with limit** | Damaged stock is recorded, not stocked or payable; no quarantine bucket |

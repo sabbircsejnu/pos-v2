@@ -204,6 +204,10 @@ public sealed partial class UomPostgresHttpTests
         using var staleCustom = await owner.PostAsJsonAsync("/api/sales", PromoSaleBody(attar, 7m, 5m, 35m, Option(config, "ML"), version, 35m));
         Assert.Equal(HttpStatusCode.Conflict, staleCustom.StatusCode);
         Assert.Contains("SALE_PRICE_CHANGED", await staleCustom.Content.ReadAsStringAsync());
+
+        // A client that states no line amount is not charged a promotion it never saw either.
+        using var unstated = await owner.PostAsJsonAsync("/api/sales", PromoSaleBody(attar, 7m, 5m, 35m, Option(config, "ML"), version));
+        Assert.Equal(HttpStatusCode.Conflict, unstated.StatusCode);
     }
 
     [Fact]

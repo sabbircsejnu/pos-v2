@@ -160,7 +160,8 @@ public sealed class SaleCreationStore(
     {
         var completedReceiptLines = await dbContext.GrnItems
             .Where(item => item.Grn.Status == "completed" &&
-                           item.PurchaseOrderItem.VariantId == variantId)
+                           item.PurchaseOrderItem.VariantId == variantId
+                && item.ReceivedQty > 0)
             .Select(item => new { item.ReceivedQty, item.UnitCost })
             .ToListAsync(cancellationToken);
 
