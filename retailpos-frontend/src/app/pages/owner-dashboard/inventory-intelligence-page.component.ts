@@ -4,7 +4,11 @@ import { UI_KIT, UiBadgeVariant, UiDataTableComponent, UiTableColumn, UiTableQue
 import {
   BestSellerRow,
   DashboardLocation,
+  InTransitLine,
+  InTransitStock,
+  InTransitStockList,
   InventorySummary,
+  MetricStatus,
   MetricValue,
   OwnerDashboardMeta,
   PagedResult,
@@ -16,7 +20,8 @@ import {
   StockValueByLocation,
   TransferOpportunities,
   TransferOpportunity,
-  TransferPriority
+  TransferPriority,
+  UnitQuantity
 } from '../../models/owner-dashboard.model';
 import { CurrencyService } from '../../services/currency.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
@@ -41,9 +46,14 @@ import {
   validateRange,
   valuationCoverageText
 } from './shared/owner-dashboard.logic';
-import { formatUnitTotals, hasNonPcsUnit, sumByUnit } from '../../utils/uom-quantity.util';
+import { formatUnitTotals, hasNonPcsUnit, sumByUnit, unitTotalLabel } from '../../utils/uom-quantity.util';
 
-const PREVIEW_ROWS = { bestSellers: 15, slowMovers: 15, transfers: 10 } as const;
+const PREVIEW_ROWS = { bestSellers: 15, slowMovers: 15, transfers: 10, transit: 10 } as const;
+
+/** A coverage's card status: partly or not valued stock is flagged, never shown as a full value. */
+function coverageStatus(coverage: StockValuationCoverage | null | undefined): MetricStatus {
+  return coverage?.status === 'partial' ? 'partial' : coverage?.status === 'not_valued' ? 'not_valued' : 'ok';
+}
 const VIEW_ALL_PAGE_SIZE = 25;
 const PAGE_SIZES = [25, 50, 100];
 
@@ -104,12 +114,20 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
         }
 
         <section class="od-kpis" aria-label="Key figures">
-          <app-od-kpi-card label="Total Stock Value" [loading]="summary.loading()" [error]="!!summary.error()"
+          <app-od-kpi-card label="On-hand Stock Value" [loading]="summary.loading()" [error]="!!summary.error()"
             [value]="money(summary.data()?.totalStockValue)" [status]="summary.data()?.totalStockValue?.status ?? 'ok'"
             [note]="summary.data()?.totalStockValue?.note ?? null"
             statusLabel="Partial Value" [detail]="coverageText(summary.data()?.valuation, summaryHasOtherUnits())" />
-          <app-od-kpi-card label="Total Stock Quantity" [loading]="summary.loading()" [error]="!!summary.error()"
-            [value]="totalStockText()" detail="On hand; excludes stock in transit" />
+          <app-od-kpi-card label="On-hand Quantity" [loading]="summary.loading()" [error]="!!summary.error()"
+            [value]="totalStockText()" detail="Held at locations now; excludes stock in transit" />
+          <app-od-kpi-card label="In Transit" [loading]="summary.loading()" [error]="!!summary.error()"
+            [value]="inTransitText()" [status]="inTransitStatus()" statusLabel="Partial Value"
+            note="Dispatched, not yet received or rejected. Left the source; not yet at the destination."
+            [detail]="inTransitDetail()" />
+          <app-od-kpi-card label="Total Accounted Stock" [loading]="summary.loading()" [error]="!!summary.error()"
+            [value]="accountedText()" [status]="accountedStatus()" statusLabel="Partial Value"
+            [note]="accountedNote()"
+            [detail]="accountedDetail()" />
           <app-od-kpi-card label="Active Stocked Products" [loading]="summary.loading()" [error]="!!summary.error()"
             [value]="count(summary.data()?.activeStockedProducts)"
             [detail]="summary.data() ? count(summary.data()!.stockedVariants) + ' variants / SKUs' : null" />
@@ -139,8 +157,41 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
               <p class="od-helper">{{ valuedSubtotalLabel(byLocation.valuation) }}</p>
             }
             <app-od-bar-list caption="Stock by location" nameHeader="Location"
-              valueHeader="Stock value" detailHeader="Detail"
+              valueHeader="On-hand value" detailHeader="Detail"
               [rows]="locationRows()" [selectable]="true" (selected)="filterToLocation($event)" />
+          }
+        </app-ui-card>
+
+        <app-ui-card title="Stock In Transit" [headingLevel]="2"
+          subtitle="Dispatched transfers not yet received or rejected, oldest first. Rejected stock travels back on a return transfer until the source receives it.">
+          <app-ui-data-table #transitTable caption="Stock in transit" ariaLabel="Stock in transit" mode="server" rowKey="key" density="compact"
+            [columns]="transitColumns()" [rows]="transitRows()" [totalRecords]="transit.data()?.rows?.totalCount ?? 0"
+            [loading]="transit.loading()" [error]="transit.error()" [paginated]="transitAll()"
+            [initialPageSize]="viewAllPageSize" [pageSizes]="pageSizes"
+            searchPlaceholder="Transfer no., main code, name or SKU" searchLabel="Search stock in transit"
+            emptyTitle="Nothing in transit" emptyMessage="Every dispatched transfer has been received or rejected."
+            (queryChange)="onTransitQuery($event)" (retry)="loadTransit()">
+            <ng-template uiTableCell="transfer" let-row>
+              <div class="od-stack">
+                <span class="od-code">{{ row.transferNo || ('#' + row.transferId) }}</span>
+                @if (row.isReturn) {<app-ui-badge variant="warning">Return of rejected stock</app-ui-badge>}
+              </div>
+            </ng-template>
+            <ng-template uiTableCell="product" let-row>
+              <div class="od-stack"><span>{{ row.productName }}</span><span class="od-muted">{{ row.sku }} · {{ row.variantLabel }}</span></div>
+            </ng-template>
+            <ng-template uiTableCell="route" let-row>
+              <div class="od-stack">
+                <span>{{ row.fromLocationName }} → {{ row.toLocationName }}</span>
+                @if (direction(row); as side) {<span class="od-muted">{{ side }}</span>}
+              </div>
+            </ng-template>
+            <ng-template uiTableCell="quantity" let-row>{{ qty(row.quantity, row.baseUnitCode) }}</ng-template>
+            <ng-template uiTableCell="value" let-row>{{ row.value === null ? 'Not Valued' : currency.format(row.value) }}</ng-template>
+            <ng-template uiTableCell="dispatchedAtUtc" let-row>{{ row.dispatchedAtUtc ? (row.dispatchedAtUtc | appDate:'medium') : '—' }}</ng-template>
+          </app-ui-data-table>
+          @if (!transitAll() && (transit.data()?.rows?.totalCount ?? 0) > preview.transit) {
+            <div class="od-more"><button appUiButton type="button" variant="outline" size="sm" (click)="showAllTransit()">View All ({{ transit.data()!.rows.totalCount }})</button></div>
           }
         </app-ui-card>
 
@@ -345,6 +396,7 @@ export class InventoryIntelligencePageComponent implements OnInit {
   @ViewChild('bestTable') private bestTable?: UiDataTableComponent<BestSellerRow>;
   @ViewChild('slowTable') private slowTable?: UiDataTableComponent<SlowMoverRow>;
   @ViewChild('transferTable') private transferTable?: UiDataTableComponent<TransferOpportunity>;
+  @ViewChild('transitTable') private transitTable?: UiDataTableComponent<InTransitLine>;
 
   private readonly toMessage = (error: unknown) => this.errors.extractErrorMessage(error);
 
@@ -367,6 +419,7 @@ export class InventoryIntelligencePageComponent implements OnInit {
   readonly bestAll = signal(false);
   readonly slowAll = signal(false);
   readonly transfersAll = signal(false);
+  readonly transitAll = signal(false);
   readonly transferOpen = signal(false);
   readonly productOpen = signal(false);
 
@@ -377,10 +430,74 @@ export class InventoryIntelligencePageComponent implements OnInit {
   readonly transfers = createWidget<TransferOpportunities>(this.destroyRef, this.toMessage);
   readonly transferDetail = createWidget<TransferOpportunity>(this.destroyRef, this.toMessage);
   readonly product = createWidget<ProductInsights>(this.destroyRef, this.toMessage);
+  readonly transit = createWidget<InTransitStockList>(this.destroyRef, this.toMessage);
 
   private bestQuery: UiTableQuery | null = null;
   private slowQuery: UiTableQuery | null = null;
   private transferQuery: UiTableQuery | null = null;
+  private transitQuery: UiTableQuery | null = null;
+
+  /** A location is selected: in-transit figures split into what arrives there and what left it. */
+  private readonly selectedLocation = computed(() => {
+    const filter = this.filter();
+    return filter ? parseLocation(filter.location) : null;
+  });
+
+  readonly transitColumns = computed<UiTableColumn[]>(() => [
+    { key: 'transfer', header: 'Transfer', type: 'custom' },
+    { key: 'product', header: 'Product / Variant', type: 'custom' },
+    {
+      key: 'route',
+      header: 'From → To',
+      type: 'custom',
+      ...(this.selectedLocation()
+        ? { filter: { type: 'select' as const, options: [{ value: 'incoming', label: 'Incoming' }, { value: 'outgoing', label: 'Outgoing' }] } }
+        : {})
+    },
+    { key: 'quantity', header: 'Quantity', type: 'custom', align: 'end' },
+    { key: 'value', header: 'Value at cost', type: 'custom', align: 'end' },
+    { key: 'dispatchedAtUtc', header: 'Dispatched', type: 'custom' }
+  ]);
+
+  readonly transitRows = computed(() =>
+    (this.transit.data()?.rows.items ?? []).map(row => ({ ...row, key: `${row.transferId}-${row.variantId}-${row.quantity}` })));
+
+  /** For one location, what arrives; for all locations, every line once (incoming and outgoing are the same lines). */
+  private readonly incoming = computed(() => this.summary.data()?.inTransit?.incoming ?? null);
+
+  readonly inTransitText = computed(() => {
+    const data = this.summary.data();
+    if (!data) return null;
+    return this.unitsText(this.incoming()?.quantityByUnit);
+  });
+
+  readonly inTransitStatus = computed(() => coverageStatus(this.incoming()?.valuation));
+
+  readonly inTransitDetail = computed(() => {
+    const transit = this.summary.data()?.inTransit;
+    if (!transit) return null;
+    const value = this.transitValueText(transit.incoming);
+    if (transit.businessWide) {
+      return transit.incoming.lines ? `${value} · ${transit.incoming.transfers} transfer(s)` : 'No dispatched transfer is awaiting receipt';
+    }
+    return `Incoming: ${this.unitsText(transit.incoming.quantityByUnit)} (${value}) · Outgoing: ${this.unitsText(transit.outgoing.quantityByUnit)} (${this.transitValueText(transit.outgoing)})`;
+  });
+
+  readonly accountedText = computed(() => {
+    const data = this.summary.data();
+    return data ? this.unitsText(data.totalAccountedByUnit) : null;
+  });
+
+  readonly accountedStatus = computed(() => coverageStatus(this.summary.data()?.totalAccountedValuation));
+
+  readonly accountedNote = computed(() => this.summary.data()?.inTransit?.businessWide === false
+    ? 'On hand here plus stock on its way here. Outgoing stock counts at its destination, so locations add up to the business.'
+    : 'On hand plus in transit. Each unit counts once.');
+
+  readonly accountedDetail = computed(() => {
+    const coverage = this.summary.data()?.totalAccountedValuation;
+    return coverage ? `Value: ${this.coverageLabel(coverage)}` : null;
+  });
 
   readonly bestColumns: UiTableColumn[] = [
     { key: 'rank', header: 'Rank', type: 'number', sortable: true, width: '4rem' },
@@ -465,7 +582,9 @@ export class InventoryIntelligencePageComponent implements OnInit {
       detail: [
         hasNonPcsUnit(row.quantityByUnit) ? formatUnitTotals(row.quantityByUnit ?? []) : `${row.quantity.toLocaleString('en-US')} units`,
         row.percentOfTotal === null ? null : `${row.percentOfTotal}% of valued stock`,
-        row.valuation.unvaluedRecords > 0 ? valuationCoverageText(row.valuation, hasNonPcsUnit(row.quantityByUnit)) : null
+        row.valuation.unvaluedRecords > 0 ? valuationCoverageText(row.valuation, hasNonPcsUnit(row.quantityByUnit)) : null,
+        row.incoming?.lines ? `Incoming in transit: ${this.unitsText(row.incoming.quantityByUnit)}` : null,
+        row.outgoing?.lines ? `Outgoing in transit: ${this.unitsText(row.outgoing.quantityByUnit)}` : null
       ].filter(Boolean).join(' · ')
     })));
 
@@ -489,6 +608,24 @@ export class InventoryIntelligencePageComponent implements OnInit {
 
   phrase(quantity: number, unitCode: string | null | undefined): string {
     return unitQuantityPhrase(quantity, unitCode);
+  }
+
+  /** One figure per unit (`200 m · 50 ml · 4 pcs`); a plain count while only pcs are involved. */
+  unitsText(rows: UnitQuantity[] | null | undefined): string {
+    return rows?.length ? unitTotalLabel(rows) : 'None';
+  }
+
+  transitValueText(stock: InTransitStock): string {
+    return stock.lines ? this.coverageLabel(stock.valuation) : 'no value';
+  }
+
+  /** Incoming or outgoing relative to the selected location; nothing to say for all locations. */
+  direction(row: InTransitLine): string | null {
+    const location = this.selectedLocation();
+    if (!location) return null;
+    if (row.toLocationId === location.id && row.toLocationType === location.type) return 'Incoming';
+    if (row.fromLocationId === location.id && row.fromLocationType === location.type) return 'Outgoing';
+    return null;
   }
 
   productHasOtherUnits(detail: ProductInsights): boolean {
@@ -538,6 +675,7 @@ export class InventoryIntelligencePageComponent implements OnInit {
     this.loadBest();
     this.loadSlow();
     this.loadTransfers();
+    this.loadTransit();
   }
 
   filterToLocation(key: string): void {
@@ -565,6 +703,28 @@ export class InventoryIntelligencePageComponent implements OnInit {
   onTransferQuery(query: UiTableQuery): void {
     this.transferQuery = query;
     this.loadTransfers();
+  }
+
+  onTransitQuery(query: UiTableQuery): void {
+    this.transitQuery = query;
+    this.loadTransit();
+  }
+
+  loadTransit(): void {
+    const table = this.tableParams(this.transitQuery, this.transitAll(), PREVIEW_ROWS.transit);
+    const route = this.transitQuery?.filters['route'];
+    this.transit.load(this.api.inTransit(this.query(), {
+      search: table.search,
+      page: table.page,
+      pageSize: table.pageSize,
+      // A direction only means something for a selected location; the column offers it only then.
+      direction: this.selectedLocation() && (route === 'incoming' || route === 'outgoing') ? route : undefined
+    }));
+  }
+
+  showAllTransit(): void {
+    this.transitAll.set(true);
+    this.loadTransit();
   }
 
   loadBest(): void {
@@ -689,12 +849,15 @@ export class InventoryIntelligencePageComponent implements OnInit {
     this.bestQuery = this.firstPage(this.bestQuery);
     this.slowQuery = this.firstPage(this.slowQuery);
     this.transferQuery = this.firstPage(this.transferQuery);
+    this.transitQuery = this.firstPage(this.transitQuery);
     this.bestTable?.goTo(1);
     this.slowTable?.goTo(1);
     this.transferTable?.goTo(1);
+    this.transitTable?.goTo(1);
     this.loadBest();
     this.loadSlow();
     this.loadTransfers();
+    this.loadTransit();
   }
 
   private firstPage(query: UiTableQuery | null): UiTableQuery | null {

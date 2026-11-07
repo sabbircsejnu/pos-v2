@@ -6,6 +6,7 @@ import { ApiResponse } from '../interceptors/error.interceptor';
 import {
   BestSellerRow,
   CashFlow,
+  InTransitStockList,
   InventorySummary,
   OwnerDashboardMeta,
   PagedResult,
@@ -47,6 +48,14 @@ export interface SlowMoversQuery extends TableQuery {
   maxStock?: number | null;
 }
 
+export interface InTransitQuery {
+  search?: string;
+  /** incoming or outgoing; needs a location filter. */
+  direction?: 'incoming' | 'outgoing';
+  page: number;
+  pageSize: number;
+}
+
 export interface TransferQuery extends TableQuery {
   sourceLocationId?: number | null;
   destinationLocationId?: number | null;
@@ -85,6 +94,10 @@ export class OwnerDashboardService {
 
   stockByLocation(query: InventoryQuery): Observable<StockValueByLocation> {
     return this.get('inventory/locations', { ...query });
+  }
+
+  inTransit(query: InventoryQuery, table: InTransitQuery): Observable<InTransitStockList> {
+    return this.get('inventory/in-transit', { ...query, ...table });
   }
 
   bestSellers(query: InventoryQuery, table: TableQuery): Observable<PagedResult<BestSellerRow>> {

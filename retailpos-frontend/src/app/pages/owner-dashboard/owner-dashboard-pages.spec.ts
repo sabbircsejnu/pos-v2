@@ -2,7 +2,7 @@ import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { BehaviorSubject, Observable, map, of, throwError } from 'rxjs';
-import { InventorySummary, MetricValue, OwnerDashboardMeta, SalesFinanceSummary, StockValuationCoverage } from '../../models/owner-dashboard.model';
+import { InTransitLine, InTransitStock, InventorySummary, MetricValue, OwnerDashboardMeta, SalesFinanceSummary, StockValuationCoverage } from '../../models/owner-dashboard.model';
 import { AuthService } from '../../services/auth.service';
 import { BusinessContextStore } from '../../services/business-context.store';
 import { CurrencyService } from '../../services/currency.service';
@@ -54,6 +54,17 @@ const coverage = (overrides: Partial<StockValuationCoverage> = {}): StockValuati
   unvaluedQuantity: 0,
   ...overrides
 });
+
+const NO_STOCK = coverage({ valuedSubtotal: null, status: 'no_stock', valuedRecords: 0, valuedQuantity: 0 });
+const NO_TRANSIT: InTransitStock = { quantityByUnit: [], valuation: NO_STOCK, transfers: 0, lines: 0 };
+
+/** 200 m of fabric and 50 ml of attar on their way to a showroom, the attar without a reliable cost. */
+const FABRIC_AND_ATTAR: InTransitStock = {
+  quantityByUnit: [{ unitCode: 'm', quantity: 200 }, { unitCode: 'ml', quantity: 50 }],
+  valuation: coverage({ valuedSubtotal: 2000, status: 'partial', valuedQuantity: 200, unvaluedRecords: 1, unvaluedQuantity: 50 }),
+  transfers: 2,
+  lines: 2
+};
 
 const SUMMARY: SalesFinanceSummary = {
   context: CONTEXT,
@@ -122,7 +133,12 @@ function apiStub(meta: OwnerDashboardMeta = META) {
     slowMovers: vi.fn(() => of({ context: CONTEXT, rows: { items: [], totalCount: 0, page: 1, pageSize: 15 }, insufficientEvidenceCount: 0 })),
     transferOpportunities: vi.fn(() => of({ context: CONTEXT, rows: { items: [], totalCount: 0, page: 1, pageSize: 10 }, status: 'ok', stockAsOfUtc: CONTEXT.dataAsOfUtc })),
     transferOpportunity: vi.fn(),
-    productInsights: vi.fn()
+    productInsights: vi.fn(),
+    inTransit: vi.fn(() => of({
+      context: CONTEXT,
+      rows: { items: [], totalCount: 0, page: 1, pageSize: 10 },
+      summary: { incoming: NO_TRANSIT, outgoing: NO_TRANSIT, businessWide: true }
+    }))
   };
 }
 
@@ -373,6 +389,124 @@ describe('InventoryIntelligencePageComponent', () => {
     expect(central.detail).toContain('Not valued: 2,523 units (23 records)');
     expect(central.detail).not.toContain('% of');
     expect(text).toContain('Total: BDT 1128 (Partial Value)');
+  });
+
+  describe('with stock in transit', () => {
+    const onHand = [{ unitCode: 'm', quantity: 300 }, { unitCode: 'ml', quantity: 450 }, { unitCode: 'pcs', quantity: 4560 }];
+    const withTransit = (api: ReturnType<typeof apiStub>, businessWide: boolean) => {
+      const summary = api.inventorySummary() as unknown as Observable<InventorySummary>;
+      api.inventorySummary = vi.fn(() => summary.pipe(map(data => ({
+        ...data,
+        quantityByUnit: onHand,
+        inTransit: businessWide
+          ? { incoming: FABRIC_AND_ATTAR, outgoing: FABRIC_AND_ATTAR, businessWide }
+          : { incoming: FABRIC_AND_ATTAR, outgoing: NO_TRANSIT, businessWide },
+        totalAccountedByUnit: [{ unitCode: 'm', quantity: 500 }, { unitCode: 'ml', quantity: 500 }, { unitCode: 'pcs', quantity: 4560 }],
+        totalAccountedValuation: coverage({ valuedSubtotal: 7000, status: 'partial', unvaluedRecords: 2 })
+      })))) as never;
+    };
+
+    it('shows on hand, in transit and the accounted total separately, one figure per unit', async () => {
+      const api = apiStub();
+      withTransit(api, true);
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+      const page = fixture.componentInstance;
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+      expect(page.totalStockText()).toBe('300 m · 450 ml · 4,560 pcs');
+      expect(page.inTransitText()).toBe('200 m · 50 ml');
+      expect(page.accountedText()).toBe('500 m · 500 ml · 4,560 pcs');
+      expect(page.inTransitStatus()).toBe('partial');
+      expect(page.inTransitDetail()).toBe('BDT 2000 (Partial Value) · 2 transfer(s)');
+      expect(text).toContain('On-hand Quantity');
+      expect(text).toContain('In Transit');
+      expect(text).toContain('Total Accounted Stock');
+      // 200 m and 50 ml are never one number.
+      expect(text).not.toContain('250');
+    });
+
+    it('splits a location into incoming and outgoing', async () => {
+      const api = apiStub();
+      withTransit(api, false);
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api, { from: '2026-11-01', to: '2026-11-06', location: 'outlet:5' });
+      const page = fixture.componentInstance;
+
+      expect(page.inTransitDetail()).toBe('Incoming: 200 m · 50 ml (BDT 2000 (Partial Value)) · Outgoing: None (no value)');
+      expect(page.accountedNote()).toContain('Outgoing stock counts at its destination');
+    });
+
+    it('says when nothing is in transit', async () => {
+      const api = apiStub();
+      const summary = api.inventorySummary() as unknown as Observable<InventorySummary>;
+      api.inventorySummary = vi.fn(() => summary.pipe(map(data => ({
+        ...data, inTransit: { incoming: NO_TRANSIT, outgoing: NO_TRANSIT, businessWide: true }
+      })))) as never;
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+
+      expect(fixture.componentInstance.inTransitText()).toBe('None');
+      expect(fixture.componentInstance.inTransitDetail()).toBe('No dispatched transfer is awaiting receipt');
+    });
+
+    it('lists incoming and outgoing transit on each location', async () => {
+      const api = apiStub();
+      api.stockByLocation = vi.fn(() => of({
+        context: CONTEXT,
+        locations: [{
+          locationId: 5, locationType: 'outlet', locationName: 'Outlet 5', quantity: 0, stockValue: null, percentOfTotal: null,
+          valuation: NO_STOCK, quantityByUnit: [], incoming: FABRIC_AND_ATTAR, outgoing: NO_TRANSIT
+        }],
+        totalStockValue: null,
+        valueStatus: 'ok',
+        valuation: NO_STOCK,
+        inTransit: FABRIC_AND_ATTAR
+      })) as never;
+
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+      const [outlet] = fixture.componentInstance.locationRows();
+
+      expect(outlet.detail).toContain('Incoming in transit: 200 m · 50 ml');
+      expect(outlet.detail).not.toContain('Outgoing in transit');
+    });
+
+    it('lists the lines, marks direction for a location, and never shows unknown cost as zero', async () => {
+      const line: InTransitLine = {
+        transferId: 7, transferNo: 'TRF-2026-00007', isReturn: false, variantId: 70, productId: 700, mainCode: 'ATR', productName: 'Attar',
+        sku: 'ATR-1', variantLabel: 'Default', categoryName: 'Perfume', fromLocationId: 9, fromLocationType: 'warehouse', fromLocationName: 'Central',
+        toLocationId: 5, toLocationType: 'outlet', toLocationName: 'Outlet 5', quantity: 50, baseUnitCode: 'ml', value: null,
+        dispatchedAtUtc: '2026-11-05T10:00:00Z'
+      };
+      const api = apiStub();
+      api.inTransit = vi.fn(() => of({
+        context: CONTEXT,
+        rows: { items: [line], totalCount: 1, page: 1, pageSize: 10 },
+        summary: { incoming: FABRIC_AND_ATTAR, outgoing: NO_TRANSIT, businessWide: false }
+      })) as never;
+
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api, { from: '2026-11-01', to: '2026-11-06', location: 'outlet:5' });
+      const page = fixture.componentInstance;
+      page.onTransitQuery({ page: 1, pageSize: 10, search: '', sort: null, filters: { route: 'incoming' } } as never);
+
+      expect(api.inTransit).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locationId: 5, locationType: 'outlet' }),
+        expect.objectContaining({ direction: 'incoming' }));
+      expect(page.direction(line)).toBe('Incoming');
+      expect(page.transitColumns().find(column => column.key === 'route')?.filter).toBeDefined();
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(text).toContain('TRF-2026-00007');
+      expect(text).toContain('Not Valued');
+    });
+
+    it('asks for no direction when all locations are shown', async () => {
+      const api = apiStub();
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+      fixture.componentInstance.onTransitQuery({ page: 1, pageSize: 10, search: '', sort: null, filters: { route: 'incoming' } } as never);
+
+      expect(api.inTransit).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locationId: null }),
+        expect.objectContaining({ direction: undefined }));
+      expect(fixture.componentInstance.transitColumns().find(column => column.key === 'route')?.filter).toBeUndefined();
+    });
   });
 
   it('shows valued and unvalued quantities on the stock value card', async () => {

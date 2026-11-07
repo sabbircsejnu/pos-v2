@@ -191,6 +191,56 @@ export interface InventorySummary {
   slowMovingValuation: StockValuationCoverage;
   /** `totalStockQuantity` covers pcs only; every unit appears here. */
   quantityByUnit?: UnitQuantity[] | null;
+  /** Dispatched, not yet received or rejected. Never part of the on-hand figures above. */
+  inTransit?: InTransitSummary | null;
+  /** On hand plus incoming in transit, per unit. */
+  totalAccountedByUnit?: UnitQuantity[] | null;
+  totalAccountedValuation?: StockValuationCoverage | null;
+}
+
+/** Stock moving between locations: per unit, with how much of it has a reliable value. */
+export interface InTransitStock {
+  quantityByUnit: UnitQuantity[];
+  valuation: StockValuationCoverage;
+  transfers: number;
+  lines: number;
+}
+
+/** For all locations incoming and outgoing are the same lines; for one location they are what arrives and what left. */
+export interface InTransitSummary {
+  incoming: InTransitStock;
+  outgoing: InTransitStock;
+  businessWide: boolean;
+}
+
+export interface InTransitLine {
+  transferId: number;
+  transferNo: string | null;
+  isReturn: boolean;
+  variantId: number;
+  productId: number;
+  mainCode: string | null;
+  productName: string;
+  sku: string;
+  variantLabel: string;
+  categoryName: string;
+  fromLocationId: number;
+  fromLocationType: 'outlet' | 'warehouse';
+  fromLocationName: string;
+  toLocationId: number;
+  toLocationType: 'outlet' | 'warehouse';
+  toLocationName: string;
+  quantity: number;
+  baseUnitCode: string;
+  /** Null when the dispatch cost is not reliable; never shown as zero. */
+  value: number | null;
+  dispatchedAtUtc: string | null;
+}
+
+export interface InTransitStockList {
+  context: DashboardContext;
+  rows: PagedResult<InTransitLine>;
+  summary: InTransitSummary;
 }
 
 export interface StockValueByLocationRow {
@@ -202,6 +252,8 @@ export interface StockValueByLocationRow {
   percentOfTotal: number | null;
   valuation: StockValuationCoverage;
   quantityByUnit?: UnitQuantity[] | null;
+  incoming?: InTransitStock | null;
+  outgoing?: InTransitStock | null;
 }
 
 export interface StockValueByLocation {
@@ -210,6 +262,7 @@ export interface StockValueByLocation {
   totalStockValue: number | null;
   valueStatus: MetricStatus;
   valuation: StockValuationCoverage;
+  inTransit?: InTransitStock | null;
 }
 
 export interface BestSellerRow {
