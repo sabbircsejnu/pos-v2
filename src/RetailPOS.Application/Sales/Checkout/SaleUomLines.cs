@@ -104,7 +104,8 @@ public static class SaleUomReversal
         IPackStateLedger? packState,
         IStockLedgerWriter? stockLedger,
         Func<long, CancellationToken, Task<Core.Entities.Inventory?>> findInventory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool variantTracksPackState = false)
     {
         var restoredValue = 0m;
         var businessId = sale.BusinessId ?? 0;
@@ -132,6 +133,15 @@ public static class SaleUomReversal
                         0, quantity, 0m, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
                     cancellationToken);
             }
+        }
+
+        else if (variantTracksPackState && packState is not null)
+        {
+            // Sold before tracking was switched on: it has no recorded form, so it returns as loose stock.
+            await packState.ApplyAsync(
+                new PackStateChange(businessId, item.VariantId, sale.OutletId, "outlet", PackStates.Loose, string.Empty, 0m,
+                    0, quantity, 0m, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
+                cancellationToken);
         }
 
         // Packaging comes back only with the whole line, and only when someone confirmed it can be used again.

@@ -185,6 +185,11 @@ public sealed class UpdateVariantUnitConfigCommandHandler(
         var componentConfigs = await reader.GetCurrentAsync(businessId, componentIds, cancellationToken);
         if (componentConfigs.Values.Any(config => config.SellingOptions.Any(option => option.Components.Count > 0)))
             throw new UomValidationException(UomErrorCodes.InvalidConfiguration, "A packaging item cannot itself consume packaging.");
+        // Packaging leaves stock as whole items, so it has no sealed or loose state to keep in step.
+        if (componentConfigs.Values.Any(config => config.PackStateTrackingEnabled))
+            throw new UomValidationException(UomErrorCodes.InvalidConfiguration, "A packaging item cannot track sealed and loose stock.");
+        if (input.PackStateTrackingEnabled && await store.IsUsedAsPackagingAsync(request.VariantId, cancellationToken))
+            throw new UomValidationException(UomErrorCodes.InvalidConfiguration, "This item is used as packaging, so it cannot track sealed and loose stock.");
         foreach (var component in input.SellingOptions.SelectMany(option => option.Components))
             UomLineResolver.EnsureBaseQuantityAllowed(
                 componentConfigs.GetValueOrDefault(component.ComponentVariantId),

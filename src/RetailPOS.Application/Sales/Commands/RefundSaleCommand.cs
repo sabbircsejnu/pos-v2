@@ -38,7 +38,8 @@ public sealed class RefundSaleCommandHandler(
     ISaleRefundLogger logger,
     ISaleCashRefundRecorder cashRefunds,
     IPackStateLedger? packState = null,
-    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null) : IRequestHandler<RefundSaleCommand, SaleReadModel>
+    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null,
+    IVariantUomReader? uomReader = null) : IRequestHandler<RefundSaleCommand, SaleReadModel>
 {
     public async Task<SaleReadModel> Handle(
         RefundSaleCommand request,
@@ -91,6 +92,9 @@ public sealed class RefundSaleCommandHandler(
             }
 
             var inventoryReturns = new List<(SaleRefundLine Line, SaleItem Item, decimal BalanceAfter)>();
+            var uomConfigs = uomReader is null || sale.BusinessId is not { } uomBusinessId
+                ? new Dictionary<long, ResolvedVariantUom>()
+                : await uomReader.GetCurrentAsync(uomBusinessId, assessed.Select(line => line.Line.VariantId).ToList(), cancellationToken);
             var finalLines = new List<SaleRefundLine>(assessed.Count);
             foreach (var (line, condition, packagingReusable) in assessed)
             {
@@ -108,7 +112,8 @@ public sealed class RefundSaleCommandHandler(
                         inventoryReturns.Add((line, saleItem, inventory.Quantity));
                     }
 
-                    if (saleItem.PackState is not null || saleItem.Components.Count > 0)
+                    var tracksNow = uomConfigs.GetValueOrDefault(line.VariantId)?.PackStateTrackingEnabled == true;
+                    if (saleItem.PackState is not null || saleItem.Components.Count > 0 || tracksNow)
                         restoredPackaging = await SaleUomReversal.RestoreAsync(
                             sale,
                             saleItem,
@@ -118,7 +123,8 @@ public sealed class RefundSaleCommandHandler(
                             packState,
                             rawStockLedger,
                             (variantId, token) => store.FindOutletInventoryAsync(variantId, sale.OutletId, token),
-                            cancellationToken);
+                            cancellationToken,
+                            tracksNow);
                 }
 
                 var contentCost = resellable ? (saleItem.HistoricalUnitCost ?? 0m) * line.Quantity : 0m;

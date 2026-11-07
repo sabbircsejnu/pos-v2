@@ -32,13 +32,15 @@ public sealed class StockCountAdjustmentDraftBuilder(RetailPOSDbContext dbContex
         foreach (var line in changedLines)
         {
             var difference = line.Difference!.Value;
-            if (difference != decimal.Truncate(difference))
+            // Measured items can really differ by a fraction. A plain pcs item never does.
+            if (difference != decimal.Truncate(difference)
+                && !await dbContext.VariantUomConfigs.AnyAsync(config => config.VariantId == line.VariantId && config.EffectiveToUtc == null, cancellationToken))
             {
                 throw new InvalidOperationException(
                     $"Difference for variant '{line.VariantName}' has fractional quantity and cannot be converted to stock adjustment draft.");
             }
 
-            var quantityChange = decimal.ToInt32(difference);
+            var quantityChange = difference;
             var inventory = await dbContext.Inventories
                 .FirstOrDefaultAsync(
                     item => item.VariantId == line.VariantId

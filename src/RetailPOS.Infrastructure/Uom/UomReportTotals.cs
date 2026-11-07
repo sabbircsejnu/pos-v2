@@ -24,3 +24,35 @@ internal static class UomReportTotals
             .Where(config => config.BusinessId == businessId && config.EffectiveToUtc == null)
             .ToDictionaryAsync(config => config.VariantId, config => config.BaseUnit.Code, cancellationToken);
 }
+
+/// <summary>
+/// A variant may only be deleted while nothing refers to it. Its own unit configuration goes with it, because a variant
+/// with no transactions has no snapshot that needs it. Being another item's packaging, or having repack jobs or physical
+/// stock states, keeps it.
+/// </summary>
+internal static class UomVariantRemoval
+{
+    public static async Task RemoveConfigurationAsync(RetailPOSDbContext dbContext, IReadOnlyCollection<long> variantIds, CancellationToken cancellationToken)
+    {
+        var ids = variantIds.ToList();
+        if (await dbContext.SellingOptionComponents.AnyAsync(row => ids.Contains(row.ComponentVariantId) && row.SellingOption.Config.EffectiveToUtc == null, cancellationToken))
+            throw new InvalidOperationException("This item is used as packaging by another item. Remove it from that item's selling options first.");
+        if (await dbContext.RepackJobs.AnyAsync(row => ids.Contains(row.SourceVariantId), cancellationToken)
+            || await dbContext.RepackComponentLines.AnyAsync(row => ids.Contains(row.ComponentVariantId), cancellationToken)
+            || await dbContext.SaleItemComponents.AnyAsync(row => ids.Contains(row.ComponentVariantId), cancellationToken)
+            || await dbContext.PackStateBalances.AnyAsync(row => ids.Contains(row.VariantId) && (row.BaseQuantity != 0m || row.PackCount != 0), cancellationToken))
+            throw new InvalidOperationException("This item has repacking or physical stock history, so it cannot be deleted.");
+
+        var configs = await dbContext.VariantUomConfigs
+            .Include(config => config.PurchaseOptions)
+            .Include(config => config.SellingOptions).ThenInclude(option => option.Components)
+            .Where(config => ids.Contains(config.VariantId))
+            .ToListAsync(cancellationToken);
+        dbContext.SellingOptionComponents.RemoveRange(configs.SelectMany(config => config.SellingOptions).SelectMany(option => option.Components));
+        dbContext.VariantSellingOptions.RemoveRange(configs.SelectMany(config => config.SellingOptions));
+        dbContext.VariantPurchaseUnitOptions.RemoveRange(configs.SelectMany(config => config.PurchaseOptions));
+        dbContext.VariantUomConfigs.RemoveRange(configs);
+        dbContext.PackStateBalances.RemoveRange(await dbContext.PackStateBalances.Where(row => ids.Contains(row.VariantId)).ToListAsync(cancellationToken));
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+}

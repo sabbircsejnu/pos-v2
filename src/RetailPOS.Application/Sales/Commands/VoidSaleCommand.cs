@@ -21,7 +21,8 @@ public sealed class VoidSaleCommandHandler(
     ISaleVoidLogger logger,
     ISaleCashRefundRecorder cashRefunds,
     RetailPOS.Application.Uom.IPackStateLedger? packState = null,
-    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null) : IRequestHandler<VoidSaleCommand, SaleReadModel>
+    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null) : IRequestHandler<VoidSaleCommand, SaleReadModel>
 {
     public async Task<SaleReadModel> Handle(
         VoidSaleCommand request,
@@ -79,7 +80,11 @@ public sealed class VoidSaleCommandHandler(
             }
 
             // A void means the sale never happened: everything it consumed returns as it was, packaging included.
-            foreach (var item in sale.Items.Where(item => item.PackState is not null || item.Components.Count > 0))
+            var uomConfigs = uomReader is null || sale.BusinessId is not { } uomBusinessId
+                ? new Dictionary<long, RetailPOS.Application.Uom.ResolvedVariantUom>()
+                : await uomReader.GetCurrentAsync(uomBusinessId, sale.Items.Select(item => item.VariantId).ToList(), cancellationToken);
+            foreach (var item in sale.Items.Where(item => item.PackState is not null || item.Components.Count > 0
+                || uomConfigs.GetValueOrDefault(item.VariantId)?.PackStateTrackingEnabled == true))
                 await SaleUomReversal.RestoreAsync(
                     sale,
                     item,
@@ -89,7 +94,8 @@ public sealed class VoidSaleCommandHandler(
                     packState,
                     rawStockLedger,
                     (variantId, token) => store.FindOutletInventoryAsync(variantId, sale.OutletId, token),
-                    cancellationToken);
+                    cancellationToken,
+                    uomConfigs.GetValueOrDefault(item.VariantId)?.PackStateTrackingEnabled == true);
 
             foreach (var (inventory, item) in inventoryLedger)
             {

@@ -127,6 +127,7 @@ public interface IVariantUomConfigStore
     Task<IReadOnlyCollection<long>> FindBusinessVariantIdsAsync(long businessId, IReadOnlyCollection<long> variantIds, CancellationToken cancellationToken);
     Task<IReadOnlyList<StockedLocation>> GetStockedLocationsAsync(long variantId, CancellationToken cancellationToken);
     Task<bool> HasPhysicalPackBalancesAsync(long variantId, CancellationToken cancellationToken);
+    Task<bool> IsUsedAsPackagingAsync(long variantId, CancellationToken cancellationToken);
 
     /// <summary>Opens the transaction and serializes writers of this variant's configuration.</summary>
     Task<IUomTransaction> BeginAsync(long variantId, CancellationToken cancellationToken);

@@ -189,7 +189,8 @@ public static class AccountingReportReadModelMapper
             GeneralLedgerBalance = report.GeneralLedgerBalance,
             ReconciliationDifference = report.ReconciliationDifference,
             InventoryAccountId = report.InventoryAccountId,
-            AsOfDate = report.AsOfDate
+            AsOfDate = report.AsOfDate,
+            CapitalizedPackagingValue = report.CapitalizedPackagingValue
         };
 
     public static CogsReportDto ToApi(CogsReportReadModel report) =>

@@ -83,6 +83,7 @@ public sealed class ProductVariantMaintenanceStore(RetailPOSDbContext dbContext,
                 .Include(candidate => candidate.Inventories)
                 .FirstOrDefaultAsync(candidate => candidate.Id == variantId && candidate.BusinessId == businessId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Variant with ID {variantId} not found");
+            await RetailPOS.Infrastructure.Uom.UomVariantRemoval.RemoveConfigurationAsync(dbContext, [variantId], cancellationToken);
 
             dbContext.Inventories.RemoveRange(variant.Inventories);
             dbContext.ProductVariants.Remove(variant);

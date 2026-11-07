@@ -18,6 +18,8 @@ public sealed class ProductDeleteStore(RetailPOSDbContext dbContext, IBusinessSc
             return;
         }
 
+        await RetailPOS.Infrastructure.Uom.UomVariantRemoval.RemoveConfigurationAsync(
+            dbContext, product.ProductVariants.Select(variant => variant.Id).ToList(), cancellationToken);
         dbContext.Products.Remove(product);
         await dbContext.SaveChangesAsync(cancellationToken);
     }

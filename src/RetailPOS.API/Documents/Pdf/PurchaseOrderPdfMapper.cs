@@ -30,9 +30,10 @@ public sealed class PurchaseOrderPdfMapper : IPurchaseOrderPdfMapper
             Sku: item.Sku,
             ProductCode: item.ProductCode,
             Description: item.VariantAttributes,
-            Quantity: item.Quantity,
-            Unit: item.Unit,
-            UnitRate: item.UnitPrice,
+            // What was actually ordered: 1 × 500 ml Jar, not 500 ml at a derived rate.
+            Quantity: item.UomEnteredQuantity ?? item.Quantity,
+            Unit: item.UomLabel ?? item.Unit,
+            UnitRate: item.UomEnteredUnitPrice ?? item.UnitPrice,
             Discount: item.Discount,
             Tax: item.Tax,
             LineTotal: item.TotalPrice)).ToList();

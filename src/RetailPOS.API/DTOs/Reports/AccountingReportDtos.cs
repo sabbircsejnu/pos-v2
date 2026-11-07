@@ -94,6 +94,8 @@ public class InventoryValuationReportDto
     public decimal ReconciliationDifference { get; set; }
     public long InventoryAccountId { get; set; }
     public DateTime AsOfDate { get; set; }
+    /// <summary>Packaging value held inside prepared packs. Already included in TotalInventoryValue.</summary>
+    public decimal CapitalizedPackagingValue { get; set; }
 }
 
 public class InventoryValuationRowDto

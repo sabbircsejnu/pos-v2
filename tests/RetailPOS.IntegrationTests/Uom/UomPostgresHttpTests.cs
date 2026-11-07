@@ -447,6 +447,55 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
     }
 
     [Fact]
+    public async Task Accounting_LedgerPlusCapitalizedValueStaysEqualToTheGeneralLedger()
+    {
+        var owner = Owner();
+        var before = await ValuationReportAsync(owner);
+
+        var bottle = await _fixture.CreateVariantAsync("GLB");
+        await ReceivePcsAsync(owner, bottle, 20m, 8m);
+        var (attar, config) = await RepackableAttarAsync(owner, "GLA", bottle);
+
+        // Purchases: +160 and +1000 in both the ledger and the GL.
+        var afterPurchase = await ValuationReportAsync(owner);
+        Assert.Equal(before.Value + 1160m, afterPurchase.Value);
+        Assert.Equal(before.Gl + 1160m, afterPurchase.Gl);
+
+        // A repack moves ৳160 of bottles into prepared stock: no journal, and no change in total value.
+        var job = await CreateJobAsync(owner, attar, config, 20, Unique("job"));
+        await Send(owner, HttpMethod.Post, $"/api/v1/uom/repacking/{job.GetProperty("id").GetInt64()}/execute", new { });
+        var afterRepack = await ValuationReportAsync(owner);
+        Assert.Equal(afterPurchase.Value, afterRepack.Value);
+        Assert.Equal(afterPurchase.Gl, afterRepack.Gl);
+        Assert.Equal(before.Capitalized + 160m, afterRepack.Capitalized);
+
+        // Selling 2 prepared packs takes 2 × ৳32 out of the ledger and, once posted, out of the GL.
+        var sale = await SellAsync(owner, new SaleLine(attar, 2m, 100m, Option(config, "P12"), config.GetProperty("configId").GetInt64(), "prepared"));
+        long postingId = 0;
+        var saleId = sale.GetProperty("id").GetInt64();
+        await _fixture.WithDbAsync(async db => postingId = await db.SaleFinancialPostings.AsNoTracking()
+            .Where(row => row.SaleId == saleId && row.Kind == SaleFinancialPostingKinds.Sale)
+            .Select(row => row.Id)
+            .SingleAsync());
+        await Send(owner, HttpMethod.Post, $"/api/financial-postings/sales/{postingId}/retry", new { });
+        var afterSale = await ValuationReportAsync(owner);
+        Assert.Equal(afterRepack.Value - 64m, afterSale.Value);
+        Assert.Equal(afterRepack.Gl - 64m, afterSale.Gl);
+
+        // Everything this test did leaves the reconciliation difference where it found it.
+        Assert.Equal(before.Value - before.Gl, afterSale.Value - afterSale.Gl);
+    }
+
+    private static async Task<(decimal Value, decimal Gl, decimal Capitalized)> ValuationReportAsync(HttpClient client)
+    {
+        var report = await Data(client, "/api/accounting/reports/inventory-valuation");
+        return (
+            report.GetProperty("totalInventoryValue").GetDecimal(),
+            report.GetProperty("generalLedgerBalance").GetDecimal(),
+            report.GetProperty("capitalizedPackagingValue").GetDecimal());
+    }
+
+    [Fact]
     public async Task Refund_UsesTheOriginalSnapshot_RestoresOnlyWhatIsResellable_AndCostFollowsStock()
     {
         var owner = Owner();
@@ -591,6 +640,100 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
 
         Assert.Equal(1500m, await ValuationAsync(attar, UomPostgresFixture.OutletTwo));
         Assert.Equal(500m, await ValuationAsync(attar));
+    }
+
+    [Fact]
+    public async Task Transfer_RejectedPacks_ComeBackAsPacksWithTheirValue_AndPartialPackReceiptIsRefused()
+    {
+        var owner = Owner();
+        var bottle = await _fixture.CreateVariantAsync("TRB");
+        await ReceivePcsAsync(owner, bottle, 20m, 8m);
+        var (attar, config) = await RepackableAttarAsync(owner, "TRA", bottle);
+        var job = await CreateJobAsync(owner, attar, config, 20, Unique("job"));
+        await Send(owner, HttpMethod.Post, $"/api/v1/uom/repacking/{job.GetProperty("id").GetInt64()}/execute", new { });
+
+        var created = await Send(owner, HttpMethod.Post, "/api/stock-transfers", new
+        {
+            transferType = "direct",
+            fromLocationId = UomPostgresFixture.Outlet,
+            fromLocationType = "outlet",
+            toLocationId = UomPostgresFixture.OutletTwo,
+            toLocationType = "outlet",
+            transferDate = DateTime.UtcNow,
+            items = new[]
+            {
+                new
+                {
+                    variantId = attar,
+                    enteredQuantity = 60m,
+                    allocations = new object[] { new { state = "prepared", packCode = "P12", baseQtyPerPack = 12m, packCount = 5, baseQuantity = 60m } }
+                }
+            }
+        });
+        var transferId = created.GetProperty("id").GetInt64();
+        await Send(owner, HttpMethod.Post, $"/api/stock-transfers/{transferId}/submit-and-dispatch", new { });
+        var source = await PackStateAsync(owner, attar);
+        Assert.Equal(15, Balance(source, "prepared").GetProperty("packCount").GetInt32());
+        Assert.Equal(120m, Balance(source, "prepared").GetProperty("capitalizedValue").GetDecimal());
+
+        var receiver = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "*");
+        receiver.DefaultRequestHeaders.Add("X-Test-OutletId", UomPostgresFixture.OutletTwo.ToString());
+        using (var partial = await receiver.PostAsJsonAsync($"/api/stock-transfers/{transferId}/receive", new
+        {
+            items = new[] { new { variantId = attar, acceptedQuantity = 24m, rejectedQuantity = 36m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Partly" } }
+        }))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, partial.StatusCode);
+            Assert.Contains(UomErrorCode("UNSUPPORTED_OPERATION"), await partial.Content.ReadAsStringAsync());
+        }
+
+        await Send(receiver, HttpMethod.Post, $"/api/stock-transfers/{transferId}/receive", new
+        {
+            items = new[] { new { variantId = attar, acceptedQuantity = 0m, rejectedQuantity = 60m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Wrong item" } }
+        });
+
+        long returnId = 0;
+        await _fixture.WithDbAsync(async db => returnId = await db.StockTransfers.AsNoTracking()
+            .Where(row => row.OriginalTransferId == transferId).Select(row => row.Id).SingleAsync());
+        await Send(owner, HttpMethod.Post, $"/api/stock-transfers/{returnId}/receive", new { });
+
+        var after = await PackStateAsync(owner, attar);
+        Assert.True(after.GetProperty("isReconciled").GetBoolean());
+        Assert.Equal(20, Balance(after, "prepared").GetProperty("packCount").GetInt32());
+        Assert.Equal(160m, Balance(after, "prepared").GetProperty("capitalizedValue").GetDecimal());
+    }
+
+    [Fact]
+    public async Task EnablingTracking_ClassifiesStockAsLoose_AndSalesBeforeItReturnAsLoose()
+    {
+        var owner = Owner();
+        var (attar, config) = await StockedAttarAsync(owner, "ENB");
+        var sale = await SellAsync(owner, new SaleLine(attar, 1m, 100m, Option(config, "P12"), config.GetProperty("configId").GetInt64()));
+
+        await SaveConfigAsync(owner, attar, "ml", Jar500(owner), [Pack("P12", 12m, 100m), CustomMl(5m)], packTracking: true);
+        var state = await PackStateAsync(owner, attar);
+        Assert.True(state.GetProperty("isReconciled").GetBoolean());
+        Assert.Equal(488m, Balance(state, "loose").GetProperty("baseQuantity").GetDecimal());
+
+        await Send(owner, HttpMethod.Post, $"/api/sales/{sale.GetProperty("id").GetInt64()}/void", new { reason = "Mistake" });
+        var after = await PackStateAsync(owner, attar);
+        Assert.True(after.GetProperty("isReconciled").GetBoolean());
+        Assert.Equal(500m, Balance(after, "loose").GetProperty("baseQuantity").GetDecimal());
+    }
+
+    [Fact]
+    public async Task PackagingItem_CannotTrackPackState_AndDeletingIsGuarded()
+    {
+        var owner = Owner();
+        var bottle = await _fixture.CreateVariantAsync("DLB");
+        var attar = await _fixture.CreateVariantAsync("DLA");
+        await SaveConfigAsync(owner, attar, "ml", [], [Pack("P12", 12m, 100m, [new { componentVariantId = bottle, quantity = 1m, isRequired = true }])]);
+
+        using var tracked = await PutConfigAsync(owner, bottle, "pcs", [], [], packTracking: true);
+        Assert.Equal(HttpStatusCode.BadRequest, tracked.StatusCode);
+
+        using var inUse = await owner.DeleteAsync($"/api/products/variants/{bottle}");
+        Assert.False(inUse.IsSuccessStatusCode);
     }
 
     [Fact]

@@ -215,6 +215,9 @@ public sealed class VariantUomConfigStore(RetailPOSDbContext dbContext) : IVaria
     public Task<bool> HasPhysicalPackBalancesAsync(long variantId, CancellationToken cancellationToken) =>
         dbContext.PackStateBalances.AnyAsync(row => row.VariantId == variantId && row.State != PackStates.Loose && row.PackCount > 0, cancellationToken);
 
+    public Task<bool> IsUsedAsPackagingAsync(long variantId, CancellationToken cancellationToken) =>
+        dbContext.SellingOptionComponents.AnyAsync(row => row.ComponentVariantId == variantId && row.SellingOption.Config.EffectiveToUtc == null, cancellationToken);
+
     public async Task<IUomTransaction> BeginAsync(long variantId, CancellationToken cancellationToken)
     {
         var transaction = new UomTransaction(await dbContext.Database.BeginTransactionAsync(cancellationToken));
