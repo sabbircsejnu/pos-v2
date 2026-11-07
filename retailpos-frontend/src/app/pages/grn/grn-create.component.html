@@ -83,6 +83,13 @@
           Received Quantities
         </h2>
 
+        <p class="grn-uom-note grn-uom-intro">
+          Enter quantities in base units. Accepted stock is added to inventory; damaged and rejected quantities are recorded but are neither stocked nor payable.
+        </p>
+        @if (uomUnavailable()) {
+          <p class="grn-uom-warning" role="status">Could not load the units of this order. Enter quantities in base units; the server will validate them.</p>
+        }
+
         <div class="overflow-x-auto">
           <table class="table">
             <thead>
@@ -90,11 +97,14 @@
                 <th class="px-4 py-2.5">Product</th>
                 <th class="px-4 py-2.5 text-right">Unit Price</th>
                 <th class="px-4 py-2.5 text-right">Ordered Qty</th>
-                <th class="px-4 py-2.5 text-right">Received Qty</th>
+                <th class="px-4 py-2.5 text-right">Accepted Qty</th>
+                <th class="px-4 py-2.5 text-right">Damaged</th>
+                <th class="px-4 py-2.5 text-right">Rejected</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of lineItems(); let i = index">
+              <ng-container *ngFor="let item of lineItems(); let i = index">
+              <tr>
                 <td class="px-4 py-2.5 font-medium text-gray-900">
                   <div class="flex items-center gap-2">
                     @if (item.primaryImageThumb) {
@@ -114,19 +124,81 @@
                       @if (getVariantDetails(item)) {
                         <div class="text-xs text-gray-500">Variant: {{ getVariantDetails(item) }}</div>
                       }
+                      @if (orderedAs(item); as ordered) {
+                        <div class="grn-uom-note">{{ ordered }}</div>
+                      }
                     </div>
                   </div>
                 </td>
-                <td class="px-4 py-2.5 text-right text-gray-700">{{ formatCurrency(item.unitPrice) }}</td>
-                <td class="px-4 py-2.5 text-right text-gray-700">{{ item.orderedQty }}</td>
+                <td class="px-4 py-2.5 text-right text-gray-700">
+                  @if (item.poLine?.uomEnteredUnitPrice !== null && item.poLine?.uomEnteredUnitPrice !== undefined) {
+                    {{ formatCurrency(item.poLine!.uomEnteredUnitPrice!) }}
+                    <div class="grn-uom-note">per {{ item.poLine!.uomLabel || item.poLine!.uomUnitCode }}</div>
+                  } @else {
+                    {{ formatCurrency(item.unitPrice) }}
+                  }
+                </td>
+                <td class="px-4 py-2.5 text-right text-gray-700">
+                  {{ item.orderedQty }}
+                  @if (item.uomConfig) { <div class="grn-uom-note">{{ baseUnit(item) }}</div> }
+                </td>
                 <td class="px-4 py-2.5 text-right">
                   <input type="number"
                          [ngModel]="item.receivedQty"
                          (ngModelChange)="updateReceivedQty(i, $event)"
                          min="0"
+                         [attr.step]="stepFor(item)"
+                         [attr.aria-label]="'Accepted quantity of ' + item.productName"
                          class="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
                 </td>
+                <td class="px-4 py-2.5 text-right">
+                  <input type="number" class="grn-uom-input" min="0"
+                         [attr.step]="stepFor(item)"
+                         [attr.aria-label]="'Damaged quantity of ' + item.productName"
+                         [ngModel]="item.damagedQty"
+                         (ngModelChange)="updateLine(i, 'damagedQty', $event)" />
+                </td>
+                <td class="px-4 py-2.5 text-right">
+                  <input type="number" class="grn-uom-input" min="0"
+                         [attr.step]="stepFor(item)"
+                         [attr.aria-label]="'Rejected quantity of ' + item.productName"
+                         [ngModel]="item.rejectedQty"
+                         (ngModelChange)="updateLine(i, 'rejectedQty', $event)" />
+                </td>
               </tr>
+              @if (isPackTracked(item) || reconciliationMessage(item)) {
+                <tr>
+                  <td colspan="6" class="px-4 pb-3 pt-0">
+                    @if (isPackTracked(item)) {
+                      <div class="grn-uom-split">
+                        @if (baseQtyPerPack(item) > 0) {
+                          <label>
+                            <span>Sealed packs ({{ baseQtyPerPack(item) }} {{ baseUnit(item) }} each)</span>
+                            <input type="number" class="grn-uom-input" min="0" step="1"
+                                   [ngModel]="item.acceptedSealedPacks"
+                                   (ngModelChange)="updateLine(i, 'acceptedSealedPacks', $event)" />
+                          </label>
+                        }
+                        <label>
+                          <span>Loose ({{ baseUnit(item) }})</span>
+                          <input type="number" class="grn-uom-input" min="0"
+                                 [attr.step]="stepFor(item)"
+                                 [ngModel]="item.acceptedLooseQty"
+                                 (ngModelChange)="updateLine(i, 'acceptedLooseQty', $event)" />
+                        </label>
+                        <span class="grn-uom-note">Leave blank to let the system split the accepted quantity.</span>
+                      </div>
+                    }
+                    @if (breakdownMessage(item); as breakdown) {
+                      <p class="grn-uom-error" role="alert">{{ breakdown }}</p>
+                    }
+                    @if (reconciliationMessage(item); as reconciliation) {
+                      <p class="grn-uom-warning" role="status">{{ reconciliation }}</p>
+                    }
+                  </td>
+                </tr>
+              }
+              </ng-container>
             </tbody>
           </table>
         </div>

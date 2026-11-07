@@ -1,3 +1,5 @@
+import { PackStateKind } from './uom.model';
+
 export interface StockAdjustmentLineDto {
   id: number;
   variantId: number;
@@ -10,6 +12,14 @@ export interface StockAdjustmentLineDto {
   newQuantity: number;
   reason: string;
   notes?: string;
+  packState?: PackStateKind | null;
+  packCode?: string | null;
+  baseQtyPerPack?: number | null;
+  /** Entered unit snapshot. The quantities above are always base. */
+  uomUnitCode?: string | null;
+  uomLabel?: string | null;
+  uomEnteredQuantity?: number | null;
+  uomOptionId?: number | null;
 }
 
 export interface StockAdjustmentDto {
@@ -67,6 +77,13 @@ export interface CreateStockAdjustmentLineDto {
   quantityChange: number;
   reason?: string;
   notes?: string;
+  /** Signed quantity as entered. With this the server converts to base units and ignores quantityChange. */
+  enteredQuantity?: number;
+  unitOptionId?: number | null;
+  expectedConfigVersionId?: number;
+  packState?: PackStateKind;
+  packCode?: string;
+  baseQtyPerPack?: number;
 }
 
 export interface CreateStockAdjustmentBatchDto {

@@ -12,6 +12,8 @@ import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
 import { CompanyDateService } from '../../services/company-date.service';
 
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-stock-movement-report',
   standalone: true,
@@ -74,6 +76,7 @@ export class StockMovementReportComponent implements OnInit, OnDestroy {
   // ── Computed ──────────────────────────────────────────────────────────────
   report     = computed(() => this.reportService.stockMovementReport());
   rows       = computed(() => this.report()?.items ?? []);
+  readonly units = injectVariantUnits(() => this.rows().map(row => row.variantId));
   summary    = computed(() => this.report()?.summary ?? null);
   totalCount = computed(() => this.report()?.totalCount ?? 0);
   totalPages = computed(() =>

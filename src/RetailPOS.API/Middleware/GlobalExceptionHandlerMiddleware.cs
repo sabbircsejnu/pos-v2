@@ -132,6 +132,14 @@ public class GlobalExceptionHandlerMiddleware
                 };
                 break;
 
+            case Exception raced when IsRetryableStockRace(raced):
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = "Stock was changed by another operation at the same moment. Nothing was saved. Please try again.";
+                errorResponse.Errors = new List<string> { errorResponse.Message };
+                errorResponse.ErrorCode = "STOCK_CONCURRENT_UPDATE";
+                break;
+
             case RetailPOS.Application.Uom.UomConflictException uomConflict:
                 response.StatusCode = (int)HttpStatusCode.Conflict;
                 errorResponse.Success = false;
@@ -223,4 +231,25 @@ public class GlobalExceptionHandlerMiddleware
         var result = JsonSerializer.Serialize(errorResponse, jsonOptions);
         await response.WriteAsync(result);
     }
+
+    /// <summary>A deadlock, or two writers creating the same pack-state row or repack job. The transaction rolled back.</summary>
+    private static bool IsRetryableStockRace(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is not Npgsql.PostgresException postgres)
+                continue;
+            if (postgres.SqlState == Npgsql.PostgresErrorCodes.DeadlockDetected)
+                return true;
+            if (postgres.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation)
+            {
+                var constraint = postgres.ConstraintName ?? string.Empty;
+                return constraint.StartsWith("ux_pack_state", StringComparison.Ordinal)
+                    || constraint.Contains("repack_jobs", StringComparison.Ordinal);
+            }
+        }
+
+        return false;
+    }
+
 }

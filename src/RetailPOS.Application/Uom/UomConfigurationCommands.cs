@@ -34,11 +34,13 @@ public sealed class CreateUomUnitCommandHandler(IUomCatalogStore store, IUomOper
             QuantityPrecision = input.QuantityPrecision,
             IsWholeUnit = input.IsWholeUnit
         };
+        await using var transaction = await store.BeginAsync(cancellationToken);
         await store.AddAsync(unit, cancellationToken);
         await store.SaveChangesAsync(cancellationToken);
         await audit.RecordAsync($"Unit of measurement created: {unit.Code}", "UomUnit", unit.Id.ToString(),
             new Dictionary<string, object?> { ["code"] = unit.Code, ["dimension"] = unit.Dimension, ["precision"] = unit.QuantityPrecision },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return UomUnitRules.ToReadModel(unit, false);
     }
 }
@@ -76,10 +78,12 @@ public sealed class UpdateUomUnitCommandHandler(IUomCatalogStore store, IUomOper
         unit.IsWholeUnit = input.IsWholeUnit;
         unit.IsActive = request.IsActive;
         unit.UpdatedAt = DateTime.UtcNow;
+        await using var transaction = await store.BeginAsync(cancellationToken);
         await store.SaveChangesAsync(cancellationToken);
         await audit.RecordAsync($"Unit of measurement updated: {unit.Code}", "UomUnit", unit.Id.ToString(),
             new Dictionary<string, object?> { ["code"] = unit.Code, ["wasActive"] = previousActive, ["isActive"] = unit.IsActive, ["precision"] = unit.QuantityPrecision },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return UomUnitRules.ToReadModel(unit, used);
     }
 }

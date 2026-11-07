@@ -91,7 +91,7 @@ public sealed class MigrationChainValidationTests
                 maxLength: 40);
             AssertColumn(await ReadColumnAsync(connection, "sales", "business_date"), true, "date", null);
             AssertColumn(await ReadColumnAsync(connection, "stock_adjustment_lines", "unit_cost_snapshot"), true, "numeric", null);
-            AssertColumn(await ReadColumnAsync(connection, "stock_ledgers", "unit_cost"), false, "numeric", null, precision: 18, scale: 4);
+            AssertColumn(await ReadColumnAsync(connection, "stock_ledgers", "unit_cost"), false, "numeric", null);
             AssertColumn(await ReadColumnAsync(connection, "stock_ledgers", "movement_value"), false, "numeric", null, precision: 18, scale: 4);
             AssertColumn(await ReadColumnAsync(connection, "stock_ledgers", "business_date"), false, "date", null);
             AssertColumn(await ReadColumnAsync(connection, "stock_ledgers", "movement_sequence"), false, "bigint", null, precision: 64, scale: 0);

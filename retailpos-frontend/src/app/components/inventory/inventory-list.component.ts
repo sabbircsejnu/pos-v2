@@ -25,6 +25,8 @@ import { VariantSearchPickerComponent, VariantSearchItem } from '../variant-sear
 import { AuthorizedOutletsDto } from '../../models/report.model';
 import { ProductVariantCellComponent } from '../shared/product-variant-cell.component';
 
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-inventory-list',
   standalone: true,
@@ -167,7 +169,7 @@ import { ProductVariantCellComponent } from '../shared/product-variant-cell.comp
                       <div class="text-gray-500">{{ item.locationType }}</div>
                     </div>
                   </td>
-                  <td class="font-medium">{{ item.quantity }}</td>
+                  <td class="font-medium">{{ item.quantity }}{{ units.suffix(item.productVariantId) }}</td>
                   <td>
                     @if (item.isOutOfStock) {
                       <span class="badge badge-danger">Out of Stock</span>
@@ -395,6 +397,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
 
   inventories = signal<Inventory[]>([]);
+  readonly units = injectVariantUnits(() => this.inventories().map(item => item.productVariantId));
   variantAttributeFilterOptions = signal<VariantAttributeFilterOptions[]>([]);
   outlets = signal<Outlet[]>([]);
   warehouses = signal<Warehouse[]>([]);

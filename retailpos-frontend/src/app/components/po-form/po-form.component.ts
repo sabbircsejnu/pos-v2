@@ -1,5 +1,6 @@
 import { UiDateInputDirective } from '../shared/ui/ui-date-input.directive';
-import { Component, OnInit, AfterViewInit, inject, signal, computed, ViewChild } from '@angular/core';
+import { Component, DestroyRef, OnInit, AfterViewInit, inject, signal, computed, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -21,6 +22,9 @@ import { CurrencyService } from '../../services/currency.service';
 import { VariationService } from '../../services/variation.service';
 import { Variation } from '../../models/variation.model';
 import { findVariantIndexById, isVariantAlreadyInItems } from '../../utils/variant-selection.util';
+import { fitsPrecision, formatUnitQuantity, quantityStep, UomService } from '../../services/uom.service';
+import { PurchaseOption, VariantUomConfig } from '../../models/uom.model';
+import { checkPackBreakdown, isEntered, purchaseUnitPrecision, roundQuantity } from '../../utils/uom-line.util';
 
 interface ProductVariantOption {
   id: number;
@@ -36,6 +40,20 @@ interface ProductVariantOption {
   costPrice?: number;
   stockQuantity?: number;
   primaryImageThumb?: string;
+}
+
+/** The unit fields of a PO line. `quantity` and `unitPrice` are per the chosen purchase unit, or per base without one. */
+interface PoLineUomFields {
+  variantId: number;
+  quantity: number;
+  purchaseOptionId?: number | null;
+  acceptedSealedPacks?: number | null;
+  acceptedLooseQuantity?: number | null;
+  /** The saved base values and option of a line being edited, until the current configuration is known. */
+  loadedOptionId?: number | null;
+  loadedEnteredQuantity?: number | null;
+  loadedEnteredUnitPrice?: number | null;
+  uomApplied?: boolean;
 }
 
 type VariationMeta = {
@@ -57,6 +75,10 @@ export class PoFormComponent implements OnInit, AfterViewInit {
   private imageSvc = inject(ProductImageService);
   private auth = inject(AuthService);
   private locationAccess = inject(UserOutletAccessService);
+  private uom = inject(UomService);
+  private destroyRef = inject(DestroyRef);
+  /** Current configurations by variant. A variant missing here is plain pcs and behaves as it always has. */
+  uomConfigs = signal<Record<number, VariantUomConfig>>({});
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   canPurchaseAndReceive = computed(() => this.auth.hasPermission('purchases.receive'));
 
@@ -371,11 +393,15 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         
         this.notes.set(po.notes || '');
 
-        // Convert items
+        // Convert items. Lines start in base units, which is always correct; a line's purchase unit is restored
+        // only once the current configuration confirms it (see applyUomConfigs).
         const itemsData: any[] = po.items.map((item: any) => ({
           variantId: item.variantId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          loadedOptionId: item.uomOptionId ?? null,
+          loadedEnteredQuantity: item.uomEnteredQuantity ?? null,
+          loadedEnteredUnitPrice: item.uomEnteredUnitPrice ?? null,
           discount: item.discount ?? 0,
           tax: item.tax ?? 0,
           unit: item.unit || '',
@@ -389,6 +415,7 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         // Add empty search row at end for adding more items
         this.addItem();
         this.isLoading.set(false);
+        this.loadUomConfigs(itemsData.map(item => item.variantId));
       },
       error: (err: any) => {
         this.isLoading.set(false);
@@ -448,7 +475,11 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         variantId: 0,
         productName: '',
         variantName: '',
-        unitPrice: 0
+        unitPrice: 0,
+        purchaseOptionId: null,
+        acceptedSealedPacks: null,
+        acceptedLooseQuantity: null,
+        uomApplied: false
       };
       this.items.set(items);
     }
@@ -599,8 +630,10 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       variantAttributes: variant.attributes || '',
       variantDisplay: variant.variantDisplay || this.resolveVariantDisplay(variant),
       primaryImageThumb: variant.primaryImageThumb,
+      uomApplied: false,
     };
     this.items.set(updatedItems);
+    this.loadUomConfigs([variant.id]);
     
     // Clear search state
     this.variantSearchResults.update(r => ({ ...r, [index]: [] }));
@@ -619,6 +652,157 @@ export class PoFormComponent implements OnInit, AfterViewInit {
     if (!hasEmptyRow) {
       this.addItem();
     }
+  }
+
+  private loadUomConfigs(variantIds: number[]): void {
+    this.uom.getVariantConfigs(variantIds).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (configs) => {
+        this.uomConfigs.update(known => {
+          const next = { ...known };
+          configs.forEach(config => { next[config.variantId] = config; });
+          return next;
+        });
+        this.applyUomConfigs(variantIds);
+      },
+      // Lines stay in base units, which the server still converts and validates.
+      error: () => {
+        this.alertService.warning('Could not load the purchase units. Quantities and prices are in base units for now.');
+        this.applyUomConfigs(variantIds);
+      }
+    });
+  }
+
+  /** Gives each new or loaded line of these variants its purchase unit, once. Pcs lines are left exactly as they are. */
+  private applyUomConfigs(variantIds: number[]): void {
+    const affected = new Set(variantIds);
+    const dropped: string[] = [];
+    this.items.update(items => items.map((item: PoLineUomFields & { unitPrice: number; productName: string }) => {
+      if (!affected.has(item.variantId) || item.uomApplied) return item;
+      const config = this.uomConfigs()[item.variantId];
+      if (!config) return { ...item, uomApplied: true };
+
+      if (item.loadedOptionId) {
+        const saved = config.purchaseOptions.find(option => option.id === item.loadedOptionId);
+        if (saved && item.loadedEnteredQuantity != null && item.loadedEnteredUnitPrice != null) {
+          return {
+            ...item,
+            uomApplied: true,
+            purchaseOptionId: saved.id,
+            quantity: item.loadedEnteredQuantity,
+            unitPrice: item.loadedEnteredUnitPrice
+          };
+        }
+        dropped.push(item.productName);
+        return { ...item, uomApplied: true, purchaseOptionId: null };
+      }
+
+      // A saved line without a purchase unit stays in base units; a new line starts in the default purchase unit.
+      const isNewLine = !this.isEditMode() || !('loadedOptionId' in item);
+      const preferred = isNewLine ? config.purchaseOptions.find(option => option.isDefault) ?? null : null;
+      return {
+        ...item,
+        uomApplied: true,
+        purchaseOptionId: preferred?.id ?? null,
+        unitPrice: preferred ? this.scalePrice(item.unitPrice, 1, preferred.baseQuantityPerUnit) : item.unitPrice
+      };
+    }));
+    if (dropped.length > 0) {
+      this.alertService.warning(`The purchase unit of ${dropped.join(', ')} is no longer available. The line now shows base units.`);
+    }
+  }
+
+  private scalePrice(price: number, fromBasePerUnit: number, toBasePerUnit: number): number {
+    return Math.round((Number(price || 0) / fromBasePerUnit) * toBasePerUnit * 100) / 100;
+  }
+
+  uomConfigFor(item: PoLineUomFields): VariantUomConfig | null {
+    return this.uomConfigs()[item.variantId] ?? null;
+  }
+
+  selectedPurchaseOption(item: PoLineUomFields): PurchaseOption | null {
+    return this.uomConfigFor(item)?.purchaseOptions.find(option => option.id === item.purchaseOptionId) ?? null;
+  }
+
+  /** Changing the unit keeps the per-base cost, so the line's value does not jump with the label. */
+  onPurchaseOptionChange(index: number, raw: number | string | null): void {
+    const items = [...this.items()];
+    const item = items[index];
+    const config = this.uomConfigFor(item);
+    if (!config) return;
+    const optionId = raw === null || raw === '' ? null : Number(raw);
+    const next = config.purchaseOptions.find(option => option.id === optionId) ?? null;
+    const previous = this.selectedPurchaseOption(item);
+    items[index] = {
+      ...item,
+      purchaseOptionId: next?.id ?? null,
+      unitPrice: this.scalePrice(item.unitPrice, previous?.baseQuantityPerUnit ?? 1, next?.baseQuantityPerUnit ?? 1),
+      acceptedSealedPacks: next?.isSealedPack ? item.acceptedSealedPacks : null
+    };
+    this.items.set(items);
+  }
+
+  quantityStepFor(item: PoLineUomFields): string {
+    const config = this.uomConfigFor(item);
+    return config ? quantityStep(purchaseUnitPrecision(this.selectedPurchaseOption(item), config)) : '1';
+  }
+
+  quantityMinFor(item: PoLineUomFields): string {
+    const step = this.quantityStepFor(item);
+    return step === '1' ? '1' : step;
+  }
+
+  purchaseUnitLabel(item: PoLineUomFields): string {
+    const config = this.uomConfigFor(item);
+    if (!config) return '';
+    return this.selectedPurchaseOption(item)?.label ?? config.baseUnit.symbol;
+  }
+
+  /** A preview of the stock this line adds. The server computes the stored base quantity. */
+  baseQuantityPreview(item: PoLineUomFields): number {
+    const perUnit = this.selectedPurchaseOption(item)?.baseQuantityPerUnit ?? 1;
+    return roundQuantity(Number(item.quantity || 0) * perUnit);
+  }
+
+  baseQuantityText(item: PoLineUomFields): string {
+    return formatUnitQuantity(this.baseQuantityPreview(item), this.uomConfigFor(item)?.baseUnit.symbol);
+  }
+
+  /** The sealed/loose split can be stated only when the goods are received right away. */
+  showReceiptSplit(item: PoLineUomFields): boolean {
+    return !this.isEditMode() && this.canPurchaseAndReceive() && !!this.uomConfigFor(item)?.packStateTrackingEnabled;
+  }
+
+  updateItemSplit(index: number, field: 'acceptedSealedPacks' | 'acceptedLooseQuantity', raw: string): void {
+    const items = [...this.items()];
+    items[index] = { ...items[index], [field]: isEntered(raw) ? Number(raw) : null };
+    this.items.set(items);
+  }
+
+  receiptSplitMessage(item: PoLineUomFields): string {
+    const option = this.selectedPurchaseOption(item);
+    return checkPackBreakdown(
+      this.baseQuantityPreview(item),
+      item.acceptedSealedPacks,
+      item.acceptedLooseQuantity,
+      option?.isSealedPack ? option.baseQuantityPerUnit : 0,
+      this.uomConfigFor(item)?.baseUnit.symbol ?? ''
+    ).message;
+  }
+
+  /** With a configuration the server converts; a pcs line adds nothing, so its payload stays exactly as it was. */
+  private uomPayload(item: PoLineUomFields): Pick<CreatePurchaseOrderItem, 'purchaseOptionId' | 'expectedConfigVersionId'> {
+    const config = this.uomConfigFor(item);
+    if (!config) return {};
+    return { purchaseOptionId: item.purchaseOptionId ?? undefined, expectedConfigVersionId: config.configId };
+  }
+
+  private receiptSplitPayload(item: PoLineUomFields): Pick<CreatePurchaseOrderItem, 'acceptedSealedPacks' | 'acceptedLooseQuantity'> {
+    if (!this.showReceiptSplit(item)) return {};
+    if (!isEntered(item.acceptedSealedPacks) && !isEntered(item.acceptedLooseQuantity)) return {};
+    return {
+      acceptedSealedPacks: item.acceptedSealedPacks ?? 0,
+      acceptedLooseQuantity: item.acceptedLooseQuantity ?? 0
+    };
   }
 
   updateItemQuantity(index: number, quantity: number): void {
@@ -724,6 +908,16 @@ export class PoFormComponent implements OnInit, AfterViewInit {
         this.alertService.error(`Item ${i + 1}: Quantity must be greater than 0`);
         return false;
       }
+      const uomConfig = this.uomConfigFor(item);
+      if (uomConfig) {
+        const precision = purchaseUnitPrecision(this.selectedPurchaseOption(item), uomConfig);
+        if (!fitsPrecision(item.quantity, precision)) {
+          this.alertService.error(precision === 0
+            ? `Item ${i + 1}: ${this.purchaseUnitLabel(item)} must be a whole number`
+            : `Item ${i + 1}: ${this.purchaseUnitLabel(item)} allows at most ${precision} decimal place(s)`);
+          return false;
+        }
+      }
       if (item.unitPrice < 0) {
         this.alertService.error(`Item ${i + 1}: Unit price cannot be negative`);
         return false;
@@ -763,7 +957,8 @@ export class PoFormComponent implements OnInit, AfterViewInit {
           unitPrice: item.unitPrice,
           discount: item.discount ?? 0,
           tax: item.tax ?? 0,
-          unit: item.unit || undefined
+          unit: item.unit || undefined,
+          ...this.uomPayload(item)
         }))
     };
 
@@ -820,6 +1015,15 @@ export class PoFormComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    const splitProblem = this.selectedItems()
+      .filter((item: PoLineUomFields) => this.showReceiptSplit(item))
+      .map((item: PoLineUomFields) => this.receiptSplitMessage(item))
+      .find((message: string) => !!message);
+    if (splitProblem) {
+      this.alertService.error(splitProblem);
+      return;
+    }
+
     this.alertService.confirm(
       `This will create the purchase order, automatically generate a GRN, and add the products to the stock of ${this.selectedLocationTypeLabel().toLowerCase()} "${this.selectedLocationName()}". Do you want to continue?`,
       () => this.executePurchaseAndReceive(),
@@ -852,7 +1056,9 @@ export class PoFormComponent implements OnInit, AfterViewInit {
           unitPrice: item.unitPrice,
           discount: item.discount ?? 0,
           tax: item.tax ?? 0,
-          unit: item.unit || undefined
+          unit: item.unit || undefined,
+          ...this.uomPayload(item),
+          ...this.receiptSplitPayload(item)
         }))
     };
 

@@ -1,3 +1,5 @@
+import { TransferAllocation } from './uom.model';
+
 export interface StockTransferItemDto {
   id: number;
   variantId: number;
@@ -18,6 +20,12 @@ export interface StockTransferItemDto {
   returnTransitQuantity: number;
   unitCost: number;
   remarks?: string;
+  /** Physical form of the line. A pack-tracked line gets a loose allocation at dispatch if it had none. */
+  allocations?: TransferAllocation[] | null;
+  /** Entered unit snapshot. The quantities above are always base. */
+  uomUnitCode?: string | null;
+  uomLabel?: string | null;
+  uomEnteredQuantity?: number | null;
 }
 
 export interface StockTransferDto {
@@ -65,6 +73,11 @@ export interface CreateStockTransferItemDto {
   transferQuantity?: number;
   unitCost: number;
   remarks?: string;
+  /** With this the server converts to base units and ignores the quantity fields above. */
+  enteredQuantity?: number;
+  unitOptionId?: number | null;
+  expectedConfigVersionId?: number;
+  allocations?: TransferAllocation[];
 }
 
 export interface CreateStockTransferDto {

@@ -14,6 +14,9 @@ import {
   canEditStockAdjustment,
   getStockAdjustmentStatusColor
 } from '../../models/stock-adjustment.model';
+import { StockAdjustmentLineDto } from '../../models/stock-adjustment.model';
+import { enteredUnitLabel, formatUnitTotals, stockFormLabel, sumByUnit } from '../../utils/uom-quantity.util';
+import { injectVariantUnits } from '../../utils/variant-units';
 
 @Component({
   selector: 'app-adjustment-details',
@@ -25,6 +28,7 @@ import {
 export class AdjustmentDetailsComponent implements OnInit {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   adjustment = signal<StockAdjustmentDto | null>(null);
+  readonly units = injectVariantUnits(() => this.adjustment()?.lines.map(line => line.variantId) ?? []);
   isLoading = signal(true);
   showRejectModal = signal(false);
   rejectReason = signal('');
@@ -144,6 +148,31 @@ export class AdjustmentDetailsComponent implements OnInit {
         error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
       });
     }, 'Delete Adjustment', 'Delete');
+  }
+
+  /**
+   * The header totals add every line together, which is only meaningful for pcs. With other units on the adjustment,
+   * this gives one figure per unit from the lines; empty means the server's totals still apply.
+   */
+  unitTotal(adjustment: StockAdjustmentDto, sign?: 1 | -1): string {
+    if (!this.units.hasNonPcs()) {
+      return '';
+    }
+    const totals = sumByUnit(adjustment.lines
+      .filter(line => !sign || Math.sign(line.quantityChange) === sign)
+      .map(line => ({
+        unitCode: this.units.unit(line.variantId) ?? 'pcs',
+        quantity: sign ? Math.abs(line.quantityChange) : line.quantityChange
+      })));
+    return totals.length ? formatUnitTotals(totals) : '-';
+  }
+
+  enteredLabel(line: StockAdjustmentLineDto): string | null {
+    return enteredUnitLabel(line.uomEnteredQuantity, line.uomLabel);
+  }
+
+  stockForm(line: StockAdjustmentLineDto): string {
+    return stockFormLabel(line.packState, line.packCode, line.baseQtyPerPack, this.units.unit(line.variantId));
   }
 
   getStatusColor(status: string): string {

@@ -10,6 +10,8 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
 
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-stock-valuation-report',
   standalone: true,
@@ -69,6 +71,7 @@ export class StockValuationReportComponent implements OnInit, OnDestroy {
   // ── Computed ──────────────────────────────────────────────────────────────
   report     = computed(() => this.reportService.stockValuationReport());
   rows       = computed(() => this.report()?.items ?? []);
+  readonly units = injectVariantUnits(() => this.rows().map(row => row.variantId));
   summary    = computed(() => this.report()?.summary ?? null);
   totalCount = computed(() => this.report()?.totalCount ?? 0);
   totalPages = computed(() =>

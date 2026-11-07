@@ -29,6 +29,7 @@ export class ProductDetailComponent implements OnInit {
   private listState = inject(ListStateService);
   auth = inject(AuthService);
   canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
+  canEditUnits = computed(() => this.auth.hasPermission('products.edit'));
   private imageSvc = inject(ProductImageService);
   private alertService = inject(AlertService);
 

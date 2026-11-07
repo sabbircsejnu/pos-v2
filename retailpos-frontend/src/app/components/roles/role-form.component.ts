@@ -49,7 +49,13 @@ export const PERMISSION_DETAILS: Record<string, { label: string; description: st
   'sales.financial_postings.view': { label: 'View Sale Financial Postings', description: 'See pending/failed sale and reversal GL postings and the posting worker health for the Business.' },
   'sales.financial_postings.retry': { label: 'Retry Sale Financial Posting', description: 'Re-run a pending or failed sale/reversal GL posting. Never changes its amounts or accounting date.' },
   'cash_sessions.expenses.pay': { label: 'Pay Drawer Expenses', description: 'Record the cash payout of an approved POS Drawer expense from an open session.' },
-  'expenses.self_approve': { label: 'Owner Expense Self-Approval', description: 'Business Owner exception to approve own POS Drawer/Petty Cash expenses. Needs the Business setting and is never implied by the wildcard.' }
+  'expenses.self_approve': { label: 'Owner Expense Self-Approval', description: 'Business Owner exception to approve own POS Drawer/Petty Cash expenses. Needs the Business setting and is never implied by the wildcard.' },
+  'uom.view': { label: 'View Units of Measurement', description: 'See the units of measurement and their standard conversions.' },
+  'uom.manage': { label: 'Manage Units of Measurement', description: 'Add, edit and deactivate the units of this business. System units stay read-only.' },
+  'inventory.pack_state.view': { label: 'View Pack State', description: 'See how the stock of an item splits into sealed packs, loose quantity and prepared packs.' },
+  'inventory.pack_state.manage': { label: 'Open Sealed Packs', description: 'Open sealed packs into loose stock at an authorized location.' },
+  'inventory.repacking.view': { label: 'View Repacking', description: 'See repack jobs, including their content and packaging values.' },
+  'inventory.repacking.execute': { label: 'Run Repacking', description: 'Create, execute, cancel and reverse repack jobs at an authorized location.' }
 };
 
 @Component({
@@ -105,6 +111,14 @@ export class RoleFormComponent implements OnInit {
     {
       name: 'Inventory',
       permissions: ['inventory.view', 'inventory.create', 'inventory.edit', 'inventory.delete']
+    },
+    {
+      name: 'Units of Measurement',
+      permissions: ['uom.view', 'uom.manage']
+    },
+    {
+      name: 'Pack State & Repacking',
+      permissions: ['inventory.pack_state.view', 'inventory.pack_state.manage', 'inventory.repacking.view', 'inventory.repacking.execute']
     },
     {
       name: 'Stock Adjustment',

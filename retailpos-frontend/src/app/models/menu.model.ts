@@ -142,6 +142,7 @@ export const NAV_SECTIONS: MenuSection[] = [
       { id: 'categories', label: 'Categories', icon: 'fas fa-tags', route: '/categories', permission: 'categories.view' },
       { id: 'brands', label: 'Brands', icon: 'fas fa-award', permission: 'products.view', disabled: true },
       { id: 'variations', label: 'Variations', icon: 'fas fa-sliders-h', route: '/variations', permission: 'variations.view' },
+      { id: 'uom-units', label: 'Units of Measurement', icon: 'fas fa-ruler-combined', route: '/uom/units', permission: 'uom.view' },
     ]
   },
   {
@@ -153,6 +154,8 @@ export const NAV_SECTIONS: MenuSection[] = [
       { id: 'stock-adjustment', label: 'Stock Adjustment', icon: 'fas fa-sliders-h', route: '/stock-adjustments', permission: 'stock_adjustments.view' },
       { id: 'stock-transfer', label: 'Stock Transfer', icon: 'fas fa-truck-moving', route: '/stock-transfers', permission: 'stock_transfers.view' },
       { id: 'low-stock', label: 'Low Stock Alerts', icon: 'fas fa-triangle-exclamation', route: '/inventory/low-stock', permission: 'low_stock_alerts.view' },
+      { id: 'pack-state', label: 'Pack State', icon: 'fas fa-box-open', route: '/inventory/pack-state', permission: 'inventory.pack_state.view' },
+      { id: 'repacking', label: 'Repacking', icon: 'fas fa-cubes', route: '/inventory/repacking', permission: 'inventory.repacking.view' },
     ]
   },
   {

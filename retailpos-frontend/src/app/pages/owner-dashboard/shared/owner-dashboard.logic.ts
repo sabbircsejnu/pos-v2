@@ -142,25 +142,43 @@ export function bucketLabel(from: string, to: string): string {
   return from === to ? shortDate(from) : `${shortDate(from)} – ${shortDate(to)}`;
 }
 
-function quantityAndRecords(label: string, quantity: number, records: number): string {
+function quantityAndRecords(label: string, quantity: number, records: number, mixedUnits: boolean): string {
+  const recordsText = `${records.toLocaleString('en-US')} ${records === 1 ? 'record' : 'records'}`;
+  if (mixedUnits) {
+    return `${label}: ${recordsText}`;
+  }
   const units = `${quantity.toLocaleString('en-US')} ${quantity === 1 ? 'unit' : 'units'}`;
-  return `${label}: ${units} (${records.toLocaleString('en-US')} ${records === 1 ? 'record' : 'records'})`;
+  return `${label}: ${units} (${recordsText})`;
 }
 
-/** The valued and unvalued quantities behind a stock value. Null when nothing is held. */
-export function valuationCoverageText(coverage: StockValuationCoverage | null | undefined): string | null {
+/** A quantity beside its unit. Pcs stay a bare number, as they always were. */
+export function unitQuantityLabel(quantity: number, unitCode: string | null | undefined): string {
+  const text = new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(quantity);
+  return unitCode && unitCode !== 'pcs' ? `${text} ${unitCode}` : text;
+}
+
+/** Like `unitQuantityLabel`, for sentences that need a noun: `5 unit(s)` or `300 ml`. */
+export function unitQuantityPhrase(quantity: number, unitCode: string | null | undefined): string {
+  return unitCode && unitCode !== 'pcs' ? unitQuantityLabel(quantity, unitCode) : `${quantity} unit(s)`;
+}
+
+/**
+ * The valued and unvalued quantities behind a stock value. Null when nothing is held. The API adds these quantities
+ * across units, so with other units in the stock (`mixedUnits`) only the record counts mean anything.
+ */
+export function valuationCoverageText(coverage: StockValuationCoverage | null | undefined, mixedUnits = false): string | null {
   if (!coverage || coverage.status === 'no_stock') {
     return null;
   }
   const parts: string[] = [];
   if (coverage.valuedRecords > 0) {
-    parts.push(quantityAndRecords('Valued', coverage.valuedQuantity, coverage.valuedRecords));
+    parts.push(quantityAndRecords('Valued', coverage.valuedQuantity, coverage.valuedRecords, mixedUnits));
   }
   if (coverage.zeroCostRecords > 0) {
-    parts.push(quantityAndRecords('Zero cost', coverage.zeroCostQuantity, coverage.zeroCostRecords));
+    parts.push(quantityAndRecords('Zero cost', coverage.zeroCostQuantity, coverage.zeroCostRecords, mixedUnits));
   }
   if (coverage.unvaluedRecords > 0) {
-    parts.push(quantityAndRecords('Not valued', coverage.unvaluedQuantity, coverage.unvaluedRecords));
+    parts.push(quantityAndRecords('Not valued', coverage.unvaluedQuantity, coverage.unvaluedRecords, mixedUnits));
   }
   return parts.join(' · ');
 }

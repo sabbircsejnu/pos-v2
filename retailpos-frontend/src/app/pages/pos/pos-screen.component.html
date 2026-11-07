@@ -201,7 +201,7 @@
                 <td colspan="8" class="cart-empty">Scan a barcode or search for a product to begin the sale.</td>
               </tr>
             } @else {
-              @for (item of cartItems(); track item.variantId; let i = $index) {
+              @for (item of cartItems(); track cartLineKey(item); let i = $index) {
                 <tr class="cart-row" [class.duplicate-highlight]="duplicateCartVariantId() === item.variantId">
                   <td>{{ i + 1 }}</td>
                   <td>
@@ -216,19 +216,34 @@
                         <strong>{{ cartLineName(item) }}</strong>
                         @if (item.variantLabel) { <small>{{ item.variantLabel }}</small> }
                         <small>SKU / Barcode: {{ item.variantSku || '-' }}@if (item.barcode && item.barcode !== item.variantSku) { · {{ item.barcode }} }</small>
+                        @if (item.sellingOptionId) {
+                          <small class="pos-uom-line">
+                            {{ item.unitLabel }}@if (item.fulfilmentState) { · <span class="pos-uom-state">{{ item.fulfilmentState }}</span> }@if (item.includePackaging) { · with packaging }
+                            @if (cartLineBaseText(item); as baseText) { <span>{{ baseText }}</span> }
+                          </small>
+                        }
+                        @if (lineNeedsRepick(item)) {
+                          <small class="pos-uom-stale" role="status">
+                            Units changed.
+                            <button type="button" class="pos-uom-repick" (click)="repickLine(i)" [attr.aria-label]="'Pick the unit again for ' + item.productName">Re-pick</button>
+                          </small>
+                        }
                       </div>
                     </div>
                   </td>
-                  <td class="pos-num">{{ item.unitPrice | appCurrency }}</td>
+                  <td class="pos-num">
+                    {{ item.unitPrice | appCurrency }}
+                    @if (item.sellingOptionId) { <small class="pos-rate">per {{ item.unitLabel }}</small> }
+                  </td>
                   <td>
                     <div class="pos-qty">
                       <button type="button" (click)="decreaseQty(i)" [attr.aria-label]="'Decrease quantity of ' + item.productName">−</button>
                       <input
                         class="qty-input"
                         type="number"
-                        min="1"
-                        step="1"
-                        inputmode="numeric"
+                        [attr.min]="cartLineMin(item)"
+                        [attr.step]="cartLineStep(item)"
+                        [attr.inputmode]="cartLineStep(item) === '1' ? 'numeric' : 'decimal'"
                         [value]="item.quantity"
                         (change)="setQuantity(i, $any($event.target).value, $any($event.target))"
                         (keydown.enter)="$any($event.target).blur()"
@@ -466,6 +481,18 @@
   </app-ui-dialog>
 </div>
 
+@if (uomPicker(); as picker) {
+  <app-pos-uom-picker
+    [config]="picker.config"
+    [productName]="picker.product.name"
+    [outletId]="authOutletId()"
+    [knownStock]="uomPickerStock(picker.product)"
+    [preset]="picker.preset"
+    (picked)="onUomPicked($event)"
+    (cancelled)="onUomPickerCancelled()"
+    (configChanged)="onUomConfigChanged(picker.config.variantId, $event)" />
+}
+
 <!-- Receipt Modal -->
 @if (showReceiptModal() && completedSale()) {
   <div class="modal-overlay" (click)="$event.target === $event.currentTarget && startNewSale()">
@@ -511,6 +538,9 @@
                 <div class="text-sm font-semibold">{{ item.productName }}</div>
                 @if (item.variantLabel) {
                   <div class="text-xs text-gray-500">{{ item.variantLabel }}</div>
+                }
+                @if (completedLineUnit($index); as unit) {
+                  <div class="pos-uom-line">{{ unit }}</div>
                 }
                 <div class="text-xs text-gray-500">
                   {{ item.quantity }} x {{ item.unitPrice | appCurrency }} · Disc {{ item.discount | appCurrency }}

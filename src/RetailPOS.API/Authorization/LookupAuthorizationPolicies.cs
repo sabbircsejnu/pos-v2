@@ -1,3 +1,4 @@
+using RetailPOS.Application.Identity.Permissions;
 using Microsoft.AspNetCore.Authorization;
 
 namespace RetailPOS.API.Authorization;
@@ -104,7 +105,8 @@ public static class LookupAuthorizationPolicies
                 "stock_adjustments.create", "stock_adjustments.edit",
                 "stock_transfers.view", "stock_transfers.create",
                 "purchases.create", "purchases.edit",
-                "reports.inventory"
+                "reports.inventory",
+                PermissionCatalog.PackStateView, PermissionCatalog.RepackingView
             ]
         };
 

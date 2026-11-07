@@ -90,7 +90,7 @@
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalSkus | number }}</p>
         </div>
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Total Deficit Quantity</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Total Deficit Quantity') }}</p>
           <p class="text-xl font-bold text-orange-700">{{ summary()!.totalDeficitQty | number }}</p>
         </div>
         <div class="card p-3 bg-red-50 border-red-200">
@@ -177,9 +177,9 @@
                   {{ row.locationName }}
                   <span class="ml-1 text-xs text-gray-400">({{ row.locationType }})</span>
                 </td>
-                <td class="text-right font-bold text-orange-700">{{ row.currentStock | number }}</td>
-                <td class="text-right text-gray-600">{{ row.reorderLevel | number }}</td>
-                <td class="text-right font-bold text-blue-700">{{ row.suggestedOrderQty | number }}</td>
+                <td class="text-right font-bold text-orange-700">{{ row.currentStock | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
+                <td class="text-right text-gray-600">{{ row.reorderLevel | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
+                <td class="text-right font-bold text-blue-700">{{ row.suggestedOrderQty | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
               </tr>
             }
             @if (rows().length === 0) {
@@ -206,7 +206,7 @@
                   </td>
                   <td class="text-right text-orange-700">{{ summary()!.totalSkus | number }} SKUs</td>
                   <td></td>
-                  <td class="text-right text-blue-700">{{ summary()!.totalDeficitQty | number }}</td>
+                  <td class="text-right text-blue-700">{{ summary()!.totalDeficitQty | number }}{{ units.pcsSuffix() }}</td>
                 </tr>
               </tfoot>
             </table>

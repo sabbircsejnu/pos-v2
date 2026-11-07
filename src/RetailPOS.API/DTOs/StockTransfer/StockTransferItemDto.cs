@@ -21,4 +21,8 @@ public class StockTransferItemDto
     public decimal ReturnTransitQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public string? Remarks { get; set; }
+    public List<TransferAllocationDto>? Allocations { get; set; }
+    public string? UomUnitCode { get; set; }
+    public string? UomLabel { get; set; }
+    public decimal? UomEnteredQuantity { get; set; }
 }

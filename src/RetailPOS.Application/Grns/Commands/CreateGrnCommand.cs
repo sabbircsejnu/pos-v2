@@ -98,6 +98,11 @@ public sealed class CreateGrnCommandHandler(
             item.ReceivedQuantity < purchaseOrderItems[item.PurchaseOrderItemId].Quantity)
                 ? "partial"
                 : "full";
+        var sealedOptions = uomReader is null
+            ? new HashSet<long>()
+            : await uomReader.GetSealedOptionIdsAsync(
+                purchaseOrder.Items.Where(line => line.Snapshot?.OptionId is not null).Select(line => line.Snapshot!.OptionId!.Value).ToList(),
+                cancellationToken);
         foreach (var item in items)
         {
             var orderLine = purchaseOrderItems[item.PurchaseOrderItemId];
@@ -111,7 +116,7 @@ public sealed class CreateGrnCommandHandler(
             if (config?.PackStateTrackingEnabled == true)
                 RetailPOS.Application.Uom.PurchaseUomRules.Breakdown(
                     item.ReceivedQuantity, item.AcceptedSealedPacks, item.AcceptedLooseQuantity, orderLine.Snapshot,
-                    config.PurchaseOptions.Any(option => option.Id == orderLine.Snapshot?.OptionId && option.IsSealedPack));
+                    orderLine.Snapshot?.OptionId is { } optionId && sealedOptions.Contains(optionId));
             else if (item.AcceptedSealedPacks is not null || item.AcceptedLooseQuantity is not null)
                 throw new RetailPOS.Application.Uom.UomValidationException(
                     RetailPOS.Application.Uom.UomErrorCodes.PackStateNotEnabled, "This item does not track sealed and loose stock.");

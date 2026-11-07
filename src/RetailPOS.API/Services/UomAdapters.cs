@@ -27,6 +27,15 @@ public sealed class UomOperationScopeAdapter(
         await locationAccess.EnforceWriteLocationAsync(LocationAccessPolicy.InventoryStockView, locationId, locationType);
     }
 
+    public async Task<(IReadOnlyList<long>? OutletIds, IReadOnlyList<long>? WarehouseIds)> GetReadableLocationsAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var authorized = await locationAccess.GetAuthorizedOutletsAsync(LocationAccessPolicy.InventoryStockView);
+        return authorized.IsGlobalAccess
+            ? (null, null)
+            : (authorized.Outlets.Select(location => location.Id).ToList(), authorized.Warehouses.Select(location => location.Id).ToList());
+    }
+
     public async Task AuthorizeReadLocationAsync(long locationId, string locationType, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

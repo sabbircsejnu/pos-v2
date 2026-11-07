@@ -41,6 +41,46 @@ describe('ProductDetailComponent stock', () => {
     expect(fixture.nativeElement.querySelector('app-product-stock-badge').textContent.trim()).toBe(label);
   });
 
+  describe('Units & Pricing link', () => {
+    async function render(permissions: string[], overrides: Partial<Product>) {
+      const product: Product = {
+        id: 1, name: 'Attar', categoryId: 1, categoryName: 'Category', basePrice: 10, costPrice: 5, taxRate: 0, hasVariants: true,
+        status: 'active', isActive: true, variantCount: 1, totalStock: 5, stockStatus: 'in_stock',
+        variants: [{ id: 7, productId: 1, name: 'Std', priceAdjustment: 0, finalPrice: 10, createdAt: new Date(), updatedAt: new Date() }],
+        createdAt: new Date(), updatedAt: new Date(), ...overrides,
+      };
+      TestBed.configureTestingModule({
+        imports: [ProductDetailComponent],
+        providers: [
+          provideRouter([]),
+          { provide: ActivatedRoute, useValue: { snapshot: { paramMap: new Map([['id', '1']]), queryParams: {} } } },
+          { provide: ProductService, useValue: { getById: vi.fn().mockReturnValue(of({ data: product })) } },
+          { provide: AuthService, useValue: { hasPermission: (key: string) => permissions.includes(key) } },
+          { provide: ProductImageService, useValue: { list: () => of([]), resolveUrl: () => '' } },
+          { provide: CurrencyService, useValue: { format: (value: number) => String(value) } },
+        ],
+      });
+      const fixture = TestBed.createComponent(ProductDetailComponent);
+      await fixture.whenStable();
+      return fixture.nativeElement as HTMLElement;
+    }
+    const link = (element: HTMLElement) => element.querySelector('a[href="/products/1/variants/7/units"]');
+
+    it('links each variant for an editor', async () => {
+      expect(link(await render(['products.edit'], {}))).not.toBeNull();
+    });
+
+    it('links the single variant of a product without variants', async () => {
+      expect(link(await render(['products.edit'], { hasVariants: false }))).not.toBeNull();
+    });
+
+    it('adds nothing for a user who cannot edit products', async () => {
+      const element = await render([], {});
+      expect(link(element)).toBeNull();
+      expect(element.textContent).not.toContain('Units & Pricing');
+    });
+  });
+
   it.each([
     [null, null, 'Business default'],
     [0, null, '0% (zero-rated)'],

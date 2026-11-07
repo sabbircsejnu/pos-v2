@@ -1,5 +1,6 @@
 import { CommonModule, Location } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ADJUSTMENT_REASONS, StockAdjustmentDto, UpdateStockAdjustmentDto } from '../../models/stock-adjustment.model';
@@ -10,8 +11,12 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { StockAdjustmentService } from '../../services/stock-adjustment.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
+import { UomService } from '../../services/uom.service';
+import { UnitEntry } from '../../utils/uom-quantity.util';
+import { AdjustmentUomFieldsComponent } from './adjustment-uom-fields.component';
+import { AdjustmentUomEntry, adjustmentEntryError, adjustmentUomPayload, restoreDraftEntry, signedBaseChange, storedDraftPayload } from './adjustment-uom.logic';
 
-interface EditableAdjustmentLine {
+interface EditableAdjustmentLine extends AdjustmentUomEntry {
   id?: number;
   variantId: number;
   productName: string;
@@ -26,12 +31,14 @@ interface EditableAdjustmentLine {
 @Component({
   selector: 'app-adjustment-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AdjustmentUomFieldsComponent],
   templateUrl: './adjustment-edit.component.html',
   styleUrls: ['./adjustment-edit.component.css']
 })
 export class AdjustmentEditComponent implements OnInit {
   readonly reasons = ADJUSTMENT_REASONS;
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   isLoading = signal(true);
   adjustment = signal<StockAdjustmentDto | null>(null);
   outlets = signal<any[]>([]);
@@ -42,6 +49,15 @@ export class AdjustmentEditComponent implements OnInit {
   reason = signal('');
   notes = signal('');
   items = signal<EditableAdjustmentLine[]>([]);
+  isSaving = signal(false);
+
+  /** Plain pcs lines are not edited on this screen. */
+  configuredLines = computed(() => this.items()
+    .map((line, index) => ({ line, index }))
+    .filter(row => !!row.line.uomConfig));
+  isCheckingUnits = computed(() => this.items().some(line => line.uomStatus === 'loading'));
+  unitsFailed = computed(() => this.items().some(line => line.uomStatus === 'failed'));
+  canSave = computed(() => !this.isSaving() && !this.isCheckingUnits());
 
   constructor(
     private adjustmentService: StockAdjustmentService,
@@ -99,7 +115,9 @@ export class AdjustmentEditComponent implements OnInit {
           quantityChange: line.quantityChange,
           reason: line.reason,
           notes: line.notes,
+          uomStatus: 'loading',
         })));
+        this.loadLineConfigs(adj);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -107,6 +125,73 @@ export class AdjustmentEditComponent implements OnInit {
         this.location.back();
       }
     });
+  }
+
+  /** Each configured line reopens as it was entered, with its stock form. */
+  loadLineConfigs(adjustment: StockAdjustmentDto): void {
+    const uom = this.injector.get(UomService);
+    this.items.update(items => items.map(line => ({ ...line, uomStatus: 'loading' })));
+    uom.getVariantConfigs(adjustment.lines.map(line => line.variantId))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: configs => {
+          const byVariant = new Map(configs.map(config => [config.variantId, config]));
+          const saved = new Map(adjustment.lines.map(line => [line.variantId, line]));
+          this.items.update(items => items.map(line => {
+            const config = byVariant.get(line.variantId);
+            const savedLine = saved.get(line.variantId);
+            return {
+              ...line,
+              uomStatus: 'ready',
+              uomConfig: config ?? null,
+              ...(config && savedLine ? restoreDraftEntry(config, savedLine) : {})
+            };
+          }));
+          configs.filter(config => config.packStateTrackingEnabled).forEach(config => {
+            uom.getPackState(config.variantId, adjustment.locationId, adjustment.locationType)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                next: view => this.items.update(items => items.map(line => (line.variantId === config.variantId ? { ...line, packView: view } : line))),
+                error: () => undefined
+              });
+          });
+        },
+        error: () => this.items.update(items => items.map(line => ({ ...line, uomStatus: 'failed' })))
+      });
+  }
+
+  updateLineEntry(index: number, entry: UnitEntry): void {
+    this.items.update(items => {
+      const next = [...items];
+      const config = next[index].uomConfig;
+      if (!config) {
+        return items;
+      }
+      next[index] = {
+        ...next[index],
+        unitOptionId: entry.unitOptionId,
+        enteredQuantity: entry.quantity,
+        quantityChange: signedBaseChange(config, entry)
+      };
+      return next;
+    });
+  }
+
+  updateLinePackChoice(index: number, packChoice: string | null): void {
+    this.items.update(items => {
+      const next = [...items];
+      next[index] = { ...next[index], packChoice };
+      return next;
+    });
+  }
+
+  /** A line whose configuration could not be read resends what it already holds, unchanged. */
+  private linePayload(line: EditableAdjustmentLine, adjustment: StockAdjustmentDto) {
+    if (line.uomStatus === 'failed') {
+      const saved = adjustment.lines.find(candidate => candidate.variantId === line.variantId);
+      return saved ? storedDraftPayload(saved) : {};
+    }
+    return adjustmentUomPayload(line);
   }
 
   getLocations(): any[] {
@@ -160,8 +245,19 @@ export class AdjustmentEditComponent implements OnInit {
 
   save(): void {
     const adj = this.adjustment();
+    if (this.isSaving()) {
+      return;
+    }
     if (!adj || !this.locationId() || this.items().length === 0) {
       this.alertService.error('Please complete all required fields');
+      return;
+    }
+    if (this.isCheckingUnits()) {
+      this.alertService.warning('Still checking the units of these items. Try again in a moment.');
+      return;
+    }
+    if (this.items().some(line => adjustmentEntryError(line))) {
+      this.alertService.error('Please fix the invalid adjustment lines');
       return;
     }
 
@@ -173,15 +269,20 @@ export class AdjustmentEditComponent implements OnInit {
         quantityChange: line.quantityChange,
         reason: line.reason,
         notes: line.notes || this.notes() || undefined,
+        ...this.linePayload(line, adj)
       })),
     };
 
+    this.isSaving.set(true);
     this.adjustmentService.update(adj.id, dto).subscribe({
       next: () => {
         this.alertService.success('Stock adjustment draft updated successfully');
         this.router.navigate(['/stock-adjustments', adj.id]);
       },
-      error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
+      error: (err) => {
+        this.alertService.error(this.errorHandler.extractErrorMessage(err));
+        this.isSaving.set(false);
+      }
     });
   }
 

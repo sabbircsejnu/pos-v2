@@ -102,7 +102,11 @@
             <tr>
               <th class="px-4 py-2.5">Product</th>
               <th class="px-4 py-2.5 text-right">Ordered Qty</th>
-              <th class="px-4 py-2.5 text-right">Received Qty</th>
+              <th class="px-4 py-2.5 text-right">{{ showDamageColumns() ? 'Accepted Qty' : 'Received Qty' }}</th>
+              @if (showDamageColumns()) {
+                <th class="px-4 py-2.5 text-right">Damaged</th>
+                <th class="px-4 py-2.5 text-right">Rejected</th>
+              }
               <th class="px-4 py-2.5 text-right">Variance</th>
             </tr>
           </thead>
@@ -117,8 +121,18 @@
                   <div class="text-xs font-normal text-gray-500">Variant: {{ getVariantDetails(item) }}</div>
                 }
               </td>
-              <td class="px-4 py-2.5 text-right text-gray-700">{{ item.orderedQty }}</td>
-              <td class="px-4 py-2.5 text-right text-gray-700">{{ item.receivedQty }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">
+                {{ quantityText(item.orderedQty, item) }}
+                @if (item.uomLabel) { <div class="grn-uom-note">Ordered as {{ item.uomLabel }}</div> }
+              </td>
+              <td class="px-4 py-2.5 text-right text-gray-700">
+                {{ quantityText(item.receivedQty, item) }}
+                @if (packBreakdown(item); as breakdown) { <div class="grn-uom-note">{{ breakdown }}</div> }
+              </td>
+              @if (showDamageColumns()) {
+                <td class="px-4 py-2.5 text-right text-gray-700">{{ quantityText(item.damagedQty, item) }}</td>
+                <td class="px-4 py-2.5 text-right text-gray-700">{{ quantityText(item.rejectedQty, item) }}</td>
+              }
               <td class="px-4 py-2.5 text-right"
                   [ngClass]="getVarianceClass(item.receivedQty - item.orderedQty)">
                 {{ item.receivedQty - item.orderedQty >= 0 ? '+' : '' }}{{ item.receivedQty - item.orderedQty }}

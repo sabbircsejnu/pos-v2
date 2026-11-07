@@ -1227,3 +1227,33 @@
   background: var(--rp-color-status-warning-bg);
   color: var(--rp-color-status-warning-fg);
 }
+
+/* Unit of measurement details on a cart line */
+.pos-uom-line {
+  color: var(--rp-color-text-primary);
+  font-size: var(--rp-text-helper-size);
+  font-weight: var(--rp-font-weight-medium);
+}
+
+.pos-uom-state {
+  text-transform: capitalize;
+}
+
+.pos-product small.pos-uom-stale {
+  color: var(--rp-color-status-warning-fg);
+  font-weight: var(--rp-font-weight-medium);
+}
+
+.pos-uom-repick {
+  border: 0;
+  background: none;
+  color: var(--rp-color-text-link);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pos-uom-repick:focus-visible {
+  outline: var(--rp-focus-ring-width) solid var(--rp-color-focus-ring);
+  outline-offset: var(--rp-focus-ring-offset);
+}

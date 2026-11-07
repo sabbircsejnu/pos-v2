@@ -86,4 +86,8 @@ public sealed record StockTransferItemReadModel(
     decimal MissingQuantity = 0,
     decimal DamagedQuantity = 0,
     decimal InTransitQuantity = 0,
-    decimal ReturnTransitQuantity = 0);
+    decimal ReturnTransitQuantity = 0,
+    IReadOnlyList<RetailPOS.Application.Uom.TransferAllocationInput>? Allocations = null,
+    string? UomUnitCode = null,
+    string? UomLabel = null,
+    decimal? UomEnteredQuantity = null);

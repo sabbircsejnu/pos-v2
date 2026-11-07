@@ -110,7 +110,7 @@ public static class SaleUomReversal
         var restoredValue = 0m;
         var businessId = sale.BusinessId ?? 0;
         var fullLine = quantity >= item.Quantity;
-        if (item.PackState is not null && packState is not null)
+        if (item.PackState is not null && packState is not null && variantTracksPackState)
         {
             var physicalPack = item.PackState != PackStates.Loose;
             var perPack = item.BaseQtyPerPack ?? 0m;

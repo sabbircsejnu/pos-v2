@@ -77,6 +77,26 @@ function render(document: ReceiptDocumentDto): HTMLElement {
 const text = (element: HTMLElement) => (element.textContent ?? '').replace(/\s+/g, ' ');
 
 describe('ThermalReceiptComponent', () => {
+  it('prints the entered unit, quantity and price the backend sends for a unit line', () => {
+    const root = render(receipt({
+      items: [{
+        productName: 'Attar',
+        printName: 'Attar [12 ml bottle] (ATR)',
+        variantLabel: 'ATR',
+        quantity: 2.5,
+        unitPrice: 500,
+        discount: 0,
+        discountPercent: 0,
+        lineTotal: 1250
+      }]
+    }));
+
+    const row = root.querySelector('.tr-items tbody tr')?.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(row).toContain('Attar [12 ml bottle] (ATR)');
+    expect(row).toContain('2.5');
+    expect(row).toContain('500');
+  });
+
   it('prints every configured line of the legacy invoice', () => {
     const content = text(render(receipt()));
 

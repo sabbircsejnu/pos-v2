@@ -8,13 +8,16 @@ import { AuthService } from '../../services/auth.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { StockCountService } from '../../services/stock-count.service';
-import { StockCountDto } from '../../models/stock-count.model';
+import { StockCountDto, StockCountLineDto } from '../../models/stock-count.model';
+import { StockCountEntriesResult } from '../../models/uom.model';
+import { injectVariantUnits } from '../../utils/variant-units';
+import { StockCountUnitEntryComponent } from './stock-count-unit-entry.component';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-stock-count-details',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StockCountUnitEntryComponent],
   templateUrl: './stock-count-details.component.html',
   styleUrls: ['./stock-count-details.component.css']
 })
@@ -22,6 +25,9 @@ export class StockCountDetailsComponent implements OnInit, OnDestroy {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   readonly phase3Enabled = environment.stockCountPhase3Enabled;
   stockCount = signal<StockCountDto | null>(null);
+  readonly units = injectVariantUnits(() => this.stockCount()?.lines.map(line => line.variantId) ?? []);
+  /** The configured line whose mixed-unit entry is open. */
+  countingLineId = signal<number | null>(null);
   isLoading = signal(true);
   isWorking = signal(false);
   readonly rejectionReasonMaxLength = 500;
@@ -127,6 +133,27 @@ export class StockCountDetailsComponent implements OnInit, OnDestroy {
     if (adjustmentId) {
       this.router.navigate(['/stock-adjustments', adjustmentId]);
     }
+  }
+
+  /** Mixed-unit entry is for configured variants only; a plain pcs line keeps the Excel flow. */
+  canCountByUnit(item: StockCountDto, line: StockCountLineDto): boolean {
+    return item.status === 'Draft' && this.auth.hasPermission('inventory.edit') && !!this.units.config(line.variantId);
+  }
+
+  toggleCountByUnit(line: StockCountLineDto): void {
+    this.countingLineId.update(current => (current === line.id ? null : line.id));
+  }
+
+  /** The server's figures replace the preview. */
+  onCountSaved(result: StockCountEntriesResult): void {
+    this.stockCount.update(item => item && ({
+      ...item,
+      lines: item.lines.map(line => (line.id === result.lineId
+        ? { ...line, physicalStock: result.physicalStock, difference: result.difference }
+        : line))
+    }));
+    this.countingLineId.set(null);
+    this.alert.success('Counted quantities saved');
   }
 
   canUpload(item: StockCountDto): boolean {

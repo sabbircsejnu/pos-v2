@@ -44,6 +44,11 @@
             <button type="button" (click)="downloadReceiptPdf()" class="btn btn-outline" [disabled]="isPrinting()">
               <i class="fas fa-file-pdf mr-2" aria-hidden="true"></i>Receipt PDF
             </button>
+            @if (canRefund()) {
+              <button type="button" (click)="openRefundDialog()" class="btn btn-outline">
+                <i class="fas fa-rotate-left mr-2" aria-hidden="true"></i>Refund
+              </button>
+            }
             @if (canVoid()) {
               <button type="button" (click)="openVoidModal()" class="btn btn-danger">
                 <i class="fas fa-ban mr-2" aria-hidden="true"></i>Void Sale
@@ -104,13 +109,31 @@
           <tbody>
             @for (item of sale()?.items; track item.id) {
               <tr>
-                <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.productName }}</td>
+                <td class="px-4 py-2.5 font-medium text-gray-900">
+                  {{ item.productName }}
+                  @if (isUnitLine(item)) {
+                    <div class="sale-uom-note">
+                      {{ item.unitLabel || item.unitCode }}@if (item.packState) { · <span class="capitalize">{{ item.packState }}</span> }
+                    </div>
+                  }
+                  @if ((item.returnedQuantity ?? 0) > 0) {
+                    <div class="sale-uom-note">Returned {{ refundUnitOf(item) }}</div>
+                  }
+                </td>
                 <td class="px-4 py-2.5 font-mono text-sm text-gray-500">{{ item.variantSku }}</td>
-                <td class="px-4 py-2.5 text-right text-sm text-gray-700">{{ item.unitPrice | appCurrency }}</td>
+                <td class="px-4 py-2.5 text-right text-sm text-gray-700">
+                  {{ displayUnitPrice(item) | appCurrency }}
+                  @if (isUnitLine(item)) { <div class="sale-uom-note">per {{ item.unitLabel || item.unitCode }}</div> }
+                </td>
                 <td class="px-4 py-2.5 text-center">
-                  <span class="inline-flex items-center justify-center w-7 h-7 bg-gray-100 rounded-full text-sm font-semibold text-gray-700">
-                    {{ item.quantity }}
-                  </span>
+                  @if (isUnitLine(item)) {
+                    <span class="sale-uom-qty">{{ displayQuantity(item) }}</span>
+                    <div class="sale-uom-note">= {{ baseQuantityText(item) }}</div>
+                  } @else {
+                    <span class="inline-flex items-center justify-center w-7 h-7 bg-gray-100 rounded-full text-sm font-semibold text-gray-700">
+                      {{ item.quantity }}
+                    </span>
+                  }
                 </td>
                 <td class="px-4 py-2.5 text-right font-semibold text-gray-900">{{ item.subtotal | appCurrency }}</td>
               </tr>
@@ -145,6 +168,84 @@
     </div>
   }
 </div>
+
+<!-- Refund Dialog -->
+@if (showRefundDialog()) {
+  <app-ui-dialog [(open)]="showRefundDialog" title="Refund Sale" size="lg" [dismissible]="!isRefunding()">
+    <p class="sale-uom-note">A sale can be refunded only once. Quantities are in the stored base unit, and a line may be returned in part. Leave a line at 0 to keep it.</p>
+    <div class="sale-refund-lines">
+      @for (line of refundLines(); track line.item.id; let i = $index) {
+        <fieldset class="sale-refund-line">
+          <legend>{{ line.item.productName }}</legend>
+          <p class="sale-uom-note">
+            Sold {{ isUnitLine(line.item) ? displayQuantity(line.item) + ' = ' : '' }}{{ refundUnit(line.item) }} · {{ line.item.subtotal | appCurrency }}
+          </p>
+          <div class="sale-refund-fields">
+            <app-ui-form-field [label]="isUnitLine(line.item) ? 'Quantity (' + (line.item.baseUnitCode || 'base unit') + ')' : 'Quantity'">
+              <input
+                appUiControl
+                type="number"
+                min="0"
+                [attr.max]="line.item.quantity"
+                [attr.step]="isUnitLine(line.item) ? 'any' : '1'"
+                [ngModel]="line.quantity"
+                (ngModelChange)="updateRefundLine(i, { quantity: $event })"
+                [disabled]="isRefunding()" />
+            </app-ui-form-field>
+            @if (isUnitLine(line.item)) {
+              <app-ui-form-field label="Condition">
+                <select
+                  appUiControl
+                  [ngModel]="line.condition"
+                  (ngModelChange)="updateRefundLine(i, { condition: $event })"
+                  [disabled]="isRefunding()">
+                  <option value="resellable">Resellable: returns to stock</option>
+                  <option value="non_resellable">Non-resellable: not restocked</option>
+                </select>
+              </app-ui-form-field>
+              <label class="sale-refund-check">
+                <input
+                  appUiControl
+                  type="checkbox"
+                  [ngModel]="line.packagingReusable"
+                  (ngModelChange)="updateRefundLine(i, { packagingReusable: $event })"
+                  [disabled]="isRefunding() || line.condition === 'non_resellable'" />
+                <span>Packaging can be reused</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+      }
+    </div>
+    <div class="ui-form-stack">
+      <app-ui-form-field label="Reason" [required]="true">
+        <textarea
+          appUiControl
+          rows="2"
+          [ngModel]="refundReason()"
+          (ngModelChange)="refundReason.set($event)"
+          [disabled]="isRefunding()"></textarea>
+      </app-ui-form-field>
+      @if (needsCashAmount()) {
+        <app-ui-form-field label="Cash paid back" [required]="true" hint="This is a partial refund of a cash sale, so state the amount handed to the customer.">
+          <input
+            appUiControl
+            type="number"
+            min="0.01"
+            step="0.01"
+            [ngModel]="refundCashAmount()"
+            (ngModelChange)="refundCashAmount.set($event)"
+            [disabled]="isRefunding()" />
+        </app-ui-form-field>
+      }
+    </div>
+    @if (refundError()) {
+      <p class="sale-refund-error" role="alert">{{ refundError() }}</p>
+    }
+    <button uiDialogFooter appUiButton variant="outline" [disabled]="isRefunding()" (click)="showRefundDialog.set(false)">Cancel</button>
+    <button uiDialogFooter appUiButton [loading]="isRefunding()" [disabled]="isRefunding()" (click)="confirmRefund()">Refund</button>
+  </app-ui-dialog>
+}
 
 <!-- Void Modal -->
 @if (showVoidModal()) {

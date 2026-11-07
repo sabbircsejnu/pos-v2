@@ -25,14 +25,18 @@
       <div class="card p-4"><p class="text-xs text-gray-500 uppercase">GL balance</p><p class="text-2xl font-bold">{{ formatCurrency(data.generalLedgerBalance) }}</p></div>
       <div class="card p-4" [class.bg-red-50]="data.reconciliationDifference !== 0"><p class="text-xs text-gray-500 uppercase">Reconciliation difference</p><p class="text-2xl font-bold">{{ formatCurrency(data.reconciliationDifference) }}</p></div>
     </div>
-    @if (!isCogs()) { <p class="text-sm text-gray-600">Quantity as of {{ data.asOfDate | appDate:'mediumDate' }}: <strong>{{ data.totalQuantity | number }}</strong>. Unvalued movements excluded: <strong>{{ data.unvaluedMovements?.length || 0 }}</strong>.</p> }
+    @if (!isCogs()) { <p class="text-sm text-gray-600">Quantity as of {{ data.asOfDate | appDate:'mediumDate' }}: <strong>{{ data.totalQuantity | number }}{{ units.pcsSuffix() }}</strong>. Unvalued movements excluded: <strong>{{ data.unvaluedMovements?.length || 0 }}</strong>.</p>
+      @if (data.capitalizedPackagingValue) {
+        <p class="text-sm text-gray-600">Capitalized packaging value: <strong>{{ formatCurrency(data.capitalizedPackagingValue) }}</strong>. This is packaging inside prepared packs, and it is already included in the inventory value above.</p>
+      }
+    }
     <div class="card overflow-auto">
       <table class="table min-w-full"><thead><tr>
         @if (isCogs()) { <th>Date</th><th>Journal</th><th>Source</th><th>Type</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Net COGS</th> }
         @else { <th>Product</th><th>SKU</th><th>Location</th><th class="text-right">Quantity</th><th class="text-right">Weighted Cost</th><th class="text-right">Value</th> }
       </tr></thead><tbody>
         @if (isCogs()) { @for (row of data.rows; track row.journalEntryId + '_' + row.netCogs) { <tr><td>{{ row.postingDate | appDate:'mediumDate' }}</td><td>{{ row.journalNumber }}</td><td>{{ row.referenceType }} #{{ row.referenceId }}</td><td>{{ row.journalType }}</td><td class="text-right">{{ formatCurrency(row.debitAmount) }}</td><td class="text-right">{{ formatCurrency(row.creditAmount) }}</td><td class="text-right font-medium">{{ formatCurrency(row.netCogs) }}</td></tr> } }
-        @else { @for (row of data.rows; track row.variantId + '_' + row.locationType + '_' + row.locationId) { <tr><td>{{ row.productName }}</td><td>{{ row.sku }}</td><td>{{ row.locationType }} #{{ row.locationId }}</td><td class="text-right">{{ row.quantity | number }}</td><td class="text-right">{{ formatCurrency(row.unitCost) }}</td><td class="text-right font-medium">{{ formatCurrency(row.inventoryValue) }}</td></tr> } }
+        @else { @for (row of data.rows; track row.variantId + '_' + row.locationType + '_' + row.locationId) { <tr><td>{{ row.productName }}</td><td>{{ row.sku }}</td><td>{{ row.locationType }} #{{ row.locationId }}</td><td class="text-right">{{ row.quantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td><td class="text-right">{{ formatCurrency(row.unitCost) }}</td><td class="text-right font-medium">{{ formatCurrency(row.inventoryValue) }}</td></tr> } }
         @if (!data.rows?.length) { <tr><td colspan="7" class="text-center py-12 text-gray-500">No report data matches the selected filters.</td></tr> }
       </tbody></table>
     </div>

@@ -36,9 +36,12 @@ import {
   parseLocation,
   resolvePreset,
   stockValueLabel,
+  unitQuantityLabel,
+  unitQuantityPhrase,
   validateRange,
   valuationCoverageText
 } from './shared/owner-dashboard.logic';
+import { formatUnitTotals, hasNonPcsUnit, sumByUnit } from '../../utils/uom-quantity.util';
 
 const PREVIEW_ROWS = { bestSellers: 15, slowMovers: 15, transfers: 10 } as const;
 const VIEW_ALL_PAGE_SIZE = 25;
@@ -104,9 +107,9 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
           <app-od-kpi-card label="Total Stock Value" [loading]="summary.loading()" [error]="!!summary.error()"
             [value]="money(summary.data()?.totalStockValue)" [status]="summary.data()?.totalStockValue?.status ?? 'ok'"
             [note]="summary.data()?.totalStockValue?.note ?? null"
-            statusLabel="Partial Value" [detail]="coverageText(summary.data()?.valuation)" />
+            statusLabel="Partial Value" [detail]="coverageText(summary.data()?.valuation, summaryHasOtherUnits())" />
           <app-od-kpi-card label="Total Stock Quantity" [loading]="summary.loading()" [error]="!!summary.error()"
-            [value]="count(summary.data()?.totalStockQuantity)" detail="On hand; excludes stock in transit" />
+            [value]="totalStockText()" detail="On hand; excludes stock in transit" />
           <app-od-kpi-card label="Active Stocked Products" [loading]="summary.loading()" [error]="!!summary.error()"
             [value]="count(summary.data()?.activeStockedProducts)"
             [detail]="summary.data() ? count(summary.data()!.stockedVariants) + ' variants / SKUs' : null" />
@@ -114,7 +117,7 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
             [value]="money(summary.data()?.slowMovingStockValue)" [status]="summary.data()?.slowMovingStockValue?.status ?? 'ok'"
             [note]="summary.data()?.slowMovingStockValue?.note ?? null"
             statusLabel="Partial Value"
-            [detail]="summary.data()?.slowMovingSharePercent != null ? summary.data()!.slowMovingSharePercent + '% of stock value' : coverageText(summary.data()?.slowMovingValuation)" />
+            [detail]="summary.data()?.slowMovingSharePercent != null ? summary.data()!.slowMovingSharePercent + '% of stock value' : coverageText(summary.data()?.slowMovingValuation, summaryHasOtherUnits())" />
           <app-od-kpi-card label="Out of Stock Variants" [loading]="summary.loading()" [error]="!!summary.error()"
             [value]="count(summary.data()?.outOfStockVariants)" detail="Showroom and variant pairs already tracked there" />
           <app-od-kpi-card label="Transfer Opportunities" [loading]="summary.loading()" [error]="!!summary.error()"
@@ -154,7 +157,9 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
             <ng-template uiTableCell="sku" let-row>
               <div class="od-stack"><span>{{ row.sku }}</span><span class="od-muted">{{ row.variantLabel }}</span></div>
             </ng-template>
+            <ng-template uiTableCell="netUnitsSold" let-row>{{ qty(row.netUnitsSold, row.baseUnitCode) }}</ng-template>
             <ng-template uiTableCell="netSales" let-row>{{ currency.format(row.netSales) }}</ng-template>
+            <ng-template uiTableCell="currentAvailableStock" let-row>{{ qty(row.currentAvailableStock, row.baseUnitCode) }}</ng-template>
           </app-ui-data-table>
           @if (!bestAll() && (bestSellers.data()?.totalCount ?? 0) > preview.bestSellers) {
             <div class="od-more"><button appUiButton type="button" variant="outline" size="sm" (click)="showAllBest()">View All ({{ bestSellers.data()!.totalCount }})</button></div>
@@ -181,6 +186,8 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
             <ng-template uiTableCell="sku" let-row>
               <div class="od-stack"><span>{{ row.sku }}</span><span class="od-muted">{{ row.variantLabel }}</span></div>
             </ng-template>
+            <ng-template uiTableCell="availableStock" let-row>{{ qty(row.availableStock, row.baseUnitCode) }}</ng-template>
+            <ng-template uiTableCell="netUnitsSold" let-row>{{ qty(row.netUnitsSold, row.baseUnitCode) }}</ng-template>
             <ng-template uiTableCell="daysSinceLastSale" let-row>{{ row.daysSinceLastSale ?? 'No sale' }}</ng-template>
             <ng-template uiTableCell="stockValue" let-row>{{ valueLabel(row.stockValue, row.availableStock) }}</ng-template>
             <ng-template uiTableCell="classification" let-row>
@@ -212,11 +219,12 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
                 <div class="od-stack"><span>{{ row.productName }}</span><span class="od-muted">{{ row.sku }} · {{ row.variantLabel }}</span></div>
               </ng-template>
               <ng-template uiTableCell="source" let-row>
-                <div class="od-stack"><span>{{ row.source.locationName }}</span><span class="od-muted">{{ row.source.available }} available · {{ row.source.netUnitsSold }} sold</span></div>
+                <div class="od-stack"><span>{{ row.source.locationName }}</span><span class="od-muted">{{ qty(row.source.available, row.baseUnitCode) }} available · {{ qty(row.source.netUnitsSold, row.baseUnitCode) }} sold</span></div>
               </ng-template>
               <ng-template uiTableCell="destination" let-row>
-                <div class="od-stack"><span>{{ row.destination.locationName }}</span><span class="od-muted">{{ row.destination.available }} available · {{ row.destination.netUnitsSold }} sold</span></div>
+                <div class="od-stack"><span>{{ row.destination.locationName }}</span><span class="od-muted">{{ qty(row.destination.available, row.baseUnitCode) }} available · {{ qty(row.destination.netUnitsSold, row.baseUnitCode) }} sold</span></div>
               </ng-template>
+              <ng-template uiTableCell="suggestedQty" let-row>{{ qty(row.suggestedQty, row.baseUnitCode) }}</ng-template>
               <ng-template uiTableCell="priority" let-row>
                 <app-ui-badge [variant]="priority(row.priority).variant">{{ priority(row.priority).label }}</app-ui-badge>
               </ng-template>
@@ -245,27 +253,27 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
           } @else if (transferDetail.data(); as detail) {
             <p><strong>{{ detail.mainCode || 'Main code not set' }}</strong> · {{ detail.productName }} · {{ detail.sku }} · {{ detail.variantLabel }}</p>
             <p>
-              Suggested: <strong>{{ detail.suggestedQty }} unit(s)</strong>
+              Suggested: <strong>{{ phrase(detail.suggestedQty, detail.baseUnitCode) }}</strong>
               <app-ui-badge [variant]="priority(detail.priority).variant">{{ priority(detail.priority).label }} priority</app-ui-badge>
             </p>
             <div class="od-compare">
               @for (side of [{ title: 'From: ' + detail.source.locationName, data: detail.source }, { title: 'To: ' + detail.destination.locationName, data: detail.destination }]; track side.title) {
                 <app-ui-card [title]="side.title" [headingLevel]="3">
                   <dl class="od-dl">
-                    <div><dt>Available now</dt><dd>{{ side.data.available }}</dd></div>
-                    <div><dt>Net units sold</dt><dd>{{ side.data.netUnitsSold }}</dd></div>
+                    <div><dt>Available now</dt><dd>{{ qty(side.data.available, detail.baseUnitCode) }}</dd></div>
+                    <div><dt>Net units sold</dt><dd>{{ qty(side.data.netUnitsSold, detail.baseUnitCode) }}</dd></div>
                     <div><dt>In-stock days</dt><dd>{{ side.data.eligibleSellingDays }}</dd></div>
-                    <div><dt>Units per in-stock day</dt><dd>{{ side.data.velocityPerDay }}</dd></div>
+                    <div><dt>Units per in-stock day</dt><dd>{{ qty(side.data.velocityPerDay, detail.baseUnitCode) }}</dd></div>
                     <div><dt>Days of cover</dt><dd>{{ side.data.coverageDays ?? 'No sales' }}</dd></div>
-                    <div><dt>Pending out / in</dt><dd>{{ side.data.pendingOutbound }} / {{ side.data.pendingInbound }}</dd></div>
+                    <div><dt>Pending out / in</dt><dd>{{ qty(side.data.pendingOutbound, detail.baseUnitCode) }} / {{ qty(side.data.pendingInbound, detail.baseUnitCode) }}</dd></div>
                   </dl>
                 </app-ui-card>
               }
             </div>
             <dl class="od-dl">
-              <div><dt>Source keeps</dt><dd>{{ detail.sourceProtectedQty }} unit(s)</dd></div>
-              <div><dt>Source can release</dt><dd>{{ detail.sourceSpareQty }} unit(s)</dd></div>
-              <div><dt>Destination needs</dt><dd>{{ detail.destinationNeedQty }} unit(s)</dd></div>
+              <div><dt>Source keeps</dt><dd>{{ phrase(detail.sourceProtectedQty, detail.baseUnitCode) }}</dd></div>
+              <div><dt>Source can release</dt><dd>{{ phrase(detail.sourceSpareQty, detail.baseUnitCode) }}</dd></div>
+              <div><dt>Destination needs</dt><dd>{{ phrase(detail.destinationNeedQty, detail.baseUnitCode) }}</dd></div>
               <div><dt>Period</dt><dd>{{ filter()!.from | appDate }} to {{ filter()!.to | appDate }}</dd></div>
             </dl>
             <ul class="od-reasons">
@@ -291,12 +299,12 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
           } @else if (product.data(); as detail) {
             <p><strong>{{ detail.mainCode || 'Main code not set' }}</strong> · {{ detail.productName }} · {{ detail.categoryName }}</p>
             <dl class="od-dl">
-              <div><dt>Current available stock</dt><dd>{{ detail.totalAvailableStock }}</dd></div>
-              <div><dt>Net units sold</dt><dd>{{ detail.totalNetUnitsSold }}</dd></div>
+              <div><dt>Current available stock</dt><dd>{{ productStock(detail) }}</dd></div>
+              <div><dt>Net units sold</dt><dd>{{ productSold(detail) }}</dd></div>
               <div><dt>Net sales</dt><dd>{{ currency.format(detail.totalNetSales) }}</dd></div>
               <div><dt>Stock value</dt><dd>{{ coverageLabel(detail.valuation) }}</dd></div>
             </dl>
-            @if (coverageText(detail.valuation); as coverage) {
+            @if (coverageText(detail.valuation, productHasOtherUnits(detail)); as coverage) {
               <p class="od-helper">{{ coverage }}</p>
             }
             <p class="od-helper">Sales: {{ detail.context.from | appDate }} to {{ detail.context.to | appDate }}. Stock as of {{ detail.context.dataAsOfUtc | appDate:'medium' }}.</p>
@@ -309,8 +317,8 @@ const PRIORITY: Record<TransferPriority, { label: string; variant: UiBadgeVarian
                     <tr>
                       <td>{{ row.locationName }}</td>
                       <td>{{ row.sku }} · {{ row.variantLabel }}</td>
-                      <td class="num">{{ row.availableStock }}</td>
-                      <td class="num">{{ row.netUnitsSold }}</td>
+                      <td class="num">{{ qty(row.availableStock, row.baseUnitCode) }}</td>
+                      <td class="num">{{ qty(row.netUnitsSold, row.baseUnitCode) }}</td>
                       <td class="num">{{ valueLabel(row.stockValue, row.availableStock) }}</td>
                       <td class="num">{{ row.daysSinceLastSale ?? '—' }}</td>
                     </tr>
@@ -380,9 +388,9 @@ export class InventoryIntelligencePageComponent implements OnInit {
     { key: 'productName', header: 'Product Name', sortable: true },
     { key: 'sku', header: 'Variant / SKU', type: 'custom', sortable: true },
     { key: 'categoryName', header: 'Category', sortable: true },
-    { key: 'netUnitsSold', header: 'Net Units Sold', type: 'number', sortable: true },
+    { key: 'netUnitsSold', header: 'Net Units Sold', type: 'custom', align: 'end', sortable: true },
     { key: 'netSales', header: 'Net Sales', type: 'custom', align: 'end', sortable: true },
-    { key: 'currentAvailableStock', header: 'Current Available Stock', type: 'number', sortable: true }
+    { key: 'currentAvailableStock', header: 'Current Available Stock', type: 'custom', align: 'end', sortable: true }
   ];
 
   readonly slowColumns = computed<UiTableColumn[]>(() => [
@@ -390,8 +398,8 @@ export class InventoryIntelligencePageComponent implements OnInit {
     { key: 'productName', header: 'Name', sortable: true },
     { key: 'sku', header: 'Variant / SKU', type: 'custom' },
     { key: 'locationName', header: 'Showroom', sortable: true },
-    { key: 'availableStock', header: 'Available Stock', type: 'number', sortable: true },
-    { key: 'netUnitsSold', header: 'Net Units Sold', type: 'number', sortable: true },
+    { key: 'availableStock', header: 'Available Stock', type: 'custom', align: 'end', sortable: true },
+    { key: 'netUnitsSold', header: 'Net Units Sold', type: 'custom', align: 'end', sortable: true },
     { key: 'daysSinceLastSale', header: 'Days Since Last Sale', type: 'custom', align: 'end', sortable: true },
     { key: 'stockValue', header: 'Stock Value', type: 'custom', align: 'end', sortable: true },
     {
@@ -415,7 +423,7 @@ export class InventoryIntelligencePageComponent implements OnInit {
       { key: 'product', header: 'Product / Exact Variant', type: 'custom' },
       { key: 'source', header: 'Source: Available / Sales', type: 'custom', filter: { type: 'select', options: showrooms } },
       { key: 'destination', header: 'Destination: Available / Sales', type: 'custom', filter: { type: 'select', options: showrooms } },
-      { key: 'suggestedQty', header: 'Suggested Qty', type: 'number' },
+      { key: 'suggestedQty', header: 'Suggested Qty', type: 'custom', align: 'end' },
       {
         key: 'priority',
         header: 'Priority',
@@ -455,14 +463,47 @@ export class InventoryIntelligencePageComponent implements OnInit {
       value: row.stockValue ?? 0,
       valueText: this.coverageLabel(row.valuation),
       detail: [
-        `${row.quantity.toLocaleString('en-US')} units`,
+        hasNonPcsUnit(row.quantityByUnit) ? formatUnitTotals(row.quantityByUnit ?? []) : `${row.quantity.toLocaleString('en-US')} units`,
         row.percentOfTotal === null ? null : `${row.percentOfTotal}% of valued stock`,
-        row.valuation.unvaluedRecords > 0 ? valuationCoverageText(row.valuation) : null
+        row.valuation.unvaluedRecords > 0 ? valuationCoverageText(row.valuation, hasNonPcsUnit(row.quantityByUnit)) : null
       ].filter(Boolean).join(' · ')
     })));
 
+  /** `totalStockQuantity` covers pcs only, so with other units on hand each unit gets its own figure. */
+  readonly summaryHasOtherUnits = computed(() => hasNonPcsUnit(this.summary.data()?.quantityByUnit));
+
+  readonly totalStockText = computed(() => {
+    const data = this.summary.data();
+    return data && this.summaryHasOtherUnits()
+      ? formatUnitTotals(data.quantityByUnit ?? [])
+      : this.count(data?.totalStockQuantity);
+  });
+
   ngOnInit(): void {
     this.loadMeta();
+  }
+
+  qty(quantity: number, unitCode: string | null | undefined): string {
+    return unitQuantityLabel(quantity, unitCode);
+  }
+
+  phrase(quantity: number, unitCode: string | null | undefined): string {
+    return unitQuantityPhrase(quantity, unitCode);
+  }
+
+  productHasOtherUnits(detail: ProductInsights): boolean {
+    return hasNonPcsUnit(detail.quantityByUnit) || detail.locations.some(row => (row.baseUnitCode ?? 'pcs') !== 'pcs');
+  }
+
+  productStock(detail: ProductInsights): string | number {
+    return this.productHasOtherUnits(detail) ? formatUnitTotals(detail.quantityByUnit ?? []) : detail.totalAvailableStock;
+  }
+
+  /** The API's total sold covers pcs only, so other units are added per unit from the location rows. */
+  productSold(detail: ProductInsights): string | number {
+    return this.productHasOtherUnits(detail)
+      ? formatUnitTotals(sumByUnit(detail.locations.map(row => ({ unitCode: row.baseUnitCode ?? 'pcs', quantity: row.netUnitsSold }))))
+      : detail.totalNetUnitsSold;
   }
 
   loadMeta(): void {
@@ -607,8 +648,8 @@ export class InventoryIntelligencePageComponent implements OnInit {
     return metric?.value === null || metric?.value === undefined ? null : this.currency.format(metric.value);
   }
 
-  coverageText(coverage: StockValuationCoverage | null | undefined): string | null {
-    return valuationCoverageText(coverage);
+  coverageText(coverage: StockValuationCoverage | null | undefined, mixedUnits = false): string | null {
+    return valuationCoverageText(coverage, mixedUnits);
   }
 
   coverageLabel(coverage: StockValuationCoverage): string {
@@ -620,7 +661,8 @@ export class InventoryIntelligencePageComponent implements OnInit {
   }
 
   valuedSubtotalLabel(coverage: StockValuationCoverage): string {
-    const coverageNote = valuationCoverageText(coverage);
+    const mixedUnits = (this.locations.data()?.locations ?? []).some(row => hasNonPcsUnit(row.quantityByUnit));
+    const coverageNote = valuationCoverageText(coverage, mixedUnits);
     const heading = `Total: ${this.coverageLabel(coverage)}`;
     return coverageNote ? `${heading}. ${coverageNote}.` : `${heading}.`;
   }

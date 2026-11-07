@@ -1,0 +1,93 @@
+<app-ui-dialog [open]="true" (openChange)="onOpenChange($event)" [title]="productName()" size="md">
+  <div class="uom-picker" (keydown)="onKeydown($event)">
+    @if (options().length === 0) {
+      <p class="uom-picker__notice" role="alert">{{ notice() || 'This item has no selling options. Check its unit setup.' }}</p>
+    } @else {
+      <div class="uom-picker__options" role="group" aria-label="Pack or custom quantity">
+        @for (candidate of options(); track candidate.id; let i = $index) {
+          <button
+            type="button"
+            class="uom-picker__card"
+            [class.uom-picker__card--selected]="candidate.id === selectedOptionId()"
+            [attr.aria-pressed]="candidate.id === selectedOptionId()"
+            [attr.data-option-id]="candidate.id"
+            [attr.data-autofocus]="candidate.id === selectedOptionId() ? '' : null"
+            (click)="selectOption(candidate)"
+            (keydown.enter)="onOptionEnter($event, candidate)">
+            <span class="uom-picker__key" aria-hidden="true">{{ i + 1 }}</span>
+            <strong>{{ candidate.label }}</strong>
+            <small>{{ optionDetail(candidate) }}</small>
+            <span class="uom-picker__price">{{ candidate.price | appCurrency }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="uom-picker__row">
+        <label class="uom-picker__field" for="pos-uom-quantity">{{ quantityLabel() }}</label>
+        <input
+          id="pos-uom-quantity"
+          class="uom-picker__input"
+          type="number"
+          [attr.min]="step()"
+          [attr.step]="step()"
+          [attr.inputmode]="precision() === 0 ? 'numeric' : 'decimal'"
+          [attr.aria-invalid]="showQuantityError() && !!quantityError()"
+          [ngModel]="quantityText()"
+          (ngModelChange)="setQuantity($event)"
+          (keydown.enter)="$event.preventDefault(); confirm()" />
+      </div>
+      @if (showQuantityError() && quantityError()) {
+        <p class="uom-picker__error" role="alert">{{ quantityError() }}</p>
+      }
+
+      @if (forms().length > 0) {
+        <div class="uom-picker__forms" role="group" aria-label="Stock form">
+          @for (candidate of forms(); track candidate) {
+            <button
+              type="button"
+              class="uom-picker__form"
+              [class.uom-picker__form--selected]="candidate === form()"
+              [attr.aria-pressed]="candidate === form()"
+              (click)="setForm(candidate)">
+              <strong>{{ formLabel(candidate) }}</strong>
+              @if (formAvailability(candidate); as availability) { <small>{{ availability }}</small> }
+            </button>
+          }
+        </div>
+        @if (packStateFailed()) {
+          <p class="uom-picker__hint" role="status">Sealed and loose stock could not be loaded. The server will check it at checkout.</p>
+        }
+      }
+
+      @if (showPackagingToggle()) {
+        <label class="uom-picker__toggle">
+          <input type="checkbox" [ngModel]="includePackaging()" (ngModelChange)="includePackaging.set($event)" />
+          <span>Include optional packaging</span>
+        </label>
+      }
+      @if (hasRequiredPackaging()) {
+        <p class="uom-picker__hint">Required packaging is included.</p>
+      }
+
+      <div class="uom-picker__preview" aria-live="polite">
+        @if (quoteLoading()) {
+          <span>Calculating preview…</span>
+        } @else if (quote(); as preview) {
+          <span><strong>{{ preview.priceBeforeDiscountAndVat | appCurrency }}</strong> before discount and VAT</span>
+          <span>Uses {{ formatBase(preview.baseQuantity) }}@if (stockAfter() !== null) { · {{ formatBase(stockAfter()!) }} left }</span>
+          @if (stockAfter() !== null && stockAfter()! < 0) {
+            <span class="uom-picker__error">More than the last known stock. The server checks stock at checkout.</span>
+          }
+        } @else {
+          <span>Enter a quantity to see the price and stock.</span>
+        }
+      </div>
+      @if (notice()) {
+        <p class="uom-picker__notice" role="alert">{{ notice() }}</p>
+      }
+      <p class="uom-picker__hint">Keys: 1-9 choose · arrows move · Enter adds · Esc closes</p>
+    }
+  </div>
+  <button uiDialogFooter appUiButton variant="outline" data-focus-skip (click)="cancelled.emit()">Cancel</button>
+  <button uiDialogFooter appUiButton [disabled]="!option()" (click)="confirm()">Add to cart</button>
+</app-ui-dialog>

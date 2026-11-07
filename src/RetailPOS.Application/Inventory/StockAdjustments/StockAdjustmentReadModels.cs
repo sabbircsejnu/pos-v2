@@ -17,7 +17,14 @@ public sealed record StockAdjustmentLineReadModel(
     decimal QuantityChange,
     decimal NewQuantity,
     string Reason,
-    string? Notes);
+    string? Notes,
+    string? PackState = null,
+    string? PackCode = null,
+    decimal? BaseQtyPerPack = null,
+    string? UomUnitCode = null,
+    string? UomLabel = null,
+    decimal? UomEnteredQuantity = null,
+    long? UomOptionId = null);
 
 public sealed record StockAdjustmentReadModel(
     long Id,

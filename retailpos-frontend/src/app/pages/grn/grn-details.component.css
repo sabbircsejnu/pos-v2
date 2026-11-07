@@ -1,1 +1,8 @@
 /* grn-details styles */
+
+/* Unit of measurement details on a GRN line */
+.grn-uom-note {
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
+  line-height: var(--rp-text-helper-line);
+}

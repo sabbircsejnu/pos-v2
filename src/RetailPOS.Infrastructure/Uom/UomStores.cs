@@ -32,6 +32,13 @@ public sealed class VariantUomReader(RetailPOSDbContext dbContext) : IVariantUom
         if (ids.Count == 0)
             return new Dictionary<long, ResolvedVariantUom>();
 
+        // Inside a stock transaction the configuration cannot change until it commits, so a tracking switch never
+        // classifies stock that an in-flight sale is about to move. Config saves hold FOR UPDATE on the same rows.
+        if (dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is not null)
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM product_variants WHERE id = ANY({ids.ToArray()}) AND business_id = {businessId} ORDER BY id FOR SHARE",
+                cancellationToken);
+
         var configs = await dbContext.VariantUomConfigs
             .AsNoTracking()
             .AsSplitQuery()
@@ -45,6 +52,18 @@ public sealed class VariantUomReader(RetailPOSDbContext dbContext) : IVariantUom
             .ToListAsync(cancellationToken);
 
         return configs.ToDictionary(config => config.VariantId, Map);
+    }
+
+    public async Task<IReadOnlySet<long>> GetSealedOptionIdsAsync(IReadOnlyCollection<long> optionIds, CancellationToken cancellationToken)
+    {
+        var ids = optionIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new HashSet<long>();
+        var sealedIds = await dbContext.VariantPurchaseUnitOptions.AsNoTracking()
+            .Where(option => ids.Contains(option.Id) && option.IsSealedPack)
+            .Select(option => option.Id)
+            .ToListAsync(cancellationToken);
+        return sealedIds.ToHashSet();
     }
 
     private static ResolvedVariantUom Map(VariantUomConfig config) => new(
@@ -79,6 +98,9 @@ public sealed class VariantUomReader(RetailPOSDbContext dbContext) : IVariantUom
 
 public sealed class UomCatalogStore(RetailPOSDbContext dbContext) : IUomCatalogStore
 {
+    public async Task<IUomTransaction> BeginAsync(CancellationToken cancellationToken) =>
+        new UomTransaction(await dbContext.Database.BeginTransactionAsync(cancellationToken));
+
     public async Task<UomCatalogReadModel> GetCatalogAsync(long businessId, bool activeOnly, string? search, CancellationToken cancellationToken)
     {
         var query = dbContext.UomUnits.AsNoTracking()
@@ -206,11 +228,16 @@ public sealed class VariantUomConfigStore(RetailPOSDbContext dbContext) : IVaria
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<StockedLocation>> GetStockedLocationsAsync(long variantId, CancellationToken cancellationToken) =>
-        await dbContext.Inventories.AsNoTracking()
+    public async Task<IReadOnlyList<StockedLocation>> GetStockedLocationsAsync(long variantId, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is not null)
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM inventories WHERE variant_id = {variantId} ORDER BY id FOR UPDATE", cancellationToken);
+        return await dbContext.Inventories.AsNoTracking()
             .Where(row => row.VariantId == variantId)
             .Select(row => new StockedLocation(row.LocationId, row.LocationType, row.Quantity))
             .ToListAsync(cancellationToken);
+    }
 
     public Task<bool> HasPhysicalPackBalancesAsync(long variantId, CancellationToken cancellationToken) =>
         dbContext.PackStateBalances.AnyAsync(row => row.VariantId == variantId && row.State != PackStates.Loose && row.PackCount > 0, cancellationToken);
@@ -240,9 +267,19 @@ public sealed class VariantUomConfigStore(RetailPOSDbContext dbContext) : IVaria
 
 public sealed class PackStateLedger(RetailPOSDbContext dbContext, ICompanyTimeZoneProvider timeZones) : IPackStateLedger
 {
+    /// <summary>One lock order everywhere: the stock row first, then its balances. A sale's flush takes them in that order.</summary>
+    private async Task LockInventoryAsync(long variantId, long locationId, string locationType, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is not null)
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT id FROM inventories WHERE variant_id = {variantId} AND location_id = {locationId} AND location_type = {locationType} FOR UPDATE",
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PackStateBalanceRow>> GetBalancesForUpdateAsync(
         long businessId, long variantId, long locationId, string locationType, CancellationToken cancellationToken)
     {
+        await LockInventoryAsync(variantId, locationId, locationType, cancellationToken);
         if (dbContext.Database.IsNpgsql() && dbContext.Database.CurrentTransaction is not null)
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT id FROM pack_state_balances WHERE business_id = {businessId} AND variant_id = {variantId} AND location_id = {locationId} AND location_type = {locationType} ORDER BY id FOR UPDATE",
@@ -259,6 +296,7 @@ public sealed class PackStateLedger(RetailPOSDbContext dbContext, ICompanyTimeZo
 
     public async Task ApplyAsync(PackStateChange change, CancellationToken cancellationToken)
     {
+        await LockInventoryAsync(change.VariantId, change.LocationId, change.LocationType, cancellationToken);
         var balance = await FindOrCreateAsync(change, cancellationToken);
         var nextCount = balance.PackCount + change.PackCountDelta;
         var nextQuantity = balance.BaseQuantity + change.BaseQuantityDelta;
@@ -459,9 +497,27 @@ public sealed class RepackStore(RetailPOSDbContext dbContext) : IRepackStore
         return rows.FirstOrDefault();
     }
 
-    public async Task<RepackJobPage> ListAsync(long businessId, long? locationId, string? locationType, string? status, int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<RepackJobPage> ListAsync(
+        long businessId,
+        long? locationId,
+        string? locationType,
+        string? status,
+        int page,
+        int pageSize,
+        IReadOnlyList<long>? readableOutlets,
+        IReadOnlyList<long>? readableWarehouses,
+        CancellationToken cancellationToken)
     {
         var query = dbContext.RepackJobs.Where(job => job.BusinessId == businessId);
+        if (readableOutlets is not null && readableWarehouses is not null)
+        {
+            var outlets = readableOutlets.ToList();
+            var warehouses = readableWarehouses.ToList();
+            query = query.Where(job =>
+                (job.LocationType == "outlet" && outlets.Contains(job.LocationId))
+                || (job.LocationType == "warehouse" && warehouses.Contains(job.LocationId)));
+        }
+
         if (locationId.HasValue)
             query = query.Where(job => job.LocationId == locationId.Value);
         if (!string.IsNullOrWhiteSpace(locationType))
@@ -524,7 +580,6 @@ public sealed class StockCountEntryStore(RetailPOSDbContext dbContext) : IStockC
 
     public async Task SaveEntriesAsync(long stockCountId, long lineId, IReadOnlyList<StockCountEntryRecord> entries, decimal physicalStock, CancellationToken cancellationToken)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         if (dbContext.Database.IsNpgsql())
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT id FROM stock_counts WHERE id = {stockCountId} FOR UPDATE", cancellationToken);
@@ -555,6 +610,5 @@ public sealed class StockCountEntryStore(RetailPOSDbContext dbContext) : IStockC
         line.Difference = physicalStock - line.CurrentStock;
         stockCount.CountRevision++;
         await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
     }
 }

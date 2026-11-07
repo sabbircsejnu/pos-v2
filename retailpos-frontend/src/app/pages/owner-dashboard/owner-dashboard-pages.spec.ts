@@ -1,8 +1,8 @@
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, of, throwError } from 'rxjs';
-import { MetricValue, OwnerDashboardMeta, SalesFinanceSummary, StockValuationCoverage } from '../../models/owner-dashboard.model';
+import { BehaviorSubject, Observable, map, of, throwError } from 'rxjs';
+import { InventorySummary, MetricValue, OwnerDashboardMeta, SalesFinanceSummary, StockValuationCoverage } from '../../models/owner-dashboard.model';
 import { AuthService } from '../../services/auth.service';
 import { BusinessContextStore } from '../../services/business-context.store';
 import { CurrencyService } from '../../services/currency.service';
@@ -380,6 +380,76 @@ describe('InventoryIntelligencePageComponent', () => {
 
     expect(fixture.componentInstance.coverageText(fixture.componentInstance.summary.data()?.valuation))
       .toBe('Valued: 80 units (1 record) · Not valued: 3 units (1 record)');
+  });
+
+  describe('with stock in more than one unit', () => {
+    const byUnit = [{ unitCode: 'ml', quantity: 1250.5 }, { unitCode: 'pcs', quantity: 83 }];
+
+    it('lists each unit instead of a total, and hides the quantities the API adds across units', async () => {
+      const api = apiStub();
+      const summary = api.inventorySummary() as unknown as Observable<InventorySummary>;
+      api.inventorySummary = vi.fn(() => summary.pipe(map(data => ({ ...data, quantityByUnit: byUnit })))) as never;
+
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+      const page = fixture.componentInstance;
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+      expect(page.totalStockText()).toBe('1,250.5 ml · 83 pcs');
+      expect(text).toContain('1,250.5 ml · 83 pcs');
+      expect(page.coverageText(page.summary.data()?.valuation, page.summaryHasOtherUnits()))
+        .toBe('Valued: 1 record · Not valued: 1 record');
+      expect(text).not.toContain('80 units');
+    });
+
+    it('labels a location by unit', async () => {
+      const api = apiStub();
+      api.stockByLocation = vi.fn(() => of({
+        context: CONTEXT,
+        locations: [{
+          locationId: 9, locationType: 'warehouse', locationName: 'Central', quantity: 83, stockValue: 1000, percentOfTotal: 100,
+          valuation: coverage({ unvaluedRecords: 1, unvaluedQuantity: 1333 }), quantityByUnit: byUnit
+        }],
+        totalStockValue: 1000,
+        valueStatus: 'ok',
+        valuation: coverage()
+      })) as never;
+
+      const { fixture } = await setup(InventoryIntelligencePageComponent, api);
+      const [central] = fixture.componentInstance.locationRows();
+
+      expect(central.detail).toContain('1,250.5 ml · 83 pcs');
+      expect(central.detail).not.toContain('83 units');
+      expect(central.detail).not.toContain('1,333');
+    });
+
+    it('labels rows and sentences with the base unit, and leaves pcs as they were', async () => {
+      const { fixture } = await setup(InventoryIntelligencePageComponent, apiStub());
+      const page = fixture.componentInstance;
+
+      expect(page.qty(1250.5, 'ml')).toBe('1,250.5 ml');
+      expect(page.qty(28, 'pcs')).toBe('28');
+      expect(page.qty(28, undefined)).toBe('28');
+      expect(page.phrase(300, 'ml')).toBe('300 ml');
+      expect(page.phrase(28, 'pcs')).toBe('28 unit(s)');
+    });
+
+    it('shows product totals per unit, and the API totals for pcs', async () => {
+      const { fixture } = await setup(InventoryIntelligencePageComponent, apiStub());
+      const page = fixture.componentInstance;
+      const location = { netUnitsSold: 5, baseUnitCode: 'pcs' };
+      const pcsOnly = { totalAvailableStock: 7, totalNetUnitsSold: 5, locations: [location], quantityByUnit: [{ unitCode: 'pcs', quantity: 7 }] } as never;
+      const mixed = {
+        totalAvailableStock: 7,
+        totalNetUnitsSold: 5,
+        locations: [location, { netUnitsSold: 250, baseUnitCode: 'ml' }],
+        quantityByUnit: [{ unitCode: 'ml', quantity: 900 }, { unitCode: 'pcs', quantity: 7 }]
+      } as never;
+
+      expect(page.productStock(pcsOnly)).toBe(7);
+      expect(page.productSold(pcsOnly)).toBe(5);
+      expect(page.productStock(mixed)).toBe('900 ml · 7 pcs');
+      expect(page.productSold(mixed)).toBe('5 pcs · 250 ml');
+    });
   });
 
   it('labels a record with unknown cost Not Valued wherever it appears', async () => {

@@ -118,7 +118,7 @@
               <td class="px-4 py-2.5 text-slate-900">{{ po.supplierName }}</td>
               <td class="px-4 py-2.5 text-slate-700">{{ getLocationTypeLabel(po) }}</td>
               <td class="px-4 py-2.5 text-slate-700">{{ getLocationName(po) }}</td>
-              <td class="px-4 py-2.5 text-right text-slate-700">{{ po.totalItems }} ({{ po.totalQuantity }} units)</td>
+              <td class="px-4 py-2.5 text-right text-slate-700">{{ itemsSummary(po) }}</td>
               <td class="px-4 py-2.5 text-right font-semibold text-slate-900">{{ formatCurrency(po.totalAmount) }}</td>
               <td class="px-4 py-2.5">
                 <span [class]="'rounded-full px-2.5 py-1 text-xs font-semibold ' + getStatusColor(po.status)">

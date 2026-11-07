@@ -33,6 +33,8 @@ export const TRANSACTION_TYPES = [
   { value: 'exchange',     label: 'Exchange' },
 ];
 
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-product-ledger-report',
   standalone: true,
@@ -103,6 +105,7 @@ export class ProductLedgerReportComponent implements OnInit, OnDestroy {
   // ── Computed ──────────────────────────────────────────────────────────────
   report     = computed(() => this.reportService.productLedgerReport());
   rows       = computed(() => this.report()?.items ?? []);
+  readonly units = injectVariantUnits(() => this.rows().map(row => row.variantId));
   summary    = computed(() => this.report()?.summary ?? null);
   totalCount = computed(() => this.report()?.totalCount ?? 0);
   totalPages = computed(() =>

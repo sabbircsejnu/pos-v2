@@ -292,8 +292,9 @@ public sealed class CreateSaleCommandHandler(
                     UnitPrice = line.UnitPrice,
                     Subtotal = line.Subtotal,
                     DiscountAmount = line.LineDiscount,
-                    AppliedRuleId = priced[index].AppliedRuleId,
-                    AppliedRuleName = priced[index].AppliedRuleName,
+                    // An option's price stands alone, so no pricing rule set it.
+                    AppliedRuleId = uomLines[index].Resolution is null ? priced[index].AppliedRuleId : null,
+                    AppliedRuleName = uomLines[index].Resolution is null ? priced[index].AppliedRuleName : null,
                     TaxableAmount = line.TaxableAmount,
                     VatRate = line.TaxRatePercent,
                     VatAmount = line.VatAmount,

@@ -10,6 +10,9 @@ public interface IVariantUomReader
         long businessId,
         IReadOnlyCollection<long> variantIds,
         CancellationToken cancellationToken);
+
+    /// <summary>Of these option ids from any version, the ones that arrive as sealed packs. Option rows never change.</summary>
+    Task<IReadOnlySet<long>> GetSealedOptionIdsAsync(IReadOnlyCollection<long> optionIds, CancellationToken cancellationToken);
 }
 
 public sealed record PackStateChange(
@@ -77,6 +80,7 @@ public sealed record UomCatalogReadModel(IReadOnlyList<UomUnitReadModel> Units, 
 
 public interface IUomCatalogStore
 {
+    Task<IUomTransaction> BeginAsync(CancellationToken cancellationToken);
     Task<UomCatalogReadModel> GetCatalogAsync(long businessId, bool activeOnly, string? search, CancellationToken cancellationToken);
     Task<UomUnit?> FindBusinessUnitAsync(long businessId, long unitId, CancellationToken cancellationToken);
     Task<bool> CodeExistsAsync(long businessId, string code, long? excludingUnitId, CancellationToken cancellationToken);
@@ -149,6 +153,9 @@ public interface IUomOperationScope
     long RequireActorUserId();
     Task AuthorizeWriteLocationAsync(long locationId, string locationType, CancellationToken cancellationToken);
     Task AuthorizeReadLocationAsync(long locationId, string locationType, CancellationToken cancellationToken);
+
+    /// <summary>Locations the caller may read stock at. Null lists mean every location of the business.</summary>
+    Task<(IReadOnlyList<long>? OutletIds, IReadOnlyList<long>? WarehouseIds)> GetReadableLocationsAsync(CancellationToken cancellationToken);
 }
 
 public interface IUomAuditWriter

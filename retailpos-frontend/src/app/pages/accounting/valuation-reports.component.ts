@@ -9,6 +9,7 @@ import { AccountingService } from '../../services/accounting.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { injectVariantUnits } from '../../utils/variant-units';
 
 @Component({
   selector: 'app-valuation-reports',
@@ -29,6 +30,10 @@ export class ValuationReportsComponent implements OnInit {
   readonly isLoading = signal(false);
   readonly error = signal<string | null>(null);
   readonly isCogs = computed(() => this.mode() === 'cogs');
+  /** The report's total quantity covers pcs only; its rows keep their own units. */
+  readonly units = injectVariantUnits(() => this.isCogs()
+    ? []
+    : ((this.report()?.rows ?? []) as { variantId: number }[]).map(row => row.variantId));
 
   constructor(
     private route: ActivatedRoute,

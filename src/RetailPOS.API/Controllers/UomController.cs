@@ -41,6 +41,25 @@ public sealed class UomController(ISender sender) : ControllerBase
 
     private bool CanReadConfig() => ConfigReaders.Any(permission => User.HasPermission(permission));
 
+    /// <summary>Cost and inventory value follow the same rule as everywhere else: products.view_cost.</summary>
+    private RepackJobReadModel WithVisibleCost(RepackJobReadModel job) => User.CanViewCost()
+        ? job
+        : job with
+        {
+            ContentUnitCost = null,
+            ContentValue = null,
+            PackagingValue = null,
+            CostPerPack = null,
+            Components = job.Components.Select(component => component with { UnitCost = null, Value = null }).ToList()
+        };
+
+    private RepackJobPage WithVisibleCost(RepackJobPage page) =>
+        page with { Items = page.Items.Select(WithVisibleCost).ToList() };
+
+    private PackStateReadModel WithVisibleCost(PackStateReadModel state) => User.CanViewCost()
+        ? state
+        : state with { Balances = state.Balances.Select(row => row with { CapitalizedValue = 0m }).ToList() };
+
     [HttpGet("units")]
     public async Task<ActionResult<ApiResponse<UomCatalogReadModel>>> GetUnits(
         [FromQuery] bool activeOnly,
@@ -124,7 +143,7 @@ public sealed class UomController(ISender sender) : ControllerBase
         if (!User.HasPermission(PermissionCatalog.PackStateView) && !User.HasPermission("sales.create") && !User.HasPermission("inventory.view"))
             return Forbid();
         return Ok(ApiResponse<PackStateReadModel>.SuccessResponse(
-            await sender.Send(new GetPackStateQuery(variantId, locationId, locationType), cancellationToken)));
+            WithVisibleCost(await sender.Send(new GetPackStateQuery(variantId, locationId, locationType), cancellationToken))));
     }
 
     [HttpPost("pack-state/open")]
@@ -132,9 +151,7 @@ public sealed class UomController(ISender sender) : ControllerBase
     public async Task<ActionResult<ApiResponse<PackStateReadModel>>> OpenPack(
         [FromBody] OpenSealedPackRequest request,
         CancellationToken cancellationToken) =>
-        Ok(ApiResponse<PackStateReadModel>.SuccessResponse(await sender.Send(
-            new OpenSealedPackCommand(request.VariantId, request.LocationId, request.LocationType, request.PackCode, request.BaseQtyPerPack, request.Count, request.IdempotencyKey),
-            cancellationToken)));
+        Ok(ApiResponse<PackStateReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new OpenSealedPackCommand(request.VariantId, request.LocationId, request.LocationType, request.PackCode, request.BaseQtyPerPack, request.Count, request.IdempotencyKey), cancellationToken))));
 
     [HttpPut("stock-counts/{stockCountId:long}/lines/{lineId:long}/entries")]
     [Authorize(Policy = "inventory.edit")]
@@ -156,21 +173,19 @@ public sealed class UomController(ISender sender) : ControllerBase
         [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default) =>
         Ok(ApiResponse<RepackJobPage>.SuccessResponse(
-            await sender.Send(new GetRepackJobsQuery(locationId, locationType, status, page, pageSize), cancellationToken)));
+            WithVisibleCost(await sender.Send(new GetRepackJobsQuery(locationId, locationType, status, page, pageSize), cancellationToken))));
 
     [HttpGet("repacking/{id:long}")]
     [Authorize(Policy = PermissionCatalog.RepackingView)]
     public async Task<ActionResult<ApiResponse<RepackJobReadModel>>> GetRepackJob(long id, CancellationToken cancellationToken) =>
-        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(await sender.Send(new GetRepackJobQuery(id), cancellationToken)));
+        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new GetRepackJobQuery(id), cancellationToken))));
 
     [HttpPost("repacking")]
     [Authorize(Policy = PermissionCatalog.RepackingExecute)]
     public async Task<ActionResult<ApiResponse<RepackJobReadModel>>> CreateRepackJob(
         [FromBody] CreateRepackJobRequest request,
         CancellationToken cancellationToken) =>
-        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(await sender.Send(
-            new CreateRepackJobCommand(request.SourceVariantId, request.LocationId, request.LocationType, request.OutputSellingOptionId, request.OutputCount, request.IdempotencyKey, request.Notes),
-            cancellationToken)));
+        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new CreateRepackJobCommand(request.SourceVariantId, request.LocationId, request.LocationType, request.OutputSellingOptionId, request.OutputCount, request.IdempotencyKey, request.Notes), cancellationToken))));
 
     [HttpPost("repacking/{id:long}/execute")]
     [Authorize(Policy = PermissionCatalog.RepackingExecute)]
@@ -178,17 +193,15 @@ public sealed class UomController(ISender sender) : ControllerBase
         long id,
         [FromBody] ExecuteRepackJobRequest? request,
         CancellationToken cancellationToken) =>
-        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(await sender.Send(
-            new ExecuteRepackJobCommand(id, request?.WastageBaseQuantity ?? 0m),
-            cancellationToken)));
+        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new ExecuteRepackJobCommand(id, request?.WastageBaseQuantity ?? 0m), cancellationToken))));
 
     [HttpPost("repacking/{id:long}/cancel")]
     [Authorize(Policy = PermissionCatalog.RepackingExecute)]
     public async Task<ActionResult<ApiResponse<RepackJobReadModel>>> CancelRepackJob(long id, CancellationToken cancellationToken) =>
-        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(await sender.Send(new CancelRepackJobCommand(id), cancellationToken)));
+        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new CancelRepackJobCommand(id), cancellationToken))));
 
     [HttpPost("repacking/{id:long}/reverse")]
     [Authorize(Policy = PermissionCatalog.RepackingExecute)]
     public async Task<ActionResult<ApiResponse<RepackJobReadModel>>> ReverseRepackJob(long id, CancellationToken cancellationToken) =>
-        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(await sender.Send(new ReverseRepackJobCommand(id), cancellationToken)));
+        Ok(ApiResponse<RepackJobReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new ReverseRepackJobCommand(id), cancellationToken))));
 }

@@ -5,6 +5,8 @@ import { environment } from '../../environments/environment';
 import {
   CreateSaleDto,
   ReceiptPrintAttemptDto,
+  RefundSaleDto,
+  SaleDto,
   SaleListDto,
   SaleSummaryDto,
   VoidSaleDto,
@@ -92,6 +94,11 @@ export class SaleService {
   /** Void a sale */
   voidSale(id: number, dto: VoidSaleDto): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/${id}/void`, dto);
+  }
+
+  /** Refund a sale. A sale can be refunded only once; a line may be returned in part. */
+  refundSale(id: number, dto: RefundSaleDto): Observable<{ data: SaleDto }> {
+    return this.http.post<{ data: SaleDto }>(`${this.apiUrl}/${id}/refund`, dto);
   }
 
   /** Get today's sales summary */

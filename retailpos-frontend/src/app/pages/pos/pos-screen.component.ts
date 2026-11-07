@@ -38,6 +38,11 @@ import {
 } from './pos-sale-errors';
 import { PosTerminalAvailability, resolveTerminalSelection } from './pos-terminals';
 import { posCatalogueErrorMessage } from './pos-lookup-errors';
+import { UomService, formatUnitQuantity, fitsPrecision, quantityStep } from '../../services/uom.service';
+import { VariantUomConfig } from '../../models/uom.model';
+import { apiErrorCode, roundQuantity, uomErrorMessage } from '../../utils/uom-line.util';
+import { PosUomPickerComponent } from './pos-uom-picker.component';
+import { PosUomSelection, cartLineKey, lineNeedsRepick, sellingBaseQuantity, sellingPrecision, uomLineFields } from './pos-uom';
 
 type TerminalsState = PosTerminalAvailability | 'loading' | 'error';
 
@@ -50,6 +55,18 @@ interface Category {
   id: number;
   name: string;
 }
+
+/** The picker's subject. With a `replaceIndex` the choice replaces that cart line instead of adding one. */
+interface UomPickerState {
+  product: PosProduct;
+  config: VariantUomConfig;
+  replaceIndex: number | null;
+  preset: { sellingOptionId?: number; quantity?: number } | null;
+}
+
+/** Errors that mean the screen's unit setup is out of date, so the cashier has to pick again. */
+const UOM_REPICK_ERRORS = new Set(['UOM_CONFIG_CHANGED', 'UOM_OPTION_REQUIRED', 'UOM_OPTION_NOT_FOUND']);
+const UOM_OPTION_REQUIRED_MESSAGE = 'This item is now sold in configured units. Use Re-pick on the line to choose a pack or quantity.';
 
 interface QuickCustomerForm {
   salutation: string;
@@ -65,7 +82,7 @@ interface QuickCustomerForm {
 @Component({
   selector: 'app-pos-screen',
   standalone: true,
-  imports: [AppDatePipe, UiDateInputDirective, UiAlertComponent, UiDialogComponent, CommonModule, FormsModule, AppCurrencyPipe, ThermalReceiptComponent],
+  imports: [AppDatePipe, UiDateInputDirective, UiAlertComponent, UiDialogComponent, CommonModule, FormsModule, AppCurrencyPipe, ThermalReceiptComponent, PosUomPickerComponent],
   templateUrl: './pos-screen.component.html',
   styleUrls: ['./pos-screen.component.css']
 })
@@ -81,6 +98,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   private currencyService = inject(CurrencyService);
   private router = inject(Router);
   private cashSessions = inject(CashSessionService);
+  private uomService = inject(UomService);
+
+  /** What is known about each variant: a configuration, `null` for plain pcs, or missing when not checked yet. */
+  uomConfigs = signal<Record<number, VariantUomConfig | null>>({});
+  uomPicker = signal<UomPickerState | null>(null);
+  /** Stable identity of a cart row: two options of one variant are separate rows. */
+  readonly cartLineKey = cartLineKey;
 
   resolveImage(path?: string | null): string {
     return this.imageSvc.resolveUrl(path);
@@ -625,6 +649,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   @HostListener('window:keydown', ['$event'])
   handleKeyboardShortcuts(event: KeyboardEvent): void {
+    // The picker owns the keyboard while it is open, so F9 cannot complete a sale behind it.
+    if (this.uomPicker()) return;
+
     switch (event.key) {
       case 'F2':
         event.preventDefault();
@@ -794,6 +821,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         });
         this.outletStockByVariant.update(map => ({ ...stock, ...map }));
         this.allProducts.set(mapped);
+        // Known up front, so scanning a catalogue item needs no extra round trip.
+        this.loadUomConfigs(mapped.map(product => product.variantId));
         this.isLoadingProducts.set(false);
       },
       error: (err) => {
@@ -1027,7 +1056,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.posService.cartPrices(items.map(i => ({ productVariantId: i.variantId, quantity: i.quantity, outletId }))).subscribe({
+    // The endpoint takes whole quantities for rule evaluation; an option line is priced by its option, not by rules.
+    this.posService.cartPrices(items.map(i => ({ productVariantId: i.variantId, quantity: i.sellingOptionId ? 1 : i.quantity, outletId }))).subscribe({
       next: (res) => {
         this.applyCartPrices((res?.data ?? []) as CartPriceResultItem[]);
         onDone?.(true);
@@ -1049,6 +1079,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       const priced = byVariant.get(item.variantId);
       const unitPrice = Number(priced?.finalPrice);
       if (!priced || !Number.isFinite(unitPrice)) return item;
+      // An option line keeps its option's price: only the tax details come from here.
+      if (item.sellingOptionId) {
+        return this.repriceLine(item, {
+          taxRate: Number(priced.taxRate ?? 0),
+          taxClassification: priced.taxClassification ?? item.taxClassification,
+        });
+      }
       return this.repriceLine(item, {
         unitPrice,
         taxRate: Number(priced.taxRate ?? 0),
@@ -1112,6 +1149,33 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       this.alertService.error('This product is out of stock');
       return;
     }
+
+    const known = this.uomConfigs()[product.variantId];
+    if (known === undefined) {
+      // A variant outside the loaded catalogue. If this check fails the line is added as pcs, and checkout refuses it
+      // with UOM_OPTION_REQUIRED if the variant turns out to be configured.
+      this.uomService.getVariantConfigs([product.variantId]).subscribe({
+        next: (configs) => {
+          this.rememberUomConfigs([product.variantId], configs);
+          this.routeProductToCart(product, this.uomConfigs()[product.variantId] ?? null);
+        },
+        error: () => this.addPlainLine(product)
+      });
+      return;
+    }
+    this.routeProductToCart(product, known);
+  }
+
+  private routeProductToCart(product: PosProduct, config: VariantUomConfig | null): void {
+    if (config && (config.sellingOptions.length > 0 || lineNeedsRepick({}, config))) {
+      this.showSmartSearchDropdown.set(false);
+      this.uomPicker.set({ product, config, replaceIndex: null, preset: null });
+      return;
+    }
+    this.addPlainLine(product);
+  }
+
+  private addPlainLine(product: PosProduct): void {
     const items = this.cartItems();
     const idx = items.findIndex(i => i.variantId === product.variantId);
     if (idx >= 0) {
@@ -1144,6 +1208,203 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     }
 
     this.showSmartSearchDropdown.set(false);
+  }
+
+  private loadUomConfigs(variantIds: number[], onDone?: () => void): void {
+    const ids = variantIds.slice(0, 500);
+    this.uomService.getVariantConfigs(ids).subscribe({
+      next: (configs) => {
+        this.rememberUomConfigs(ids, configs);
+        onDone?.();
+      },
+      // Left unknown: the next scan of these variants asks again.
+      error: () => onDone?.()
+    });
+  }
+
+  private rememberUomConfigs(variantIds: number[], configs: VariantUomConfig[]): void {
+    this.uomConfigs.update(known => {
+      const next = { ...known };
+      variantIds.forEach(id => { next[id] = null; });
+      configs.forEach(config => { next[config.variantId] = config; });
+      return next;
+    });
+  }
+
+  onUomPicked(selection: PosUomSelection): void {
+    const picker = this.uomPicker();
+    if (!picker) return;
+    this.uomPicker.set(null);
+
+    const { option, configId, quantity, fulfilmentState, includePackaging } = selection;
+    const fields = {
+      sellingOptionId: option.id,
+      expectedConfigVersionId: configId,
+      fulfilmentState,
+      includePackaging,
+      unitLabel: option.label,
+      unitPrice: option.price,
+      appliedRuleName: undefined,
+    };
+    const items = this.cartItems();
+    const key = cartLineKey({ variantId: picker.product.variantId, sellingOptionId: option.id, fulfilmentState, includePackaging });
+    const others = items.filter((_, index) => index !== picker.replaceIndex);
+    const sameIndex = others.findIndex(item => cartLineKey(item) === key);
+
+    if (sameIndex >= 0) {
+      // The same choice again adds to its line; a re-picked line that now matches another one merges into it.
+      const merged = others[sameIndex];
+      others[sameIndex] = this.repriceLine(merged, { ...fields, quantity: roundQuantity(merged.quantity + quantity) });
+      this.cartItems.set(others);
+      this.highlightCartVariant(picker.product.variantId);
+    } else if (picker.replaceIndex !== null) {
+      const updated = [...items];
+      updated[picker.replaceIndex] = this.repriceLine(updated[picker.replaceIndex], { ...fields, quantity });
+      this.cartItems.set(updated);
+    } else {
+      const product = picker.product;
+      this.cartItems.set([...items, this.repriceLine({
+        variantId: product.variantId,
+        productName: product.name,
+        displayName: this.getPrimaryName(product),
+        variantSku: product.sku,
+        barcode: product.barcode || undefined,
+        variantLabel: this.getVariantDetails(product),
+        knownStock: this.getKnownOutletStockQty(product) ?? (Number.isFinite(Number(product.stockQty)) ? Number(product.stockQty) : null),
+        quantity,
+        unitPrice: option.price,
+        discountPercent: 0,
+        discountAmount: 0,
+        subtotal: 0,
+        primaryImageThumb: product.primaryImageThumb,
+        taxRate: product.taxRate,
+        taxClassification: product.taxClassification,
+      }, fields)]);
+    }
+
+    if (picker.product.taxRate === undefined) {
+      this.refreshCartPrices();
+    }
+    this.warnIfOverStock(picker.product.variantId);
+    this.checkoutNotice.set(null);
+    this.focusSmartSearch();
+  }
+
+  authOutletId(): number | null {
+    return this.authService.getUserValue()?.outletId ?? null;
+  }
+
+  /** The unit a completed line was sold in; receipts already print the entered quantity and price. */
+  completedLineUnit(index: number): string {
+    const sale = this.completedSale() as { items?: Array<{ unitLabel?: string | null; unitCode?: string | null }> } | null;
+    const line = sale?.items?.[index];
+    return line?.unitLabel || line?.unitCode || '';
+  }
+
+  onUomPickerCancelled(): void {
+    this.uomPicker.set(null);
+    this.focusSmartSearch();
+  }
+
+  onUomConfigChanged(variantId: number, config: VariantUomConfig | null): void {
+    this.uomConfigs.update(known => ({ ...known, [variantId]: config }));
+  }
+
+  /** Stock for the picker's preview: the last known outlet quantity in base units, a hint only. */
+  uomPickerStock(product: PosProduct): number | null {
+    return this.getKnownOutletStockQty(product) ?? (Number.isFinite(Number(product.stockQty)) ? Number(product.stockQty) : null);
+  }
+
+  /** Whether the server would refuse this line, because the variant's units changed after it was added. */
+  lineNeedsRepick(item: CartItem): boolean {
+    return lineNeedsRepick(item, this.uomConfigs()[item.variantId]);
+  }
+
+  /** Opens the picker for a line with outdated units, using the current configuration. */
+  repickLine(index: number): void {
+    const line = this.cartItems()[index];
+    if (!line) return;
+    const config = this.uomConfigs()[line.variantId];
+    if (!config || config.sellingOptions.length === 0) {
+      this.alertService.warning(`${line.productName} no longer has selling options here. Remove the line and add the item again.`);
+      return;
+    }
+    this.uomPicker.set({
+      config,
+      replaceIndex: index,
+      preset: { sellingOptionId: line.sellingOptionId, quantity: line.quantity },
+      product: {
+        variantId: line.variantId,
+        productId: 0,
+        name: line.productName,
+        productName: line.displayName,
+        sku: line.variantSku,
+        price: line.unitPrice,
+        stockQty: Number(line.knownStock ?? 0),
+        taxRate: line.taxRate,
+        taxClassification: line.taxClassification,
+      },
+    });
+  }
+
+  private lineOption(item: CartItem) {
+    const config = this.uomConfigs()[item.variantId];
+    return config?.sellingOptions.find(option => option.id === item.sellingOptionId) ?? null;
+  }
+
+  /** `= 24 ml`, a preview of the stock an option line uses. Empty until its configuration is known. */
+  cartLineBaseText(item: CartItem): string {
+    const option = this.lineOption(item);
+    const config = this.uomConfigs()[item.variantId];
+    if (!option || !config) return '';
+    return `= ${formatUnitQuantity(sellingBaseQuantity(option, item.quantity), config.baseUnit.symbol)}`;
+  }
+
+  cartLineStep(item: CartItem): string {
+    if (!item.sellingOptionId) return '1';
+    const option = this.lineOption(item);
+    const config = this.uomConfigs()[item.variantId];
+    return option && config ? quantityStep(sellingPrecision(option, config)) : 'any';
+  }
+
+  cartLineMin(item: CartItem): string {
+    const step = this.cartLineStep(item);
+    return step === 'any' ? '0.000001' : step;
+  }
+
+  private applyUomQuantity(index: number, raw: string | number | null): void {
+    const items = this.cartItems();
+    const line = items[index];
+    const quantity = roundQuantity(Number(raw));
+    const option = this.lineOption(line);
+    const config = this.uomConfigs()[line.variantId];
+    const precision = option && config ? sellingPrecision(option, config) : 6;
+    if (!Number.isFinite(quantity) || quantity <= 0 || !fitsPrecision(quantity, precision)) {
+      this.alertService.warning(precision === 0
+        ? 'The number of packs must be a whole number of at least 1. Use the remove button to delete the line.'
+        : `The quantity must be greater than zero, with at most ${precision} decimal place(s).`);
+      this.cartItems.set([...items]);
+      return;
+    }
+    const updated = [...items];
+    updated[index] = this.repriceLine(line, { quantity });
+    this.cartItems.set(updated);
+    this.warnIfOverStock(line.variantId);
+  }
+
+  /** Stock is a hint here: the server checks it atomically at checkout, so a unit line is warned about, not capped. */
+  private warnIfOverStock(variantId: number): void {
+    const config = this.uomConfigs()[variantId];
+    const items = this.cartItems().filter(item => item.variantId === variantId);
+    const known = this.outletStockByVariant()[variantId] ?? items[0]?.knownStock;
+    if (!config || known === undefined || known === null || !Number.isFinite(Number(known))) return;
+    const used = items.reduce((sum, item) => {
+      const option = this.lineOption(item);
+      return option ? sum + sellingBaseQuantity(option, item.quantity) : sum;
+    }, 0);
+    if (roundQuantity(used) > Number(known)) {
+      this.alertService.warning(`Only ${formatUnitQuantity(Number(known), config.baseUnit.symbol)} in stock at this outlet for ${items[0].productName}.`);
+    }
   }
 
   onSmartSearchChange(value: string): void {
@@ -1560,6 +1821,11 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const line = items[index];
     if (!line) return;
 
+    if (line.sellingOptionId) {
+      this.applyUomQuantity(index, raw);
+      return;
+    }
+
     const parsed = Math.floor(Number(raw));
     if (!Number.isFinite(parsed) || parsed < 1) {
       this.alertService.warning('Quantity must be a whole number of at least 1. Use the remove button to delete the line.');
@@ -1597,7 +1863,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
     const updated = [...items];
-    updated[index] = this.repriceLine(updated[index], { quantity: updated[index].quantity - 1 });
+    updated[index] = this.repriceLine(updated[index], { quantity: roundQuantity(updated[index].quantity - 1) });
     this.cartItems.set(updated);
   }
 
@@ -1867,7 +2133,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       outletId,
       terminalId: this.selectedTerminalId()!,
       customerId: (this.selectedCustomer()?.id ?? 0) > 0 ? this.selectedCustomer()!.id : undefined,
-      items: this.cartItems().map(i => ({ variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, discountAmount: i.discountAmount })),
+      items: this.cartItems().map(i => ({ variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, discountAmount: i.discountAmount, ...uomLineFields(i) })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
       ...this.paymentPayload(),
@@ -1891,7 +2157,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         discountAmount: i.discountAmount,
-        appliedRuleName: i.appliedRuleName
+        appliedRuleName: i.appliedRuleName,
+        ...uomLineFields(i)
       })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
@@ -1930,6 +2197,19 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   private handleSaleError(err: any, outletId: number): void {
+    const uomCode = apiErrorCode(err);
+    if (uomCode.startsWith('UOM_')) {
+      // The cart stays as it is, so the cashier can re-pick the affected line and try again.
+      const text = uomCode === 'UOM_OPTION_REQUIRED'
+        ? UOM_OPTION_REQUIRED_MESSAGE
+        : uomErrorMessage(err) ?? this.errorHandler.extractErrorMessage(err);
+      this.checkoutNotice.set({ variant: 'danger', text });
+      if (UOM_REPICK_ERRORS.has(uomCode)) {
+        this.loadUomConfigs(this.cartItems().map(item => item.variantId));
+      }
+      return;
+    }
+
     const mapped = mapPosSaleError(err);
     if (!mapped) {
       this.alertService.error(this.errorHandler.extractErrorMessage(err));
@@ -1975,7 +2255,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const byVariant = new Map(changes.map(change => [change.variantId, change.currentUnitPrice]));
     this.cartItems.update(items => items.map(item => {
       const price = byVariant.get(item.variantId);
-      if (price === undefined) return item;
+      // A change is reported per variant, which cannot tell two option lines apart. A changed option price is a new
+      // configuration version, so such a line is re-picked rather than silently repriced.
+      if (price === undefined || item.sellingOptionId) return item;
       return this.repriceLine(item, { unitPrice: price });
     }));
   }
@@ -2315,7 +2597,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         discountAmount: i.discountAmount,
-        appliedRuleName: i.appliedRuleName
+        appliedRuleName: i.appliedRuleName,
+        ...uomLineFields(i),
+        ...(i.sellingOptionId ? { unitLabel: i.unitLabel } : {})
       })),
       discountPercent: this.discountPercent(),
       paymentMethod: this.paymentMethod()
@@ -2360,9 +2644,13 @@ export class PosScreenComponent implements OnInit, OnDestroy {
             discountPercent: gross > 0 ? (i.discountAmount / gross) * 100 : 0,
             discountAmount: i.discountAmount,
             subtotal: this.roundMoney(gross - i.discountAmount),
-            appliedRuleName: i.appliedRuleName
+            appliedRuleName: i.appliedRuleName,
+            ...uomLineFields(i),
+            ...(i.sellingOptionId ? { unitLabel: i.unitLabel } : {})
           };
         }));
+        // Shows outdated lines straight away; checkout would refuse them with UOM_CONFIG_CHANGED anyway.
+        this.loadUomConfigs(data.items.map(i => i.variantId));
         this.discountPercent.set(data.discountPercent);
         this.setPaymentMethod(data.paymentMethod || 'cash');
         this.selectedCustomer.set(

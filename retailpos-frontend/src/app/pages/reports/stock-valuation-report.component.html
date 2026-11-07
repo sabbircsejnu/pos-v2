@@ -100,7 +100,7 @@
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary()!.totalProducts | number }}</p>
         </div>
         <div class="card p-4">
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Total Quantity</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">{{ units.pcsTotalLabel('Total Quantity') }}</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary()!.totalQuantity | number }}</p>
         </div>
         <div class="card p-4 bg-blue-50 border-blue-200">
@@ -207,7 +207,7 @@
                   {{ row.locationName }}
                   <span class="text-xs text-gray-400 ml-1">({{ row.locationType }})</span>
                 </td>
-                <td class="text-right font-medium text-gray-800">{{ row.quantity | number }}</td>
+                <td class="text-right font-medium text-gray-800">{{ row.quantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
                 <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
                 <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.inventoryValue) }}</td>
                 <td>
@@ -246,7 +246,7 @@
                     TOTAL ({{ totalCount() | number }} rows)
                   </td>
                   <td></td><td></td><td></td>
-                  <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}</td>
+                  <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}{{ units.pcsSuffix() }}</td>
                   <td></td>
                   <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalInventoryValue) }}</td>
                   <td class="text-right text-xs text-gray-500">100%</td>

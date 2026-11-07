@@ -353,9 +353,10 @@ public sealed class InventoryReportReadStore(RetailPOSDbContext dbContext)
             _ => rows.OrderBy(row => row.ProductName).ToList()
         };
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var summary = new CurrentStockSummaryReadModel(
             rows.Count,
-            rows.Sum(row => row.AvailableQuantity),
+            rows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.AvailableQuantity),
             rows.Sum(row => row.StockValue));
         var pageRows = filter.PageSize > 0
             ? rows.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).ToArray()

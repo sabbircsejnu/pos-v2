@@ -9,6 +9,8 @@ import { UserOutletAccessService } from '../../services/user-outlet-access.servi
 import { Outlet } from '../../models/outlet.model';
 import { Warehouse } from '../../models/warehouse.model';
 import { ProductVariantCellComponent } from '../shared/product-variant-cell.component';
+import { formatUnitTotals, sumByUnit } from '../../utils/uom-quantity.util';
+import { injectVariantUnits } from '../../utils/variant-units';
 
 @Component({
   selector: 'app-low-stock-alerts',
@@ -76,7 +78,7 @@ import { ProductVariantCellComponent } from '../shared/product-variant-cell.comp
         <div class="bg-white rounded-lg shadow-sm p-4">
           <div class="text-sm text-gray-600">Total Shortage</div>
           <div class="text-2xl font-semibold text-orange-600 mt-1">
-            {{ getTotalShortage() }} units
+            {{ totalShortageLabel() }}
           </div>
         </div>
       </div>
@@ -123,11 +125,11 @@ import { ProductVariantCellComponent } from '../shared/product-variant-cell.comp
                   </td>
                   <td>
                     <span [class]="item.currentQuantity === 0 ? 'text-red-600 font-semibold' : 'font-medium'">
-                      {{ item.currentQuantity }}
+                      {{ item.currentQuantity }}{{ units.suffix(item.productVariantId) }}
                     </span>
                   </td>
-                  <td>{{ item.reorderLevel }}</td>
-                  <td class="font-medium text-orange-600">{{ item.shortageQuantity }}</td>
+                  <td>{{ item.reorderLevel }}{{ units.suffix(item.productVariantId) }}</td>
+                  <td class="font-medium text-orange-600">{{ item.shortageQuantity }}{{ units.suffix(item.productVariantId) }}</td>
                   <td>
                     @if (item.currentQuantity === 0) {
                       <span class="badge badge-danger">Out of Stock</span>
@@ -155,6 +157,7 @@ import { ProductVariantCellComponent } from '../shared/product-variant-cell.comp
 })
 export class LowStockAlertsComponent implements OnInit {
   lowStockItems = signal<LowStock[]>([]);
+  readonly units = injectVariantUnits(() => this.lowStockItems().map(item => item.productVariantId));
   outlets = signal<Outlet[]>([]);
   warehouses = signal<Warehouse[]>([]);
   isLoading = signal(false);
@@ -218,6 +221,17 @@ export class LowStockAlertsComponent implements OnInit {
 
   getCriticalCount(): number {
     return this.lowStockItems().filter(item => item.currentQuantity === 0).length;
+  }
+
+  /** One figure per unit once anything but pcs is listed, so unlike units are never added. */
+  totalShortageLabel(): string {
+    if (!this.units.hasNonPcs()) {
+      return `${this.getTotalShortage()} units`;
+    }
+    return formatUnitTotals(sumByUnit(this.lowStockItems().map(item => ({
+      unitCode: this.units.unit(item.productVariantId) ?? 'pcs',
+      quantity: item.shortageQuantity
+    }))));
   }
 
   getTotalShortage(): number {

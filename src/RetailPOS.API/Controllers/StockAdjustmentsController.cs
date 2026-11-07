@@ -318,7 +318,13 @@ public class StockAdjustmentsController : ControllerBase
                         item.VariantId,
                         item.QuantityChange,
                         item.Reason,
-                        item.Notes)).ToArray()),
+                        item.Notes,
+                        item.UnitOptionId,
+                        item.EnteredQuantity,
+                        item.ExpectedConfigVersionId,
+                        item.PackState,
+                        item.PackCode,
+                        item.BaseQtyPerPack)).ToArray()),
                 cancellationToken));
             return Ok(ApiResponse<StockAdjustmentDto>.SuccessResponse(
                 adjustment,

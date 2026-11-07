@@ -13,6 +13,7 @@ import { ProductService } from '../../services/product.service';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { SupplierService } from '../../services/supplier.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
+import { UomService } from '../../services/uom.service';
 import { VariationService } from '../../services/variation.service';
 import { PoFormComponent } from './po-form.component';
 
@@ -81,6 +82,7 @@ describe('PoFormComponent destination location', () => {
         { provide: SupplierService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: ProductService, useValue: { searchVariants: () => of({ data: [] }) } },
         { provide: VariationService, useValue: { getAllVariations: () => of([]) } },
+        { provide: UomService, useValue: { getVariantConfigs: () => of([]) } },
         { provide: UserOutletAccessService, useValue: { load: loadLocations } },
         { provide: AlertService, useValue: alerts },
         { provide: ErrorHandlerService, useValue: { extractErrorMessage: (error: unknown) => String(error) } },

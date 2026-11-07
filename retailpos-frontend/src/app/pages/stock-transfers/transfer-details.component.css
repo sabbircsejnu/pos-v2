@@ -88,3 +88,16 @@
 .btn-action-cancel:hover {
 	background: rgb(51 65 85);
 }
+
+.receive-whole {
+  margin-top: var(--rp-space-2);
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
+}
+
+.receive-whole__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rp-space-2);
+  margin-top: var(--rp-space-1);
+}

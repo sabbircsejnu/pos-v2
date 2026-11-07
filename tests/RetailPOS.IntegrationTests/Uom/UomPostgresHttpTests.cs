@@ -441,6 +441,12 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
         Assert.Equal(500m, Balance(state, "loose").GetProperty("baseQuantity").GetDecimal());
         Assert.True(state.GetProperty("isReconciled").GetBoolean());
 
+        // Without products.view_cost the job is visible but its money is not.
+        var noCost = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "inventory.repacking.view");
+        var hidden = await Data(noCost, $"/api/v1/uom/repacking/{jobId}");
+        Assert.Equal(JsonValueKind.Null, hidden.GetProperty("packagingValue").ValueKind);
+        Assert.Equal(JsonValueKind.Null, hidden.GetProperty("costPerPack").ValueKind);
+
         var cashier = _fixture.Client(UomPostgresFixture.OwnerId, "Cashier", "sales.create");
         using var forbidden = await cashier.PostAsJsonAsync($"/api/v1/uom/repacking/{jobId}/execute", new { });
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
@@ -734,6 +740,108 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
 
         using var inUse = await owner.DeleteAsync($"/api/products/variants/{bottle}");
         Assert.False(inUse.IsSuccessStatusCode);
+    }
+
+    [Fact]
+    public async Task Grn_StaysSealedWhenTheConfigurationChangedAfterThePurchaseOrder()
+    {
+        var owner = Owner();
+        var attar = await _fixture.CreateVariantAsync("GVS");
+        var jar = await UnitIdAsync(owner, "jar");
+        object[] purchase = [new { code = "JAR500", unitId = jar, label = "500 ml Jar", factorNumerator = 500m, factorDenominator = 1m, isDefault = true, isSealedPack = true }];
+        var config = await SaveConfigAsync(owner, attar, "ml", purchase, [CustomMl(5m)], packTracking: true);
+        var po = await Send(owner, HttpMethod.Post, "/api/purchase-orders", new
+        {
+            supplierId = UomPostgresFixture.Supplier,
+            locationType = "outlet",
+            locationId = UomPostgresFixture.Outlet,
+            orderDate = DateTime.UtcNow,
+            status = "draft",
+            items = new[] { new { variantId = attar, quantity = 2m, unitPrice = 1000m, discount = 0m, tax = 0m, purchaseOptionId = config.GetProperty("purchaseOptions")[0].GetProperty("id").GetInt64() } }
+        });
+        var poId = po.GetProperty("id").GetInt64();
+        var poItemId = po.GetProperty("items")[0].GetProperty("id").GetInt64();
+        await _fixture.WithDbAsync(db => db.PurchaseOrders.Where(row => row.Id == poId).ExecuteUpdateAsync(setters => setters.SetProperty(row => row.Status, "approved")));
+
+        // A price edit creates new option rows; the order still points at the old one.
+        await SaveConfigAsync(owner, attar, "ml", purchase, [CustomMl(6m)], packTracking: true);
+
+        var grn = await Send(owner, HttpMethod.Post, "/api/grns", new { poId, receivedDate = DateTime.UtcNow, items = new[] { new { poItemId, receivedQty = 1000m, acceptedSealedPacks = 2, acceptedLooseQty = 0m } } });
+        await Send(owner, HttpMethod.Post, $"/api/grns/{grn.GetProperty("id").GetInt64()}/complete", new { });
+
+        var state = await PackStateAsync(owner, attar);
+        Assert.Equal(2, Balance(state, "sealed").GetProperty("packCount").GetInt32());
+        Assert.True(state.GetProperty("isReconciled").GetBoolean());
+    }
+
+    [Fact]
+    public async Task TransferReceipt_RefusesAFractionOfAPlainPcsItem()
+    {
+        var owner = Owner();
+        var shirt = await _fixture.CreateVariantAsync("TPC");
+        await ReceivePcsAsync(owner, shirt, 5m, 10m);
+        var created = await Send(owner, HttpMethod.Post, "/api/stock-transfers", new
+        {
+            transferType = "direct",
+            fromLocationId = UomPostgresFixture.Outlet,
+            fromLocationType = "outlet",
+            toLocationId = UomPostgresFixture.OutletTwo,
+            toLocationType = "outlet",
+            transferDate = DateTime.UtcNow,
+            items = new[] { new { variantId = shirt, quantity = 1m, transferQuantity = 1m } }
+        });
+        var transferId = created.GetProperty("id").GetInt64();
+        await Send(owner, HttpMethod.Post, $"/api/stock-transfers/{transferId}/submit-and-dispatch", new { });
+
+        var receiver = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "*");
+        receiver.DefaultRequestHeaders.Add("X-Test-OutletId", UomPostgresFixture.OutletTwo.ToString());
+        using var fractional = await receiver.PostAsJsonAsync($"/api/stock-transfers/{transferId}/receive", new
+        {
+            items = new[] { new { variantId = shirt, acceptedQuantity = 0.5m, rejectedQuantity = 0.5m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Half" } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, fractional.StatusCode);
+        Assert.Contains(UomErrorCode("PRECISION_EXCEEDED"), await fractional.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task RepackRead_FollowsLocationAccess()
+    {
+        var owner = Owner();
+        var bottle = await _fixture.CreateVariantAsync("LCB");
+        await ReceivePcsAsync(owner, bottle, 2m, 8m);
+        var (attar, config) = await RepackableAttarAsync(owner, "LCA", bottle);
+        var job = await CreateJobAsync(owner, attar, config, 1, Unique("job"));
+        var jobId = job.GetProperty("id").GetInt64();
+
+        var outsider = _fixture.Client(UomPostgresFixture.RestrictedUserId, "Viewer", "inventory.repacking.view,products.view_cost");
+        using var read = await outsider.GetAsync($"/api/v1/uom/repacking/{jobId}");
+        Assert.Equal(HttpStatusCode.Forbidden, read.StatusCode);
+        var list = await Data(outsider, "/api/v1/uom/repacking");
+        Assert.DoesNotContain(list.GetProperty("items").EnumerateArray(), row => row.GetProperty("id").GetInt64() == jobId);
+    }
+
+    [Fact]
+    public async Task Fingerprint_ReusedKeyWithADifferentOption_IsAConflictNotAReplay()
+    {
+        var owner = Owner();
+        var (attar, config) = await StockedAttarAsync(owner, "FPK", [Pack("A", 12m, 100m), Pack("B", 24m, 100m)]);
+        var version = config.GetProperty("configId").GetInt64();
+        var key = Unique("sale");
+        object Body(string code) => new
+        {
+            outletId = UomPostgresFixture.Outlet,
+            terminalId = UomPostgresFixture.Terminal,
+            discount = 0m,
+            tax = 10m,
+            paymentMethod = "card",
+            idempotencyKey = key,
+            payments = new[] { new { method = "card", amount = 110m } },
+            items = new[] { new { variantId = attar, quantity = 1m, unitPrice = 100m, discountAmount = 0m, sellingOptionId = (long?)Option(config, code), expectedConfigVersionId = (long?)version } }
+        };
+        await Send(owner, HttpMethod.Post, "/api/sales", Body("A"));
+        using var second = await owner.PostAsJsonAsync("/api/sales", Body("B"));
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal(488m, await OnHandAsync(attar));
     }
 
     [Fact]
@@ -1128,6 +1236,7 @@ public sealed class UomPostgresFixture : IAsyncLifetime
     public const long ForeignOutlet = 9211;
     public const long OwnerId = 9120;
     public const long ForeignOwnerId = 9220;
+    public const long RestrictedUserId = 9221;
     public const long Terminal = 9131;
     public const long TerminalTwo = 9132;
     public const long Supplier = 9141;
@@ -1176,6 +1285,7 @@ public sealed class UomPostgresFixture : IAsyncLifetime
         db.Warehouses.Add(new Warehouse { Id = Warehouse, BusinessId = Business, Name = "Warehouse" });
         db.Users.AddRange(
             new User { Id = OwnerId, BusinessId = Business, InventoryLocationAccessScope = User.InventoryAccessAll, Name = "Owner", Email = "uom-owner@example.test", PasswordHash = "test-only", IsActive = true },
+            new User { Id = RestrictedUserId, BusinessId = Business, InventoryLocationAccessScope = User.InventoryAccessAssignedOnly, Name = "Restricted", Email = "uom-restricted@example.test", PasswordHash = "test-only", IsActive = true },
             new User { Id = ForeignOwnerId, BusinessId = ForeignBusiness, InventoryLocationAccessScope = User.InventoryAccessAll, Name = "Foreign", Email = "uom-foreign@example.test", PasswordHash = "test-only", IsActive = true });
         db.UserOutletAssignments.AddRange(
             new UserOutletAssignment { UserId = OwnerId, OutletId = Outlet, BusinessId = Business, IsPrimary = true, IsActive = true },

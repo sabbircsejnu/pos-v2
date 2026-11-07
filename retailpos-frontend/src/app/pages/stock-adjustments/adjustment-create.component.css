@@ -70,3 +70,9 @@
 .btn-primary:hover:not(:disabled) {
 	background: rgb(30 41 59);
 }
+
+.adjustment-uom-note {
+  margin-top: var(--rp-space-1);
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
+}

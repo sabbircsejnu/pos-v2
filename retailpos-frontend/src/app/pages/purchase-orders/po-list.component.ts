@@ -19,6 +19,9 @@ import { CurrencyService } from '../../services/currency.service';
 import { AuthService } from '../../services/auth.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
 
+import { formatUnitQuantity } from '../../services/uom.service';
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-po-list',
   standalone: true,
@@ -27,6 +30,26 @@ import { DocumentPdfService } from '../../services/document-pdf.service';
   styleUrls: ['./po-list.component.css']
 })
 export class PoListComponent implements OnInit, OnDestroy {
+  /** Base units of the visible orders' lines: their quantities are in base units, so only one unit can be added up. */
+  readonly units = injectVariantUnits(() => this.poService.purchaseOrders().flatMap(po => (po.items ?? []).map(item => item.variantId)));
+
+  /** `3 (12 units)` while every line is pcs, `3 (500 ml)` for one other unit, otherwise only the line count. */
+  itemsSummary(po: PurchaseOrder): string {
+    const lines = `${po.totalItems} ${po.totalItems === 1 ? 'line' : 'lines'}`;
+    const items = po.items ?? [];
+    const lineUnits = new Set(items.map(item => this.units.unit(item.variantId)));
+    if (items.length === 0 || lineUnits.size !== 1) {
+      return lines;
+    }
+    const [unit] = lineUnits;
+    if (!unit) {
+      return lines;
+    }
+    return unit === 'pcs'
+      ? `${po.totalItems} (${po.totalQuantity} units)`
+      : `${po.totalItems} (${formatUnitQuantity(po.totalQuantity, unit)})`;
+  }
+
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   Math = Math;
 

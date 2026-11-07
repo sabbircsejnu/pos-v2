@@ -1,0 +1,295 @@
+<main class="uv-page">
+  <app-ui-page-header
+    title="Units & Pricing"
+    [description]="variantLabel() || 'Item #' + variantId"
+    [breadcrumbs]="breadcrumbs" />
+
+  @if (loading() && !view()) {
+    <app-ui-state kind="loading" title="Loading unit setup..." />
+  } @else if (loadError()) {
+    <app-ui-state kind="error" title="Could not load the unit setup" [message]="loadError()">
+      <button appUiButton type="button" variant="outline" (click)="load()">Retry</button>
+    </app-ui-state>
+  } @else if (isPlainPcs()) {
+    <app-ui-card title="Sold and stocked in pcs">
+      <div class="uv-stack">
+        <p class="uv-hint">This item needs no unit setup. It keeps working as it does today. Set up units only if it is bought or sold in packs or measured quantities.</p>
+        @if (canEdit()) {
+          <div class="uv-actions">
+            <button appUiButton type="button" variant="outline" (click)="startSetup()">Set up units</button>
+          </div>
+        }
+      </div>
+    </app-ui-card>
+  } @else if (view()) {
+    @if (notice()) {
+      <app-ui-alert variant="success" [dismissible]="true" (dismissed)="notice.set('')">{{ notice() }}</app-ui-alert>
+    }
+    @if (conflict()) {
+      <app-ui-alert variant="warning" title="Someone else changed this setup">
+        <div class="uv-stack">
+          <span>Your changes are still on screen but cannot be saved over the newer version. Reload to see the latest setup, then make your changes again.</span>
+          <div class="uv-actions">
+            <button appUiButton type="button" variant="outline" size="sm" [loading]="loading()" (click)="reloadAfterConflict()">Reload latest setup</button>
+          </div>
+        </div>
+      </app-ui-alert>
+    }
+    @if (saveError()) {
+      <app-ui-alert variant="danger">{{ saveError() }}</app-ui-alert>
+    }
+    @if (validationErrors().length > 0) {
+      <app-ui-alert variant="danger" title="Fix these before saving">
+        <ul class="uv-errors">
+          @for (message of validationErrors(); track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </app-ui-alert>
+    }
+
+    <form class="uv-stack" [formGroup]="form" (ngSubmit)="save()">
+      <app-ui-card title="Base unit" subtitle="What stock of this item is counted in.">
+        <div class="uv-grid">
+          <app-ui-form-field label="Base unit" [required]="true"
+            [hint]="baseLocked() ? 'This item already has stock or transactions, so its base unit cannot change.' : ''">
+            <select appUiControl formControlName="baseUnitId">
+              @for (unit of baseUnitOptions(); track unit.id) {
+                <option [ngValue]="unit.id">{{ unit.name }} ({{ unit.symbol }}){{ unit.isActive ? '' : ' - inactive' }}</option>
+              }
+            </select>
+          </app-ui-form-field>
+        </div>
+      </app-ui-card>
+
+      <app-ui-card title="Purchase options" subtitle="How this item is bought. Leave empty to buy in the base unit.">
+        <button uiCardActions appUiButton type="button" variant="outline" size="sm" (click)="addPurchase()">Add purchase option</button>
+        <div class="uv-stack">
+          @for (row of form.controls.purchaseOptions.controls; track row; let i = $index) {
+            <div class="uv-row" [formGroup]="row" role="group" [attr.aria-label]="'Purchase option ' + (i + 1)">
+              <div class="uv-grid">
+                <app-ui-form-field label="Label" hint="For example 500 ml Jar">
+                  <input appUiControl formControlName="label" maxlength="100" (blur)="fillCode(row)" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Code" [required]="true" [hint]="row.controls.code.disabled ? 'Saved options keep their code.' : ''">
+                  <input appUiControl formControlName="code" maxlength="40" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Unit" [required]="true" [hint]="conversionHint(row)">
+                  <select appUiControl formControlName="unitId">
+                    <option [ngValue]="null">Choose a unit</option>
+                    @for (unit of purchaseUnitOptions(row); track unit.id) {
+                      <option [ngValue]="unit.id">{{ unit.name }} ({{ unit.symbol }}){{ unit.isActive ? '' : ' - inactive' }}</option>
+                    }
+                  </select>
+                </app-ui-form-field>
+                @if (isPackaging(row)) {
+                  <app-ui-form-field [label]="'Size in ' + (baseUnit()?.symbol ?? 'base units')" [required]="true"
+                    [hint]="'How much one ' + unitOf(row.controls.unitId.value)?.symbol + ' holds'">
+                    <input appUiControl type="number" min="0" [step]="quantityStep(baseUnit()?.quantityPrecision)" formControlName="size" />
+                  </app-ui-form-field>
+                }
+              </div>
+              <div class="uv-row__flags">
+                <label class="ui-check">
+                  <input appUiControl type="radio" name="purchase-default" [checked]="row.controls.isDefault.value" (change)="setPurchaseDefault(row)" />
+                  <span>Default</span>
+                </label>
+                @if (form.controls.packStateTrackingEnabled.value) {
+                  <label class="ui-check">
+                    <input appUiControl type="checkbox" formControlName="isSealedPack" />
+                    <span>Received as sealed packs</span>
+                  </label>
+                }
+                <button class="uv-row__end" appUiButton type="button" variant="ghost" size="sm"
+                  [attr.aria-label]="'Remove purchase option ' + (i + 1)" (click)="removePurchase(i)">Remove</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="uv-hint">No purchase options. Purchase orders use the base unit.</p>
+          }
+        </div>
+      </app-ui-card>
+
+      <app-ui-card title="Selling packs" subtitle="Fixed packs with their own price, independent of the custom rate.">
+        <button uiCardActions appUiButton type="button" variant="outline" size="sm" (click)="addPack()">Add selling pack</button>
+        <div class="uv-stack">
+          @for (row of form.controls.packs.controls; track row; let i = $index) {
+            <div class="uv-row" [formGroup]="row" role="group" [attr.aria-label]="'Selling pack ' + (i + 1)">
+              <div class="uv-grid">
+                <app-ui-form-field label="Label" hint="For example 12 ml Pack">
+                  <input appUiControl formControlName="label" maxlength="100" (blur)="fillCode(row)" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Code" [required]="true" [hint]="row.controls.code.disabled ? 'Saved options keep their code.' : ''">
+                  <input appUiControl formControlName="code" maxlength="40" />
+                </app-ui-form-field>
+                <app-ui-form-field [label]="'Quantity in ' + (baseUnit()?.symbol ?? 'base units')" [required]="true">
+                  <input appUiControl type="number" min="0" [step]="quantityStep(baseUnit()?.quantityPrecision)" formControlName="baseQuantity" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Price per pack" [required]="true">
+                  <input appUiControl type="number" min="0" step="0.01" formControlName="price" />
+                </app-ui-form-field>
+                @if (form.controls.packStateTrackingEnabled.value && sealedCodes().length > 0) {
+                  <app-ui-form-field label="Sells sealed stock" hint="Leave as loose stock unless this pack is a sealed purchase unit">
+                    <select appUiControl formControlName="sealedPackCode">
+                      <option value="">No, from loose stock</option>
+                      @for (code of sealedCodes(); track code) {
+                        <option [value]="code">{{ code }}</option>
+                      }
+                    </select>
+                  </app-ui-form-field>
+                }
+              </div>
+              <div class="uv-row__flags">
+                <label class="ui-check">
+                  <input #defaultBox appUiControl type="checkbox" [checked]="row.controls.isDefault.value" (change)="toggleSellingDefault(row, defaultBox.checked)" />
+                  <span>Default</span>
+                </label>
+                @if (form.controls.packStateTrackingEnabled.value) {
+                  <label class="ui-check">
+                    <input appUiControl type="checkbox" formControlName="isPreparedEligible" />
+                    <span>Can be prepared by repacking</span>
+                  </label>
+                }
+                <button class="uv-row__end" appUiButton type="button" variant="ghost" size="sm"
+                  [attr.aria-label]="'Remove selling pack ' + (i + 1)" (click)="removeSelling(form.controls.packs, i)">Remove</button>
+              </div>
+              <ng-container [ngTemplateOutlet]="componentsBlock" [ngTemplateOutletContext]="{ $implicit: row }" />
+            </div>
+          } @empty {
+            <p class="uv-hint">No selling packs.</p>
+          }
+        </div>
+      </app-ui-card>
+
+      <app-ui-card title="Custom quantities" subtitle="Lets the cashier sell any quantity at a rate per unit.">
+        <button uiCardActions appUiButton type="button" variant="outline" size="sm" (click)="addCustom()">Add custom quantity</button>
+        <div class="uv-stack">
+          @for (row of form.controls.customs.controls; track row; let i = $index) {
+            <div class="uv-row" [formGroup]="row" role="group" [attr.aria-label]="'Custom quantity ' + (i + 1)">
+              <div class="uv-grid">
+                <app-ui-form-field label="Label" hint="For example Custom ml">
+                  <input appUiControl formControlName="label" maxlength="100" (blur)="fillCode(row)" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Code" [required]="true" [hint]="row.controls.code.disabled ? 'Saved options keep their code.' : ''">
+                  <input appUiControl formControlName="code" maxlength="40" />
+                </app-ui-form-field>
+                <app-ui-form-field label="Unit" [required]="true">
+                  <select appUiControl formControlName="unitId">
+                    <option [ngValue]="null">Choose a unit</option>
+                    @for (unit of customUnitOptions(row); track unit.id) {
+                      <option [ngValue]="unit.id">{{ unit.name }} ({{ unit.symbol }}){{ unit.isActive ? '' : ' - inactive' }}</option>
+                    }
+                  </select>
+                </app-ui-form-field>
+                <app-ui-form-field [label]="'Price per ' + (unitOf(row.controls.unitId.value)?.symbol ?? 'unit')" [required]="true">
+                  <input appUiControl type="number" min="0" step="0.01" formControlName="price" />
+                </app-ui-form-field>
+              </div>
+              <div class="uv-row__flags">
+                <label class="ui-check">
+                  <input #defaultBox appUiControl type="checkbox" [checked]="row.controls.isDefault.value" (change)="toggleSellingDefault(row, defaultBox.checked)" />
+                  <span>Default</span>
+                </label>
+                <button class="uv-row__end" appUiButton type="button" variant="ghost" size="sm"
+                  [attr.aria-label]="'Remove custom quantity ' + (i + 1)" (click)="removeSelling(form.controls.customs, i)">Remove</button>
+              </div>
+              <ng-container [ngTemplateOutlet]="componentsBlock" [ngTemplateOutletContext]="{ $implicit: row }" />
+            </div>
+          } @empty {
+            <p class="uv-hint">No custom quantities.</p>
+          }
+        </div>
+      </app-ui-card>
+
+      <app-ui-card title="Stock handling" subtitle="Optional. Most items do not need these.">
+        <div class="uv-stack">
+          <label class="ui-check">
+            <input appUiControl type="checkbox" formControlName="packStateTrackingEnabled" />
+            <span>Track sealed and loose stock</span>
+          </label>
+          <label class="ui-check">
+            <input appUiControl type="checkbox" formControlName="repackingEnabled" />
+            <span>Allow repacking into ready-to-sell packs</span>
+          </label>
+          <p class="uv-hint">Repacking needs sealed and loose tracking and at least one pack marked "Can be prepared by repacking". Turning tracking off clears those marks.</p>
+        </div>
+      </app-ui-card>
+
+      <div class="uv-actions">
+        @if (canEdit()) {
+          <button appUiButton type="submit" [loading]="saving()" [disabled]="conflict()">Save units & pricing</button>
+        }
+        <button appUiButton type="button" variant="outline" [disabled]="saving()" (click)="discard()">{{ current() ? 'Discard changes' : 'Cancel setup' }}</button>
+      </div>
+    </form>
+
+    @if (historyRows().length > 0) {
+      <app-ui-card title="Version history" subtitle="Each save creates a new version. Past transactions keep the version they were made with.">
+        <app-ui-data-table
+          ariaLabel="Unit configuration versions"
+          density="compact"
+          rowKey="id"
+          [columns]="historyColumns"
+          [rows]="historyRows()"
+          [searchable]="false"
+          [paginated]="false"
+          emptyTitle="No versions yet">
+          <ng-template uiTableCell="effectiveFromUtc" let-row>{{ row.effectiveFromUtc | appDate:'medium' }}</ng-template>
+          <ng-template uiTableCell="effectiveToUtc" let-row>{{ row.effectiveToUtc ? (row.effectiveToUtc | appDate:'medium') : 'Now' }}</ng-template>
+        </app-ui-data-table>
+      </app-ui-card>
+    }
+  }
+
+  <ng-template #componentsBlock let-row>
+    <div class="uv-sub">
+      <p class="uv-sub__title">Packaging (optional)</p>
+      @for (component of row.controls.components.controls; track component; let c = $index) {
+        <div class="uv-component" [formGroup]="component">
+          <span class="uv-component__name">{{ component.controls.name.value }}</span>
+          <div class="uv-component__qty">
+            <app-ui-form-field label="Quantity" [required]="true">
+              <input appUiControl type="number" min="0" step="any" formControlName="quantity" />
+            </app-ui-form-field>
+          </div>
+          <label class="ui-check">
+            <input appUiControl type="checkbox" formControlName="isRequired" />
+            <span>Required</span>
+          </label>
+          <button appUiButton type="button" variant="ghost" size="sm"
+            [attr.aria-label]="'Remove packaging ' + component.controls.name.value" (click)="removeComponent(row, c)">Remove</button>
+        </div>
+      }
+      <div class="uv-actions">
+        <button appUiButton type="button" variant="outline" size="sm" (click)="openPicker(row)">Add packaging</button>
+      </div>
+    </div>
+  </ng-template>
+
+  @if (pickerOpen()) {
+    <app-ui-dialog [open]="pickerOpen()" (openChange)="pickerOpen.set($event)" title="Add packaging">
+      <div class="ui-form-stack">
+        @if (pickerError()) {
+          <app-ui-alert variant="danger">{{ pickerError() }}</app-ui-alert>
+        }
+        <app-variant-search-picker
+          label="Packaging item"
+          placeholder="Search by name, code or SKU..."
+          [useVariationMetadata]="false"
+          [selectedVariant]="pickedVariant()"
+          [existingVariantIds]="pickerExistingIds()"
+          (selected)="pickedVariant.set($event)"
+          (cleared)="pickedVariant.set(null)" />
+        <app-ui-form-field label="Quantity per pack" [required]="true">
+          <input appUiControl type="number" min="0" step="any" [formControl]="pickerQuantity" />
+        </app-ui-form-field>
+        <label class="ui-check">
+          <input appUiControl type="checkbox" [formControl]="pickerRequired" />
+          <span>Required: the sale or repack is blocked if this packaging is out of stock</span>
+        </label>
+      </div>
+      <button uiDialogFooter appUiButton type="button" variant="outline" (click)="pickerOpen.set(false)">Cancel</button>
+      <button uiDialogFooter appUiButton type="button" (click)="addComponent()">Add</button>
+    </app-ui-dialog>
+  }
+</main>

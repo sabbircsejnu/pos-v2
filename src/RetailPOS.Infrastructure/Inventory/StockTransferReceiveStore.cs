@@ -60,6 +60,12 @@ public sealed class StockTransferReceiveStore(
                     ? new StockTransferReceiveItemInput(item.VariantId, dispatched, 0, item.Remarks)
                     : requestedLines[item.VariantId];
                 ValidateReconciliation(item.VariantId, dispatched, line, isSystemReturn);
+                var receiptConfigs = uomReader is null
+                    ? new Dictionary<long, RetailPOS.Application.Uom.ResolvedVariantUom>()
+                    : await uomReader.GetCurrentAsync(businessId, [item.VariantId], cancellationToken);
+                var receiptConfig = receiptConfigs.GetValueOrDefault(item.VariantId);
+                foreach (var received in new[] { line.AcceptedQuantity, line.RejectedQuantity, line.MissingQuantity, line.DamagedQuantity })
+                    RetailPOS.Application.Uom.UomLineResolver.EnsureBaseQuantityAllowed(receiptConfig, received, $"Received quantity of variant {item.VariantId}");
 
                 item.AcceptedQuantity = line.AcceptedQuantity;
                 item.RejectedQuantity = line.RejectedQuantity;

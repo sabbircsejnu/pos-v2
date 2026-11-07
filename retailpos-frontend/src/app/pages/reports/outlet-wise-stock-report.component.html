@@ -93,7 +93,7 @@
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalSkus | number }}</p>
         </div>
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Total Quantity</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Total Quantity') }}</p>
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalQuantity | number }}</p>
         </div>
         <div class="card p-3 bg-blue-50 border-blue-200">
@@ -123,7 +123,7 @@
                 </div>
               </div>
               <div class="flex justify-between text-xs text-gray-600">
-                <span>Qty: {{ outlet.totalQty | number }}</span>
+                <span>Qty: {{ outlet.totalQty | number }}{{ units.pcsSuffix() }}</span>
                 <span class="font-semibold text-blue-700">{{ formatCurrency(outlet.stockValue) }}</span>
               </div>
             </div>
@@ -200,7 +200,7 @@
                 </td>
                 <td class="font-mono text-xs text-gray-500">{{ row.sku }}</td>
                 <td class="text-sm text-gray-600">{{ row.categoryName }}</td>
-                <td class="text-right font-medium text-gray-800">{{ row.quantity | number }}</td>
+                <td class="text-right font-medium text-gray-800">{{ row.quantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
                 <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.stockValue) }}</td>
               </tr>
             }
@@ -227,7 +227,7 @@
                     TOTAL ({{ summary()!.totalOutlets }} outlets, {{ totalCount() | number }} rows)
                   </td>
                   <td></td><td></td><td></td>
-                  <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}</td>
+                  <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}{{ units.pcsSuffix() }}</td>
                   <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</td>
                 </tr>
               </tfoot>

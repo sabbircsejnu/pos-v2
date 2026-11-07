@@ -589,7 +589,11 @@ public class StockTransfersController : ControllerBase
                 InTransitQuantity = item.InTransitQuantity,
                 ReturnTransitQuantity = item.ReturnTransitQuantity,
                 UnitCost = item.UnitCost,
-                Remarks = item.Remarks
+                Remarks = item.Remarks,
+                Allocations = item.Allocations?.Select(allocation => new TransferAllocationDto { State = allocation.State, PackCode = allocation.PackCode, BaseQtyPerPack = allocation.BaseQtyPerPack, PackCount = allocation.PackCount, BaseQuantity = allocation.BaseQuantity }).ToList(),
+                UomUnitCode = item.UomUnitCode,
+                UomLabel = item.UomLabel,
+                UomEnteredQuantity = item.UomEnteredQuantity
             });
         }
 

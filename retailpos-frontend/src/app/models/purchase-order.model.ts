@@ -33,6 +33,12 @@ export interface PurchaseOrderItem {
   discount: number;
   tax: number;
   totalPrice: number;
+  /** Entered unit snapshot. `quantity` and `unitPrice` above are always base. No snapshot means legacy pcs. */
+  uomUnitCode?: string | null;
+  uomLabel?: string | null;
+  uomEnteredQuantity?: number | null;
+  uomEnteredUnitPrice?: number | null;
+  uomOptionId?: number | null;
 }
 
 export interface PurchaseOrder {
@@ -73,6 +79,12 @@ export interface CreatePurchaseOrderItem {
   discount?: number;
   tax?: number;
   unit?: string;
+  /** With a purchase option, `quantity` and `unitPrice` are per that purchase unit; the server converts. */
+  purchaseOptionId?: number;
+  expectedConfigVersionId?: number;
+  /** Purchase & Receive only, for pack-tracked items. */
+  acceptedSealedPacks?: number;
+  acceptedLooseQuantity?: number;
 }
 
 export interface CreatePurchaseOrderRequest {

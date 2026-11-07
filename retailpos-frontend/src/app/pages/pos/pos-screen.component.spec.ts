@@ -12,6 +12,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ProductImageService } from '../../services/product-image.service';
 import { CurrencyService } from '../../services/currency.service';
+import { UomService } from '../../services/uom.service';
 import { HttpClient } from '@angular/common/http';
 import { PosBusinessSettingsDto, PosProduct } from '../../models/sale.model';
 
@@ -129,6 +130,7 @@ describe('PosScreenComponent dropdown behavior', () => {
         { provide: ProductImageService, useValue: productImageServiceMock },
         { provide: CurrencyService, useValue: currencyServiceMock },
         { provide: HttpClient, useValue: httpClientMock },
+        { provide: UomService, useValue: { getVariantConfigs: () => of([]) } },
       ]
     }).compileComponents();
   });

@@ -152,9 +152,10 @@ public sealed class LowStockReportReadStore(RetailPOSDbContext dbContext)
                 urgency);
         }).ToList();
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var summary = new LowStockSummaryReadModel(
             allRows.Select(row => row.VariantId).Distinct().Count(),
-            allRows.Sum(row => row.SuggestedOrderQty),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.SuggestedOrderQty),
             allRows.Count(row => row.UrgencyLevel == "Critical"),
             allRows.Count(row => row.UrgencyLevel == "Low"));
 

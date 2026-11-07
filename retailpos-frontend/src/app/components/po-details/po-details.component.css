@@ -69,3 +69,11 @@
 
 .btn-slate { background: rgb(71 85 105); }
 .btn-slate:hover:not(:disabled) { background: rgb(51 65 85); }
+
+/* The base equivalent or price basis of a line entered in a purchase unit */
+.po-uom__note {
+  display: block;
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
+  line-height: var(--rp-text-helper-line);
+}

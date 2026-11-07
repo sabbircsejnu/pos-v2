@@ -19,6 +19,9 @@ import {
   getTransferStatusLabel,
   getTransferStatusColor
 } from '../../models/stock-transfer.model';
+import { quantityStep } from '../../services/uom.service';
+import { enteredUnitLabel, formatUnitTotals, roundQuantity, unitTotalLabel } from '../../utils/uom-quantity.util';
+import { injectVariantUnits } from '../../utils/variant-units';
 import { canDispatchTransferFromSource, canManageTransferFromSource, canReceiveTransferAtDestination } from '../../utils/stock-transfer-access.util';
 
 interface ReceiveLineInput {
@@ -35,6 +38,8 @@ interface ReceiveLineInput {
   missingQuantity: number;
   damagedQuantity: number;
   remarks: string;
+  /** The line holds sealed or prepared packs: accepted whole or rejected whole. */
+  wholeLineOnly: boolean;
 }
 
 type ReceiveQuantityField = 'acceptedQuantity' | 'rejectedQuantity' | 'missingQuantity' | 'damagedQuantity';
@@ -61,6 +66,7 @@ interface AuditField {
 export class TransferDetailsComponent implements OnInit {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
   transfer = signal<StockTransferDto | null>(null);
+  readonly units = injectVariantUnits(() => this.transfer()?.items.map(item => item.variantId) ?? []);
   isLoading = signal(true);
   authorizedAccess = signal<AuthorizedOutletsDto | null>(null);
   sourceAccess = signal<AuthorizedOutletsDto | null>(null);
@@ -190,7 +196,8 @@ export class TransferDetailsComponent implements OnInit {
           rejectedQuantity: 0,
           missingQuantity: 0,
           damagedQuantity: 0,
-          remarks: item.remarks || ''
+          remarks: item.remarks || '',
+          wholeLineOnly: (item.allocations ?? []).some(allocation => allocation.state !== 'loose')
         };
       })
     );
@@ -243,6 +250,15 @@ export class TransferDetailsComponent implements OnInit {
     this.isReceiving.set(false);
   }
 
+  /** Decimal places a row may be split to. Plain pcs stay whole; an unknown unit follows what was dispatched. */
+  receivePrecision(row: ReceiveLineInput): number {
+    return this.units.config(row.variantId)?.baseUnit.precision ?? (Number.isInteger(row.transferQuantity) ? 0 : 6);
+  }
+
+  receiveStep(row: ReceiveLineInput): string {
+    return quantityStep(this.receivePrecision(row));
+  }
+
   /**
    * Sets one quantity and rebalances the row so it always totals the dispatched quantity: reducing Accepted moves
    * the difference to Rejected (or to Missing on a return, which cannot be rejected again); any other change
@@ -254,24 +270,42 @@ export class TransferDetailsComponent implements OnInit {
       const row = { ...updated[index] };
       const others = (keep: ReceiveQuantityField[]) =>
         keep.reduce((total, name) => total + row[name], 0);
-      const requested = Math.max(0, Math.floor(Number(value) || 0));
+      const scale = 10 ** this.receivePrecision(row);
+      const requested = Math.max(0, Math.floor(roundQuantity((Number(value) || 0) * scale)) / scale);
 
       if (field === 'acceptedQuantity') {
-        row.acceptedQuantity = Math.min(requested, row.transferQuantity - others(['missingQuantity', 'damagedQuantity']));
-        const remainder = row.transferQuantity - row.acceptedQuantity - others(['missingQuantity', 'damagedQuantity']);
+        row.acceptedQuantity = Math.min(requested, roundQuantity(row.transferQuantity - others(['missingQuantity', 'damagedQuantity'])));
+        const remainder = roundQuantity(row.transferQuantity - row.acceptedQuantity - others(['missingQuantity', 'damagedQuantity']));
         if (this.isSystemReturn()) {
-          row.missingQuantity += remainder;
+          row.missingQuantity = roundQuantity(row.missingQuantity + remainder);
         } else {
           row.rejectedQuantity = remainder;
         }
       } else {
         const fixed = (['rejectedQuantity', 'missingQuantity', 'damagedQuantity'] as ReceiveQuantityField[])
           .filter(name => name !== field);
-        row[field] = Math.min(requested, row.transferQuantity - others(fixed));
-        row.acceptedQuantity = row.transferQuantity - row[field] - others(fixed);
+        row[field] = Math.min(requested, roundQuantity(row.transferQuantity - others(fixed)));
+        row.acceptedQuantity = roundQuantity(row.transferQuantity - row[field] - others(fixed));
       }
 
       updated[index] = row;
+      return updated;
+    });
+  }
+
+  /** The one way to settle a line holding packs. A system return cannot be rejected again, so it is only accepted. */
+  setWholeLine(index: number, outcome: 'accept' | 'reject'): void {
+    this.receiveItems.update(items => {
+      const updated = [...items];
+      const row = updated[index];
+      const accepted = outcome === 'accept';
+      updated[index] = {
+        ...row,
+        acceptedQuantity: accepted ? row.transferQuantity : 0,
+        rejectedQuantity: accepted ? 0 : row.transferQuantity,
+        missingQuantity: 0,
+        damagedQuantity: 0
+      };
       return updated;
     });
   }
@@ -290,18 +324,24 @@ export class TransferDetailsComponent implements OnInit {
 
   submitReceive(): void {
     const t = this.transfer();
-    if (!t) return;
+    if (!t || this.isReceiving()) return;
 
     const invalidRow = this.receiveItems().find(
       row => row.acceptedQuantity < 0 ||
         row.rejectedQuantity < 0 ||
         row.missingQuantity < 0 ||
         row.damagedQuantity < 0 ||
-        row.acceptedQuantity + row.rejectedQuantity + row.missingQuantity + row.damagedQuantity !== row.transferQuantity
+        roundQuantity(row.acceptedQuantity + row.rejectedQuantity + row.missingQuantity + row.damagedQuantity) !== row.transferQuantity
     );
 
     if (invalidRow) {
       this.alertService.error('Accepted, rejected, missing and damaged quantities must total the transfer quantity for every row');
+      return;
+    }
+
+    if (this.receiveItems().some(row => row.wholeLineOnly
+      && row.acceptedQuantity !== row.transferQuantity && row.rejectedQuantity !== row.transferQuantity)) {
+      this.alertService.error('A line with sealed or prepared packs must be accepted whole or rejected whole');
       return;
     }
 
@@ -392,6 +432,35 @@ export class TransferDetailsComponent implements OnInit {
     return (this.transfer()?.items || []).reduce((sum, item) => sum + (item.rejectedQuantity || 0), 0);
   }
 
+  /** The plain sum while only pcs are involved, otherwise one figure per unit. Unlike units are never added. */
+  totalLabel(quantity: (item: StockTransferDto['items'][number]) => number): string {
+    return unitTotalLabel((this.transfer()?.items || []).map(item => ({
+      unitCode: this.units.unit(item.variantId) ?? 'pcs',
+      quantity: quantity(item) || 0
+    })));
+  }
+
+  enteredLabel(item: StockTransferDto['items'][number]): string | null {
+    return enteredUnitLabel(item.uomEnteredQuantity, item.uomLabel);
+  }
+
+  /** `Sealed JAR500: 2 packs (1,000 ml) · Loose: 100 ml`. Empty for a line without stock forms. */
+  allocationText(item: StockTransferDto['items'][number]): string {
+    const unit = this.units.unit(item.variantId);
+    return (item.allocations ?? []).map(allocation => {
+      const quantity = formatUnitTotals([{ unitCode: unit ?? 'pcs', quantity: allocation.baseQuantity }]);
+      if (allocation.state === 'loose') {
+        return `Loose: ${quantity}`;
+      }
+      const form = allocation.state === 'sealed' ? 'Sealed' : 'Prepared';
+      return `${form} ${allocation.packCode}: ${allocation.packCount} ${allocation.packCount === 1 ? 'pack' : 'packs'} (${quantity})`;
+    }).join(' · ');
+  }
+
+  transferTotalLabel(): string {
+    return this.totalLabel(item => this.getEffectiveTransferQty(item));
+  }
+
   isRequisitionTransfer(): boolean {
     return this.transfer()?.transferType?.toLowerCase() === 'requisition';
   }
@@ -435,9 +504,9 @@ export class TransferDetailsComponent implements OnInit {
 
     return [
       { label: 'Total Items', value: String(transfer.items.length) },
-      { label: 'Total Transfer Quantity', value: String(this.getTotalTransferQuantity()) },
-      { label: 'Total Accepted Quantity', value: String(this.getTotalAcceptedQuantity()) },
-      { label: 'Total Rejected Quantity', value: String(this.getTotalRejectedQuantity()) },
+      { label: 'Total Transfer Quantity', value: this.transferTotalLabel() },
+      { label: 'Total Accepted Quantity', value: this.totalLabel(item => item.acceptedQuantity) },
+      { label: 'Total Rejected Quantity', value: this.totalLabel(item => item.rejectedQuantity) },
       { label: 'Current Status', value: this.getStatusLabel(transfer.status), emphasize: true }
     ];
   }

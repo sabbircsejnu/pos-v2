@@ -45,9 +45,9 @@
             <div><span class="text-gray-500">Location</span><div class="font-medium text-gray-900">{{ adj.locationName }} <span class="text-xs text-gray-500 capitalize">({{ adj.locationType }})</span></div></div>
             <div><span class="text-gray-500">Adjusted By</span><div class="font-medium text-gray-900">{{ adj.adjusterName }}</div></div>
             <div><span class="text-gray-500">Lines</span><div class="font-medium text-gray-900">{{ adj.lineCount }}</div></div>
-            <div><span class="text-gray-500">Net Adjustment</span><div class="font-medium" [ngClass]="adj.netQuantityChange >= 0 ? 'text-emerald-700' : 'text-rose-700'">{{ adj.netQuantityChange >= 0 ? '+' : '' }}{{ adj.netQuantityChange }}</div></div>
-            <div><span class="text-gray-500">Total Increase</span><div class="font-medium text-emerald-700">+{{ adj.totalIncrease }}</div></div>
-            <div><span class="text-gray-500">Total Decrease</span><div class="font-medium text-rose-700">-{{ adj.totalDecrease }}</div></div>
+            <div><span class="text-gray-500">Net Adjustment</span>@if (units.hasNonPcs()) { <div class="font-medium text-gray-900">{{ unitTotal(adj) }}</div> } @else { <div class="font-medium" [ngClass]="adj.netQuantityChange >= 0 ? 'text-emerald-700' : 'text-rose-700'">{{ adj.netQuantityChange >= 0 ? '+' : '' }}{{ adj.netQuantityChange }}</div> }</div>
+            <div><span class="text-gray-500">Total Increase</span><div class="font-medium text-emerald-700">@if (units.hasNonPcs()) { {{ unitTotal(adj, 1) || '-' }} } @else { +{{ adj.totalIncrease }} }</div></div>
+            <div><span class="text-gray-500">Total Decrease</span><div class="font-medium text-rose-700">@if (units.hasNonPcs()) { {{ unitTotal(adj, -1) || '-' }} } @else { -{{ adj.totalDecrease }} }</div></div>
           </div>
           @if (adj.notes) {
             <div class="mt-4 border-t pt-4">
@@ -84,11 +84,17 @@
                       <div class="text-xs text-gray-500">{{ line.productCode || '-' }}</div>
                       <div class="font-mono text-xs text-gray-700">{{ line.variantSku || '-' }}</div>
                     </td>
-                    <td class="px-4 py-4 text-right text-gray-700">{{ line.previousQuantity }}</td>
+                    <td class="px-4 py-4 text-right text-gray-700">{{ line.previousQuantity }}{{ units.suffix(line.variantId) }}</td>
                     <td class="px-4 py-4 text-right font-semibold" [ngClass]="line.quantityChange >= 0 ? 'text-emerald-700' : 'text-rose-700'">
-                      {{ line.quantityChange > 0 ? '+' : '' }}{{ line.quantityChange }}
+                      {{ line.quantityChange > 0 ? '+' : '' }}{{ line.quantityChange }}{{ units.suffix(line.variantId) }}
+                      @if (enteredLabel(line); as entered) {
+                        <div class="text-xs font-normal text-gray-500">Entered {{ entered }}</div>
+                      }
+                      @if (line.packState) {
+                        <div class="text-xs font-normal text-gray-500">{{ stockForm(line) }}</div>
+                      }
                     </td>
-                    <td class="px-4 py-4 text-right text-gray-700">{{ line.newQuantity }}</td>
+                    <td class="px-4 py-4 text-right text-gray-700">{{ line.newQuantity }}{{ units.suffix(line.variantId) }}</td>
                     <td class="px-4 py-4">
                       <div class="text-gray-900">{{ line.reason }}</div>
                       @if (line.notes) {

@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { injectVariantUnits } from '../../utils/variant-units';
 import { CurrencyService } from '../../services/currency.service';
 import { OutletService } from '../../services/outlet.service';
 import { WarehouseService } from '../../services/warehouse.service';
@@ -93,6 +94,7 @@ export class CurrentStockReportComponent implements OnInit {
   // ── Computed helpers ──────────────────────────────────────────────────────
   report     = computed(() => this.reportService.currentStockReport());
   rows       = computed(() => this.report()?.items ?? []);
+  readonly units = injectVariantUnits(() => this.rows().map(row => row.variantId));
   summary    = computed(() => this.report()?.summary ?? null);
   totalCount = computed(() => this.report()?.totalCount ?? 0);
 

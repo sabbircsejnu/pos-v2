@@ -256,6 +256,7 @@
                       <th class="px-4 py-2.5">Barcode</th>
                       <th class="px-4 py-2.5 text-right">Price Adj.</th>
                       <th class="px-4 py-2.5 text-right">Final Price</th>
+                      <th *ngIf="canEditUnits()" class="px-4 py-2.5 text-right">Units</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -276,6 +277,11 @@
                         </td>
                         <td class="px-4 py-2.5 text-right font-semibold text-sm text-gray-900">
                           {{ v.finalPrice | appCurrency }}
+                        </td>
+                        <td *ngIf="canEditUnits()" class="px-4 py-2.5 text-right text-sm">
+                          <a [routerLink]="['/products', product()!.id, 'variants', v.id, 'units']"
+                             [attr.aria-label]="'Units and pricing of ' + v.name"
+                             class="btn btn-outline text-xs py-1.5">Units &amp; Pricing</a>
                         </td>
                       </tr>
                     }
@@ -321,6 +327,12 @@
                 class="btn btn-outline text-xs py-1.5"
                 *ngIf="auth.hasPermission('barcode.view')">
                 <i class="fas fa-barcode mr-1"></i> Print Barcode
+              </a>
+              <a
+                *ngIf="canEditUnits() && !product()!.hasVariants && product()!.variants.length === 1"
+                [routerLink]="['/products', product()!.id, 'variants', product()!.variants[0].id, 'units']"
+                class="btn btn-outline text-xs py-1.5">
+                <i class="fas fa-ruler-combined mr-1" aria-hidden="true"></i> Units &amp; Pricing
               </a>
             </div>
           </div>

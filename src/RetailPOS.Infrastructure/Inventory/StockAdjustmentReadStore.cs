@@ -206,7 +206,14 @@ public sealed class StockAdjustmentReadStore(RetailPOSDbContext dbContext)
                     line.QuantityChange,
                     line.NewQuantity,
                     line.Reason,
-                    line.Notes))
+                    line.Notes,
+                    line.PackState,
+                    line.PackCode,
+                    line.BaseQtyPerPack,
+                    line.UomUnitCode,
+                    line.UomLabel,
+                    line.UomEnteredQuantity,
+                    line.UomOptionId))
                 .ToArray();
             var firstLine = lines.FirstOrDefault();
             var totalIncrease = lines

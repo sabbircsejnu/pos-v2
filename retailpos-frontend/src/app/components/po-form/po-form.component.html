@@ -195,6 +195,42 @@
                                       <span class="break-words">{{ formatVariantAttributes(item.variantAttributes, item.variantDisplay || item.variantName) }}</span>
                                     }
                                   </div>
+                                  @if (uomConfigFor(item); as uomConfig) {
+                                    <div class="po-uom">
+                                      <label class="po-uom__field">
+                                        <span>Purchase unit</span>
+                                        <select
+                                          appUiControl
+                                          [name]="'purchase-unit-' + $index"
+                                          [ngModel]="item.purchaseOptionId ?? null"
+                                          (ngModelChange)="onPurchaseOptionChange($index, $event)"
+                                          [disabled]="isSaving()">
+                                          <option [ngValue]="null">{{ uomConfig.baseUnit.symbol }} (base unit)</option>
+                                          @for (option of uomConfig.purchaseOptions; track option.id) {
+                                            <option [ngValue]="option.id">{{ option.label }} ({{ option.baseQuantityPerUnit }} {{ uomConfig.baseUnit.symbol }})</option>
+                                          }
+                                        </select>
+                                      </label>
+                                      @if (showReceiptSplit(item)) {
+                                        <div class="po-uom__split">
+                                          @if (selectedPurchaseOption(item)?.isSealedPack) {
+                                            <label class="po-uom__field">
+                                              <span>Sealed packs received</span>
+                                              <input #sealedPacks appUiControl type="number" min="0" step="1" [value]="item.acceptedSealedPacks ?? ''" (input)="updateItemSplit($index, 'acceptedSealedPacks', sealedPacks.value)" [disabled]="isSaving()" />
+                                            </label>
+                                          }
+                                          <label class="po-uom__field">
+                                            <span>Loose received ({{ uomConfig.baseUnit.symbol }})</span>
+                                            <input #looseQuantity appUiControl type="number" min="0" [attr.step]="'any'" [value]="item.acceptedLooseQuantity ?? ''" (input)="updateItemSplit($index, 'acceptedLooseQuantity', looseQuantity.value)" [disabled]="isSaving()" />
+                                          </label>
+                                        </div>
+                                        <p class="po-uom__hint">For Purchase &amp; Receive only. Leave blank to let the system split the quantity.</p>
+                                        @if (receiptSplitMessage(item); as splitMessage) {
+                                          <p class="po-uom__error" role="alert">{{ splitMessage }}</p>
+                                        }
+                                      }
+                                    </div>
+                                  }
                                 </div>
                               </div>
                             </td>
@@ -206,10 +242,16 @@
                               }
                             </td>
                             <td class="px-3 py-2.5 align-top">
-                              <input type="number" [value]="item.quantity" (input)="updateItemQuantity($index, +$any($event.target).value)" min="1" class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900" [disabled]="isSaving()" />
+                              <input type="number" [value]="item.quantity" (input)="updateItemQuantity($index, +$any($event.target).value)" [attr.min]="quantityMinFor(item)" [attr.step]="uomConfigFor(item) ? quantityStepFor(item) : null" class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900" [disabled]="isSaving()" />
+                              @if (uomConfigFor(item)) {
+                                <p class="po-uom__note" [attr.aria-label]="'Base quantity preview'">= {{ baseQuantityText(item) }}</p>
+                              }
                             </td>
                             <td class="px-3 py-2.5 align-top">
                               <input type="number" [value]="item.unitPrice" (input)="updateItemPrice($index, +$any($event.target).value)" min="0" step="0.01" class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900" [disabled]="isSaving()" />
+                              @if (uomConfigFor(item)) {
+                                <p class="po-uom__note">per {{ purchaseUnitLabel(item) }}</p>
+                              }
                             </td>
                             <td class="px-3 py-2.5 text-right align-top text-sm font-semibold whitespace-nowrap text-slate-900">
                               {{ formatCurrency(calculateItemTotal(item)) }}

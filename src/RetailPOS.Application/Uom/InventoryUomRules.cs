@@ -229,10 +229,12 @@ public sealed class SaveStockCountEntriesCommandHandler(
             await EnsureOnlyLooseVariesAsync(businessId, line.Value.LocationId, line.Value.LocationType, variantId, records, cancellationToken);
 
         var physical = UomQuantityMath.Normalize(records.Sum(record => record.BaseQuantity));
+        await using var transaction = await packStore.BeginAsync(cancellationToken);
         await store.SaveEntriesAsync(request.StockCountId, request.LineId, records, physical, cancellationToken);
         await audit.RecordAsync($"Mixed-unit count recorded on stock count line {request.LineId}", "StockCountLine", request.LineId.ToString(),
             new Dictionary<string, object?> { ["stockCountId"] = request.StockCountId, ["physicalBase"] = physical, ["entries"] = records.Count },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return new StockCountEntriesResult(request.LineId, physical, physical - line.Value.CurrentStock);
     }
 

@@ -1,13 +1,15 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { inject as injectCompanyDates } from '@angular/core';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PurchaseOrderService } from '../../services/purchase-order.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
-import { PurchaseOrder, getPOStatusLabel, getPOStatusColor, getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
+import { formatUnitQuantity, UomService } from '../../services/uom.service';
+import { PurchaseOrderItem, PurchaseOrder, getPOStatusLabel, getPOStatusColor, getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { CurrencyService } from '../../services/currency.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
 
@@ -20,6 +22,10 @@ import { DocumentPdfService } from '../../services/document-pdf.service';
 })
 export class PoDetailsComponent implements OnInit {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
+  private readonly uom = inject(UomService);
+  private readonly destroyRef = inject(DestroyRef);
+  /** Base unit symbols by variant, for lines with a unit snapshot. */
+  baseUnits = signal<Record<number, string>>({});
   poId = signal<number>(0);
   po = signal<PurchaseOrder | null>(null);
   isLoading = signal(false);
@@ -52,11 +58,27 @@ export class PoDetailsComponent implements OnInit {
     }
   }
 
+  /** Only lines with a unit snapshot need the base unit's symbol; a pcs order makes no extra request. */
+  private loadBaseUnits(items: PurchaseOrderItem[]): void {
+    const variantIds = items.filter(item => item.uomUnitCode).map(item => item.variantId);
+    this.uom.getVariantConfigs(variantIds).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (configs) => this.baseUnits.set(Object.fromEntries(configs.map(config => [config.variantId, config.baseUnit.symbol]))),
+      error: () => this.baseUnits.set({})
+    });
+  }
+
+  /** The base equivalent of a line entered in a purchase unit, or an empty string for a pcs line. */
+  baseQuantityText(item: PurchaseOrderItem): string {
+    if (!item.uomUnitCode) return '';
+    return formatUnitQuantity(item.quantity, this.baseUnits()[item.variantId] || 'base units');
+  }
+
   loadPurchaseOrder(id: number): void {
     this.isLoading.set(true);
     this.poService.getById(id).subscribe({
       next: (response) => {
         this.po.set(response.data);
+        this.loadBaseUnits(response.data?.items ?? []);
         this.isLoading.set(false);
       },
       error: (err: any) => {

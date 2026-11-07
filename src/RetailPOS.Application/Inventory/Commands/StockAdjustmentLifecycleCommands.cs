@@ -61,7 +61,13 @@ public sealed record UpdateStockAdjustmentDraftLine(
     long VariantId,
     decimal QuantityChange,
     string? Reason,
-    string? Notes);
+    string? Notes,
+    long? UnitOptionId = null,
+    decimal? EnteredQuantity = null,
+    long? ExpectedConfigVersionId = null,
+    string? PackState = null,
+    string? PackCode = null,
+    decimal? BaseQtyPerPack = null);
 
 public sealed record UpdateStockAdjustmentDraftCommand(
     long AdjustmentId,
@@ -136,7 +142,7 @@ public sealed class UpdateStockAdjustmentDraftCommandHandler(
             throw new InvalidOperationException("At least one adjustment line is required.");
         }
 
-        if (request.Items.Any(item => item.QuantityChange == 0))
+        if (request.Items.Any(item => (item.EnteredQuantity ?? item.QuantityChange) == 0))
         {
             throw new InvalidOperationException(
                 "Quantity change cannot be 0 for any line.");
@@ -166,7 +172,13 @@ public sealed class UpdateStockAdjustmentDraftCommandHandler(
                 item.VariantId,
                 item.QuantityChange,
                 reason,
-                string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes);
+                string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes,
+                item.UnitOptionId,
+                item.EnteredQuantity,
+                item.ExpectedConfigVersionId,
+                item.PackState,
+                item.PackCode,
+                item.BaseQtyPerPack);
         }).ToArray();
 
         return new StockAdjustmentUpdateInput(

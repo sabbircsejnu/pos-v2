@@ -9,7 +9,16 @@ export interface GrnItem {
   variantName?: string;
   variantAttributes?: string;
   orderedQty: number;
+  /** The accepted base quantity. */
   receivedQty: number;
+  /** Physically received but not accepted: neither stocked nor payable. */
+  damagedQty?: number | null;
+  rejectedQty?: number | null;
+  acceptedSealedPacks?: number | null;
+  acceptedLooseQty?: number | null;
+  uomUnitCode?: string | null;
+  uomLabel?: string | null;
+  uomBaseUnitCode?: string | null;
 }
 
 export interface Grn {
@@ -41,6 +50,8 @@ export interface PurchaseOrderItemForGrn {
   productCode?: string;
   variantName?: string;
   variantAttributes?: string;
+  /** The pending-POs endpoint sends the ordered base quantity as `quantity`. */
+  quantity?: number;
   orderedQty: number;
   unitPrice: number;
   primaryImageThumb?: string;
@@ -81,7 +92,12 @@ export interface GrnVariance {
 
 export interface CreateGrnItemDto {
   poItemId: number;
+  /** The accepted base quantity. */
   receivedQty: number;
+  damagedQty?: number;
+  rejectedQty?: number;
+  acceptedSealedPacks?: number;
+  acceptedLooseQty?: number;
 }
 
 export interface CreateGrnDto {

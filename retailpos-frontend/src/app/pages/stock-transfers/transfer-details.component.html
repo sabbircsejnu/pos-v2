@@ -18,7 +18,7 @@
           </div>
           <div class="flex flex-wrap items-center gap-2 text-xs">
             <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">Items {{ transfer()!.items.length }}</span>
-            <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">Qty {{ getTotalTransferQuantity() }}</span>
+            <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">Qty {{ transferTotalLabel() }}</span>
             <span class="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-700">{{ getTypeLabel(transfer()!.transferType) }}</span>
           </div>
         </div>
@@ -98,7 +98,7 @@
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="mb-4 flex items-center justify-between gap-2">
               <h2 class="text-base font-semibold text-slate-900">Transfer Items ({{ transfer()!.items.length }})</h2>
-              <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">Transfer Qty {{ getTotalTransferQuantity() }}</span>
+              <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">Transfer Qty {{ transferTotalLabel() }}</span>
             </div>
 
             @if (transfer()!.items.length > 0) {
@@ -135,17 +135,24 @@
                             [showVariantDetails]="true"
                           />
                           <div class="mt-1 pl-[3.125rem] text-xs text-slate-500">SKU: {{ item.variantSku }}</div>
+                          @if (allocationText(item); as allocations) {
+                            <div class="mt-1 pl-[3.125rem] text-xs text-slate-500">{{ allocations }}</div>
+                          }
                         </td>
                         @if (isRequisitionTransfer()) {
-                          <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.requestedQuantity || getEffectiveTransferQty(item) }}</td>
+                          <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.requestedQuantity || getEffectiveTransferQty(item) }}{{ units.suffix(item.variantId) }}</td>
                         }
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-slate-900">{{ getEffectiveTransferQty(item) }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-emerald-700">{{ item.acceptedQuantity || 0 }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-rose-700">{{ item.rejectedQuantity || 0 }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.missingQuantity || 0 }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.damagedQuantity || 0 }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.inTransitQuantity || 0 }}</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.returnTransitQuantity || 0 }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-slate-900">{{ getEffectiveTransferQty(item) }}{{ units.suffix(item.variantId) }}
+                          @if (enteredLabel(item); as entered) {
+                            <div class="text-xs font-normal text-slate-500">Entered {{ entered }}</div>
+                          }
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-emerald-700">{{ item.acceptedQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-rose-700">{{ item.rejectedQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.missingQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-amber-700">{{ item.damagedQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.inTransitQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-900">{{ item.returnTransitQuantity || 0 }}{{ units.suffix(item.variantId) }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-center text-sm">
                           @if (auth.hasPermission('barcode.view')) {
                             <a
@@ -329,31 +336,42 @@
                 <div class="mt-2 text-xs text-slate-500">
                   <div class="font-medium text-slate-700">SKU: {{ row.variantSku }}</div>
                 </div>
+                @if (row.wholeLineOnly) {
+                  <div class="receive-whole">
+                    <p>This line holds sealed or prepared packs. Accept it whole or reject it whole.</p>
+                    <div class="receive-whole__actions">
+                      <button type="button" class="btn btn-outline" [disabled]="isReceiving()" (click)="setWholeLine(i, 'accept')">Accept whole line</button>
+                      @if (!isSystemReturn()) {
+                        <button type="button" class="btn btn-outline" [disabled]="isReceiving()" (click)="setWholeLine(i, 'reject')">Reject whole line</button>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
               <div>
-                <label class="label">Transfer Qty</label>
+                <label class="label">Transfer Qty{{ units.suffix(row.variantId) }}</label>
                 <input class="input" type="number" [ngModel]="row.transferQuantity" disabled />
               </div>
               <div>
                 <label class="label">Accepted</label>
-                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                <input class="input" type="number" min="0" [max]="row.transferQuantity" [step]="receiveStep(row)" [disabled]="row.wholeLineOnly"
                        [ngModel]="row.acceptedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'acceptedQuantity', $event)" />
               </div>
               @if (!isSystemReturn()) {
                 <div>
                   <label class="label">Rejected</label>
-                  <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                  <input class="input" type="number" min="0" [max]="row.transferQuantity" [step]="receiveStep(row)" [disabled]="row.wholeLineOnly"
                          [ngModel]="row.rejectedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'rejectedQuantity', $event)" />
                 </div>
               }
               <div>
                 <label class="label">Missing</label>
-                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                <input class="input" type="number" min="0" [max]="row.transferQuantity" [step]="receiveStep(row)" [disabled]="row.wholeLineOnly"
                        [ngModel]="row.missingQuantity" (ngModelChange)="updateReceiveQuantity(i, 'missingQuantity', $event)" />
               </div>
               <div>
                 <label class="label">Damaged</label>
-                <input class="input" type="number" min="0" [max]="row.transferQuantity"
+                <input class="input" type="number" min="0" [max]="row.transferQuantity" [step]="receiveStep(row)" [disabled]="row.wholeLineOnly"
                        [ngModel]="row.damagedQuantity" (ngModelChange)="updateReceiveQuantity(i, 'damagedQuantity', $event)" />
               </div>
               <div class="col-span-2 md:col-span-1">

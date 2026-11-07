@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -19,8 +20,12 @@ import {
 } from '../../models/stock-adjustment.model';
 import { VariantSearchItem, VariantSearchPickerComponent } from '../../components/variant-search-picker/variant-search-picker.component';
 import { findVariantIndexById, isVariantAlreadyInItems } from '../../utils/variant-selection.util';
+import { UomService, formatUnitQuantity } from '../../services/uom.service';
+import { UnitEntry, formatUnitTotals, roundQuantity, sumByUnit } from '../../utils/uom-quantity.util';
+import { AdjustmentUomFieldsComponent } from './adjustment-uom-fields.component';
+import { AdjustmentUomEntry, LOOSE_CHOICE, adjustmentEntryError, adjustmentUomPayload, signedBaseChange } from './adjustment-uom.logic';
 
-interface AdjustmentLineItem {
+interface AdjustmentLineItem extends AdjustmentUomEntry {
   variantId: number;
   productName: string;
   variantName: string;
@@ -28,6 +33,7 @@ interface AdjustmentLineItem {
   productCode?: string;
   attributes?: string;
   primaryImageThumb?: string;
+  /** In base units. For a configured item it previews `enteredQuantity`; the server converts. */
   currentStock: number;
   quantityChange: number;
   reason?: string;
@@ -36,12 +42,14 @@ interface AdjustmentLineItem {
 @Component({
   selector: 'app-adjustment-create',
   standalone: true,
-  imports: [CommonModule, FormsModule, VariantSearchPickerComponent],
+  imports: [CommonModule, FormsModule, VariantSearchPickerComponent, AdjustmentUomFieldsComponent],
   templateUrl: './adjustment-create.component.html',
   styleUrls: ['./adjustment-create.component.css']
 })
 export class AdjustmentCreateComponent implements OnInit {
   private imageService = inject(ProductImageService);
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   readonly ADJUSTMENT_REASONS = ADJUSTMENT_REASONS;
   allowNegativeStock = signal(false);
   isEditMode = signal(false);
@@ -76,6 +84,26 @@ export class AdjustmentCreateComponent implements OnInit {
       netAdjustment: totalIncrease - totalDecrease,
     };
   });
+
+  /** Whether the lines involve anything but pcs, in which case their quantities cannot be added into one figure. */
+  hasNonPcsLines = computed(() => this.items().some(line => this.lineUnit(line) !== 'pcs'));
+
+  /** One figure per unit, for when plain totals would add unlike units. `sign` filters to increases or decreases; none gives the net. */
+  totalLabel(sign?: 1 | -1): string {
+    const rows = this.items()
+      .filter(line => !sign || Math.sign(line.quantityChange) === sign)
+      .map(line => ({ unitCode: this.lineUnit(line), quantity: sign ? Math.abs(line.quantityChange) : line.quantityChange }));
+    return formatUnitTotals(sumByUnit(rows));
+  }
+
+  lineUnit(line: AdjustmentLineItem): string {
+    return line.uomConfig?.baseUnit.code ?? 'pcs';
+  }
+
+  /** A configured line says its unit; a plain pcs line is shown as it always was. */
+  lineStockLabel(line: AdjustmentLineItem, quantity: number): string {
+    return line.uomConfig ? formatUnitQuantity(quantity, this.lineUnit(line)) : String(quantity);
+  }
 
   isFormValid = computed(() => {
     return !!this.locationType()
@@ -271,10 +299,74 @@ export class AdjustmentCreateComponent implements OnInit {
       reason: ''
     };
 
-    this.items.update(items => [...items, lineItem]);
+    this.items.update(items => [...items, { ...lineItem, uomStatus: 'loading' }]);
+    this.loadLineConfig(variant.id);
     this.loadingLineStocks.update(s => {
       const next = new Set(s);
       next.delete(lineIndex);
+      return next;
+    });
+  }
+
+  private loadLineConfig(variantId: number): void {
+    this.injector.get(UomService).getVariantConfigs([variantId])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: configs => {
+          const config = configs.find(candidate => candidate.variantId === variantId) ?? null;
+          this.patchLine(variantId, line => ({
+            ...line,
+            uomStatus: 'ready',
+            uomConfig: config,
+            ...(config ? { unitOptionId: null, enteredQuantity: line.quantityChange, packChoice: LOOSE_CHOICE } : {})
+          }));
+          if (config?.packStateTrackingEnabled) {
+            this.loadPackState(variantId);
+          }
+        },
+        error: () => this.patchLine(variantId, line => ({ ...line, uomStatus: 'failed' }))
+      });
+  }
+
+  /** Shows which sealed packs are held. Choosing a form still works without it, and the server checks the stock. */
+  private loadPackState(variantId: number): void {
+    const locationId = this.locationId();
+    if (!locationId) {
+      return;
+    }
+    this.injector.get(UomService).getPackState(variantId, locationId, this.locationType())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: view => this.patchLine(variantId, line => ({ ...line, packView: view })),
+        error: () => this.patchLine(variantId, line => ({ ...line, packView: null }))
+      });
+  }
+
+  private patchLine(variantId: number, change: (line: AdjustmentLineItem) => AdjustmentLineItem): void {
+    this.items.update(items => items.map(line => (line.variantId === variantId ? change(line) : line)));
+  }
+
+  updateLineEntry(index: number, entry: UnitEntry): void {
+    this.items.update(items => {
+      const next = [...items];
+      const config = next[index].uomConfig;
+      if (!config) {
+        return items;
+      }
+      next[index] = {
+        ...next[index],
+        unitOptionId: entry.unitOptionId,
+        enteredQuantity: entry.quantity,
+        quantityChange: signedBaseChange(config, entry)
+      };
+      return next;
+    });
+  }
+
+  updateLinePackChoice(index: number, packChoice: string | null): void {
+    this.items.update(items => {
+      const next = [...items];
+      next[index] = { ...next[index], packChoice };
       return next;
     });
   }
@@ -300,7 +392,7 @@ export class AdjustmentCreateComponent implements OnInit {
   }
 
   getLineNewStock(line: AdjustmentLineItem): number {
-    return line.currentStock + line.quantityChange;
+    return roundQuantity(line.currentStock + line.quantityChange);
   }
 
   isLineNegativeInvalid(line: AdjustmentLineItem): boolean {
@@ -317,6 +409,10 @@ export class AdjustmentCreateComponent implements OnInit {
 
   isLineInvalid(line: AdjustmentLineItem): boolean {
     if (!line.variantId) {
+      return true;
+    }
+
+    if (line.uomStatus === 'loading' || adjustmentEntryError(line)) {
       return true;
     }
 
@@ -404,6 +500,7 @@ export class AdjustmentCreateComponent implements OnInit {
         variantId: item.variantId,
         quantityChange: item.quantityChange,
         reason: item.reason || undefined,
+        ...adjustmentUomPayload(item)
       }))
     };
 
@@ -448,6 +545,7 @@ export class AdjustmentCreateComponent implements OnInit {
         quantityChange: item.quantityChange,
         reason: item.reason || this.reason() || 'Other',
         notes: this.notes() || undefined,
+        ...adjustmentUomPayload(item)
       })),
     };
 

@@ -1,10 +1,12 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { getPurchaseLocationName, getPurchaseLocationTypeLabel } from '../../models/purchase-order.model';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, OnInit, effect, inject, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, OnInit, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
 import { GrnService } from '../../services/grn.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
@@ -17,8 +19,24 @@ import {
   CreateGrnItemDto
 } from '../../models/grn.model';
 
+import { AuthService } from '../../services/auth.service';
+import { PurchaseOrderService } from '../../services/purchase-order.service';
+import { fitsPrecision, formatUnitQuantity, quantityStep, UomService } from '../../services/uom.service';
+import { PurchaseOrderItem } from '../../models/purchase-order.model';
+import { VariantUomConfig } from '../../models/uom.model';
+import { checkPackBreakdown, isEntered, roundQuantity } from '../../utils/uom-line.util';
+
 interface GrnLineItem extends PurchaseOrderItemForGrn {
+  /** The accepted base quantity. */
   receivedQty: number;
+  damagedQty?: number | null;
+  rejectedQty?: number | null;
+  acceptedSealedPacks?: number | null;
+  acceptedLooseQty?: number | null;
+  /** The variant's current configuration. Absent on a plain pcs line. */
+  uomConfig?: VariantUomConfig;
+  /** The PO line, for the purchase unit it was ordered in. Absent on a legacy pcs line. */
+  poLine?: PurchaseOrderItem;
 }
 
 @Component({
@@ -33,6 +51,12 @@ export class GrnCreateComponent implements OnInit {
   readonly locationTypeLabel = getPurchaseLocationTypeLabel;
   readonly locationName = getPurchaseLocationName;
   private imageSvc = inject(ProductImageService);
+  private uom = inject(UomService);
+  private purchaseOrders = inject(PurchaseOrderService);
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
+  /** When the units could not be loaded, the server alone decides which quantities may be fractional. */
+  uomUnavailable = signal(false);
   resolveImage(path?: string | null): string { return this.imageSvc.resolveUrl(path); }
 
   pendingPOs = signal<PurchaseOrderForGrn[]>([]);
@@ -94,10 +118,124 @@ export class GrnCreateComponent implements OnInit {
     if (po) {
       const items: GrnLineItem[] = po.items.map(item => ({
         ...item,
-        receivedQty: item.orderedQty
+        orderedQty: item.orderedQty ?? item.quantity ?? 0,
+        receivedQty: item.orderedQty ?? item.quantity ?? 0
       }));
       this.lineItems.set(items);
+      this.loadLineUnits(po.id, items);
     }
+  }
+
+  /** Quantities stay in base units whatever happens here; this only adds the context around them. */
+  private loadLineUnits(poId: number, items: GrnLineItem[]): void {
+    this.uomUnavailable.set(false);
+    forkJoin({
+      configs: this.uom.getVariantConfigs(items.map(item => item.variantId)).pipe(catchError(() => {
+        this.uomUnavailable.set(true);
+        return of<VariantUomConfig[]>([]);
+      })),
+      // The purchase unit is context only, so a user who cannot open the PO can still receive it.
+      po: this.auth.hasPermission('purchases.view')
+        ? this.purchaseOrders.getById(poId).pipe(catchError(() => of(null)))
+        : of(null)
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ configs, po }) => {
+      if (this.selectedPO()?.id !== poId) return;
+      const configByVariant = new Map(configs.map(config => [config.variantId, config]));
+      const poLines = new Map<number, PurchaseOrderItem>(((po?.data?.items ?? []) as PurchaseOrderItem[]).map(line => [line.id, line]));
+      this.lineItems.update(lines => lines.map(line => ({
+        ...line,
+        uomConfig: configByVariant.get(line.variantId),
+        poLine: poLines.get(line.id)
+      })));
+    });
+  }
+
+  baseUnit(item: GrnLineItem): string {
+    return item.uomConfig?.baseUnit.symbol ?? item.poLine?.uomUnitCode ?? 'pcs';
+  }
+
+  /** Fractional quantities are for configured items only. */
+  stepFor(item: GrnLineItem): string {
+    return item.uomConfig ? quantityStep(item.uomConfig.baseUnit.precision) : '1';
+  }
+
+  formatQuantity(quantity: number, item: GrnLineItem): string {
+    return formatUnitQuantity(quantity, this.baseUnit(item));
+  }
+
+  /** `Ordered as 10 Carton`, for a line ordered in a purchase unit. */
+  orderedAs(item: GrnLineItem): string {
+    const line = item.poLine;
+    if (!line?.uomOptionId || !line.uomEnteredQuantity) return '';
+    return `Ordered as ${formatUnitQuantity(line.uomEnteredQuantity, line.uomLabel || line.uomUnitCode)}`;
+  }
+
+  isPackTracked(item: GrnLineItem): boolean {
+    return !!item.uomConfig?.packStateTrackingEnabled;
+  }
+
+  /** Base quantity per sealed pack, from the PO's own conversion; zero when the line was not ordered in a sealed pack. */
+  baseQtyPerPack(item: GrnLineItem): number {
+    const line = item.poLine;
+    const sealed = item.uomConfig?.purchaseOptions.some(option => option.id === line?.uomOptionId && option.isSealedPack);
+    return sealed && line?.uomEnteredQuantity ? roundQuantity(line.quantity / line.uomEnteredQuantity) : 0;
+  }
+
+  /** The sealed/loose split must add up to the accepted quantity; the server refuses it otherwise. */
+  breakdownMessage(item: GrnLineItem): string {
+    if (!this.isPackTracked(item)) return '';
+    return checkPackBreakdown(item.receivedQty, item.acceptedSealedPacks, item.acceptedLooseQty, this.baseQtyPerPack(item), this.baseUnit(item)).message;
+  }
+
+  /** How the physical count compares with the order. Informational: a partial receipt is allowed. */
+  reconciliationMessage(item: GrnLineItem): string {
+    const accepted = Number(item.receivedQty ?? 0);
+    const damaged = Number(item.damagedQty ?? 0);
+    const rejected = Number(item.rejectedQty ?? 0);
+    const counted = roundQuantity(accepted + damaged + rejected);
+    const difference = roundQuantity(counted - Number(item.orderedQty ?? 0));
+    if (difference === 0) return '';
+    const direction = difference < 0 ? 'short by' : 'over by';
+    return `Accepted ${accepted} + damaged ${damaged} + rejected ${rejected} = ${this.formatQuantity(counted, item)}, ${direction} ${this.formatQuantity(Math.abs(difference), item)} against the order.`;
+  }
+
+  updateLine(index: number, field: 'damagedQty' | 'rejectedQty' | 'acceptedSealedPacks' | 'acceptedLooseQty', value: number | string | null): void {
+    const items = [...this.lineItems()];
+    items[index] = { ...items[index], [field]: isEntered(value) ? Number(value) : null };
+    this.lineItems.set(items);
+  }
+
+  /** The first problem the server would refuse, phrased for the receiver. Input is kept so it can be corrected. */
+  private lineProblem(item: GrnLineItem): string {
+    const name = item.productName ?? 'This line';
+    const quantities = [item.receivedQty, item.damagedQty, item.rejectedQty, item.acceptedLooseQty, item.acceptedSealedPacks];
+    if (quantities.some(quantity => Number(quantity ?? 0) < 0)) {
+      return `${name}: quantities cannot be negative`;
+    }
+    if (!Number.isInteger(Number(item.acceptedSealedPacks ?? 0))) {
+      return `${name}: sealed packs must be a whole number`;
+    }
+    if (!this.uomUnavailable()) {
+      const precision = item.uomConfig ? item.uomConfig.baseUnit.precision : 0;
+      const entered = [item.receivedQty, item.damagedQty, item.rejectedQty].map(quantity => Number(quantity ?? 0));
+      if (entered.some(quantity => !fitsPrecision(quantity, precision))) {
+        return precision === 0
+          ? `${name}: quantities must be whole numbers`
+          : `${name}: quantities allow at most ${precision} decimal place(s)`;
+      }
+    }
+    return this.breakdownMessage(item) ? `${name}: ${this.breakdownMessage(item)}` : '';
+  }
+
+  private toItemDto(item: GrnLineItem): CreateGrnItemDto {
+    const dto: CreateGrnItemDto = { poItemId: item.id, receivedQty: item.receivedQty };
+    if (Number(item.damagedQty ?? 0) > 0) dto.damagedQty = Number(item.damagedQty);
+    if (Number(item.rejectedQty ?? 0) > 0) dto.rejectedQty = Number(item.rejectedQty);
+    if (this.isPackTracked(item) && (isEntered(item.acceptedSealedPacks) || isEntered(item.acceptedLooseQty))) {
+      dto.acceptedSealedPacks = Number(item.acceptedSealedPacks ?? 0);
+      dto.acceptedLooseQty = Number(item.acceptedLooseQty ?? 0);
+    }
+    return dto;
   }
 
   getPoReference(po: PurchaseOrderForGrn): string {
@@ -140,14 +278,19 @@ export class GrnCreateComponent implements OnInit {
       this.alertService.error('Received quantities cannot be negative');
       return;
     }
+    const problem = this.lineItems().map(item => this.lineProblem(item)).find(message => !!message);
+    if (problem) {
+      this.alertService.error(problem);
+      return;
+    }
+    if (this.isSubmitting()) {
+      return;
+    }
 
     const dto: CreateGrnDto = {
       poId: +this.selectedPoId()!,
       receivedDate: this.toUtcIsoString(this.receivedDateTime(), this.companyDates.timeZone()),
-      items: this.lineItems().map(i => ({
-        poItemId: i.id,
-        receivedQty: i.receivedQty
-      }))
+      items: this.lineItems().map(i => this.toItemDto(i))
     };
 
     this.isSubmitting.set(true);

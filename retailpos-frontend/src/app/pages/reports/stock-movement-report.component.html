@@ -103,19 +103,19 @@
     @if (summary()) {
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mx-4 mb-4 flex-shrink-0">
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Opening Stock</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Opening Stock', 'Opening Stock (pcs)') }}</p>
           <p class="text-lg font-bold text-gray-700">{{ summary()!.totalOpeningStock | number }}</p>
         </div>
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Total Stock In</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Total Stock In', 'Total Stock In (pcs)') }}</p>
           <p class="text-lg font-bold text-green-700">+{{ summary()!.totalStockIn | number }}</p>
         </div>
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Total Stock Out</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Total Stock Out', 'Total Stock Out (pcs)') }}</p>
           <p class="text-lg font-bold text-red-600">{{ summary()!.totalStockOut | number }}</p>
         </div>
         <div class="card p-3">
-          <p class="text-xs text-gray-500">Closing Stock</p>
+          <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Closing Stock', 'Closing Stock (pcs)') }}</p>
           <p class="text-lg font-bold text-blue-700">{{ summary()!.totalClosingStock | number }}</p>
         </div>
         <div class="card p-3">
@@ -200,18 +200,18 @@
                   {{ row.locationName }}
                   <span class="text-xs text-gray-400 ml-1">({{ row.locationType }})</span>
                 </td>
-                <td class="text-right text-gray-600">{{ row.openingStock | number }}</td>
+                <td class="text-right text-gray-600">{{ row.openingStock | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
                 <td class="text-right text-green-700 font-semibold">
-                  {{ row.stockIn > 0 ? '+' + (row.stockIn | number) : '—' }}
+                  {{ row.stockIn > 0 ? '+' + (row.stockIn | number:'1.0-6') + units.suffix(row.variantId) : '—' }}
                 </td>
                 <td class="text-right text-red-600 font-semibold">
-                  {{ row.stockOut > 0 ? (row.stockOut | number) : '—' }}
+                  {{ row.stockOut > 0 ? (row.stockOut | number:'1.0-6') + units.suffix(row.variantId) : '—' }}
                 </td>
                 <td class="text-right font-bold"
                     [class.text-blue-700]="row.closingStock > 0"
                     [class.text-red-600]="row.closingStock < 0"
                     [class.text-gray-400]="row.closingStock === 0">
-                  {{ row.closingStock | number }}
+                  {{ row.closingStock | number:'1.0-6' }}{{ units.suffix(row.variantId) }}
                 </td>
                 <td class="text-right" [ngClass]="netMovementClass(row.netMovement)">
                   {{ netMovementLabel(row.netMovement) }}
@@ -241,10 +241,10 @@
                     TOTAL ({{ totalCount() | number }} rows)
                   </td>
                   <td></td><td></td>
-                  <td class="text-right text-blue-800">{{ summary()!.totalOpeningStock | number }}</td>
-                  <td class="text-right text-green-700">+{{ summary()!.totalStockIn | number }}</td>
-                  <td class="text-right text-red-600">{{ summary()!.totalStockOut | number }}</td>
-                  <td class="text-right text-blue-800">{{ summary()!.totalClosingStock | number }}</td>
+                  <td class="text-right text-blue-800">{{ summary()!.totalOpeningStock | number }}{{ units.pcsSuffix() }}</td>
+                  <td class="text-right text-green-700">+{{ summary()!.totalStockIn | number }}{{ units.pcsSuffix() }}</td>
+                  <td class="text-right text-red-600">{{ summary()!.totalStockOut | number }}{{ units.pcsSuffix() }}</td>
+                  <td class="text-right text-blue-800">{{ summary()!.totalClosingStock | number }}{{ units.pcsSuffix() }}</td>
                   <td class="text-right" [ngClass]="netMovementClass(summary()!.netMovement)">
                     {{ netMovementLabel(summary()!.netMovement) }}
                   </td>

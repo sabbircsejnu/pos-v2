@@ -139,6 +139,8 @@ public sealed class StockTransferReadStore(RetailPOSDbContext dbContext)
             .Include(transfer => transfer.Approver)
             .Include(transfer => transfer.Creator)
             .Include(transfer => transfer.Items)
+                .ThenInclude(item => item.Allocations)
+            .Include(transfer => transfer.Items)
                 .ThenInclude(item => item.Variant)
                     .ThenInclude(variant => variant.Product)
                         .ThenInclude(product => product.Images.Where(image => image.IsPrimary));
@@ -252,7 +254,14 @@ public sealed class StockTransferReadStore(RetailPOSDbContext dbContext)
                             ? systemReturn!.Items
                                 .Where(line => line.VariantId == item.VariantId)
                                 .Sum(ResolveTransferQuantity)
-                            : 0)).ToArray(),
+                            : 0,
+                    item.Allocations
+                        .Select(allocation => new RetailPOS.Application.Uom.TransferAllocationInput(
+                            allocation.State, allocation.PackCode, allocation.BaseQtyPerPack, allocation.PackCount, allocation.BaseQuantity))
+                        .ToArray(),
+                    item.UomUnitCode,
+                    item.UomLabel,
+                    item.UomEnteredQuantity)).ToArray(),
                 transfer.OriginalTransferId,
                 systemReturn?.Id,
                 systemReturn?.TransferNo));

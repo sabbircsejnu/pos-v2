@@ -8,7 +8,8 @@ import { GrnService } from '../../services/grn.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { DocumentPdfService } from '../../services/document-pdf.service';
-import { Grn } from '../../models/grn.model';
+import { Grn, GrnItem } from '../../models/grn.model';
+import { formatUnitQuantity } from '../../services/uom.service';
 
 @Component({
   selector: 'app-grn-details',
@@ -124,6 +125,21 @@ export class GrnDetailsComponent implements OnInit {
       case 'partial': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  }
+
+  /** Whether the lines carry damaged, rejected or unit details. A plain pcs GRN keeps its original table. */
+  showDamageColumns(): boolean {
+    return (this.grn()?.items ?? []).some(item => Number(item.damagedQty ?? 0) > 0 || Number(item.rejectedQty ?? 0) > 0);
+  }
+
+  quantityText(quantity: number | null | undefined, item: GrnItem): string {
+    return item.uomBaseUnitCode ? formatUnitQuantity(quantity, item.uomBaseUnitCode) : String(quantity ?? 0);
+  }
+
+  /** How the accepted quantity was physically received. Empty when the item does not track it. */
+  packBreakdown(item: GrnItem): string {
+    if (item.acceptedSealedPacks === null || item.acceptedSealedPacks === undefined) return '';
+    return `${item.acceptedSealedPacks} sealed + ${formatUnitQuantity(item.acceptedLooseQty, item.uomBaseUnitCode)} loose`;
   }
 
   getVarianceClass(variance: number): string {

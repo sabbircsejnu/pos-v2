@@ -9,6 +9,8 @@ import { WarehouseService } from '../../services/warehouse.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 
+import { injectVariantUnits } from '../../utils/variant-units';
+
 @Component({
   selector: 'app-low-stock-report',
   standalone: true,
@@ -66,6 +68,7 @@ export class LowStockReportComponent implements OnInit, OnDestroy {
   // ── Computed ──────────────────────────────────────────────────────────────
   report     = computed(() => this.reportService.lowStockReport());
   rows       = computed(() => this.report()?.items ?? []);
+  readonly units = injectVariantUnits(() => this.rows().map(row => row.variantId));
   summary    = computed(() => this.report()?.summary ?? null);
   totalCount = computed(() => this.report()?.totalCount ?? 0);
   totalPages = computed(() =>

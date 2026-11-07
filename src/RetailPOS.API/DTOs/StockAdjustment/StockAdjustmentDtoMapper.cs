@@ -37,7 +37,14 @@ internal static class StockAdjustmentDtoMapper
             QuantityChange = line.QuantityChange,
             NewQuantity = line.NewQuantity,
             Reason = line.Reason,
-            Notes = line.Notes
+            Notes = line.Notes,
+            PackState = line.PackState,
+            PackCode = line.PackCode,
+            BaseQtyPerPack = line.BaseQtyPerPack,
+            UomUnitCode = line.UomUnitCode,
+            UomLabel = line.UomLabel,
+            UomEnteredQuantity = line.UomEnteredQuantity,
+            UomOptionId = line.UomOptionId
         }).ToList(),
         AdjustedBy = adjustment.AdjustedBy,
         AdjusterName = adjustment.AdjusterName,

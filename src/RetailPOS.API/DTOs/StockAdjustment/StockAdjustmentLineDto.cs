@@ -13,4 +13,11 @@ public class StockAdjustmentLineDto
     public decimal NewQuantity { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public string? PackState { get; set; }
+    public string? PackCode { get; set; }
+    public decimal? BaseQtyPerPack { get; set; }
+    public string? UomUnitCode { get; set; }
+    public string? UomLabel { get; set; }
+    public decimal? UomEnteredQuantity { get; set; }
+    public long? UomOptionId { get; set; }
 }

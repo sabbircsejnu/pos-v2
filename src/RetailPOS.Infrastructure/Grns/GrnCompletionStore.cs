@@ -127,9 +127,12 @@ public sealed class GrnCompletionStore(
                 if (packState is not null && uomConfigs.TryGetValue(variantId, out var uomConfig) && uomConfig.PackStateTrackingEnabled)
                 {
                     var snapshot = item.PurchaseOrderItem.ReadUomSnapshot();
+                    var sealedOptions = snapshot?.OptionId is { } snapshotOption
+                        ? await uomReader!.GetSealedOptionIdsAsync([snapshotOption], cancellationToken)
+                        : new HashSet<long>();
                     var breakdown = RetailPOS.Application.Uom.PurchaseUomRules.Breakdown(
                         item.ReceivedQty, item.AcceptedSealedPacks, item.AcceptedLooseQuantity, snapshot,
-                        uomConfig.PurchaseOptions.Any(option => option.Id == snapshot?.OptionId && option.IsSealedPack));
+                        snapshot?.OptionId is { } lineOption && sealedOptions.Contains(lineOption));
                     item.AcceptedSealedPacks = breakdown.SealedPacks;
                     item.AcceptedLooseQuantity = breakdown.LooseQuantity;
                     await RetailPOS.Application.Uom.PurchaseUomRules.ApplyReceiptAsync(

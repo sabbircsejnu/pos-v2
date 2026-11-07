@@ -399,6 +399,18 @@ export const routes: Routes = [
       { path: 'products/edit/:id', component: ProductForm, canActivate: [routePermissionGuard], data: { permissions: ['products.edit'] } },
       { path: 'products/:id', component: ProductDetailComponent, canActivate: [routePermissionGuard], data: { permissions: ['products.view'] } },
       {
+        path: 'products/:productId/variants/:variantId/units',
+        loadComponent: () => import('./pages/uom/variant-units-page.component').then(page => page.VariantUnitsPageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['products.edit'] }
+      },
+      {
+        path: 'uom/units',
+        loadComponent: () => import('./pages/uom/units-page.component').then(page => page.UomUnitsPageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['uom.view'] }
+      },
+      {
         path: 'barcode-labels',
         component: BarcodeLabelsComponent,
         canActivate: [routePermissionGuard],
@@ -409,6 +421,18 @@ export const routes: Routes = [
       // Inventory Management Routes
       { path: 'inventory', component: InventoryListComponent, canActivate: [routePermissionGuard], data: { permissions: ['inventory.view'] } },
       { path: 'inventory/low-stock', component: LowStockAlertsComponent, canActivate: [routePermissionGuard], data: { permissions: ['low_stock_alerts.view'] } },
+      {
+        path: 'inventory/pack-state',
+        loadComponent: () => import('./pages/uom/pack-state-page.component').then(page => page.PackStatePageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['inventory.pack_state.view'] }
+      },
+      {
+        path: 'inventory/repacking',
+        loadComponent: () => import('./pages/uom/repacking-page.component').then(page => page.RepackingPageComponent),
+        canActivate: [routePermissionGuard],
+        data: { permissions: ['inventory.repacking.view'] }
+      },
 
       // Supplier Management Routes
       { path: 'suppliers', component: SupplierListComponent, canActivate: [routePermissionGuard], data: { permissions: ['suppliers.view'] } },

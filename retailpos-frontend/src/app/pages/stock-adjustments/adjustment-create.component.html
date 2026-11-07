@@ -117,21 +117,33 @@
                           </div>
                         </td>
                         <td class="px-3 py-2.5 text-sm text-slate-700">{{ item.sku || '-' }}</td>
-                        <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ item.currentStock }}</td>
+                        <td class="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">{{ lineStockLabel(item, item.currentStock) }}</td>
                         <td class="px-3 py-2.5">
-                          <input
-                            type="number"
-                            [value]="item.quantityChange"
-                            (input)="updateLineQuantity(i, +$any($event.target).value)"
-                            class="h-9 w-28 rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
-                            [disabled]="isSubmitting()"
-                            placeholder="+/-" />
-                          @if (item.quantityChange === 0) {
-                            <p class="mt-1 text-[11px] text-rose-600">Qty cannot be 0</p>
+                          @if (item.uomConfig) {
+                            <app-adjustment-uom-fields
+                              [line]="item"
+                              [disabled]="isSubmitting()"
+                              [label]="item.productName"
+                              (entryChange)="updateLineEntry(i, $event)"
+                              (packChoiceChange)="updateLinePackChoice(i, $event)" />
+                          } @else {
+                            <input
+                              type="number"
+                              [value]="item.quantityChange"
+                              (input)="updateLineQuantity(i, +$any($event.target).value)"
+                              class="h-9 w-28 rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              [disabled]="isSubmitting()"
+                              placeholder="+/-" />
+                            @if (item.quantityChange === 0) {
+                              <p class="mt-1 text-[11px] text-rose-600">Qty cannot be 0</p>
+                            }
+                            @if (item.uomStatus === 'failed') {
+                              <p class="adjustment-uom-note">Units could not be loaded. Enter this in the item's base unit.</p>
+                            }
                           }
                         </td>
                         <td class="px-3 py-2.5 text-right text-sm font-semibold" [ngClass]="isLineNegativeInvalid(item) ? 'text-rose-700' : 'text-slate-900'">
-                          {{ getLineNewStock(item) }}
+                          {{ lineStockLabel(item, getLineNewStock(item)) }}
                           @if (isLineNegativeInvalid(item)) {
                             <p class="mt-1 text-[11px] font-normal text-rose-600">Negative stock not allowed</p>
                           }
@@ -239,15 +251,19 @@
               </div>
               <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
                 <span class="text-slate-600">Total Increase</span>
-                <span class="font-medium text-emerald-700">+{{ totals().totalIncrease }}</span>
+                <span class="font-medium text-emerald-700">@if (hasNonPcsLines()) { {{ totalLabel(1) || '-' }} } @else { +{{ totals().totalIncrease }} }</span>
               </div>
               <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
                 <span class="text-slate-600">Total Decrease</span>
-                <span class="font-medium text-rose-700">-{{ totals().totalDecrease }}</span>
+                <span class="font-medium text-rose-700">@if (hasNonPcsLines()) { {{ totalLabel(-1) || '-' }} } @else { -{{ totals().totalDecrease }} }</span>
               </div>
               <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
                 <span class="text-slate-600">Net Adjustment</span>
-                <span class="font-semibold" [ngClass]="totals().netAdjustment >= 0 ? 'text-emerald-700' : 'text-rose-700'">{{ totals().netAdjustment >= 0 ? '+' : '' }}{{ totals().netAdjustment }}</span>
+                @if (hasNonPcsLines()) {
+                  <span class="font-semibold">{{ totalLabel() }}</span>
+                } @else {
+                  <span class="font-semibold" [ngClass]="totals().netAdjustment >= 0 ? 'text-emerald-700' : 'text-rose-700'">{{ totals().netAdjustment >= 0 ? '+' : '' }}{{ totals().netAdjustment }}</span>
+                }
               </div>
             </div>
 

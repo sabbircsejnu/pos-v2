@@ -1,9 +1,10 @@
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
-import { Component, HostListener, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { AuthService } from '../../services/auth.service';
@@ -12,7 +13,12 @@ import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ProductImageService } from '../../services/product-image.service';
 import { ProductService } from '../../services/product.service';
 import { VariantSearchItem, VariantSearchPickerComponent } from '../../components/variant-search-picker/variant-search-picker.component';
-import { CreateStockTransferDto } from '../../models/stock-transfer.model';
+import { CreateStockTransferDto, CreateStockTransferItemDto } from '../../models/stock-transfer.model';
+import { PackStateBalanceRow, PackStateView, TransferAllocation, UOM_ERROR_MESSAGES, VariantUomConfig } from '../../models/uom.model';
+import { UomService, formatUnitQuantity } from '../../services/uom.service';
+import { UnitQuantityEntryComponent } from '../../components/shared/unit-quantity-entry.component';
+import { UiControlDirective } from '../../components/shared/ui/ui-control.directive';
+import { UnitEntry, entryError, findStockOption, looseOnHand, roundQuantity, toBaseQuantity, unitTotalLabel } from '../../utils/uom-quantity.util';
 import { findVariantIndexById } from '../../utils/variant-selection.util';
 import { UnsavedChangesAware, UnsavedChangesService } from '../../services/unsaved-changes.service';
 
@@ -28,8 +34,22 @@ interface TransferLineItem {
   primaryImageThumb?: string;
   availableStock: number | null;
   destinationStock: number | null;
+  /** Always in base units. For a configured item they preview `enteredQuantity`; the server converts. */
   requestedQuantity: number;
   transferQuantity: number;
+  uomStatus?: 'loading' | 'ready' | 'failed';
+  /** Null or absent means plain pcs, which behave as they always did. */
+  uomConfig?: VariantUomConfig | null;
+  unitOptionId?: number | null;
+  enteredQuantity?: number | null;
+  packStatus?: 'loading' | 'ready' | 'failed';
+  packView?: PackStateView | null;
+  /** Whole packs chosen per balance row, keyed by `packKey`. */
+  packCounts?: Record<string, number>;
+}
+
+function packKey(row: Pick<PackStateBalanceRow, 'state' | 'packCode' | 'baseQtyPerPack'>): string {
+  return `${row.state}|${row.packCode}|${row.baseQtyPerPack}`;
 }
 
 type TransferCreateAction = 'draft' | 'submit' | 'submit_dispatch';
@@ -37,7 +57,7 @@ type TransferCreateAction = 'draft' | 'submit' | 'submit_dispatch';
 @Component({
   selector: 'app-transfer-create',
   standalone: true,
-  imports: [UiDateInputDirective, CommonModule, FormsModule, VariantSearchPickerComponent],
+  imports: [UiDateInputDirective, CommonModule, FormsModule, VariantSearchPickerComponent, UnitQuantityEntryComponent, UiControlDirective],
   templateUrl: './transfer-create.component.html',
   styleUrls: ['./transfer-create.component.css']
 })
@@ -63,6 +83,7 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
   private initialSnapshot = '';
   private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
 
   existingVariantIds = computed(() => this.lineItems().map(i => i.variantId));
   canSelectFromLocation = computed(() => this.auth.hasPermission('stock_transfers.transfer_from_any_location'));
@@ -101,6 +122,14 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
       totalTransferQuantity: lines.reduce((sum, i) => sum + (Number(i.transferQuantity) || 0), 0),
     };
   });
+
+  /** The plain sum for pcs, one figure per unit otherwise. Unlike units are never added. */
+  totalTransferLabel = computed(() => unitTotalLabel(this.lineItems().map(line => ({
+    unitCode: this.lineUnit(line),
+    quantity: Number(line.transferQuantity) || 0
+  }))));
+
+  hasConfiguredLines = computed(() => this.lineItems().some(line => !!line.uomConfig));
 
   hasInvalidLineItems = computed(() =>
     this.lineItems().some(item => this.getTransferQuantityError(item) !== null)
@@ -277,7 +306,8 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
     const itemState = this.lineItems().map(item => ({
       variantId: item.variantId,
       requestedQuantity: Number(item.requestedQuantity) || 0,
-      transferQuantity: Number(item.transferQuantity) || 0
+      transferQuantity: Number(item.transferQuantity) || 0,
+      ...(item.uomConfig ? { unitOptionId: item.unitOptionId ?? null, enteredQuantity: item.enteredQuantity ?? null, packCounts: item.packCounts ?? {} } : {})
     }));
 
     return JSON.stringify({
@@ -358,7 +388,7 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
       && this.destinationOutlets().some((location: any) => location.id === toId);
     if (params.get('fromLocationType') !== 'outlet' || params.get('toLocationType') !== 'outlet'
       || !sourceAllowed || !destinationAllowed || !Number.isInteger(variantId) || variantId <= 0
-      || !Number.isInteger(quantity) || quantity <= 0 || !sku) {
+      || !Number.isFinite(quantity) || quantity <= 0 || !sku) {
       this.alertService.warning('This recommendation could not be applied to your transfer locations.');
       return;
     }
@@ -369,16 +399,27 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
     this.toLocationId.set(toId);
 
     // Live stock at the source comes from the same lookup the product search uses, not from the recommendation.
-    this.injector.get(ProductService).searchVariants(sku, 1, 20, fromId, 'outlet').subscribe({
-      next: (response: any) => {
-        const match = (response?.data || []).find((variant: any) => variant.id === variantId);
+    // The quantity is in base units, so it may be fractional only for an item whose base unit allows it.
+    forkJoin({
+      search: this.injector.get(ProductService).searchVariants(sku, 1, 20, fromId, 'outlet'),
+      configs: this.injector.get(UomService).getVariantConfigs([variantId]).pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ search, configs }: { search: { data?: VariantSearchItem[] } | null; configs: VariantUomConfig[] | null }) => {
+        const match = (search?.data || []).find(variant => variant.id === variantId);
         if (!match) {
           this.alertService.warning('The recommended variant is no longer available at the source.');
           this.markAsPristine();
           return;
         }
 
-        this.onVariantSelected({
+        const config = configs?.find(candidate => candidate.variantId === variantId) ?? null;
+        if (!config && !Number.isInteger(quantity)) {
+          this.alertService.warning('This recommendation could not be applied to your transfer locations.');
+          this.markAsPristine();
+          return;
+        }
+
+        const added = this.addLine({
           id: match.id,
           productCode: match.productCode,
           sku: match.sku,
@@ -391,7 +432,10 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
           stockQuantity: match.stockQuantity,
           primaryImageThumb: match.primaryImageThumb
         });
-        this.updateTransferQuantity(0, quantity);
+        if (added) {
+          this.applyLineConfig(variantId, config, configs === null);
+          this.updateTransferQuantity(0, quantity);
+        }
         this.markAsPristine();
       },
       error: (err) => this.alertService.error(this.errorHandler.extractErrorMessage(err))
@@ -505,16 +549,22 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
   }
 
   onVariantSelected(variant: VariantSearchItem): void {
+    if (this.addLine(variant)) {
+      this.loadLineConfig(variant.id);
+    }
+  }
+
+  private addLine(variant: VariantSearchItem): boolean {
     if (!this.fromLocationId()) {
       this.alertService.warning('Select source location first before adding products.');
-      return;
+      return false;
     }
 
     const duplicateIndex = findVariantIndexById(this.lineItems(), variant.id);
     if (duplicateIndex !== -1) {
       this.alertService.warning('This variant is already added in another line');
       this.highlightDuplicateRow(duplicateIndex);
-      return;
+      return false;
     }
 
     this.lineItems.update(items => [
@@ -532,32 +582,207 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
         availableStock: variant.stockQuantity ?? null,
         destinationStock: null,
         requestedQuantity: 1,
-        transferQuantity: 1
+        transferQuantity: 1,
+        uomStatus: 'loading'
       }
     ]);
+    return true;
+  }
+
+  private loadLineConfig(variantId: number): void {
+    this.injector.get(UomService).getVariantConfigs([variantId])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: configs => this.applyLineConfig(variantId, configs.find(config => config.variantId === variantId) ?? null, false),
+        error: () => this.applyLineConfig(variantId, null, true)
+      });
+  }
+
+  /** The line keeps its base quantity: the base unit stays selected until the user chooses another. */
+  private applyLineConfig(variantId: number, config: VariantUomConfig | null, failed: boolean): void {
+    this.patchLine(variantId, line => ({
+      ...line,
+      uomStatus: failed ? 'failed' : 'ready',
+      uomConfig: config,
+      ...(config ? { unitOptionId: null, enteredQuantity: line.transferQuantity } : {}),
+      ...(config?.packStateTrackingEnabled ? { packCounts: {} } : {})
+    }));
+    if (config?.packStateTrackingEnabled) {
+      this.loadPackState(variantId);
+    }
+  }
+
+  loadPackState(variantId: number): void {
+    const locationId = this.fromLocationId();
+    if (!locationId) {
+      return;
+    }
+    this.patchLine(variantId, line => ({ ...line, packStatus: 'loading' }));
+    this.injector.get(UomService).getPackState(variantId, locationId, this.fromLocationType())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: view => this.patchLine(variantId, line => ({ ...line, packStatus: 'ready', packView: view })),
+        error: () => this.patchLine(variantId, line => ({ ...line, packStatus: 'failed', packView: null }))
+      });
+  }
+
+  private patchLine(variantId: number, change: (line: TransferLineItem) => TransferLineItem): void {
+    this.lineItems.update(items => items.map(line => (line.variantId === variantId ? change(line) : line)));
+  }
+
+  /** Requested follows transfer on a direct transfer, and never falls below it otherwise. */
+  private withTransferQuantity(line: TransferLineItem, transfer: number): TransferLineItem {
+    const requested = this.transferType() === 'direct'
+      ? transfer
+      : (line.requestedQuantity < transfer ? transfer : line.requestedQuantity);
+    return { ...line, transferQuantity: transfer, requestedQuantity: requested };
   }
 
   updateTransferQuantity(index: number, qty: number): void {
+    const current = this.lineItems()[index];
+    if (current?.uomConfig) {
+      this.updateTransferEntry(index, { unitOptionId: current.unitOptionId ?? null, quantity: qty });
+      return;
+    }
+
     this.lineItems.update(items => {
       const updated = [...items];
-      const transfer = Number.isFinite(qty) ? qty : 0;
+      updated[index] = this.withTransferQuantity(updated[index], Number.isFinite(qty) ? qty : 0);
+      return updated;
+    });
+  }
 
-      const requested = this.transferType() === 'direct'
-        ? transfer
-        : (updated[index].requestedQuantity < transfer ? transfer : updated[index].requestedQuantity);
-
+  updateTransferEntry(index: number, entry: UnitEntry): void {
+    this.lineItems.update(items => {
+      const updated = [...items];
+      const line = updated[index];
+      const config = line.uomConfig;
+      if (!config) {
+        return items;
+      }
+      const base = entry.quantity && entry.quantity > 0 ? toBaseQuantity(config, entry.unitOptionId, entry.quantity) ?? 0 : 0;
       updated[index] = {
-        ...updated[index],
-        transferQuantity: transfer,
-        requestedQuantity: requested
+        ...this.withTransferQuantity(line, base),
+        unitOptionId: entry.unitOptionId,
+        enteredQuantity: entry.quantity,
+        packCounts: this.defaultPackCounts(line, entry)
       };
       return updated;
     });
   }
 
+  /** Entering a sealed purchase unit means those sealed packs move, until the user says otherwise. */
+  private defaultPackCounts(line: TransferLineItem, entry: UnitEntry): Record<string, number> | undefined {
+    const option = line.uomConfig ? findStockOption(line.uomConfig, entry.unitOptionId) : null;
+    const row = option?.isSealedPack
+      ? line.packView?.balances.find(balance => balance.state === 'sealed' && balance.packCode === option.code && balance.baseQtyPerPack === option.baseQuantityPerUnit)
+      : undefined;
+    return row && Number.isInteger(entry.quantity) ? { [packKey(row)]: entry.quantity as number } : line.packCounts;
+  }
+
+  updatePackCount(index: number, row: PackStateBalanceRow, value: number | null): void {
+    this.lineItems.update(items => {
+      const updated = [...items];
+      updated[index] = {
+        ...updated[index],
+        packCounts: { ...updated[index].packCounts, [packKey(row)]: Number(value) || 0 }
+      };
+      return updated;
+    });
+  }
+
+  lineUnit(line: TransferLineItem): string {
+    return line.uomConfig?.baseUnit.code ?? 'pcs';
+  }
+
+  isPackTracked(line: TransferLineItem): boolean {
+    return !!line.uomConfig?.packStateTrackingEnabled;
+  }
+
+  /** Sealed and prepared stock at the source that this line can move. */
+  packRows(line: TransferLineItem): PackStateBalanceRow[] {
+    return (line.packView?.balances ?? []).filter(row => row.state !== 'loose' && row.packCount > 0);
+  }
+
+  packCount(line: TransferLineItem, row: PackStateBalanceRow): number {
+    return line.packCounts?.[packKey(row)] ?? 0;
+  }
+
+  /** What is left of the moved quantity after whole packs. It moves as loose stock. */
+  looseRemainder(line: TransferLineItem): number {
+    const packed = this.packRows(line).reduce((sum, row) => sum + this.packCount(line, row) * row.baseQtyPerPack, 0);
+    return roundQuantity(line.transferQuantity - packed);
+  }
+
+  formatBase(line: TransferLineItem, quantity: number): string {
+    return formatUnitQuantity(quantity, this.lineUnit(line));
+  }
+
+  /** The allocations sent with a pack-tracked line. They add up to the moved quantity when the line is valid. */
+  buildAllocations(line: TransferLineItem): TransferAllocation[] {
+    const allocations: TransferAllocation[] = this.packRows(line)
+      .filter(row => this.packCount(line, row) > 0)
+      .map(row => ({
+        state: row.state,
+        packCode: row.packCode,
+        baseQtyPerPack: row.baseQtyPerPack,
+        packCount: this.packCount(line, row),
+        baseQuantity: roundQuantity(this.packCount(line, row) * row.baseQtyPerPack)
+      }));
+    const loose = this.looseRemainder(line);
+    if (loose > 0) {
+      allocations.push({ state: 'loose', packCode: null, baseQtyPerPack: 0, packCount: 0, baseQuantity: loose });
+    }
+    return allocations;
+  }
+
+  getAllocationError(line: TransferLineItem): string | null {
+    if (!this.isPackTracked(line)) {
+      return null;
+    }
+    if (line.packStatus === 'loading') {
+      return 'Checking sealed and loose stock at the source...';
+    }
+    if (line.packStatus === 'failed' || !line.packView) {
+      return 'Sealed and loose stock could not be loaded.';
+    }
+    for (const row of this.packRows(line)) {
+      const count = this.packCount(line, row);
+      if (!Number.isInteger(count) || count < 0) {
+        return 'Sealed and prepared stock moves in whole packs.';
+      }
+      if (count > row.packCount) {
+        return `Only ${row.packCount} ${row.state} ${row.packCode} available.`;
+      }
+    }
+    const loose = this.looseRemainder(line);
+    if (loose < 0) {
+      return 'The packs selected are more than the quantity being moved.';
+    }
+    if (loose > looseOnHand(line.packView)) {
+      return UOM_ERROR_MESSAGES['UOM_INSUFFICIENT_LOOSE_STOCK'];
+    }
+    return null;
+  }
+
   getTransferQuantityError(item: TransferLineItem): string | null {
+    if (item.uomStatus === 'loading') {
+      return 'Checking the units of this item...';
+    }
+
+    if (item.uomConfig) {
+      const error = entryError(item.uomConfig, item.unitOptionId, item.enteredQuantity);
+      if (error) {
+        return error;
+      }
+    }
+
     if (!item.transferQuantity || item.transferQuantity <= 0) {
       return 'Transfer quantity must be greater than 0.';
+    }
+
+    if (!item.uomConfig && !Number.isInteger(item.transferQuantity)) {
+      return 'Transfer quantity must be a whole number.';
     }
 
     if (item.availableStock !== null && item.transferQuantity > item.availableStock) {
@@ -568,7 +793,27 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
       return 'Transfer quantity cannot exceed requested quantity.';
     }
 
-    return null;
+    return this.getAllocationError(item);
+  }
+
+  private toItemDto(line: TransferLineItem): CreateStockTransferItemDto {
+    const dto: CreateStockTransferItemDto = {
+      variantId: line.variantId,
+      quantity: line.transferQuantity,
+      requestedQuantity: line.requestedQuantity,
+      transferQuantity: line.transferQuantity,
+      unitCost: 0
+    };
+    if (!line.uomConfig) {
+      return dto;
+    }
+    return {
+      ...dto,
+      enteredQuantity: line.enteredQuantity ?? undefined,
+      unitOptionId: line.unitOptionId ?? null,
+      expectedConfigVersionId: line.uomConfig.configId,
+      ...(this.isPackTracked(line) ? { allocations: this.buildAllocations(line) } : {})
+    };
   }
 
   onSubmit(): void {
@@ -629,6 +874,15 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
       return;
     }
 
+    if (this.hasInvalidLineItems()) {
+      this.alertService.error('Please fix the invalid transfer lines');
+      return;
+    }
+
+    if (this.isSubmitting()) {
+      return;
+    }
+
     const dto: CreateStockTransferDto = {
       transferType: this.transferType(),
       fromLocationId: this.fromLocationId()!,
@@ -637,13 +891,7 @@ export class TransferCreateComponent implements OnInit, UnsavedChangesAware {
       toLocationType: this.toLocationType(),
       transferDate: this.transferDate(),
       notes: this.notes().trim() || undefined,
-      items: this.lineItems().map(i => ({
-        variantId: i.variantId,
-        quantity: i.transferQuantity,
-        requestedQuantity: i.requestedQuantity,
-        transferQuantity: i.transferQuantity,
-        unitCost: 0
-      }))
+      items: this.lineItems().map(line => this.toItemDto(line))
     };
 
     this.isSubmitting.set(true);

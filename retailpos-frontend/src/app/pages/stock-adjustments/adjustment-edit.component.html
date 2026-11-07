@@ -42,9 +42,37 @@
         </div>
       </div>
 
+      @if (unitsFailed()) {
+        <div class="adjustment-edit-notice" role="status">
+          <p>The units of these items could not be loaded. Saving keeps each line as it is.</p>
+          <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50" (click)="loadLineConfigs(adj)">Retry</button>
+        </div>
+      }
+
+      @if (configuredLines().length) {
+        <section class="adjustment-edit-units" aria-label="Lines measured in units">
+          <h2 class="adjustment-edit-units__title">Lines with units</h2>
+          <p class="adjustment-edit-units__hint">The server converts each quantity to the item's base unit when the draft is saved.</p>
+          @for (row of configuredLines(); track row.line.variantId) {
+            <div class="adjustment-edit-units__line">
+              <div>
+                <div class="adjustment-edit-units__name">{{ row.line.productName }}</div>
+                <div class="adjustment-edit-units__sku">{{ row.line.variantSku }}</div>
+              </div>
+              <app-adjustment-uom-fields
+                [line]="row.line"
+                [disabled]="isSaving()"
+                [label]="row.line.productName"
+                (entryChange)="updateLineEntry(row.index, $event)"
+                (packChoiceChange)="updateLinePackChoice(row.index, $event)" />
+            </div>
+          }
+        </section>
+      }
+
       <div class="flex justify-end gap-2">
-        <button (click)="cancel()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-        <button (click)="save()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">Save Changes</button>
+        <button (click)="cancel()" [disabled]="isSaving()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+        <button (click)="save()" [disabled]="!canSave()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">Save Changes</button>
       </div>
     </div>
   }

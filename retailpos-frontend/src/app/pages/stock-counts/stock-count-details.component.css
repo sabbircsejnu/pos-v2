@@ -1,3 +1,11 @@
 :host {
   display: block;
 }
+
+.count-by-unit {
+  display: block;
+  margin-top: var(--rp-space-1);
+  color: var(--rp-color-text-link);
+  font-size: var(--rp-text-helper-size);
+  font-weight: var(--rp-font-weight-medium);
+}

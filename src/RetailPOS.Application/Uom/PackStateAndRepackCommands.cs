@@ -183,7 +183,16 @@ public interface IRepackStore
     Task<bool> LocationBelongsToBusinessAsync(long businessId, long locationId, string locationType, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
     Task<RepackJobReadModel?> ReadAsync(long businessId, long jobId, CancellationToken cancellationToken);
-    Task<RepackJobPage> ListAsync(long businessId, long? locationId, string? locationType, string? status, int page, int pageSize, CancellationToken cancellationToken);
+    Task<RepackJobPage> ListAsync(
+        long businessId,
+        long? locationId,
+        string? locationType,
+        string? status,
+        int page,
+        int pageSize,
+        IReadOnlyList<long>? readableOutlets,
+        IReadOnlyList<long>? readableWarehouses,
+        CancellationToken cancellationToken);
 }
 
 public sealed record GetRepackJobsQuery(long? LocationId, string? LocationType, string? Status, int Page = 1, int PageSize = 25) : IQuery<RepackJobPage>;
@@ -191,15 +200,20 @@ public sealed record GetRepackJobsQuery(long? LocationId, string? LocationType, 
 public sealed class GetRepackJobsQueryHandler(IRepackStore store, IUomOperationScope scope)
     : IRequestHandler<GetRepackJobsQuery, RepackJobPage>
 {
-    public Task<RepackJobPage> Handle(GetRepackJobsQuery request, CancellationToken cancellationToken) =>
-        store.ListAsync(
+    public async Task<RepackJobPage> Handle(GetRepackJobsQuery request, CancellationToken cancellationToken)
+    {
+        var (outlets, warehouses) = await scope.GetReadableLocationsAsync(cancellationToken);
+        return await store.ListAsync(
             scope.RequireBusinessId(),
             request.LocationId,
             request.LocationType,
             request.Status,
             Math.Max(request.Page, 1),
             Math.Clamp(request.PageSize, 1, 100),
+            outlets,
+            warehouses,
             cancellationToken);
+    }
 }
 
 public sealed record GetRepackJobQuery(long JobId) : IQuery<RepackJobReadModel>;
@@ -207,9 +221,13 @@ public sealed record GetRepackJobQuery(long JobId) : IQuery<RepackJobReadModel>;
 public sealed class GetRepackJobQueryHandler(IRepackStore store, IUomOperationScope scope)
     : IRequestHandler<GetRepackJobQuery, RepackJobReadModel>
 {
-    public async Task<RepackJobReadModel> Handle(GetRepackJobQuery request, CancellationToken cancellationToken) =>
-        await store.ReadAsync(scope.RequireBusinessId(), request.JobId, cancellationToken)
+    public async Task<RepackJobReadModel> Handle(GetRepackJobQuery request, CancellationToken cancellationToken)
+    {
+        var job = await store.ReadAsync(scope.RequireBusinessId(), request.JobId, cancellationToken)
             ?? throw new KeyNotFoundException($"Repack job {request.JobId} not found");
+        await scope.AuthorizeReadLocationAsync(job.LocationId, job.LocationType, cancellationToken);
+        return job;
+    }
 }
 
 public sealed record CreateRepackJobCommand(
@@ -279,11 +297,13 @@ public sealed class CreateRepackJobCommandHandler(
                 })
                 .ToList()
         };
+        await using var transaction = await store.BeginAsync(cancellationToken);
         await store.AddAsync(job, cancellationToken);
         await store.SaveChangesAsync(cancellationToken);
         await audit.RecordAsync($"Repack job {job.Reference} created", "RepackJob", job.Id.ToString(),
             new Dictionary<string, object?> { ["sourceVariantId"] = job.SourceVariantId, ["outputCount"] = job.OutputCount, ["pack"] = job.OutputPackCode },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return (await store.ReadAsync(businessId, job.Id, cancellationToken))!;
     }
 }

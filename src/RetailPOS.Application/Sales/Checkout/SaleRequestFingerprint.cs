@@ -33,6 +33,13 @@ public static class SaleRequestFingerprint
             Append(canonical, item.Quantity.ToString("0.######", CultureInfo.InvariantCulture));
             Append(canonical, item.UnitPrice);
             Append(canonical, item.DiscountAmount);
+            // Appended only when supplied, so a pcs request keeps its fingerprint.
+            if (item.SellingOptionId.HasValue)
+            {
+                Append(canonical, item.SellingOptionId);
+                Append(canonical, item.FulfilmentState?.Trim().ToLowerInvariant());
+                Append(canonical, item.IncludePackaging ? "packaging" : "no-packaging");
+            }
         }
 
         foreach (var payment in request.Payments)

@@ -151,6 +151,12 @@ export interface SalesTrend {
   targetStatus: MetricStatus;
 }
 
+/** A quantity in one unit. Unlike units are listed side by side and never added together. */
+export interface UnitQuantity {
+  unitCode: string;
+  quantity: number;
+}
+
 export type StockValuationStatus = 'no_stock' | 'valued' | 'zero_cost' | 'partial' | 'not_valued';
 
 /** How much of some stock has a reliable value. Unknown cost is never counted as zero. */
@@ -183,6 +189,8 @@ export interface InventorySummary {
   dataQualityWarnings: string[];
   valuation: StockValuationCoverage;
   slowMovingValuation: StockValuationCoverage;
+  /** `totalStockQuantity` covers pcs only; every unit appears here. */
+  quantityByUnit?: UnitQuantity[] | null;
 }
 
 export interface StockValueByLocationRow {
@@ -193,6 +201,7 @@ export interface StockValueByLocationRow {
   stockValue: number | null;
   percentOfTotal: number | null;
   valuation: StockValuationCoverage;
+  quantityByUnit?: UnitQuantity[] | null;
 }
 
 export interface StockValueByLocation {
@@ -215,6 +224,7 @@ export interface BestSellerRow {
   netUnitsSold: number;
   netSales: number;
   currentAvailableStock: number;
+  baseUnitCode?: string;
 }
 
 export type SlowClassification = 'zero_sales' | 'never_sold' | 'low_sales';
@@ -237,6 +247,7 @@ export interface SlowMoverRow {
   velocityPerDay: number | null;
   classification: SlowClassification;
   reason: string;
+  baseUnitCode?: string;
 }
 
 export interface SlowMovers {
@@ -278,6 +289,7 @@ export interface TransferOpportunity {
   priority: TransferPriority;
   reasonCodes: string[];
   canInitiate: boolean;
+  baseUnitCode?: string;
 }
 
 export interface TransferOpportunities {
@@ -299,6 +311,7 @@ export interface ProductInsightLocation {
   netSales: number;
   stockValue: number | null;
   daysSinceLastSale: number | null;
+  baseUnitCode?: string;
 }
 
 export interface ProductInsights {
@@ -313,4 +326,5 @@ export interface ProductInsights {
   totalStockValue: number | null;
   locations: ProductInsightLocation[];
   valuation: StockValuationCoverage;
+  quantityByUnit?: UnitQuantity[] | null;
 }

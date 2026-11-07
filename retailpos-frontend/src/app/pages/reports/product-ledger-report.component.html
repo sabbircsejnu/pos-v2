@@ -172,19 +172,19 @@
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mx-4 mb-4 flex-shrink-0">
         <div class="card p-3">
           <p class="text-xs text-gray-500">Opening Stock</p>
-          <p class="text-lg font-bold text-gray-700">{{ summary()!.openingStock | number }}</p>
+          <p class="text-lg font-bold text-gray-700">{{ units.allRowsTotal(summary()!.openingStock | number) }}</p>
         </div>
         <div class="card p-3">
           <p class="text-xs text-gray-500">Total Stock In</p>
-          <p class="text-lg font-bold text-green-700">+{{ summary()!.totalStockIn | number }}</p>
+          <p class="text-lg font-bold text-green-700">{{ units.distinctUnits().length > 1 ? '' : '+' }}{{ units.allRowsTotal(summary()!.totalStockIn | number) }}</p>
         </div>
         <div class="card p-3">
           <p class="text-xs text-gray-500">Total Stock Out</p>
-          <p class="text-lg font-bold text-red-600">-{{ summary()!.totalStockOut | number }}</p>
+          <p class="text-lg font-bold text-red-600">{{ units.distinctUnits().length > 1 ? '' : '-' }}{{ units.allRowsTotal(summary()!.totalStockOut | number) }}</p>
         </div>
         <div class="card p-3">
           <p class="text-xs text-gray-500">Closing Stock</p>
-          <p class="text-lg font-bold text-blue-700">{{ summary()!.closingStock | number }}</p>
+          <p class="text-lg font-bold text-blue-700">{{ units.allRowsTotal(summary()!.closingStock | number) }}</p>
         </div>
         <div class="card p-3">
           <p class="text-xs text-gray-500">Total Transaction Value</p>
@@ -250,21 +250,21 @@
                 <td class="font-mono text-xs text-gray-600">{{ row.referenceNumber }}</td>
                 <td class="font-mono text-xs text-gray-500">{{ row.sku }}</td>
                 <td class="text-sm text-gray-700">{{ row.locationName }}</td>
-                <td class="text-right text-gray-600">{{ row.openingQuantity | number }}</td>
+                <td class="text-right text-gray-600">{{ row.openingQuantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
                 <td class="text-right font-semibold"
                     [class.text-green-700]="row.stockIn > 0"
                     [class.text-gray-400]="row.stockIn === 0">
-                  {{ row.stockIn > 0 ? '+' + (row.stockIn | number) : '—' }}
+                  {{ row.stockIn > 0 ? '+' + (row.stockIn | number:'1.0-6') + units.suffix(row.variantId) : '—' }}
                 </td>
                 <td class="text-right font-semibold"
                     [class.text-red-600]="row.stockOut > 0"
                     [class.text-gray-400]="row.stockOut === 0">
-                  {{ row.stockOut > 0 ? '-' + (row.stockOut | number) : '—' }}
+                  {{ row.stockOut > 0 ? '-' + (row.stockOut | number:'1.0-6') + units.suffix(row.variantId) : '—' }}
                 </td>
                 <td class="text-right font-bold"
                     [class.text-blue-700]="row.closingQuantity > 0"
                     [class.text-red-600]="row.closingQuantity < 0">
-                  {{ row.closingQuantity | number }}
+                  {{ row.closingQuantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}
                 </td>
                 <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
                 <td class="text-right font-medium text-gray-800">{{ formatCurrency(row.transactionValue) }}</td>
@@ -296,13 +296,13 @@
                   </td>
                   <td></td><td></td><td></td><td></td>
                   <!-- Opening stock of first row -->
-                  <td class="text-right text-blue-800">{{ summary()!.openingStock | number }}</td>
+                  <td class="text-right text-blue-800">{{ units.allRowsTotal(summary()!.openingStock | number) }}</td>
                   <!-- Total stock in -->
-                  <td class="text-right text-green-700">+{{ summary()!.totalStockIn | number }}</td>
+                  <td class="text-right text-green-700">{{ units.distinctUnits().length > 1 ? '' : '+' }}{{ units.allRowsTotal(summary()!.totalStockIn | number) }}</td>
                   <!-- Total stock out -->
-                  <td class="text-right text-red-600">-{{ summary()!.totalStockOut | number }}</td>
+                  <td class="text-right text-red-600">{{ units.distinctUnits().length > 1 ? '' : '-' }}{{ units.allRowsTotal(summary()!.totalStockOut | number) }}</td>
                   <!-- Closing stock -->
-                  <td class="text-right text-blue-800">{{ summary()!.closingStock | number }}</td>
+                  <td class="text-right text-blue-800">{{ units.allRowsTotal(summary()!.closingStock | number) }}</td>
                   <td></td>
                   <!-- Total transaction value -->
                   <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalTransactionValue) }}</td>

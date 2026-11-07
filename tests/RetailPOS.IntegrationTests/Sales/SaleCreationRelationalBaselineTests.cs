@@ -495,7 +495,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 It.IsAny<Sale>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
-                It.IsAny<int>(),
+                It.IsAny<decimal>(),
                 It.IsAny<long?>(),
                 It.IsAny<long>(),
                 It.IsAny<CancellationToken>()))
@@ -533,7 +533,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 It.IsAny<Sale>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
-                It.IsAny<int>(),
+                It.IsAny<decimal>(),
                 It.IsAny<long?>(),
                 It.IsAny<long>(),
                 It.IsAny<CancellationToken>()))
@@ -575,7 +575,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<Sale>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
-            It.IsAny<int>(),
+            It.IsAny<decimal>(),
             It.IsAny<long?>(),
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -657,7 +657,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<Sale>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
-            It.IsAny<int>(),
+            It.IsAny<decimal>(),
             It.IsAny<long?>(),
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()), Times.Never);

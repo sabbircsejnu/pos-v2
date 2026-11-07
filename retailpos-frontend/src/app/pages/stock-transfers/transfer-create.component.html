@@ -82,7 +82,7 @@
                       <col class="w-24" />
                     }
                     <col class="w-28" />
-                    <col class="w-32" />
+                    <col [class.w-32]="!hasConfiguredLines()" [class.w-64]="hasConfiguredLines()" />
                     <col class="w-16" />
                   </colgroup>
                   <thead class="bg-slate-50">
@@ -132,20 +132,33 @@
                           }
                         </td>
                         @if (isRequisitionTransfer()) {
-                          <td class="px-3 py-2.5 align-top text-right text-sm font-semibold text-slate-900">{{ item.requestedQuantity }}</td>
+                          <td class="px-3 py-2.5 align-top text-right text-sm font-semibold text-slate-900">@if (item.uomConfig) { {{ formatBase(item, item.requestedQuantity) }} } @else { {{ item.requestedQuantity }} }</td>
                         }
-                        <td class="px-3 py-2.5 align-top text-right text-sm font-semibold text-slate-900">{{ item.availableStock ?? '-' }}</td>
+                        <td class="px-3 py-2.5 align-top text-right text-sm font-semibold text-slate-900">@if (item.uomConfig && item.availableStock !== null) { {{ formatBase(item, item.availableStock) }} } @else { {{ item.availableStock ?? '-' }} }</td>
                         <td class="px-3 py-2.5 align-top">
-                          <input
-                            type="number"
-                            [ngModel]="item.transferQuantity"
-                            (ngModelChange)="updateTransferQuantity(i, $event)"
-                            [ngModelOptions]="{ standalone: true }"
-                            min="1"
-                            class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
-                            [disabled]="isSubmitting()" />
+                          @if (item.uomConfig; as config) {
+                            <app-unit-quantity-entry
+                              [config]="config"
+                              [unitOptionId]="item.unitOptionId ?? null"
+                              [quantity]="item.enteredQuantity ?? null"
+                              [disabled]="isSubmitting()"
+                              [label]="item.productName"
+                              (entryChange)="updateTransferEntry(i, $event)" />
+                          } @else {
+                            <input
+                              type="number"
+                              [ngModel]="item.transferQuantity"
+                              (ngModelChange)="updateTransferQuantity(i, $event)"
+                              [ngModelOptions]="{ standalone: true }"
+                              min="1"
+                              class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              [disabled]="isSubmitting()" />
+                          }
                           @if (getTransferQuantityError(item)) {
                             <p class="mt-1 text-[11px] text-rose-600">{{ getTransferQuantityError(item) }}</p>
+                          }
+                          @if (item.uomStatus === 'failed') {
+                            <p class="transfer-uom-note">Units could not be loaded. Enter this quantity in the item's base unit.</p>
                           }
                         </td>
                         <td class="px-3 py-2.5 align-top text-center">
@@ -159,6 +172,29 @@
                           </button>
                         </td>
                       </tr>
+                      @if (isPackTracked(item)) {
+                        <tr>
+                          <td [attr.colspan]="isRequisitionTransfer() ? 7 : 6" class="transfer-alloc-cell">
+                            <div class="transfer-alloc" role="group" [attr.aria-label]="'Stock form of ' + item.productName">
+                              <span class="transfer-alloc__title">Stock form moved</span>
+                              @if (item.packStatus === 'failed') {
+                                <button type="button" class="btn btn-outline" (click)="loadPackState(item.variantId)">Retry loading stock form</button>
+                              }
+                              @for (row of packRows(item); track row.state + row.packCode + row.baseQtyPerPack) {
+                                <label class="transfer-alloc__pack">
+                                  <span>{{ row.state === 'sealed' ? 'Sealed' : 'Prepared' }} {{ row.packCode }} ({{ formatBase(item, row.baseQtyPerPack) }} each, {{ row.packCount }} held)</span>
+                                  <input appUiControl type="number" min="0" step="1" [max]="row.packCount" [disabled]="isSubmitting()"
+                                    [ngModel]="packCount(item, row)" [ngModelOptions]="{ standalone: true }"
+                                    (ngModelChange)="updatePackCount(i, row, $event)" />
+                                </label>
+                              }
+                              @if (item.packStatus === 'ready') {
+                                <span class="transfer-alloc__loose">Loose: {{ formatBase(item, looseRemainder(item)) }}</span>
+                              }
+                            </div>
+                          </td>
+                        </tr>
+                      }
                     }
                   </tbody>
                 </table>
@@ -281,7 +317,7 @@
               </div>
               <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
                 <span class="text-slate-600">Total Transfer Qty</span>
-                <span class="font-medium text-slate-900">{{ totals().totalTransferQuantity }}</span>
+                <span class="font-medium text-slate-900">{{ totalTransferLabel() }}</span>
               </div>
               <div class="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
                 <span class="text-slate-600">Transfer Type</span>

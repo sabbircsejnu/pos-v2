@@ -1,4 +1,14 @@
+import { PackStateKind, ReturnCondition } from './uom.model';
+
 export type TaxClassification = 'standard' | 'zero_rated' | 'exempt' | 'none';
+
+/** Unit fields of a cart, sale or held line. Absent on a plain pcs line. */
+export interface SaleLineUomFields {
+  sellingOptionId?: number;
+  expectedConfigVersionId?: number;
+  fulfilmentState?: PackStateKind;
+  includePackaging?: boolean;
+}
 
 export interface SaleItemDto {
   id: number;
@@ -10,6 +20,14 @@ export interface SaleItemDto {
   discountAmount: number;
   subtotal: number;
   appliedRuleName?: string;
+  /** Unit snapshot. `quantity` is base and `unitPrice` is per base; a line with no snapshot is legacy pcs. */
+  unitCode?: string | null;
+  unitLabel?: string | null;
+  enteredQuantity?: number | null;
+  enteredUnitPrice?: number | null;
+  baseUnitCode?: string | null;
+  packState?: PackStateKind | null;
+  returnedQuantity?: number | null;
 }
 
 // NEW — per-row payment method breakdown
@@ -66,7 +84,7 @@ export interface SaleListDto {
   itemCount: number;
 }
 
-export interface CreateSaleItemDto {
+export interface CreateSaleItemDto extends SaleLineUomFields {
   variantId: number;
   quantity: number;
   unitPrice: number;
@@ -105,6 +123,22 @@ export interface VoidSaleDto {
   reason: string;
 }
 
+export interface RefundSaleItemDto {
+  variantId: number;
+  /** Base units. */
+  quantity: number;
+  saleItemId?: number;
+  condition?: ReturnCondition;
+  packagingReusable?: boolean;
+}
+
+export interface RefundSaleDto {
+  items: RefundSaleItemDto[];
+  reason?: string;
+  /** The cash actually paid back; required only for a partial refund of a sale paid in cash. */
+  cashRefundAmount?: number;
+}
+
 export interface SaleSummaryDto {
   totalSales: number;
   totalAmount: number;
@@ -113,7 +147,7 @@ export interface SaleSummaryDto {
   paymentBreakdown: { [key: string]: number };
 }
 
-export interface CartItem {
+export interface CartItem extends SaleLineUomFields {
   variantId: number;
   productName: string;
   /** Display only: the product name without its variant suffix (the variant is shown separately). */
@@ -134,6 +168,8 @@ export interface CartItem {
   /** Effective tax rate in percent as resolved by the server; unset until the line has been priced by the server. */
   taxRate?: number;
   taxClassification?: TaxClassification;
+  /** The selling option's label. With an option, `quantity` is a pack count or a measured quantity of its unit. */
+  unitLabel?: string;
 }
 
 export interface PosProduct {
@@ -204,7 +240,8 @@ export interface PosStockHintDto {
 }
 
 // NEW — Hold/park cart DTOs
-export interface HeldSaleItemDto {
+export interface HeldSaleItemDto extends SaleLineUomFields {
+  unitLabel?: string;
   variantId: number;
   productName: string;
   variantSku: string;

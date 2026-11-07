@@ -11,6 +11,7 @@ import { ProductImageService } from '../../services/product-image.service';
 import { ProductService } from '../../services/product.service';
 import { StockTransferService } from '../../services/stock-transfer.service';
 import { UnsavedChangesService } from '../../services/unsaved-changes.service';
+import { UomService } from '../../services/uom.service';
 import { UserOutletAccessService } from '../../services/user-outlet-access.service';
 import { TransferCreateComponent } from './transfer-create.component';
 
@@ -281,6 +282,7 @@ describe('TransferCreateComponent recommendation prefill', () => {
         { provide: ErrorHandlerService, useValue: { extractErrorMessage: () => '' } },
         { provide: ProductImageService, useValue: {} },
         { provide: ProductService, useValue: { searchVariants } },
+        { provide: UomService, useValue: { getVariantConfigs: () => of([]) } },
         { provide: UnsavedChangesService, useValue: {} },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(query) } } }
       ]
