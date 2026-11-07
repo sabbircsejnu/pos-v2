@@ -6,16 +6,20 @@ namespace RetailPOS.API.Services;
 
 public static class NegativeStockExporter
 {
-    public static byte[] ToCsv(List<NegativeStockRowDto> rows)
+    public static byte[] ToCsv(List<NegativeStockRowDto> rows, bool includeCost = true)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Product Code,Barcode,SKU,Product Name,Category,Location,Location Type,Current Stock,Unit Cost,Stock Value");
+        sb.AppendLine(includeCost
+            ? "Product Code,Barcode,SKU,Product Name,Category,Location,Location Type,Current Stock,Unit Cost,Stock Value"
+            : "Product Code,Barcode,SKU,Product Name,Category,Location,Location Type,Current Stock");
         foreach (var r in rows)
-            sb.AppendLine($"{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.LocationName)},{Csv(r.LocationType)},{r.CurrentStock},{r.UnitCost:F2},{r.StockValue:F2}");
+            sb.AppendLine(includeCost
+                ? $"{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.LocationName)},{Csv(r.LocationType)},{r.CurrentStock},{r.UnitCost:F2},{r.StockValue:F2}"
+                : $"{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.LocationName)},{Csv(r.LocationType)},{r.CurrentStock}");
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public static byte[] ToExcel(List<NegativeStockRowDto> rows, NegativeStockSummaryDto summary)
+    public static byte[] ToExcel(List<NegativeStockRowDto> rows, NegativeStockSummaryDto summary, bool includeCost = true)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Negative Stock Report");
@@ -25,7 +29,9 @@ public static class NegativeStockExporter
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, 10).Merge();
 
-        ws.Cell(2, 1).Value = $"Total SKUs: {summary.TotalSkus}   |   Total Negative Qty: {summary.TotalNegativeQty}   |   Total Negative Value: {summary.TotalNegativeValue:N2}";
+        ws.Cell(2, 1).Value = includeCost
+            ? $"Total SKUs: {summary.TotalSkus}   |   Total Negative Qty: {summary.TotalNegativeQty}   |   Total Negative Value: {summary.TotalNegativeValue:N2}"
+            : $"Total SKUs: {summary.TotalSkus}   |   Total Negative Qty: {summary.TotalNegativeQty}";
         ws.Cell(2, 1).Style.Font.Italic = true;
         ws.Range(2, 1, 2, 10).Merge();
 
@@ -54,8 +60,8 @@ public static class NegativeStockExporter
             ws.Cell(row, 6).Value = r.LocationName;
             ws.Cell(row, 7).Value = r.LocationType;
             ws.Cell(row, 8).Value = r.CurrentStock;
-            ws.Cell(row, 9).Value = (double)r.UnitCost;
-            ws.Cell(row, 10).Value = (double)r.StockValue;
+            ws.Cell(row, 9).Value = (double)(r.UnitCost ?? 0m);
+            ws.Cell(row, 10).Value = (double)(r.StockValue ?? 0m);
 
             ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
             ws.Cell(row, 10).Style.NumberFormat.Format = "#,##0.00";
@@ -71,7 +77,7 @@ public static class NegativeStockExporter
         int tot = rows.Count + 5;
         ws.Cell(tot, 7).Value = "TOTAL";
         ws.Cell(tot, 8).Value = rows.Sum(r => r.CurrentStock);
-        ws.Cell(tot, 10).Value = (double)rows.Sum(r => r.StockValue);
+        ws.Cell(tot, 10).Value = (double)rows.Sum(r => r.StockValue ?? 0m);
         ws.Cell(tot, 10).Style.NumberFormat.Format = "#,##0.00";
         for (int c = 1; c <= 10; c++)
         {
@@ -80,6 +86,9 @@ public static class NegativeStockExporter
         }
         ws.Cell(tot, 8).Style.Font.FontColor = XLColor.Red;
         ws.Cell(tot, 10).Style.Font.FontColor = XLColor.Red;
+
+        // Without products.view_cost the Unit Cost and Stock Value columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 9, 10);
 
         ws.Columns().AdjustToContents();
         using var ms = new MemoryStream();

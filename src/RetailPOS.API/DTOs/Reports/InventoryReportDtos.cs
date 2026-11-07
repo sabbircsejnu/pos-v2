@@ -12,12 +12,12 @@ public class StockLevelDto
     public decimal Quantity { get; set; }
     public int ReorderLevel { get; set; }
     public bool IsLowStock { get; set; }
-    public decimal EstimatedValue { get; set; }
+    public decimal? EstimatedValue { get; set; }
 }
 
 public class InventoryValuationDto
 {
-    public decimal TotalValue { get; set; }
+    public decimal? TotalValue { get; set; }
     public decimal TotalItems { get; set; }
     public List<CategoryValuationDto> ByCategory { get; set; } = new();
 }
@@ -25,7 +25,7 @@ public class InventoryValuationDto
 public class CategoryValuationDto
 {
     public string CategoryName { get; set; } = string.Empty;
-    public decimal Value { get; set; }
+    public decimal? Value { get; set; }
     public decimal ItemCount { get; set; }
 }
 
@@ -36,5 +36,5 @@ public class SlowMovingItemDto
     public string Sku { get; set; } = string.Empty;
     public decimal CurrentStock { get; set; }
     public int DaysSinceLastSale { get; set; }
-    public decimal EstimatedValue { get; set; }
+    public decimal? EstimatedValue { get; set; }
 }

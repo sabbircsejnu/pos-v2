@@ -169,7 +169,7 @@
 
     <!-- ── Summary Cards ────────────────────────────────────────────────────── -->
     @if (summary()) {
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mx-4 mb-4 flex-shrink-0">
+      <div class="grid grid-cols-2 gap-3 mx-4 mb-4 flex-shrink-0" [class.md:grid-cols-5]="canViewCost()" [class.md:grid-cols-4]="!canViewCost()">
         <div class="card p-3">
           <p class="text-xs text-gray-500">Opening Stock</p>
           <p class="text-lg font-bold text-gray-700">{{ units.allRowsTotal(summary()!.openingStock | number) }}</p>
@@ -186,10 +186,12 @@
           <p class="text-xs text-gray-500">Closing Stock</p>
           <p class="text-lg font-bold text-blue-700">{{ units.allRowsTotal(summary()!.closingStock | number) }}</p>
         </div>
-        <div class="card p-3">
-          <p class="text-xs text-gray-500">Total Transaction Value</p>
-          <p class="text-lg font-bold text-purple-700">{{ formatCurrency(summary()!.totalTransactionValue) }}</p>
-        </div>
+        @if (canViewCost()) {
+          <div class="card p-3" data-testid="ledger-total-value">
+            <p class="text-xs text-gray-500">Total Transaction Value</p>
+            <p class="text-lg font-bold text-purple-700">{{ formatCurrency(summary()!.totalTransactionValue) }}</p>
+          </div>
+        }
       </div>
     }
 
@@ -232,8 +234,10 @@
               <th class="text-right whitespace-nowrap">Stock In</th>
               <th class="text-right whitespace-nowrap">Stock Out</th>
               <th class="text-right whitespace-nowrap">Closing Qty</th>
-              <th class="text-right whitespace-nowrap">Unit Cost</th>
-              <th class="text-right whitespace-nowrap">Tx Value</th>
+              @if (canViewCost()) {
+                <th class="text-right whitespace-nowrap">Unit Cost</th>
+                <th class="text-right whitespace-nowrap">Tx Value</th>
+              }
               <th class="whitespace-nowrap">Performed By</th>
               <th class="whitespace-nowrap">Remarks</th>
             </tr>
@@ -266,15 +270,17 @@
                     [class.text-red-600]="row.closingQuantity < 0">
                   {{ row.closingQuantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}
                 </td>
-                <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
-                <td class="text-right font-medium text-gray-800">{{ formatCurrency(row.transactionValue) }}</td>
+                @if (canViewCost()) {
+                  <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
+                  <td class="text-right font-medium text-gray-800">{{ formatCurrency(row.transactionValue) }}</td>
+                }
                 <td class="text-sm text-gray-500">{{ row.performedBy || '—' }}</td>
                 <td class="text-xs text-gray-400 max-w-xs truncate">{{ row.remarks || '—' }}</td>
               </tr>
             }
             @if (rows().length === 0) {
               <tr>
-                <td colspan="13" class="text-center text-gray-500 py-12">
+                <td [attr.colspan]="canViewCost() ? 13 : 11" class="text-center text-gray-500 py-12">
                   <i class="fas fa-inbox text-4xl text-gray-300 mb-3 block"></i>
                   No transactions found for the selected filters.
                 </td>
@@ -303,9 +309,11 @@
                   <td class="text-right text-red-600">{{ units.distinctUnits().length > 1 ? '' : '-' }}{{ units.allRowsTotal(summary()!.totalStockOut | number) }}</td>
                   <!-- Closing stock -->
                   <td class="text-right text-blue-800">{{ units.allRowsTotal(summary()!.closingStock | number) }}</td>
-                  <td></td>
-                  <!-- Total transaction value -->
-                  <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalTransactionValue) }}</td>
+                  @if (canViewCost()) {
+                    <td></td>
+                    <!-- Total transaction value -->
+                    <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalTransactionValue) }}</td>
+                  }
                   <td></td><td></td>
                 </tr>
               </tfoot>

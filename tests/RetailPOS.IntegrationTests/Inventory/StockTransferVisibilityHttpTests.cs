@@ -204,7 +204,7 @@ public class StockTransferVisibilityHttpTests : IClassFixture<RetailPosApiFactor
         await ResetAndSeedAsync();
         using var client = CreateClient(
             1001,
-            "stock_transfers.view,reports.inventory",
+            "stock_transfers.view,reports.inventory,products.view_cost",
             "OutletManager");
 
         using var reportResponse = await client.GetAsync(

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
@@ -6,6 +6,7 @@ import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { forkJoin } from 'rxjs';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-inventory-report',
@@ -15,6 +16,9 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./inventory-report.component.css']
 })
 export class InventoryReportComponent implements OnInit {
+  private readonly auth = inject(AuthService);
+  /** U-13: cost-derived figures need products.view_cost; without it the API sends null. */
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   activeTab = signal<'stock' | 'slow'>('stock');
   locationTypeFilter = signal('');
   lowStockOnly = signal(false);
@@ -77,7 +81,7 @@ export class InventoryReportComponent implements OnInit {
     });
   }
 
-  formatCurrency(amount: number): string {
-    return this.currencyService.format(amount);
+  formatCurrency(amount: number | null | undefined): string {
+    return amount == null ? '—' : this.currencyService.format(amount);
   }
 }

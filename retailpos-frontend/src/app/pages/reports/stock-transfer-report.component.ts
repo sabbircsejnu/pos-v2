@@ -1,6 +1,6 @@
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { AppDatePipe } from '../../pipes/app-date.pipe';
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -10,6 +10,7 @@ import { CategoryService } from '../../services/category.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-stock-transfer-report',
@@ -19,6 +20,9 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./stock-transfer-report.component.css']
 })
 export class StockTransferReportComponent implements OnInit, OnDestroy {
+  private readonly auth = inject(AuthService);
+  /** U-13: cost-derived figures need products.view_cost; without it the API sends null. */
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   // ── Filters ───────────────────────────────────────────────────────────────
   fromOutletId = signal<number | null>(null);
   toOutletId   = signal<number | null>(null);
@@ -198,7 +202,7 @@ export class StockTransferReportComponent implements OnInit, OnDestroy {
     a.href = url; a.download = ''; a.click();
   }
 
-  formatCurrency(v: number): string { return this.currencyService.format(v); }
+  formatCurrency(v: number | null | undefined): string { return v == null ? '—' : this.currencyService.format(v); }
 
   statusClass(s: string): string {
     switch (s) {

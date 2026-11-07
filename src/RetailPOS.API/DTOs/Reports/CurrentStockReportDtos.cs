@@ -13,8 +13,8 @@ public class CurrentStockRowDto
     public decimal AvailableQuantity { get; set; }
     public decimal ReservedQuantity { get; set; }
     public int ReorderLevel { get; set; }
-    public decimal UnitCost { get; set; }
-    public decimal StockValue { get; set; }
+    public decimal? UnitCost { get; set; }
+    public decimal? StockValue { get; set; }
     public DateTime? LastPurchaseDate { get; set; }
     public DateTime? LastSaleDate { get; set; }
     public string StockStatus { get; set; } = string.Empty; // in-stock | low-stock | out-of-stock
@@ -24,7 +24,7 @@ public class CurrentStockSummaryDto
 {
     public int TotalProducts { get; set; }
     public decimal TotalQuantity { get; set; }
-    public decimal TotalStockValue { get; set; }
+    public decimal? TotalStockValue { get; set; }
 }
 
 public class CurrentStockReportDto

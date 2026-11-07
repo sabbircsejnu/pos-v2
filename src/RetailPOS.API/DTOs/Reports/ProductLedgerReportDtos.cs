@@ -21,9 +21,9 @@ public class ProductLedgerRowDto
     /// <summary>Inventory balance after this transaction (= BalanceAfter from StockLedger).</summary>
     public decimal ClosingQuantity { get; set; }
     /// <summary>Unit cost at reporting time (Product.CostPrice + Variant.CostAdjustment).</summary>
-    public decimal UnitCost { get; set; }
+    public decimal? UnitCost { get; set; }
     /// <summary>UnitCost × (StockIn + StockOut).</summary>
-    public decimal TransactionValue { get; set; }
+    public decimal? TransactionValue { get; set; }
     public string? PerformedBy { get; set; }
     public string? Remarks { get; set; }
 }
@@ -34,7 +34,7 @@ public class ProductLedgerSummaryDto
     public decimal TotalStockIn { get; set; }
     public decimal TotalStockOut { get; set; }
     public decimal ClosingStock { get; set; }
-    public decimal TotalTransactionValue { get; set; }
+    public decimal? TotalTransactionValue { get; set; }
 }
 
 public class ProductLedgerReportDto

@@ -17,20 +17,21 @@ public static class StockValuationExporter
         "Quantity", "Unit Cost", "Inventory Value", "% of Total"
     ];
 
-    public static string ToCsv(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy")
+    public static string ToCsv(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("Stock Valuation Report");
         sb.AppendLine($"Generated:,{UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
-        sb.AppendLine($"Total Inventory Value:,{summary.TotalInventoryValue:F2}");
+        if (includeCost)
+            sb.AppendLine($"Total Inventory Value:,{summary.TotalInventoryValue:F2}");
         sb.AppendLine();
 
-        sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(Headers, includeCost, 8, 9, 10).Select(EscapeCsv)));
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", new[]
+            sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
             {
                 EscapeCsv(r.ProductCode),
                 EscapeCsv(r.Barcode),
@@ -40,33 +41,35 @@ public static class StockValuationExporter
                 EscapeCsv(r.LocationName),
                 EscapeCsv(r.LocationType),
                 r.Quantity.ToString(),
-                r.UnitCost.ToString("F4"),
-                r.InventoryValue.ToString("F2"),
-                r.PercentOfTotal.ToString("F2") + "%"
-            }));
+                (r.UnitCost ?? 0m).ToString("F4"),
+                (r.InventoryValue ?? 0m).ToString("F2"),
+                (r.PercentOfTotal ?? 0m).ToString("F2") + "%"
+            }, includeCost, 8, 9, 10)));
         }
 
         // Totals row
-        sb.AppendLine(string.Join(",", new[]
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
         {
             "TOTAL", "", "", $"{rows.Count} rows", "", "", "",
             summary.TotalQuantity.ToString(),
             "",
-            summary.TotalInventoryValue.ToString("F2"),
+            (summary.TotalInventoryValue ?? 0m).ToString("F2"),
             "100%"
-        }));
+        }, includeCost, 8, 9, 10)));
 
         // Category breakdown
         sb.AppendLine();
         sb.AppendLine("Category Breakdown");
-        sb.AppendLine("Category,Quantity,Inventory Value,% of Total");
+        sb.AppendLine(includeCost ? "Category,Quantity,Inventory Value,% of Total" : "Category,Quantity");
         foreach (var c in summary.ByCategory)
-            sb.AppendLine($"{EscapeCsv(c.CategoryName)},{c.Quantity},{c.InventoryValue:F2},{c.PercentOfTotal:F2}%");
+            sb.AppendLine(includeCost
+                ? $"{EscapeCsv(c.CategoryName)},{c.Quantity},{c.InventoryValue:F2},{c.PercentOfTotal:F2}%"
+                : $"{EscapeCsv(c.CategoryName)},{c.Quantity}");
 
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy")
+    public static byte[] ToExcel(IReadOnlyList<StockValuationRowDto> rows, StockValuationSummaryDto summary, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         using var wb = new XLWorkbook();
 
@@ -78,8 +81,11 @@ public static class StockValuationExporter
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Cell(2, 1).Value = $"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC";
         ws.Cell(2, 1).Style.Font.Italic = true;
-        ws.Cell(3, 1).Value = $"Total Inventory Value: {summary.TotalInventoryValue:N2}";
-        ws.Cell(3, 1).Style.Font.Bold = true;
+        if (includeCost)
+        {
+            ws.Cell(3, 1).Value = $"Total Inventory Value: {summary.TotalInventoryValue:N2}";
+            ws.Cell(3, 1).Style.Font.Bold = true;
+        }
 
         const int headerRow = 5;
         for (int c = 0; c < Headers.Length; c++)
@@ -107,11 +113,11 @@ public static class StockValuationExporter
             ws.Cell(row, 6).Value  = r.LocationName;
             ws.Cell(row, 7).Value  = r.LocationType;
             ws.Cell(row, 8).Value  = r.Quantity;
-            ws.Cell(row, 9).Value  = r.UnitCost;
+            ws.Cell(row, 9).Value  = r.UnitCost ?? 0m;
             ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.0000";
-            ws.Cell(row, 10).Value = r.InventoryValue;
+            ws.Cell(row, 10).Value = r.InventoryValue ?? 0m;
             ws.Cell(row, 10).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 11).Value = (double)r.PercentOfTotal / 100;
+            ws.Cell(row, 11).Value = (double)(r.PercentOfTotal ?? 0m) / 100;
             ws.Cell(row, 11).Style.NumberFormat.Format = "0.00%";
         }
 
@@ -119,12 +125,15 @@ public static class StockValuationExporter
         ws.Cell(totalsRow, 1).Value  = "TOTAL";
         ws.Cell(totalsRow, 4).Value  = $"{rows.Count} rows";
         ws.Cell(totalsRow, 8).Value  = summary.TotalQuantity;
-        ws.Cell(totalsRow, 10).Value = summary.TotalInventoryValue;
+        ws.Cell(totalsRow, 10).Value = summary.TotalInventoryValue ?? 0m;
         ws.Cell(totalsRow, 10).Style.NumberFormat.Format = "#,##0.00";
         ws.Cell(totalsRow, 11).Value = 1.0;
         ws.Cell(totalsRow, 11).Style.NumberFormat.Format = "0.00%";
         ws.Row(totalsRow).Style.Font.Bold = true;
         ws.Row(totalsRow).Style.Fill.BackgroundColor = XLColor.FromHtml("#dbeafe");
+
+        // Without products.view_cost the Unit Cost, Inventory Value and % of Total columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 9, 10, 11);
 
         ws.SheetView.FreezeRows(headerRow);
         ws.Columns().AdjustToContents();
@@ -146,11 +155,12 @@ public static class StockValuationExporter
             if (i % 2 == 1) ws2.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#f0f4f8");
             ws2.Cell(row, 1).Value = cat.CategoryName;
             ws2.Cell(row, 2).Value = cat.Quantity;
-            ws2.Cell(row, 3).Value = cat.InventoryValue;
+            ws2.Cell(row, 3).Value = cat.InventoryValue ?? 0m;
             ws2.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws2.Cell(row, 4).Value = (double)cat.PercentOfTotal / 100;
+            ws2.Cell(row, 4).Value = (double)(cat.PercentOfTotal ?? 0m) / 100;
             ws2.Cell(row, 4).Style.NumberFormat.Format = "0.00%";
         }
+        ReportExportCostColumns.DeleteColumns(ws2, includeCost, 3, 4);
         ws2.Columns().AdjustToContents();
 
         using var ms = new System.IO.MemoryStream();

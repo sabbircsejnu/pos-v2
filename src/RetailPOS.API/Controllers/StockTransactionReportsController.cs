@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RetailPOS.API.Authorization;
 using RetailPOS.API.DTOs.Reports;
 using RetailPOS.API.Models;
 using RetailPOS.API.Services;
@@ -60,6 +61,7 @@ public class StockTransactionReportsController : ControllerBase
                     dateFrom,
                     dateTo)),
                 cancellationToken);
+            var includeCost = User.CanViewCost();
 
             return Ok(ApiResponse<StockTransactionReportDto>.SuccessResponse(new StockTransactionReportDto
             {
@@ -101,7 +103,10 @@ public class StockTransactionReportsController : ControllerBase
                     QuantityIn = row.QuantityIn,
                     QuantityOut = row.QuantityOut,
                     RunningBalance = row.RunningBalance,
-                    Remarks = row.Remarks,
+                    // Same rule as the stock ledger: a remark quoting a cost needs products.view_cost.
+                    Remarks = includeCost || row.Remarks?.Contains("cost", StringComparison.OrdinalIgnoreCase) != true
+                        ? row.Remarks
+                        : "Cost details require the view-cost permission.",
                     CreatedByName = row.CreatedByName
                 }).ToList()
             }));

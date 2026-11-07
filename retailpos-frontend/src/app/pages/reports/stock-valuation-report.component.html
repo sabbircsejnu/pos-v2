@@ -94,7 +94,7 @@
 
     <!-- ── Summary Cards ────────────────────────────────────────────────── -->
     @if (summary()) {
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mx-4 mb-4 flex-shrink-0">
+      <div class="grid grid-cols-1 gap-3 mx-4 mb-4 flex-shrink-0" [class.md:grid-cols-3]="canViewCost()" [class.md:grid-cols-2]="!canViewCost()">
         <div class="card p-4">
           <p class="text-xs text-gray-500 uppercase tracking-wide">Total Products (SKUs)</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary()!.totalProducts | number }}</p>
@@ -103,10 +103,12 @@
           <p class="text-xs text-gray-500 uppercase tracking-wide">{{ units.pcsTotalLabel('Total Quantity') }}</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary()!.totalQuantity | number }}</p>
         </div>
-        <div class="card p-4 bg-blue-50 border-blue-200">
-          <p class="text-xs text-blue-600 uppercase tracking-wide font-medium">Total Inventory Value</p>
-          <p class="text-2xl font-bold text-blue-800 mt-1">{{ formatCurrency(summary()!.totalInventoryValue) }}</p>
-        </div>
+        @if (canViewCost()) {
+          <div class="card p-4 bg-blue-50 border-blue-200" data-testid="valuation-total-value">
+            <p class="text-xs text-blue-600 uppercase tracking-wide font-medium">Total Inventory Value</p>
+            <p class="text-2xl font-bold text-blue-800 mt-1">{{ formatCurrency(summary()!.totalInventoryValue) }}</p>
+          </div>
+        }
       </div>
     }
 
@@ -114,10 +116,11 @@
     @if (showCategoryPanel() && summary()?.byCategory?.length) {
       <div class="card mx-4 mb-4 p-4 flex-shrink-0">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">
-          <i class="fas fa-chart-pie text-blue-600 mr-1"></i> Value by Category
+          <i class="fas fa-chart-pie text-blue-600 mr-1"></i> {{ canViewCost() ? 'Value by Category' : 'Quantity by Category' }}
         </h3>
         <div class="space-y-2">
           @for (cat of summary()!.byCategory; track cat.categoryName) {
+            @if (canViewCost()) {
             <div class="flex items-center gap-3">
               <div class="w-32 text-xs text-gray-600 truncate" [title]="cat.categoryName">
                 {{ cat.categoryName }}
@@ -133,6 +136,12 @@
                 {{ cat.percentOfTotal | number:'1.1-1' }}%
               </div>
             </div>
+            } @else {
+              <div class="flex items-center gap-3">
+                <div class="flex-1 text-xs text-gray-600 truncate" [title]="cat.categoryName">{{ cat.categoryName }}</div>
+                <div class="w-24 text-right text-xs font-medium text-gray-700">{{ cat.quantity | number:'1.0-6' }}</div>
+              </div>
+            }
           }
         </div>
       </div>
@@ -183,13 +192,15 @@
               <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('quantity')">
                 Qty <i [class]="sortIcon('quantity')"></i>
               </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitcost')">
-                Unit Cost <i [class]="sortIcon('unitcost')"></i>
-              </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('inventoryValue')">
-                Inventory Value <i [class]="sortIcon('inventoryValue')"></i>
-              </th>
-              <th class="whitespace-nowrap">% of Total</th>
+              @if (canViewCost()) {
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitcost')">
+                  Unit Cost <i [class]="sortIcon('unitcost')"></i>
+                </th>
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('inventoryValue')">
+                  Inventory Value <i [class]="sortIcon('inventoryValue')"></i>
+                </th>
+                <th class="whitespace-nowrap">% of Total</th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -208,24 +219,26 @@
                   <span class="text-xs text-gray-400 ml-1">({{ row.locationType }})</span>
                 </td>
                 <td class="text-right font-medium text-gray-800">{{ row.quantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
-                <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
-                <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.inventoryValue) }}</td>
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden min-w-12">
-                      <div class="h-2 rounded-full bg-blue-400"
-                           [style.width]="valueBarWidth(row.percentOfTotal)"></div>
+                @if (canViewCost()) {
+                  <td class="text-right text-gray-600 text-sm">{{ formatCurrency(row.unitCost) }}</td>
+                  <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.inventoryValue) }}</td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden min-w-12">
+                        <div class="h-2 rounded-full bg-blue-400"
+                             [style.width]="valueBarWidth(row.percentOfTotal)"></div>
+                      </div>
+                      <span class="text-xs text-gray-500 w-12 text-right">
+                        {{ row.percentOfTotal | number:'1.1-1' }}%
+                      </span>
                     </div>
-                    <span class="text-xs text-gray-500 w-12 text-right">
-                      {{ row.percentOfTotal | number:'1.1-1' }}%
-                    </span>
-                  </div>
-                </td>
+                  </td>
+                }
               </tr>
             }
             @if (rows().length === 0) {
               <tr>
-                <td colspan="8" class="text-center text-gray-500 py-12">
+                <td [attr.colspan]="canViewCost() ? 8 : 5" class="text-center text-gray-500 py-12">
                   <i class="fas fa-inbox text-4xl text-gray-300 mb-3 block"></i>
                   No inventory data found.
                 </td>
@@ -247,9 +260,11 @@
                   </td>
                   <td></td><td></td><td></td>
                   <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}{{ units.pcsSuffix() }}</td>
-                  <td></td>
-                  <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalInventoryValue) }}</td>
-                  <td class="text-right text-xs text-gray-500">100%</td>
+                  @if (canViewCost()) {
+                    <td></td>
+                    <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalInventoryValue) }}</td>
+                    <td class="text-right text-xs text-gray-500">100%</td>
+                  }
                 </tr>
               </tfoot>
             </table>

@@ -12,15 +12,15 @@ public class NegativeStockRowDto
     public string  LocationType  { get; set; } = string.Empty;
     public string  LocationName  { get; set; } = string.Empty;
     public decimal     CurrentStock  { get; set; }
-    public decimal UnitCost      { get; set; }
-    public decimal StockValue    { get; set; }
+    public decimal? UnitCost      { get; set; }
+    public decimal? StockValue    { get; set; }
 }
 
 public class NegativeStockSummaryDto
 {
     public int     TotalSkus          { get; set; }
     public decimal     TotalNegativeQty   { get; set; }
-    public decimal TotalNegativeValue { get; set; }
+    public decimal? TotalNegativeValue { get; set; }
 }
 
 public class NegativeStockReportDto

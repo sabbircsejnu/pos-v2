@@ -1,7 +1,8 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { UiDateInputDirective } from '../../components/shared/ui/ui-date-input.directive';
 import { inject as injectCompanyDates } from '@angular/core';
-import { Component, OnInit, OnDestroy, computed, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, inject, signal } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime } from 'rxjs';
@@ -44,6 +45,9 @@ import { injectVariantUnits } from '../../utils/variant-units';
 })
 export class ProductLedgerReportComponent implements OnInit, OnDestroy {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
+  private readonly auth = inject(AuthService);
+  /** U-13: cost-derived figures need products.view_cost; without it the API sends null. */
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   // ── Product search ────────────────────────────────────────────────────────
   productQuery    = signal('');
   productResults  = signal<ProductOption[]>([]);
@@ -258,7 +262,7 @@ export class ProductLedgerReportComponent implements OnInit, OnDestroy {
   }
 
   // ── Formatting ────────────────────────────────────────────────────────────
-  formatCurrency(v: number): string { return this.currencyService.format(v); }
+  formatCurrency(v: number | null | undefined): string { return v == null ? '—' : this.currencyService.format(v); }
 
   formatDate(s?: string): string {
     if (!s) return '—';

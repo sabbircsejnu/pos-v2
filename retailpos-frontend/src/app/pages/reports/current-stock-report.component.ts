@@ -1,6 +1,6 @@
 import { CompanyDateService } from '../../services/company-date.service';
 import { inject as injectCompanyDates } from '@angular/core';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../services/report.service';
@@ -13,6 +13,10 @@ import { WarehouseService } from '../../services/warehouse.service';
 import { CategoryService } from '../../services/category.service';
 import { forkJoin } from 'rxjs';
 import { CurrentStockRowDto } from '../../models/report.model';
+import { AuthService } from '../../services/auth.service';
+
+/** Cost-derived columns: shown only with products.view_cost (U-13); the API sends null without it. */
+const COST_COLUMNS = ['unitCost', 'stockValue'];
 
 @Component({
   selector: 'app-current-stock-report',
@@ -23,6 +27,8 @@ import { CurrentStockRowDto } from '../../models/report.model';
 })
 export class CurrentStockReportComponent implements OnInit {
   private readonly companyDates = injectCompanyDates(CompanyDateService);
+  private readonly auth = inject(AuthService);
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   // ── Filter state ─────────────────────────────────────────────────────────
   outletId    = signal<number | null>(null);
   warehouseId = signal<number | null>(null);
@@ -60,7 +66,7 @@ export class CurrentStockReportComponent implements OnInit {
     { key: 'lastPurchaseDate',  label: 'Last Purchase Date', visible: true },
     { key: 'lastSaleDate',      label: 'Last Sale Date',     visible: true },
     { key: 'stockStatus',       label: 'Status',             visible: true },
-  ]);
+  ].filter(c => this.canViewCost() || !COST_COLUMNS.includes(c.key)));
 
   constructor(
     public reportService: ReportService,
@@ -207,8 +213,8 @@ export class CurrentStockReportComponent implements OnInit {
   }
 
   // ── Formatting ────────────────────────────────────────────────────────────
-  formatCurrency(amount: number): string {
-    return this.currencyService.format(amount);
+  formatCurrency(amount: number | null | undefined): string {
+    return amount == null ? '—' : this.currencyService.format(amount);
   }
 
   formatDate(dateStr?: string): string {

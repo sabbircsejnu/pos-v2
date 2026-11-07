@@ -84,7 +84,7 @@
 
     <!-- ── Summary Cards ────────────────────────────────────────────────── -->
     @if (summary()) {
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mx-4 mb-4 flex-shrink-0">
+      <div class="grid grid-cols-1 gap-3 mx-4 mb-4 flex-shrink-0" [class.md:grid-cols-3]="canViewCost()" [class.md:grid-cols-2]="!canViewCost()">
         <div class="card p-3 bg-red-50 border-red-200">
           <p class="text-xs text-red-600 font-medium">Total Out-Of-Stock SKUs</p>
           <p class="text-xl font-bold text-red-800">{{ summary()!.totalSkus | number }}</p>
@@ -93,11 +93,13 @@
           <p class="text-xs text-gray-500">Locations Affected</p>
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalLocations | number }}</p>
         </div>
-        <div class="card p-3 bg-amber-50 border-amber-200">
-          <p class="text-xs text-amber-600 font-medium">Est. Cost to Restock</p>
-          <p class="text-xl font-bold text-amber-800">{{ formatCurrency(summary()!.estimatedCostImpact) }}</p>
-          <p class="text-xs text-amber-500">Based on reorder levels × unit cost</p>
-        </div>
+        @if (canViewCost()) {
+          <div class="card p-3 bg-amber-50 border-amber-200">
+            <p class="text-xs text-amber-600 font-medium">Est. Cost to Restock</p>
+            <p class="text-xl font-bold text-amber-800">{{ formatCurrency(summary()!.estimatedCostImpact) }}</p>
+            <p class="text-xs text-amber-500">Based on reorder levels × unit cost</p>
+          </div>
+        }
       </div>
     }
 
@@ -139,9 +141,11 @@
               <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('reorderLevel')">
                 Reorder Level <i [class]="sortIcon('reorderLevel')"></i>
               </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitCost')">
-                Unit Cost <i [class]="sortIcon('unitCost')"></i>
-              </th>
+              @if (canViewCost()) {
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitCost')">
+                  Unit Cost <i [class]="sortIcon('unitCost')"></i>
+                </th>
+              }
               <th class="text-right">Status</th>
             </tr>
           </thead>
@@ -161,7 +165,9 @@
                   <span class="ml-1 text-xs text-gray-400">({{ row.locationType }})</span>
                 </td>
                 <td class="text-right text-gray-600">{{ row.reorderLevel | number }}</td>
-                <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
+                @if (canViewCost()) {
+                  <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
+                }
                 <td class="text-right">
                   <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
                     <i class="fas fa-times-circle mr-1"></i> Out of Stock
@@ -171,7 +177,7 @@
             }
             @if (rows().length === 0) {
               <tr>
-                <td colspan="7" class="text-center text-gray-500 py-12">
+                <td [attr.colspan]="canViewCost() ? 7 : 6" class="text-center text-gray-500 py-12">
                   <i class="fas fa-box-open text-4xl text-gray-300 mb-3 block"></i>
                   No out-of-stock items found.
                 </td>
@@ -185,7 +191,9 @@
       @if (summary() && totalCount() > 0) {
         <div class="sticky bottom-0 border-t-2 border-gray-300 bg-red-50 flex-shrink-0 px-4 py-2 text-sm font-bold text-red-800">
           <span>{{ totalCount() | number }} out-of-stock lines across {{ summary()!.totalLocations }} locations</span>
-          <span class="ml-4 text-amber-700">Est. restock cost: {{ formatCurrency(summary()!.estimatedCostImpact) }}</span>
+          @if (canViewCost()) {
+            <span class="ml-4 text-amber-700">Est. restock cost: {{ formatCurrency(summary()!.estimatedCostImpact) }}</span>
+          }
         </div>
       }
 

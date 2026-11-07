@@ -45,17 +45,17 @@ export interface StockLevelDto {
   quantity: number;
   reorderLevel: number;
   isLowStock: boolean;
-  estimatedValue: number;
+  estimatedValue: number | null;
 }
 
 export interface CategoryValuationDto {
   categoryName: string;
-  value: number;
+  value: number | null;
   itemCount: number;
 }
 
 export interface InventoryValuationDto {
-  totalValue: number;
+  totalValue: number | null;
   totalItems: number;
   byCategory: CategoryValuationDto[];
 }
@@ -66,7 +66,7 @@ export interface SlowMovingItemDto {
   sku: string;
   currentStock: number;
   daysSinceLastSale: number;
-  estimatedValue: number;
+  estimatedValue: number | null;
 }
 
 export interface PurchaseSummaryDto {
@@ -170,8 +170,8 @@ export interface CurrentStockRowDto {
   availableQuantity: number;
   reservedQuantity: number;
   reorderLevel: number;
-  unitCost: number;
-  stockValue: number;
+  unitCost: number | null;
+  stockValue: number | null;
   lastPurchaseDate?: string;
   lastSaleDate?: string;
   stockStatus: 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -180,7 +180,7 @@ export interface CurrentStockRowDto {
 export interface CurrentStockSummaryDto {
   totalProducts: number;
   totalQuantity: number;
-  totalStockValue: number;
+  totalStockValue: number | null;
 }
 
 export interface CurrentStockReportDto {
@@ -205,8 +205,8 @@ export interface ProductLedgerRowDto {
   stockIn: number;
   stockOut: number;
   closingQuantity: number;
-  unitCost: number;
-  transactionValue: number;
+  unitCost: number | null;
+  transactionValue: number | null;
   performedBy?: string;
   remarks?: string;
 }
@@ -216,7 +216,7 @@ export interface ProductLedgerSummaryDto {
   totalStockIn: number;
   totalStockOut: number;
   closingStock: number;
-  totalTransactionValue: number;
+  totalTransactionValue: number | null;
 }
 
 export interface ProductLedgerReportDto {
@@ -277,22 +277,22 @@ export interface StockValuationRowDto {
   locationType: string;
   locationName: string;
   quantity: number;
-  unitCost: number;
-  inventoryValue: number;
-  percentOfTotal: number;
+  unitCost: number | null;
+  inventoryValue: number | null;
+  percentOfTotal: number | null;
 }
 
 export interface StockValuationCategoryDto {
   categoryName: string;
   quantity: number;
-  inventoryValue: number;
-  percentOfTotal: number;
+  inventoryValue: number | null;
+  percentOfTotal: number | null;
 }
 
 export interface StockValuationSummaryDto {
   totalProducts: number;
   totalQuantity: number;
-  totalInventoryValue: number;
+  totalInventoryValue: number | null;
   byCategory: StockValuationCategoryDto[];
 }
 
@@ -314,8 +314,8 @@ export interface OutletWiseStockRowDto {
   productName: string;
   categoryName: string;
   quantity: number;
-  unitCost: number;
-  stockValue: number;
+  unitCost: number | null;
+  stockValue: number | null;
 }
 
 export interface OutletStockSummaryDto {
@@ -323,14 +323,14 @@ export interface OutletStockSummaryDto {
   outletName: string;
   totalSkus: number;
   totalQty: number;
-  stockValue: number;
+  stockValue: number | null;
 }
 
 export interface OutletWiseStockSummaryDto {
   totalOutlets: number;
   totalSkus: number;
   totalQuantity: number;
-  totalStockValue: number;
+  totalStockValue: number | null;
   byOutlet: OutletStockSummaryDto[];
 }
 
@@ -380,12 +380,12 @@ export interface OutOfStockRowDto {
   locationType: string;
   locationName: string;
   reorderLevel: number;
-  unitCost: number;
+  unitCost: number | null;
 }
 export interface OutOfStockSummaryDto {
   totalSkus: number;
   totalLocations: number;
-  estimatedCostImpact: number;
+  estimatedCostImpact: number | null;
 }
 export interface OutOfStockReportDto {
   items: OutOfStockRowDto[];
@@ -405,13 +405,13 @@ export interface NegativeStockRowDto {
   locationType: string;
   locationName: string;
   currentStock: number;
-  unitCost: number;
-  stockValue: number;
+  unitCost: number | null;
+  stockValue: number | null;
 }
 export interface NegativeStockSummaryDto {
   totalSkus: number;
   totalNegativeQty: number;
-  totalNegativeValue: number;
+  totalNegativeValue: number | null;
 }
 export interface NegativeStockReportDto {
   items: NegativeStockRowDto[];
@@ -463,15 +463,15 @@ export interface StockTransferRowDto {
   productName: string;
   categoryName: string;
   quantity: number;
-  unitCost: number;
-  transferValue: number;
+  unitCost: number | null;
+  transferValue: number | null;
   createdBy: string;
 }
 export interface StockTransferSummaryDto {
   totalTransfers: number;
   totalLines: number;
   totalQuantity: number;
-  totalValue: number;
+  totalValue: number | null;
   pendingCount: number;
   completedCount: number;
 }

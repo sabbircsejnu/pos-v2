@@ -13,18 +13,18 @@ public class StockValuationRowDto
     public string  LocationType   { get; set; } = string.Empty;
     public string  LocationName   { get; set; } = string.Empty;
     public decimal     Quantity       { get; set; }
-    public decimal UnitCost       { get; set; }
-    public decimal InventoryValue { get; set; }
+    public decimal? UnitCost       { get; set; }
+    public decimal? InventoryValue { get; set; }
 
     /// <summary>Percentage of total inventory value (0-100), computed from full dataset.</summary>
-    public decimal PercentOfTotal { get; set; }
+    public decimal? PercentOfTotal { get; set; }
 }
 
 public class StockValuationSummaryDto
 {
     public int     TotalProducts      { get; set; }
     public decimal     TotalQuantity      { get; set; }
-    public decimal TotalInventoryValue { get; set; }
+    public decimal? TotalInventoryValue { get; set; }
 
     /// <summary>Per-category breakdown, sorted by value descending.</summary>
     public List<StockValuationCategoryDto> ByCategory { get; set; } = new();
@@ -34,8 +34,8 @@ public class StockValuationCategoryDto
 {
     public string  CategoryName    { get; set; } = string.Empty;
     public decimal     Quantity        { get; set; }
-    public decimal InventoryValue  { get; set; }
-    public decimal PercentOfTotal  { get; set; }
+    public decimal? InventoryValue  { get; set; }
+    public decimal? PercentOfTotal  { get; set; }
 }
 
 public class StockValuationReportDto

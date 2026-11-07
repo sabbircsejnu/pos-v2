@@ -7,16 +7,20 @@ namespace RetailPOS.API.Services;
 
 public static class StockTransferReportExporter
 {
-    public static byte[] ToCsv(List<StockTransferRowDto> rows, string dateFormat = "yyyy-MM-dd")
+    public static byte[] ToCsv(List<StockTransferRowDto> rows, string dateFormat = "yyyy-MM-dd", bool includeCost = true)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Transfer ID,Date,From Location,From Type,To Location,To Type,Status,Product Code,Barcode,SKU,Product Name,Category,Quantity,Unit Cost,Transfer Value,Created By");
+        sb.AppendLine(includeCost
+            ? "Transfer ID,Date,From Location,From Type,To Location,To Type,Status,Product Code,Barcode,SKU,Product Name,Category,Quantity,Unit Cost,Transfer Value,Created By"
+            : "Transfer ID,Date,From Location,From Type,To Location,To Type,Status,Product Code,Barcode,SKU,Product Name,Category,Quantity,Created By");
         foreach (var r in rows)
-            sb.AppendLine($"{r.TransferId},{UiDateFormatting.Format(r.TransferDate, dateFormat, false)},{Csv(r.FromLocationName)},{Csv(r.FromLocationType)},{Csv(r.ToLocationName)},{Csv(r.ToLocationType)},{Csv(r.Status)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{r.Quantity},{r.UnitCost:F2},{r.TransferValue:F2},{Csv(r.CreatedBy)}");
+            sb.AppendLine(includeCost
+                ? $"{r.TransferId},{UiDateFormatting.Format(r.TransferDate, dateFormat, false)},{Csv(r.FromLocationName)},{Csv(r.FromLocationType)},{Csv(r.ToLocationName)},{Csv(r.ToLocationType)},{Csv(r.Status)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{r.Quantity},{r.UnitCost:F2},{r.TransferValue:F2},{Csv(r.CreatedBy)}"
+                : $"{r.TransferId},{UiDateFormatting.Format(r.TransferDate, dateFormat, false)},{Csv(r.FromLocationName)},{Csv(r.FromLocationType)},{Csv(r.ToLocationName)},{Csv(r.ToLocationType)},{Csv(r.Status)},{Csv(r.ProductCode)},{Csv(r.Barcode)},{Csv(r.Sku)},{Csv(r.ProductName)},{Csv(r.CategoryName)},{r.Quantity},{Csv(r.CreatedBy)}");
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public static byte[] ToExcel(List<StockTransferRowDto> rows, StockTransferSummaryDto summary, string dateFormat = "yyyy-MM-dd")
+    public static byte[] ToExcel(List<StockTransferRowDto> rows, StockTransferSummaryDto summary, string dateFormat = "yyyy-MM-dd", bool includeCost = true)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Stock Transfer Report");
@@ -26,8 +30,9 @@ public static class StockTransferReportExporter
         ws.Cell(1, 1).Style.Font.FontSize = 14;
         ws.Range(1, 1, 1, 16).Merge();
 
-        ws.Cell(2, 1).Value =
-            $"Transfers: {summary.TotalTransfers}   |   Lines: {summary.TotalLines}   |   Total Qty: {summary.TotalQuantity}   |   Total Value: {summary.TotalValue:N2}   |   Pending: {summary.PendingCount}   |   Completed: {summary.CompletedCount}";
+        ws.Cell(2, 1).Value = includeCost
+            ? $"Transfers: {summary.TotalTransfers}   |   Lines: {summary.TotalLines}   |   Total Qty: {summary.TotalQuantity}   |   Total Value: {summary.TotalValue:N2}   |   Pending: {summary.PendingCount}   |   Completed: {summary.CompletedCount}"
+            : $"Transfers: {summary.TotalTransfers}   |   Lines: {summary.TotalLines}   |   Total Qty: {summary.TotalQuantity}   |   Pending: {summary.PendingCount}   |   Completed: {summary.CompletedCount}";
         ws.Cell(2, 1).Style.Font.Italic = true;
         ws.Range(2, 1, 2, 16).Merge();
 
@@ -72,9 +77,9 @@ public static class StockTransferReportExporter
             ws.Cell(row, 11).Value = r.ProductName;
             ws.Cell(row, 12).Value = r.CategoryName;
             ws.Cell(row, 13).Value = r.Quantity;
-            ws.Cell(row, 14).Value = (double)r.UnitCost;
+            ws.Cell(row, 14).Value = (double)(r.UnitCost ?? 0m);
             ws.Cell(row, 14).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 15).Value = (double)r.TransferValue;
+            ws.Cell(row, 15).Value = (double)(r.TransferValue ?? 0m);
             ws.Cell(row, 15).Style.NumberFormat.Format = "#,##0.00";
             ws.Cell(row, 16).Value = r.CreatedBy;
 
@@ -86,13 +91,16 @@ public static class StockTransferReportExporter
         int tot = rows.Count + 5;
         ws.Cell(tot, 12).Value = "TOTAL";
         ws.Cell(tot, 13).Value = rows.Sum(r => r.Quantity);
-        ws.Cell(tot, 15).Value = (double)rows.Sum(r => r.TransferValue);
+        ws.Cell(tot, 15).Value = (double)rows.Sum(r => r.TransferValue ?? 0m);
         ws.Cell(tot, 15).Style.NumberFormat.Format = "#,##0.00";
         for (int c = 1; c <= 16; c++)
         {
             ws.Cell(tot, c).Style.Font.Bold = true;
             ws.Cell(tot, c).Style.Fill.BackgroundColor = XLColor.FromHtml("#DBEAFE");
         }
+
+        // Without products.view_cost the Unit Cost and Transfer Value columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 14, 15);
 
         ws.Columns().AdjustToContents();
         using var ms = new MemoryStream();

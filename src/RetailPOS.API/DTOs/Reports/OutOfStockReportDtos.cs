@@ -12,14 +12,14 @@ public class OutOfStockRowDto
     public string LocationType   { get; set; } = string.Empty;
     public string LocationName   { get; set; } = string.Empty;
     public int    ReorderLevel   { get; set; }
-    public decimal UnitCost      { get; set; }
+    public decimal? UnitCost      { get; set; }
 }
 
 public class OutOfStockSummaryDto
 {
     public int     TotalSkus         { get; set; }
     public int     TotalLocations    { get; set; }
-    public decimal EstimatedCostImpact { get; set; }
+    public decimal? EstimatedCostImpact { get; set; }
 }
 
 public class OutOfStockReportDto

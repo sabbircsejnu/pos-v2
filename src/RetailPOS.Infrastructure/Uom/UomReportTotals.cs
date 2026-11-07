@@ -22,7 +22,9 @@ internal static class UomReportTotals
     public static async Task<Dictionary<long, string>> BaseUnitCodesAsync(RetailPOSDbContext dbContext, long businessId, CancellationToken cancellationToken) =>
         await dbContext.VariantUomConfigs.AsNoTracking()
             .Where(config => config.BusinessId == businessId && config.EffectiveToUtc == null)
-            .ToDictionaryAsync(config => config.VariantId, config => config.BaseUnit.Code, cancellationToken);
+            // Projected in SQL: BaseUnit is not loaded on the tracked-free entity, so reading it client-side was null.
+            .Select(config => new { config.VariantId, config.BaseUnit.Code })
+            .ToDictionaryAsync(config => config.VariantId, config => config.Code, cancellationToken);
 }
 
 /// <summary>

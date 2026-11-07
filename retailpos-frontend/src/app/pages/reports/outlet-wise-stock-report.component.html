@@ -83,7 +83,7 @@
 
     <!-- ── Summary Cards ────────────────────────────────────────────────── -->
     @if (summary()) {
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mx-4 mb-4 flex-shrink-0">
+      <div class="grid grid-cols-2 gap-3 mx-4 mb-4 flex-shrink-0" [class.md:grid-cols-4]="canViewCost()" [class.md:grid-cols-3]="!canViewCost()">
         <div class="card p-3">
           <p class="text-xs text-gray-500">Total Outlets</p>
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalOutlets | number }}</p>
@@ -96,10 +96,12 @@
           <p class="text-xs text-gray-500">{{ units.pcsTotalLabel('Total Quantity') }}</p>
           <p class="text-xl font-bold text-gray-800">{{ summary()!.totalQuantity | number }}</p>
         </div>
-        <div class="card p-3 bg-blue-50 border-blue-200">
-          <p class="text-xs text-blue-600 font-medium">Total Stock Value</p>
-          <p class="text-xl font-bold text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</p>
-        </div>
+        @if (canViewCost()) {
+          <div class="card p-3 bg-blue-50 border-blue-200">
+            <p class="text-xs text-blue-600 font-medium">Total Stock Value</p>
+            <p class="text-xl font-bold text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</p>
+          </div>
+        }
       </div>
     }
 
@@ -107,7 +109,7 @@
     @if (showOutletPanel() && summary()?.byOutlet?.length) {
       <div class="card mx-4 mb-4 p-4 flex-shrink-0">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">
-          <i class="fas fa-store text-blue-600 mr-1"></i> Stock Value by Outlet
+          <i class="fas fa-store text-blue-600 mr-1"></i> {{ canViewCost() ? 'Stock Value by Outlet' : 'Stock by Outlet' }}
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           @for (outlet of summary()!.byOutlet; track outlet.outletId) {
@@ -116,15 +118,19 @@
                 <span class="font-medium text-sm text-gray-800">{{ outlet.outletName }}</span>
                 <span class="text-xs text-gray-500">{{ outlet.totalSkus }} SKUs</span>
               </div>
-              <div class="flex items-center gap-2 mb-1">
-                <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                  <div class="h-2 rounded-full bg-blue-500"
-                       [style.width]="outletShareWidth(outlet.stockValue)"></div>
+              @if (canViewCost()) {
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full bg-blue-500"
+                         [style.width]="outletShareWidth(outlet.stockValue)"></div>
+                  </div>
                 </div>
-              </div>
+              }
               <div class="flex justify-between text-xs text-gray-600">
                 <span>Qty: {{ outlet.totalQty | number }}{{ units.pcsSuffix() }}</span>
-                <span class="font-semibold text-blue-700">{{ formatCurrency(outlet.stockValue) }}</span>
+                @if (canViewCost()) {
+                  <span class="font-semibold text-blue-700">{{ formatCurrency(outlet.stockValue) }}</span>
+                }
               </div>
             </div>
           }
@@ -177,9 +183,11 @@
               <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('quantity')">
                 Quantity <i [class]="sortIcon('quantity')"></i>
               </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('stockValue')">
-                Stock Value <i [class]="sortIcon('stockValue')"></i>
-              </th>
+              @if (canViewCost()) {
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('stockValue')">
+                  Stock Value <i [class]="sortIcon('stockValue')"></i>
+                </th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -201,12 +209,14 @@
                 <td class="font-mono text-xs text-gray-500">{{ row.sku }}</td>
                 <td class="text-sm text-gray-600">{{ row.categoryName }}</td>
                 <td class="text-right font-medium text-gray-800">{{ row.quantity | number:'1.0-6' }}{{ units.suffix(row.variantId) }}</td>
-                <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.stockValue) }}</td>
+                @if (canViewCost()) {
+                  <td class="text-right font-bold text-blue-700">{{ formatCurrency(row.stockValue) }}</td>
+                }
               </tr>
             }
             @if (rows().length === 0) {
               <tr>
-                <td colspan="6" class="text-center text-gray-500 py-12">
+                <td [attr.colspan]="canViewCost() ? 6 : 5" class="text-center text-gray-500 py-12">
                   <i class="fas fa-store text-4xl text-gray-300 mb-3 block"></i>
                   No outlet stock data found.
                 </td>
@@ -228,7 +238,9 @@
                   </td>
                   <td></td><td></td><td></td>
                   <td class="text-right text-blue-800">{{ summary()!.totalQuantity | number }}{{ units.pcsSuffix() }}</td>
-                  <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</td>
+                  @if (canViewCost()) {
+                    <td class="text-right text-blue-800">{{ formatCurrency(summary()!.totalStockValue) }}</td>
+                  }
                 </tr>
               </tfoot>
             </table>

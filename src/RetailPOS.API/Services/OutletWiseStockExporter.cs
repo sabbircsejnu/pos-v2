@@ -16,21 +16,22 @@ public static class OutletWiseStockExporter
         "Category", "Quantity", "Unit Cost", "Stock Value"
     ];
 
-    public static string ToCsv(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy")
+    public static string ToCsv(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("Outlet Wise Stock Report");
         sb.AppendLine($"Generated:,{UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine($"Total Outlets:,{summary.TotalOutlets}");
-        sb.AppendLine($"Total Stock Value:,{summary.TotalStockValue:F2}");
+        if (includeCost)
+            sb.AppendLine($"Total Stock Value:,{summary.TotalStockValue:F2}");
         sb.AppendLine();
 
-        sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(Headers, includeCost, 7, 8).Select(EscapeCsv)));
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", new[]
+            sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
             {
                 EscapeCsv(r.OutletName),
                 EscapeCsv(r.ProductCode),
@@ -39,28 +40,30 @@ public static class OutletWiseStockExporter
                 EscapeCsv(r.ProductName),
                 EscapeCsv(r.CategoryName),
                 r.Quantity.ToString(),
-                r.UnitCost.ToString("F4"),
-                r.StockValue.ToString("F2")
-            }));
+                (r.UnitCost ?? 0m).ToString("F4"),
+                (r.StockValue ?? 0m).ToString("F2")
+            }, includeCost, 7, 8)));
         }
 
-        sb.AppendLine(string.Join(",", new[]
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
         {
             "TOTAL", "", "", "", $"{rows.Count} rows", "",
-            summary.TotalQuantity.ToString(), "", summary.TotalStockValue.ToString("F2")
-        }));
+            summary.TotalQuantity.ToString(), "", (summary.TotalStockValue ?? 0m).ToString("F2")
+        }, includeCost, 7, 8)));
 
         // Per-outlet summary
         sb.AppendLine();
         sb.AppendLine("Outlet Summary");
-        sb.AppendLine("Outlet,Total SKUs,Total Qty,Stock Value");
+        sb.AppendLine(includeCost ? "Outlet,Total SKUs,Total Qty,Stock Value" : "Outlet,Total SKUs,Total Qty");
         foreach (var o in summary.ByOutlet)
-            sb.AppendLine($"{EscapeCsv(o.OutletName)},{o.TotalSkus},{o.TotalQty},{o.StockValue:F2}");
+            sb.AppendLine(includeCost
+                ? $"{EscapeCsv(o.OutletName)},{o.TotalSkus},{o.TotalQty},{o.StockValue:F2}"
+                : $"{EscapeCsv(o.OutletName)},{o.TotalSkus},{o.TotalQty}");
 
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy")
+    public static byte[] ToExcel(IReadOnlyList<OutletWiseStockRowDto> rows, OutletWiseStockSummaryDto summary, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         using var wb = new XLWorkbook();
 
@@ -109,9 +112,9 @@ public static class OutletWiseStockExporter
             ws.Cell(row, 5).Value = r.ProductName;
             ws.Cell(row, 6).Value = r.CategoryName;
             ws.Cell(row, 7).Value = r.Quantity;
-            ws.Cell(row, 8).Value = r.UnitCost;
+            ws.Cell(row, 8).Value = r.UnitCost ?? 0m;
             ws.Cell(row, 8).Style.NumberFormat.Format = "#,##0.0000";
-            ws.Cell(row, 9).Value = r.StockValue;
+            ws.Cell(row, 9).Value = r.StockValue ?? 0m;
             ws.Cell(row, 9).Style.NumberFormat.Format = "#,##0.00";
         }
 
@@ -119,10 +122,13 @@ public static class OutletWiseStockExporter
         ws.Cell(totalsRow, 1).Value = "TOTAL";
         ws.Cell(totalsRow, 5).Value = $"{rows.Count} rows";
         ws.Cell(totalsRow, 7).Value = summary.TotalQuantity;
-        ws.Cell(totalsRow, 9).Value = summary.TotalStockValue;
+        ws.Cell(totalsRow, 9).Value = summary.TotalStockValue ?? 0m;
         ws.Cell(totalsRow, 9).Style.NumberFormat.Format = "#,##0.00";
         ws.Row(totalsRow).Style.Font.Bold = true;
         ws.Row(totalsRow).Style.Fill.BackgroundColor = XLColor.FromHtml("#dbeafe");
+
+        // Without products.view_cost the Unit Cost and Stock Value columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 8, 9);
 
         ws.SheetView.FreezeRows(headerRow);
         ws.Columns().AdjustToContents();
@@ -145,9 +151,10 @@ public static class OutletWiseStockExporter
             ws2.Cell(row, 1).Value = o.OutletName;
             ws2.Cell(row, 2).Value = o.TotalSkus;
             ws2.Cell(row, 3).Value = o.TotalQty;
-            ws2.Cell(row, 4).Value = o.StockValue;
+            ws2.Cell(row, 4).Value = o.StockValue ?? 0m;
             ws2.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
         }
+        ReportExportCostColumns.DeleteColumns(ws2, includeCost, 4);
         ws2.Columns().AdjustToContents();
 
         using var ms = new System.IO.MemoryStream();

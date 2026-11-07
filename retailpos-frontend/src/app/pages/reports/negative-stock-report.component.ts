@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -9,6 +9,7 @@ import { WarehouseService } from '../../services/warehouse.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-negative-stock-report',
@@ -18,6 +19,9 @@ import { CurrencyService } from '../../services/currency.service';
   styleUrls: ['./negative-stock-report.component.css']
 })
 export class NegativeStockReportComponent implements OnInit, OnDestroy {
+  private readonly auth = inject(AuthService);
+  /** U-13: cost-derived figures need products.view_cost; without it the API sends null. */
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
   // ── Filters ───────────────────────────────────────────────────────────────
   outletId    = signal<number | null>(null);
   warehouseId = signal<number | null>(null);
@@ -159,5 +163,5 @@ export class NegativeStockReportComponent implements OnInit, OnDestroy {
     a.href = url; a.download = ''; a.click();
   }
 
-  formatCurrency(v: number): string { return this.currencyService.format(v); }
+  formatCurrency(v: number | null | undefined): string { return v == null ? '—' : this.currencyService.format(v); }
 }

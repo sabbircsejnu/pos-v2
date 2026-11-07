@@ -40,6 +40,7 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetInventoryStockLevelsQuery(resolvedId, resolvedType, lowStockOnly),
             cancellationToken);
+        var includeCost = User.CanViewCost();
         var rows = result.Select(item => new StockLevelDto
         {
             VariantId = item.VariantId,
@@ -52,7 +53,7 @@ public class InventoryReportsController : ControllerBase
             Quantity = item.Quantity,
             ReorderLevel = item.ReorderLevel,
             IsLowStock = item.IsLowStock,
-            EstimatedValue = item.EstimatedValue
+            EstimatedValue = includeCost ? item.EstimatedValue : null
         }).ToList();
         return Ok(ApiResponse<List<StockLevelDto>>.SuccessResponse(rows));
     }
@@ -63,16 +64,21 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetInventoryReportValuationQuery(), cancellationToken);
+        var includeCost = User.CanViewCost();
+        var byCategory = result.ByCategory.Select(category => new CategoryValuationDto
+        {
+            CategoryName = category.CategoryName,
+            Value = includeCost ? category.Value : null,
+            ItemCount = category.ItemCount
+        });
         return Ok(ApiResponse<InventoryValuationDto>.SuccessResponse(new InventoryValuationDto
         {
-            TotalValue = result.TotalValue,
+            TotalValue = includeCost ? result.TotalValue : null,
             TotalItems = result.TotalItems,
-            ByCategory = result.ByCategory.Select(category => new CategoryValuationDto
-            {
-                CategoryName = category.CategoryName,
-                Value = category.Value,
-                ItemCount = category.ItemCount
-            }).ToList()
+            // The read model ranks categories by value; that order would still reveal cost.
+            ByCategory = includeCost
+                ? byCategory.ToList()
+                : byCategory.OrderBy(category => category.CategoryName, StringComparer.OrdinalIgnoreCase).ToList()
         }));
     }
 
@@ -83,6 +89,7 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await _sender.Send(new GetSlowMovingInventoryItemsQuery(days), cancellationToken);
+        var includeCost = User.CanViewCost();
         var items = result.Select(item => new SlowMovingItemDto
         {
             VariantId = item.VariantId,
@@ -90,7 +97,7 @@ public class InventoryReportsController : ControllerBase
             Sku = item.Sku,
             CurrentStock = item.CurrentStock,
             DaysSinceLastSale = item.DaysSinceLastSale,
-            EstimatedValue = item.EstimatedValue
+            EstimatedValue = includeCost ? item.EstimatedValue : null
         }).ToList();
         return Ok(ApiResponse<List<SlowMovingItemDto>>.SuccessResponse(items));
     }
@@ -116,6 +123,9 @@ public class InventoryReportsController : ControllerBase
     {
         // Enforce outlet access scoping
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "productName", sortDir ?? "asc", includeCost, "productName");
 
         var filter = new CurrentStockFilterDto
         {
@@ -125,8 +135,8 @@ public class InventoryReportsController : ControllerBase
             ProductId   = productId,
             StockStatus = stockStatus,
             Search      = search,
-            SortBy      = sortBy ?? "productName",
-            SortDir     = sortDir ?? "asc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = page < 1 ? 1 : page,
             PageSize    = pageSize is < 1 or > 500 ? 50 : pageSize
         };
@@ -146,13 +156,13 @@ public class InventoryReportsController : ControllerBase
             cancellationToken);
         return Ok(ApiResponse<CurrentStockReportDto>.SuccessResponse(new CurrentStockReportDto
         {
-            Items = result.Items.Select(ToCurrentStockDto).ToList(),
+            Items = result.Items.Select(row => ToCurrentStockDto(row, includeCost)).ToList(),
             TotalCount = result.TotalCount,
             Summary = new CurrentStockSummaryDto
             {
                 TotalProducts = result.Summary.TotalProducts,
                 TotalQuantity = result.Summary.TotalQuantity,
-                TotalStockValue = result.Summary.TotalStockValue
+                TotalStockValue = includeCost ? result.Summary.TotalStockValue : null
             }
         }));
     }
@@ -175,6 +185,9 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "productName", sortDir ?? "asc", includeCost, "productName");
 
         var filter = new CurrentStockFilterDto
         {
@@ -184,8 +197,8 @@ public class InventoryReportsController : ControllerBase
             ProductId   = productId,
             StockStatus = stockStatus,
             Search      = search,
-            SortBy      = sortBy ?? "productName",
-            SortDir     = sortDir ?? "asc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = 1,
             PageSize    = 0   // signals no pagination
         };
@@ -203,20 +216,20 @@ public class InventoryReportsController : ControllerBase
                 filter.Page,
                 filter.PageSize)),
             cancellationToken);
-        var rows = result.Items.Select(ToCurrentStockDto).ToList();
+        var rows = result.Items.Select(row => ToCurrentStockDto(row, includeCost)).ToList();
 
         var dateFormat = (await _sender.Send(
             new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = CurrentStockExporter.ToExcel(rows, dateFormat);
+            var bytes = CurrentStockExporter.ToExcel(rows, dateFormat, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"CurrentStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = CurrentStockExporter.ToCsv(rows, dateFormat);
+            var csv = CurrentStockExporter.ToCsv(rows, dateFormat, includeCost);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"CurrentStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -264,7 +277,8 @@ public class InventoryReportsController : ControllerBase
             var result = await _sender.Send(
                 new GetProductLedgerReportQuery(ToApplicationFilter(filter)),
                 cancellationToken);
-            return Ok(ApiResponse<ProductLedgerReportDto>.SuccessResponse(ToProductLedgerDto(result)));
+            return Ok(ApiResponse<ProductLedgerReportDto>.SuccessResponse(
+                ToProductLedgerDto(result, User.CanViewCost())));
         }
         catch (KeyNotFoundException ex)
         {
@@ -310,14 +324,15 @@ public class InventoryReportsController : ControllerBase
             var result = await _sender.Send(
                 new GetProductLedgerReportQuery(ToApplicationFilter(filter)),
                 cancellationToken);
-            var rows = result.Items.Select(ToProductLedgerRowDto).ToList();
+            var includeCost = User.CanViewCost();
+            var rows = result.Items.Select(row => ToProductLedgerRowDto(row, includeCost)).ToList();
 
             // Build summary from export rows (since export method doesn't return summary)
             var summary = new ProductLedgerSummaryDto
             {
                 TotalStockIn          = rows.Sum(r => r.StockIn),
                 TotalStockOut         = rows.Sum(r => r.StockOut),
-                TotalTransactionValue = rows.Sum(r => r.TransactionValue),
+                TotalTransactionValue = includeCost ? rows.Sum(r => r.TransactionValue ?? 0m) : null,
                 OpeningStock          = rows.Count > 0 ? rows[0].OpeningQuantity : 0,
                 ClosingStock          = rows.Count > 0 ? rows[^1].ClosingQuantity : 0
             };
@@ -327,13 +342,13 @@ public class InventoryReportsController : ControllerBase
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
             {
-                var bytes = ProductLedgerExporter.ToExcel(rows, summary, result.ProductName, dateFormat);
+                var bytes = ProductLedgerExporter.ToExcel(rows, summary, result.ProductName, dateFormat, includeCost);
                 return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             $"ProductLedger_{productId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
             }
             else
             {
-                var csv = ProductLedgerExporter.ToCsv(rows, summary, result.ProductName, dateFormat);
+                var csv = ProductLedgerExporter.ToCsv(rows, summary, result.ProductName, dateFormat, includeCost);
                 return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                             $"ProductLedger_{productId}_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
             }
@@ -467,6 +482,9 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            ValuationSafeSort(sortBy ?? "inventoryValue", sortDir ?? "desc", includeCost);
 
         var filter = new StockValuationFilterDto
         {
@@ -474,8 +492,8 @@ public class InventoryReportsController : ControllerBase
             WarehouseId = warehouseId,
             CategoryId  = categoryId,
             Search      = search,
-            SortBy      = sortBy  ?? "inventoryValue",
-            SortDir     = sortDir ?? "desc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = page < 1 ? 1 : page,
             PageSize    = pageSize is < 1 or > 500 ? 50 : pageSize
         };
@@ -483,7 +501,7 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetStockValuationReportQuery(ToApplicationFilter(filter)),
             cancellationToken);
-        return Ok(ApiResponse<StockValuationReportDto>.SuccessResponse(ToStockValuationDto(result)));
+        return Ok(ApiResponse<StockValuationReportDto>.SuccessResponse(ToStockValuationDto(result, includeCost)));
     }
 
     /// <summary>
@@ -501,6 +519,9 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            ValuationSafeSort(sortBy ?? "inventoryValue", sortDir ?? "desc", includeCost);
 
         var filter = new StockValuationFilterDto
         {
@@ -508,8 +529,8 @@ public class InventoryReportsController : ControllerBase
             WarehouseId = warehouseId,
             CategoryId  = categoryId,
             Search      = search,
-            SortBy      = sortBy  ?? "inventoryValue",
-            SortDir     = sortDir ?? "desc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = 1,
             PageSize    = 0
         };
@@ -517,41 +538,66 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetStockValuationReportQuery(ToApplicationFilter(filter)),
             cancellationToken);
-        var rows = result.Items.Select(ToStockValuationRowDto).ToList();
-        var totalValue = rows.Sum(r => r.InventoryValue);
-        foreach (var r in rows)
-            r.PercentOfTotal = totalValue > 0 ? Math.Round(r.InventoryValue / totalValue * 100, 2) : 0;
-
-        var summary = new StockValuationSummaryDto
+        var rows = result.Items.Select(row => ToStockValuationRowDto(row, includeCost)).ToList();
+        StockValuationSummaryDto summary;
+        if (includeCost)
         {
-            TotalProducts       = rows.Select(r => r.VariantId).Distinct().Count(),
-            TotalQuantity       = rows.Sum(r => r.Quantity),
-            TotalInventoryValue = totalValue,
-            ByCategory          = rows
-                .GroupBy(r => r.CategoryName)
-                .Select(g => new StockValuationCategoryDto
-                {
-                    CategoryName   = g.Key,
-                    Quantity       = g.Sum(r => r.Quantity),
-                    InventoryValue = g.Sum(r => r.InventoryValue),
-                    PercentOfTotal = totalValue > 0 ? Math.Round(g.Sum(r => r.InventoryValue) / totalValue * 100, 2) : 0
-                })
-                .OrderByDescending(c => c.InventoryValue)
-                .ToList()
-        };
+            var totalValue = rows.Sum(r => r.InventoryValue ?? 0m);
+            foreach (var r in rows)
+                r.PercentOfTotal = totalValue > 0 ? Math.Round((r.InventoryValue ?? 0m) / totalValue * 100, 2) : 0;
+
+            summary = new StockValuationSummaryDto
+            {
+                TotalProducts       = rows.Select(r => r.VariantId).Distinct().Count(),
+                TotalQuantity       = rows.Sum(r => r.Quantity),
+                TotalInventoryValue = totalValue,
+                ByCategory          = rows
+                    .GroupBy(r => r.CategoryName)
+                    .Select(g => new StockValuationCategoryDto
+                    {
+                        CategoryName   = g.Key,
+                        Quantity       = g.Sum(r => r.Quantity),
+                        InventoryValue = g.Sum(r => r.InventoryValue ?? 0m),
+                        PercentOfTotal = totalValue > 0 ? Math.Round(g.Sum(r => r.InventoryValue ?? 0m) / totalValue * 100, 2) : 0
+                    })
+                    .OrderByDescending(c => c.InventoryValue)
+                    .ToList()
+            };
+        }
+        else
+        {
+            // Quantities by category stay; value, share of value and the value ranking are left out.
+            summary = new StockValuationSummaryDto
+            {
+                TotalProducts       = rows.Select(r => r.VariantId).Distinct().Count(),
+                TotalQuantity       = rows.Sum(r => r.Quantity),
+                TotalInventoryValue = null,
+                ByCategory          = rows
+                    .GroupBy(r => r.CategoryName)
+                    .Select(g => new StockValuationCategoryDto
+                    {
+                        CategoryName   = g.Key,
+                        Quantity       = g.Sum(r => r.Quantity),
+                        InventoryValue = null,
+                        PercentOfTotal = null
+                    })
+                    .OrderBy(c => c.CategoryName, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            };
+        }
 
         var dateFormat = (await _sender.Send(
             new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockValuationExporter.ToExcel(rows, summary, dateFormat);
+            var bytes = StockValuationExporter.ToExcel(rows, summary, dateFormat, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockValuation_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = StockValuationExporter.ToCsv(rows, summary, dateFormat);
+            var csv = StockValuationExporter.ToCsv(rows, summary, dateFormat, includeCost);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"StockValuation_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -575,14 +621,17 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "outletName", sortDir ?? "asc", includeCost, "outletName");
 
         var filter = new OutletWiseStockFilterDto
         {
             OutletId   = resolvedOutletId,
             CategoryId = categoryId,
             Search     = search,
-            SortBy     = sortBy  ?? "outletName",
-            SortDir    = sortDir ?? "asc",
+            SortBy     = effectiveSortBy,
+            SortDir    = effectiveSortDir,
             Page       = page < 1 ? 1 : page,
             PageSize   = pageSize is < 1 or > 500 ? 50 : pageSize
         };
@@ -592,9 +641,9 @@ public class InventoryReportsController : ControllerBase
             cancellationToken);
         return Ok(ApiResponse<OutletWiseStockReportDto>.SuccessResponse(new OutletWiseStockReportDto
         {
-            Items = result.Items.Select(ToOutletWiseStockDto).ToList(),
+            Items = result.Items.Select(row => ToOutletWiseStockDto(row, includeCost)).ToList(),
             TotalCount = result.TotalCount,
-            Summary = ToOutletWiseStockSummaryDto(result.Summary)
+            Summary = ToOutletWiseStockSummaryDto(result.Summary, includeCost)
         }));
     }
 
@@ -612,14 +661,17 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await _outletAccess.ResolveAndAuthorizeOutletFilterAsync(outletId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "outletName", sortDir ?? "asc", includeCost, "outletName");
 
         var filter = new OutletWiseStockFilterDto
         {
             OutletId   = resolvedOutletId,
             CategoryId = categoryId,
             Search     = search,
-            SortBy     = sortBy  ?? "outletName",
-            SortDir    = sortDir ?? "asc",
+            SortBy     = effectiveSortBy,
+            SortDir    = effectiveSortDir,
             Page       = 1,
             PageSize   = 0
         };
@@ -627,21 +679,21 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetOutletWiseStockReportQuery(ToOutletWiseStockApplicationFilter(filter)),
             cancellationToken);
-        var rows = result.Items.Select(ToOutletWiseStockDto).ToList();
-        var summary = ToOutletWiseStockSummaryDto(result.Summary);
+        var rows = result.Items.Select(row => ToOutletWiseStockDto(row, includeCost)).ToList();
+        var summary = ToOutletWiseStockSummaryDto(result.Summary, includeCost);
 
         var dateFormat = (await _sender.Send(
             new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken)).Company.DateFormat;
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = OutletWiseStockExporter.ToExcel(rows, summary, dateFormat);
+            var bytes = OutletWiseStockExporter.ToExcel(rows, summary, dateFormat, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"OutletWiseStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var csv = OutletWiseStockExporter.ToCsv(rows, summary, dateFormat);
+            var csv = OutletWiseStockExporter.ToCsv(rows, summary, dateFormat, includeCost);
             return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv",
                         $"OutletWiseStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
@@ -657,7 +709,7 @@ public class InventoryReportsController : ControllerBase
             filter.Page,
             filter.PageSize);
 
-    private static OutletWiseStockRowDto ToOutletWiseStockDto(OutletWiseStockRowReadModel row) =>
+    private static OutletWiseStockRowDto ToOutletWiseStockDto(OutletWiseStockRowReadModel row, bool includeCost) =>
         new()
         {
             OutletId = row.OutletId,
@@ -669,25 +721,26 @@ public class InventoryReportsController : ControllerBase
             ProductName = row.ProductName,
             CategoryName = row.CategoryName,
             Quantity = row.Quantity,
-            UnitCost = row.UnitCost,
-            StockValue = row.StockValue
+            UnitCost = includeCost ? row.UnitCost : null,
+            StockValue = includeCost ? row.StockValue : null
         };
 
     private static OutletWiseStockSummaryDto ToOutletWiseStockSummaryDto(
-        OutletWiseStockSummaryReadModel summary) =>
+        OutletWiseStockSummaryReadModel summary,
+        bool includeCost) =>
         new()
         {
             TotalOutlets = summary.TotalOutlets,
             TotalSkus = summary.TotalSkus,
             TotalQuantity = summary.TotalQuantity,
-            TotalStockValue = summary.TotalStockValue,
+            TotalStockValue = includeCost ? summary.TotalStockValue : null,
             ByOutlet = summary.ByOutlet.Select(outlet => new OutletStockSummaryDto
             {
                 OutletId = outlet.OutletId,
                 OutletName = outlet.OutletName,
                 TotalSkus = outlet.TotalSkus,
                 TotalQty = outlet.TotalQty,
-                StockValue = outlet.StockValue
+                StockValue = includeCost ? outlet.StockValue : null
             }).ToList()
         };
 
@@ -847,11 +900,12 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetOutOfStockReportQuery(ToOutOfStockApplicationFilter(filter)),
             cancellationToken);
+        var includeCost = User.CanViewCost();
         return Ok(new OutOfStockReportDto
         {
-            Items = result.Items.Select(ToOutOfStockDto).ToList(),
+            Items = result.Items.Select(row => ToOutOfStockDto(row, includeCost)).ToList(),
             TotalCount = result.TotalCount,
-            Summary = ToOutOfStockSummaryDto(result.Summary)
+            Summary = ToOutOfStockSummaryDto(result.Summary, includeCost)
         });
     }
 
@@ -883,18 +937,19 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetOutOfStockReportQuery(ToOutOfStockApplicationFilter(filter)),
             cancellationToken);
-        var rows = result.Items.Select(ToOutOfStockDto).ToList();
-        var summary = ToOutOfStockSummaryDto(result.Summary);
+        var includeCost = User.CanViewCost();
+        var rows = result.Items.Select(row => ToOutOfStockDto(row, includeCost)).ToList();
+        var summary = ToOutOfStockSummaryDto(result.Summary, includeCost);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = OutOfStockExporter.ToExcel(rows, summary);
+            var bytes = OutOfStockExporter.ToExcel(rows, summary, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"OutOfStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var bytes = OutOfStockExporter.ToCsv(rows);
+            var bytes = OutOfStockExporter.ToCsv(rows, includeCost);
             return File(bytes, "text/csv", $"OutOfStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
@@ -910,7 +965,7 @@ public class InventoryReportsController : ControllerBase
             filter.Page,
             filter.PageSize);
 
-    private static OutOfStockRowDto ToOutOfStockDto(OutOfStockRowReadModel row) =>
+    private static OutOfStockRowDto ToOutOfStockDto(OutOfStockRowReadModel row, bool includeCost) =>
         new()
         {
             VariantId = row.VariantId,
@@ -923,15 +978,15 @@ public class InventoryReportsController : ControllerBase
             LocationType = row.LocationType,
             LocationName = row.LocationName,
             ReorderLevel = row.ReorderLevel,
-            UnitCost = row.UnitCost
+            UnitCost = includeCost ? row.UnitCost : null
         };
 
-    private static OutOfStockSummaryDto ToOutOfStockSummaryDto(OutOfStockSummaryReadModel summary) =>
+    private static OutOfStockSummaryDto ToOutOfStockSummaryDto(OutOfStockSummaryReadModel summary, bool includeCost) =>
         new()
         {
             TotalSkus = summary.TotalSkus,
             TotalLocations = summary.TotalLocations,
-            EstimatedCostImpact = summary.EstimatedCostImpact
+            EstimatedCostImpact = includeCost ? summary.EstimatedCostImpact : null
         };
 
     // ──────────────────────────────────────────────────────────────────────
@@ -951,6 +1006,9 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "currentStock", sortDir ?? "asc", includeCost, "currentStock");
 
         var filter = new NegativeStockFilterDto
         {
@@ -958,8 +1016,8 @@ public class InventoryReportsController : ControllerBase
             WarehouseId = warehouseId,
             CategoryId  = categoryId,
             Search      = search ?? string.Empty,
-            SortBy      = sortBy  ?? "currentStock",
-            SortDir     = sortDir ?? "asc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = page,
             PageSize    = pageSize
         };
@@ -969,9 +1027,9 @@ public class InventoryReportsController : ControllerBase
             cancellationToken);
         return Ok(new NegativeStockReportDto
         {
-            Items = result.Items.Select(ToNegativeStockDto).ToList(),
+            Items = result.Items.Select(row => ToNegativeStockDto(row, includeCost)).ToList(),
             TotalCount = result.TotalCount,
-            Summary = ToNegativeStockSummaryDto(result.Summary)
+            Summary = ToNegativeStockSummaryDto(result.Summary, includeCost)
         });
     }
 
@@ -987,6 +1045,9 @@ public class InventoryReportsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var resolvedOutletId = await ResolveInventoryOutletFilterAsync(outletId, warehouseId);
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "currentStock", sortDir ?? "asc", includeCost, "currentStock");
 
         var filter = new NegativeStockFilterDto
         {
@@ -994,8 +1055,8 @@ public class InventoryReportsController : ControllerBase
             WarehouseId = warehouseId,
             CategoryId  = categoryId,
             Search      = search ?? string.Empty,
-            SortBy      = sortBy  ?? "currentStock",
-            SortDir     = sortDir ?? "asc",
+            SortBy      = effectiveSortBy,
+            SortDir     = effectiveSortDir,
             Page        = 1,
             PageSize    = 0
         };
@@ -1003,18 +1064,18 @@ public class InventoryReportsController : ControllerBase
         var result = await _sender.Send(
             new GetNegativeStockReportQuery(ToNegativeStockApplicationFilter(filter)),
             cancellationToken);
-        var rows = result.Items.Select(ToNegativeStockDto).ToList();
-        var summary = ToNegativeStockSummaryDto(result.Summary);
+        var rows = result.Items.Select(row => ToNegativeStockDto(row, includeCost)).ToList();
+        var summary = ToNegativeStockSummaryDto(result.Summary, includeCost);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = NegativeStockExporter.ToExcel(rows, summary);
+            var bytes = NegativeStockExporter.ToExcel(rows, summary, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"NegativeStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var bytes = NegativeStockExporter.ToCsv(rows);
+            var bytes = NegativeStockExporter.ToCsv(rows, includeCost);
             return File(bytes, "text/csv", $"NegativeStock_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
@@ -1030,7 +1091,7 @@ public class InventoryReportsController : ControllerBase
             filter.Page,
             filter.PageSize);
 
-    private static NegativeStockRowDto ToNegativeStockDto(NegativeStockRowReadModel row) =>
+    private static NegativeStockRowDto ToNegativeStockDto(NegativeStockRowReadModel row, bool includeCost) =>
         new()
         {
             VariantId = row.VariantId,
@@ -1043,17 +1104,18 @@ public class InventoryReportsController : ControllerBase
             LocationType = row.LocationType,
             LocationName = row.LocationName,
             CurrentStock = row.CurrentStock,
-            UnitCost = row.UnitCost,
-            StockValue = row.StockValue
+            UnitCost = includeCost ? row.UnitCost : null,
+            StockValue = includeCost ? row.StockValue : null
         };
 
     private static NegativeStockSummaryDto ToNegativeStockSummaryDto(
-        NegativeStockSummaryReadModel summary) =>
+        NegativeStockSummaryReadModel summary,
+        bool includeCost) =>
         new()
         {
             TotalSkus = summary.TotalSkus,
             TotalNegativeQty = summary.TotalNegativeQty,
-            TotalNegativeValue = summary.TotalNegativeValue
+            TotalNegativeValue = includeCost ? summary.TotalNegativeValue : null
         };
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1217,6 +1279,9 @@ public class InventoryReportsController : ControllerBase
         var visibility = await ResolveTransferVisibilityContextAsync();
         if (!string.IsNullOrWhiteSpace(visibility.ConfigurationError))
             return BadRequest(ApiResponse<StockTransferReportDto>.ErrorResponse(visibility.ConfigurationError));
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "transferDate", sortDir ?? "desc", includeCost, "transferDate");
 
         var filter = new StockTransferFilterDto
         {
@@ -1227,8 +1292,8 @@ public class InventoryReportsController : ControllerBase
             Search       = search   ?? string.Empty,
             DateFrom     = dateFrom,
             DateTo       = dateTo,
-            SortBy       = sortBy   ?? "transferDate",
-            SortDir      = sortDir  ?? "desc",
+            SortBy       = effectiveSortBy,
+            SortDir      = effectiveSortDir,
             Page         = page,
             PageSize     = pageSize,
             CanViewAllLocations = visibility.CanViewAllLocations,
@@ -1245,9 +1310,9 @@ public class InventoryReportsController : ControllerBase
             cancellationToken);
         return Ok(new StockTransferReportDto
         {
-            Items = result.Items.Select(ToStockTransferDto).ToList(),
+            Items = result.Items.Select(row => ToStockTransferDto(row, includeCost)).ToList(),
             TotalCount = result.TotalCount,
-            Summary = ToStockTransferSummaryDto(result.Summary)
+            Summary = ToStockTransferSummaryDto(result.Summary, includeCost)
         });
     }
 
@@ -1268,6 +1333,9 @@ public class InventoryReportsController : ControllerBase
         var visibility = await ResolveTransferVisibilityContextAsync();
         if (!string.IsNullOrWhiteSpace(visibility.ConfigurationError))
             return BadRequest(ApiResponse<object>.ErrorResponse(visibility.ConfigurationError));
+        var includeCost = User.CanViewCost();
+        var (effectiveSortBy, effectiveSortDir) =
+            CostSafeSort(sortBy ?? "transferDate", sortDir ?? "desc", includeCost, "transferDate");
 
         var filter = new StockTransferFilterDto
         {
@@ -1278,8 +1346,8 @@ public class InventoryReportsController : ControllerBase
             Search       = search   ?? string.Empty,
             DateFrom     = dateFrom,
             DateTo       = dateTo,
-            SortBy       = sortBy   ?? "transferDate",
-            SortDir      = sortDir  ?? "desc",
+            SortBy       = effectiveSortBy,
+            SortDir      = effectiveSortDir,
             Page         = 1,
             PageSize     = 0,
             CanViewAllLocations = visibility.CanViewAllLocations,
@@ -1294,20 +1362,20 @@ public class InventoryReportsController : ControllerBase
                 visibility.DefaultLocationType,
                 visibility.DefaultLocationId),
             cancellationToken);
-        var rows = result.Items.Select(ToStockTransferDto).ToList();
-        var summary = ToStockTransferSummaryDto(result.Summary);
+        var rows = result.Items.Select(row => ToStockTransferDto(row, includeCost)).ToList();
+        var summary = ToStockTransferSummaryDto(result.Summary, includeCost);
         var settings = await _sender.Send(
             new RetailPOS.Application.Settings.Queries.GetSystemSettingsQuery(), cancellationToken);
 
         if (format.Equals("excel", StringComparison.OrdinalIgnoreCase))
         {
-            var bytes = StockTransferReportExporter.ToExcel(rows, summary, settings.Company.DateFormat);
+            var bytes = StockTransferReportExporter.ToExcel(rows, summary, settings.Company.DateFormat, includeCost);
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         $"StockTransfers_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
         }
         else
         {
-            var bytes = StockTransferReportExporter.ToCsv(rows, settings.Company.DateFormat);
+            var bytes = StockTransferReportExporter.ToCsv(rows, settings.Company.DateFormat, includeCost);
             return File(bytes, "text/csv", $"StockTransfers_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
         }
     }
@@ -1340,7 +1408,7 @@ public class InventoryReportsController : ControllerBase
             filter.Page,
             filter.PageSize);
 
-    private static StockTransferRowDto ToStockTransferDto(StockTransferReportRowReadModel row) =>
+    private static StockTransferRowDto ToStockTransferDto(StockTransferReportRowReadModel row, bool includeCost) =>
         new()
         {
             TransferId = row.TransferId,
@@ -1356,24 +1424,25 @@ public class InventoryReportsController : ControllerBase
             ProductName = row.ProductName,
             CategoryName = row.CategoryName,
             Quantity = row.Quantity,
-            UnitCost = row.UnitCost,
-            TransferValue = row.TransferValue,
+            UnitCost = includeCost ? row.UnitCost : null,
+            TransferValue = includeCost ? row.TransferValue : null,
             CreatedBy = row.CreatedBy
         };
 
     private static StockTransferSummaryDto ToStockTransferSummaryDto(
-        StockTransferReportSummaryReadModel summary) =>
+        StockTransferReportSummaryReadModel summary,
+        bool includeCost) =>
         new()
         {
             TotalTransfers = summary.TotalTransfers,
             TotalLines = summary.TotalLines,
             TotalQuantity = summary.TotalQuantity,
-            TotalValue = summary.TotalValue,
+            TotalValue = includeCost ? summary.TotalValue : null,
             PendingCount = summary.PendingCount,
             CompletedCount = summary.CompletedCount
         };
 
-    private static CurrentStockRowDto ToCurrentStockDto(CurrentStockRowReadModel row) => new()
+    private static CurrentStockRowDto ToCurrentStockDto(CurrentStockRowReadModel row, bool includeCost) => new()
     {
         VariantId = row.VariantId,
         ProductCode = row.ProductCode,
@@ -1386,8 +1455,8 @@ public class InventoryReportsController : ControllerBase
         AvailableQuantity = row.AvailableQuantity,
         ReservedQuantity = row.ReservedQuantity,
         ReorderLevel = row.ReorderLevel,
-        UnitCost = row.UnitCost,
-        StockValue = row.StockValue,
+        UnitCost = includeCost ? row.UnitCost : null,
+        StockValue = includeCost ? row.StockValue : null,
         LastPurchaseDate = row.LastPurchaseDate,
         LastSaleDate = row.LastSaleDate,
         StockStatus = row.StockStatus
@@ -1429,28 +1498,34 @@ public class InventoryReportsController : ControllerBase
             filter.Page,
             filter.PageSize);
 
-    private static StockValuationReportDto ToStockValuationDto(StockValuationReportReadModel report) => new()
+    private static StockValuationReportDto ToStockValuationDto(StockValuationReportReadModel report, bool includeCost)
     {
-        Items = report.Items.Select(ToStockValuationRowDto).ToList(),
-        TotalCount = report.TotalCount,
-        Summary = new StockValuationSummaryDto
+        var byCategory = report.Summary.ByCategory
+            .Select(category => new StockValuationCategoryDto
+            {
+                CategoryName = category.CategoryName,
+                Quantity = category.Quantity,
+                InventoryValue = includeCost ? category.InventoryValue : null,
+                PercentOfTotal = includeCost ? category.PercentOfTotal : null
+            });
+        return new()
         {
-            TotalProducts = report.Summary.TotalProducts,
-            TotalQuantity = report.Summary.TotalQuantity,
-            TotalInventoryValue = report.Summary.TotalInventoryValue,
-            ByCategory = report.Summary.ByCategory
-                .Select(category => new StockValuationCategoryDto
-                {
-                    CategoryName = category.CategoryName,
-                    Quantity = category.Quantity,
-                    InventoryValue = category.InventoryValue,
-                    PercentOfTotal = category.PercentOfTotal
-                })
-                .ToList()
-        }
-    };
+            Items = report.Items.Select(row => ToStockValuationRowDto(row, includeCost)).ToList(),
+            TotalCount = report.TotalCount,
+            Summary = new StockValuationSummaryDto
+            {
+                TotalProducts = report.Summary.TotalProducts,
+                TotalQuantity = report.Summary.TotalQuantity,
+                TotalInventoryValue = includeCost ? report.Summary.TotalInventoryValue : null,
+                // The read model ranks categories by value; that order would still reveal cost.
+                ByCategory = includeCost
+                    ? byCategory.ToList()
+                    : byCategory.OrderBy(category => category.CategoryName, StringComparer.OrdinalIgnoreCase).ToList()
+            }
+        };
+    }
 
-    private static StockValuationRowDto ToStockValuationRowDto(StockValuationRowReadModel row) => new()
+    private static StockValuationRowDto ToStockValuationRowDto(StockValuationRowReadModel row, bool includeCost) => new()
     {
         VariantId = row.VariantId,
         ProductCode = row.ProductCode,
@@ -1462,9 +1537,9 @@ public class InventoryReportsController : ControllerBase
         LocationType = row.LocationType,
         LocationName = row.LocationName,
         Quantity = row.Quantity,
-        UnitCost = row.UnitCost,
-        InventoryValue = row.InventoryValue,
-        PercentOfTotal = row.PercentOfTotal
+        UnitCost = includeCost ? row.UnitCost : null,
+        InventoryValue = includeCost ? row.InventoryValue : null,
+        PercentOfTotal = includeCost ? row.PercentOfTotal : null
     };
 
     private static StockMovementReportDto ToStockMovementDto(StockMovementReportReadModel report) => new()
@@ -1500,14 +1575,14 @@ public class InventoryReportsController : ControllerBase
         NetMovement = row.NetMovement
     };
 
-    private static ProductLedgerReportDto ToProductLedgerDto(ProductLedgerReportReadModel report) => new()
+    private static ProductLedgerReportDto ToProductLedgerDto(ProductLedgerReportReadModel report, bool includeCost) => new()
     {
         ProductId = report.ProductId,
         ProductName = report.ProductName,
         ProductSku = report.ProductSku,
         VariantId = report.VariantId,
         VariantName = report.VariantName,
-        Items = report.Items.Select(ToProductLedgerRowDto).ToList(),
+        Items = report.Items.Select(row => ToProductLedgerRowDto(row, includeCost)).ToList(),
         TotalCount = report.TotalCount,
         Summary = new ProductLedgerSummaryDto
         {
@@ -1515,11 +1590,15 @@ public class InventoryReportsController : ControllerBase
             TotalStockIn = report.Summary.TotalStockIn,
             TotalStockOut = report.Summary.TotalStockOut,
             ClosingStock = report.Summary.ClosingStock,
-            TotalTransactionValue = report.Summary.TotalTransactionValue
+            TotalTransactionValue = includeCost ? report.Summary.TotalTransactionValue : null
         }
     };
 
-    private static ProductLedgerRowDto ToProductLedgerRowDto(ProductLedgerRowReadModel row) => new()
+    /// <summary>
+    /// Cost and value, and remarks that quote a cost, are left out for a caller without <c>products.view_cost</c>
+    /// (the same rule as the stock ledger). Quantities, dates and references stay.
+    /// </summary>
+    private static ProductLedgerRowDto ToProductLedgerRowDto(ProductLedgerRowReadModel row, bool includeCost) => new()
     {
         LedgerId = row.LedgerId,
         TransactionDate = row.TransactionDate,
@@ -1535,11 +1614,39 @@ public class InventoryReportsController : ControllerBase
         StockIn = row.StockIn,
         StockOut = row.StockOut,
         ClosingQuantity = row.ClosingQuantity,
-        UnitCost = row.UnitCost,
-        TransactionValue = row.TransactionValue,
+        UnitCost = includeCost ? row.UnitCost : null,
+        TransactionValue = includeCost ? row.TransactionValue : null,
         PerformedBy = row.PerformedBy,
-        Remarks = row.Remarks
+        Remarks = includeCost ? row.Remarks : CostSafeRemarks(row.Remarks)
     };
+
+    /// <summary>A remark that quotes a cost is replaced for a caller without <c>products.view_cost</c>.</summary>
+    private static string? CostSafeRemarks(string? remarks) =>
+        remarks?.Contains("cost", StringComparison.OrdinalIgnoreCase) == true
+            ? "Cost details require the view-cost permission."
+            : remarks;
+
+    private static readonly HashSet<string> CostSortKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "unitCost", "stockValue", "inventoryValue", "transferValue", "percentOfTotal", "estimatedValue", "value"
+    };
+
+    private static readonly HashSet<string> ValuationNeutralSortKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "productCode", "sku", "category", "location", "quantity"
+    };
+
+    /// <summary>
+    /// Without <c>products.view_cost</c> a cost or value sort would still rank the rows by cost,
+    /// so it falls back to a neutral key.
+    /// </summary>
+    private static (string SortBy, string SortDir) CostSafeSort(
+        string sortBy, string sortDir, bool includeCost, string neutralSortBy) =>
+        includeCost || !CostSortKeys.Contains(sortBy) ? (sortBy, sortDir) : (neutralSortBy, "asc");
+
+    /// <summary>The valuation store ranks by value for any key it does not know, so only neutral keys pass.</summary>
+    private static (string SortBy, string SortDir) ValuationSafeSort(string sortBy, string sortDir, bool includeCost) =>
+        includeCost || ValuationNeutralSortKeys.Contains(sortBy) ? (sortBy, sortDir) : ("productCode", "asc");
 
     private async Task<(bool CanViewAllLocations, string? DefaultLocationType, long? DefaultLocationId, string? ConfigurationError)> ResolveTransferVisibilityContextAsync()
     {

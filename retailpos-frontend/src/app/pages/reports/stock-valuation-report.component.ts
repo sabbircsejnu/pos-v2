@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -9,6 +9,7 @@ import { CategoryService } from '../../services/category.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CurrencyService } from '../../services/currency.service';
+import { AuthService } from '../../services/auth.service';
 
 import { injectVariantUnits } from '../../utils/variant-units';
 
@@ -20,6 +21,10 @@ import { injectVariantUnits } from '../../utils/variant-units';
   styleUrls: ['./stock-valuation-report.component.css']
 })
 export class StockValuationReportComponent implements OnInit, OnDestroy {
+  private readonly auth = inject(AuthService);
+  /** U-13: cost-derived figures need products.view_cost; without it the API sends null. */
+  readonly canViewCost = computed(() => this.auth.hasPermission('products.view_cost'));
+
   // ── Filters ───────────────────────────────────────────────────────────────
   outletId    = signal<number | null>(null);
   warehouseId = signal<number | null>(null);
@@ -27,8 +32,9 @@ export class StockValuationReportComponent implements OnInit, OnDestroy {
   search      = signal('');
 
   // ── Sort ──────────────────────────────────────────────────────────────────
-  sortBy  = signal('inventoryValue');
-  sortDir = signal<'asc' | 'desc'>('desc');
+  // Without products.view_cost the value sort is not offered (the server would refuse to rank by value anyway).
+  sortBy  = signal(this.canViewCost() ? 'inventoryValue' : 'productCode');
+  sortDir = signal<'asc' | 'desc'>(this.canViewCost() ? 'desc' : 'asc');
 
   // ── Pagination ────────────────────────────────────────────────────────────
   page     = signal(1);
@@ -164,9 +170,9 @@ export class StockValuationReportComponent implements OnInit, OnDestroy {
   }
 
   // ── Formatting ────────────────────────────────────────────────────────────
-  formatCurrency(v: number): string { return this.currencyService.format(v); }
+  formatCurrency(v: number | null | undefined): string { return v == null ? '—' : this.currencyService.format(v); }
 
-  valueBarWidth(pct: number): string {
-    return `${Math.min(100, pct)}%`;
+  valueBarWidth(pct: number | null | undefined): string {
+    return `${Math.min(100, pct ?? 0)}%`;
   }
 }

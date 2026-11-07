@@ -1069,7 +1069,7 @@ public sealed class InventoryReportReadHttpTests : IClassFixture<RetailPosApiFac
     private HttpClient CreateBusinessOwnerClient(string role = "BusinessOwner")
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Test-Permissions", "reports.inventory");
+        client.DefaultRequestHeaders.Add("X-Test-Permissions", "reports.inventory,products.view_cost");
         client.DefaultRequestHeaders.Add("X-Test-BusinessId", "4101");
         client.DefaultRequestHeaders.Add("X-Test-UserId", "4102");
         client.DefaultRequestHeaders.Add("X-Test-Role", role);

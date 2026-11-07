@@ -22,17 +22,17 @@ public static class ProductLedgerExporter
     public static string ToCsv(
         IReadOnlyList<ProductLedgerRowDto> rows,
         ProductLedgerSummaryDto summary,
-        string productName, string dateFormat = "dd/MM/yyyy")
+        string productName, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Product Ledger Report — {EscapeCsv(productName)}");
         sb.AppendLine($"Generated: {UiDateFormatting.Format(DateTime.UtcNow, dateFormat)} UTC");
         sb.AppendLine();
-        sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(Headers, includeCost, 9, 10).Select(EscapeCsv)));
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", new[]
+            sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
             {
                 EscapeCsv(UiDateFormatting.Format(r.TransactionDate, dateFormat)),
                 EscapeCsv(r.TransactionTypeLabel),
@@ -43,15 +43,15 @@ public static class ProductLedgerExporter
                 r.StockIn.ToString(),
                 r.StockOut.ToString(),
                 r.ClosingQuantity.ToString(),
-                r.UnitCost.ToString("F2"),
-                r.TransactionValue.ToString("F2"),
+                (r.UnitCost ?? 0m).ToString("F2"),
+                (r.TransactionValue ?? 0m).ToString("F2"),
                 EscapeCsv(r.PerformedBy ?? ""),
                 EscapeCsv(r.Remarks ?? "")
-            }));
+            }, includeCost, 9, 10)));
         }
 
         // Totals row
-        sb.AppendLine(string.Join(",", new[]
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
         {
             EscapeCsv("TOTAL"), "", $"{rows.Count} transactions", "", "",
             summary.OpeningStock.ToString(),
@@ -59,9 +59,9 @@ public static class ProductLedgerExporter
             summary.TotalStockOut.ToString(),
             summary.ClosingStock.ToString(),
             "",
-            summary.TotalTransactionValue.ToString("F2"),
+            (summary.TotalTransactionValue ?? 0m).ToString("F2"),
             "", ""
-        }));
+        }, includeCost, 9, 10)));
 
         return sb.ToString();
     }
@@ -69,7 +69,7 @@ public static class ProductLedgerExporter
     public static byte[] ToExcel(
         IReadOnlyList<ProductLedgerRowDto> rows,
         ProductLedgerSummaryDto summary,
-        string productName, string dateFormat = "dd/MM/yyyy")
+        string productName, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         using var workbook = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Product Ledger");
@@ -103,8 +103,8 @@ public static class ProductLedgerExporter
             ws.Cell(row, 7).Value  = r.StockIn;
             ws.Cell(row, 8).Value  = r.StockOut;
             ws.Cell(row, 9).Value  = r.ClosingQuantity;
-            ws.Cell(row, 10).Value = r.UnitCost;
-            ws.Cell(row, 11).Value = r.TransactionValue;
+            ws.Cell(row, 10).Value = r.UnitCost ?? 0m;
+            ws.Cell(row, 11).Value = r.TransactionValue ?? 0m;
             ws.Cell(row, 12).Value = r.PerformedBy ?? "";
             ws.Cell(row, 13).Value = r.Remarks ?? "";
 
@@ -124,10 +124,13 @@ public static class ProductLedgerExporter
         ws.Cell(row, 7).Value  = summary.TotalStockIn;
         ws.Cell(row, 8).Value  = summary.TotalStockOut;
         ws.Cell(row, 9).Value  = summary.ClosingStock;
-        ws.Cell(row, 11).Value = summary.TotalTransactionValue;
+        ws.Cell(row, 11).Value = summary.TotalTransactionValue ?? 0m;
         ws.Cell(row, 11).Style.NumberFormat.Format = "#,##0.00";
         ws.Range(row, 1, row, Headers.Length).Style.Font.Bold = true;
         ws.Range(row, 1, row, Headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#e8f0fe");
+
+        // Without products.view_cost the Unit Cost and Transaction Value columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 10, 11);
 
         ws.Columns().AdjustToContents();
         ws.SheetView.FreezeRows(headerRow);

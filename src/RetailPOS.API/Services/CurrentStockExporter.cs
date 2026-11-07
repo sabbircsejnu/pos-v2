@@ -19,17 +19,17 @@ public static class CurrentStockExporter
         "Last Purchase Date", "Last Sale Date", "Stock Status"
     ];
 
-    public static string ToCsv(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy")
+    public static string ToCsv(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         var sb = new System.Text.StringBuilder();
 
         // Header
-        sb.AppendLine(string.Join(",", Headers.Select(EscapeCsv)));
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(Headers, includeCost, 9, 10).Select(EscapeCsv)));
 
         // Data rows
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(",", new[]
+            sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
             {
                 EscapeCsv(r.ProductCode),
                 EscapeCsv(r.Barcode ?? ""),
@@ -40,18 +40,18 @@ public static class CurrentStockExporter
                 r.AvailableQuantity.ToString(),
                 r.ReservedQuantity.ToString(),
                 r.ReorderLevel.ToString(),
-                r.UnitCost.ToString("F2"),
-                r.StockValue.ToString("F2"),
+                (r.UnitCost ?? 0m).ToString("F2"),
+                (r.StockValue ?? 0m).ToString("F2"),
                 r.LastPurchaseDate.HasValue ? UiDateFormatting.Format(r.LastPurchaseDate.Value, dateFormat, false) : "",
                 r.LastSaleDate.HasValue ? UiDateFormatting.Format(r.LastSaleDate.Value, dateFormat, false) : "",
                 EscapeCsv(r.StockStatus)
-            }));
+            }, includeCost, 9, 10)));
         }
 
         // Totals row
         var totalQty   = rows.Sum(r => r.AvailableQuantity);
-        var totalValue = rows.Sum(r => r.StockValue);
-        sb.AppendLine(string.Join(",", new[]
+        var totalValue = rows.Sum(r => r.StockValue ?? 0m);
+        sb.AppendLine(string.Join(",", ReportExportCostColumns.Without(new[]
         {
             EscapeCsv("TOTAL"),
             "", EscapeCsv($"{rows.Count} products"), "", "", "",
@@ -59,12 +59,12 @@ public static class CurrentStockExporter
             "",  "", "",
             totalValue.ToString("F2"),
             "", "", ""
-        }));
+        }, includeCost, 9, 10)));
 
         return sb.ToString();
     }
 
-    public static byte[] ToExcel(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy")
+    public static byte[] ToExcel(IReadOnlyList<CurrentStockRowDto> rows, string dateFormat = "dd/MM/yyyy", bool includeCost = true)
     {
         using var workbook  = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Current Stock");
@@ -102,8 +102,8 @@ public static class CurrentStockExporter
             ws.Cell(row, 7).Value  = r.AvailableQuantity;
             ws.Cell(row, 8).Value  = r.ReservedQuantity;
             ws.Cell(row, 9).Value  = r.ReorderLevel;
-            ws.Cell(row, 10).Value = r.UnitCost;
-            ws.Cell(row, 11).Value = r.StockValue;
+            ws.Cell(row, 10).Value = r.UnitCost ?? 0m;
+            ws.Cell(row, 11).Value = r.StockValue ?? 0m;
             ws.Cell(row, 12).Value = r.LastPurchaseDate.HasValue
                 ? UiDateFormatting.Format(r.LastPurchaseDate.Value, dateFormat, false) : "";
             ws.Cell(row, 13).Value = r.LastSaleDate.HasValue
@@ -126,7 +126,7 @@ public static class CurrentStockExporter
 
         // ── Totals row ───────────────────────────────────────────────
         var totalQty   = rows.Sum(r => r.AvailableQuantity);
-        var totalValue = rows.Sum(r => r.StockValue);
+        var totalValue = rows.Sum(r => r.StockValue ?? 0m);
 
         ws.Cell(row, 1).Value  = "TOTAL";
         ws.Cell(row, 3).Value  = $"{rows.Count} products";
@@ -137,6 +137,9 @@ public static class CurrentStockExporter
         var totalsRange = ws.Range(row, 1, row, Headers.Length);
         totalsRange.Style.Font.Bold = true;
         totalsRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#e8f0fe");
+
+        // Without products.view_cost the Unit Cost and Stock Value columns are left out entirely.
+        ReportExportCostColumns.DeleteColumns(ws, includeCost, 10, 11);
 
         // ── Column widths ────────────────────────────────────────────
         ws.Columns().AdjustToContents();

@@ -87,7 +87,7 @@
 
     <!-- ── Summary Cards ────────────────────────────────────────────────── -->
     @if (summary()) {
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mx-4 mb-4 flex-shrink-0">
+      <div class="grid grid-cols-1 gap-3 mx-4 mb-4 flex-shrink-0" [class.md:grid-cols-3]="canViewCost()" [class.md:grid-cols-2]="!canViewCost()">
         <div class="card p-3 bg-purple-50 border-purple-200">
           <p class="text-xs text-purple-600 font-medium">Total Negative Stock SKUs</p>
           <p class="text-xl font-bold text-purple-800">{{ summary()!.totalSkus | number }}</p>
@@ -97,11 +97,13 @@
           <p class="text-xl font-bold text-red-800">{{ summary()!.totalNegativeQty | number }}</p>
           <p class="text-xs text-red-500">Sum of all negative quantities</p>
         </div>
-        <div class="card p-3 bg-red-50 border-red-200">
-          <p class="text-xs text-red-600 font-medium">Total Negative Value</p>
-          <p class="text-xl font-bold text-red-800">{{ formatCurrency(summary()!.totalNegativeValue) }}</p>
-          <p class="text-xs text-red-500">Estimated inventory discrepancy</p>
-        </div>
+        @if (canViewCost()) {
+          <div class="card p-3 bg-red-50 border-red-200">
+            <p class="text-xs text-red-600 font-medium">Total Negative Value</p>
+            <p class="text-xl font-bold text-red-800">{{ formatCurrency(summary()!.totalNegativeValue) }}</p>
+            <p class="text-xs text-red-500">Estimated inventory discrepancy</p>
+          </div>
+        }
       </div>
     }
 
@@ -155,12 +157,14 @@
               <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('currentStock')">
                 Current Stock <i [class]="sortIcon('currentStock')"></i>
               </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitCost')">
-                Unit Cost <i [class]="sortIcon('unitCost')"></i>
-              </th>
-              <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('stockValue')">
-                Stock Value <i [class]="sortIcon('stockValue')"></i>
-              </th>
+              @if (canViewCost()) {
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('unitCost')">
+                  Unit Cost <i [class]="sortIcon('unitCost')"></i>
+                </th>
+                <th class="text-right cursor-pointer whitespace-nowrap" (click)="sort('stockValue')">
+                  Stock Value <i [class]="sortIcon('stockValue')"></i>
+                </th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -179,13 +183,15 @@
                   <span class="ml-1 text-xs text-gray-400">({{ row.locationType }})</span>
                 </td>
                 <td class="text-right font-bold text-red-700">{{ row.currentStock | number }}</td>
-                <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
-                <td class="text-right font-bold text-red-700">{{ formatCurrency(row.stockValue) }}</td>
+                @if (canViewCost()) {
+                  <td class="text-right text-gray-700">{{ formatCurrency(row.unitCost) }}</td>
+                  <td class="text-right font-bold text-red-700">{{ formatCurrency(row.stockValue) }}</td>
+                }
               </tr>
             }
             @if (rows().length === 0) {
               <tr>
-                <td colspan="7" class="text-center text-gray-500 py-12">
+                <td [attr.colspan]="canViewCost() ? 7 : 5" class="text-center text-gray-500 py-12">
                   <i class="fas fa-check-circle text-4xl text-green-300 mb-3 block"></i>
                   No negative stock found. All inventory levels are at or above zero.
                 </td>
@@ -206,8 +212,10 @@
                     TOTAL ({{ totalCount() | number }} rows)
                   </td>
                   <td class="text-right text-red-700">{{ summary()!.totalNegativeQty | number }}</td>
-                  <td></td>
-                  <td class="text-right text-red-700">{{ formatCurrency(summary()!.totalNegativeValue) }}</td>
+                  @if (canViewCost()) {
+                    <td></td>
+                    <td class="text-right text-red-700">{{ formatCurrency(summary()!.totalNegativeValue) }}</td>
+                  }
                 </tr>
               </tfoot>
             </table>

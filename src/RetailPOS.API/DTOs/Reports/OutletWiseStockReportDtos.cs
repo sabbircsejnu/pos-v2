@@ -14,8 +14,8 @@ public class OutletWiseStockRowDto
     public string  ProductName    { get; set; } = string.Empty;
     public string  CategoryName   { get; set; } = string.Empty;
     public decimal     Quantity       { get; set; }
-    public decimal UnitCost       { get; set; }
-    public decimal StockValue     { get; set; }
+    public decimal? UnitCost       { get; set; }
+    public decimal? StockValue     { get; set; }
 }
 
 /// <summary>Per-outlet summary row used in the breakdown panel.</summary>
@@ -25,7 +25,7 @@ public class OutletStockSummaryDto
     public string  OutletName  { get; set; } = string.Empty;
     public int     TotalSkus   { get; set; }
     public decimal     TotalQty    { get; set; }
-    public decimal StockValue  { get; set; }
+    public decimal? StockValue  { get; set; }
 }
 
 public class OutletWiseStockSummaryDto
@@ -33,7 +33,7 @@ public class OutletWiseStockSummaryDto
     public int                         TotalOutlets   { get; set; }
     public int                         TotalSkus      { get; set; }
     public decimal                         TotalQuantity  { get; set; }
-    public decimal                     TotalStockValue { get; set; }
+    public decimal?                     TotalStockValue { get; set; }
     public List<OutletStockSummaryDto> ByOutlet       { get; set; } = new();
 }
 
