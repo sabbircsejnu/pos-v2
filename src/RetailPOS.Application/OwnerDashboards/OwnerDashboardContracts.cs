@@ -229,7 +229,77 @@ public sealed record VariantLocationFact(
     public bool IsShowroom => LocationType == OwnerDashboardLocationTypes.Outlet;
 }
 
-public sealed record InventorySnapshot(IReadOnlyList<VariantLocationFact> Facts, DateTime AsOfUtc);
+/// <param name="InTransit">Dispatched transfer lines not yet received or rejected. Null when the store did not read them.</param>
+public sealed record InventorySnapshot(
+    IReadOnlyList<VariantLocationFact> Facts,
+    DateTime AsOfUtc,
+    IReadOnlyList<InTransitLine>? InTransit = null)
+{
+    public IReadOnlyList<InTransitLine> InTransitLines => InTransit ?? [];
+}
+
+/// <summary>
+/// One line of a transfer in status In Transit: it has left its source (dispatch deducted it) and not yet reached its
+/// destination. Receipt or rejection settles the whole line at once; rejected units travel back on a system return,
+/// which is itself in transit until received. So each unit is in exactly one line or on hand somewhere, never both.
+/// </summary>
+/// <param name="Value">The value the dispatch row took out of the source, as receipt will bring it in; null if unknown.</param>
+public sealed record InTransitLine(
+    long TransferId,
+    string? TransferNo,
+    bool IsReturn,
+    long VariantId,
+    long ProductId,
+    string? MainCode,
+    string ProductName,
+    string Sku,
+    string VariantLabel,
+    long CategoryId,
+    string CategoryName,
+    long FromLocationId,
+    string FromLocationType,
+    string FromLocationName,
+    long ToLocationId,
+    string ToLocationType,
+    string ToLocationName,
+    decimal Quantity,
+    string BaseUnitCode,
+    decimal? Value,
+    DateTime? DispatchedAtUtc)
+{
+    public bool From(long locationId, string? locationType) =>
+        FromLocationId == locationId && string.Equals(FromLocationType, locationType, StringComparison.OrdinalIgnoreCase);
+
+    public bool To(long locationId, string? locationType) =>
+        ToLocationId == locationId && string.Equals(ToLocationType, locationType, StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>Stock moving between locations, per unit and with its value coverage. Unlike units are never added.</summary>
+public sealed record InTransitStock(
+    IReadOnlyList<UnitQuantity> QuantityByUnit,
+    StockValuationCoverage Valuation,
+    int Transfers,
+    int Lines)
+{
+    public static InTransitStock Of(IEnumerable<InTransitLine> lines)
+    {
+        var list = lines.ToList();
+        return new InTransitStock(
+            UnitQuantity.Of(list),
+            StockValuationCoverage.Of(list.Select(line => (line.Quantity, line.Value))),
+            list.Select(line => line.TransferId).Distinct().Count(),
+            list.Count);
+    }
+}
+
+/// <summary>
+/// For all locations, incoming and outgoing are the same lines, counted once. For one location, incoming lines end there
+/// and outgoing lines left it. Its total accounted stock adds only incoming, so the locations add up to the business.
+/// </summary>
+public sealed record InTransitSummary(
+    InTransitStock Incoming,
+    InTransitStock Outgoing,
+    bool BusinessWide);
 
 /// <summary>A quantity in one unit. Unlike units are listed side by side and never added together (BI-002).</summary>
 public sealed record UnitQuantity(string UnitCode, decimal Quantity)
@@ -237,6 +307,20 @@ public sealed record UnitQuantity(string UnitCode, decimal Quantity)
     public static IReadOnlyList<UnitQuantity> Of(IEnumerable<VariantLocationFact> facts) =>
         facts.GroupBy(fact => fact.BaseUnitCode)
             .Select(group => new UnitQuantity(group.Key, group.Sum(fact => fact.Available)))
+            .OrderBy(row => row.UnitCode, StringComparer.Ordinal)
+            .ToList();
+
+    public static IReadOnlyList<UnitQuantity> Of(IEnumerable<InTransitLine> lines) =>
+        lines.GroupBy(line => line.BaseUnitCode)
+            .Select(group => new UnitQuantity(group.Key, group.Sum(line => line.Quantity)))
+            .OrderBy(row => row.UnitCode, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>Adds like units only: 300 m + 200 m = 500 m, while ml and pcs stay separate figures.</summary>
+    public static IReadOnlyList<UnitQuantity> Add(IEnumerable<UnitQuantity> left, IEnumerable<UnitQuantity> right) =>
+        left.Concat(right)
+            .GroupBy(row => row.UnitCode)
+            .Select(group => new UnitQuantity(group.Key, group.Sum(row => row.Quantity)))
             .OrderBy(row => row.UnitCode, StringComparer.Ordinal)
             .ToList();
 
@@ -269,12 +353,16 @@ public sealed record StockValuationCoverage(
     int UnvaluedRecords,
     decimal UnvaluedQuantity)
 {
-    public static StockValuationCoverage Of(IEnumerable<VariantLocationFact> facts)
+    public static StockValuationCoverage Of(IEnumerable<VariantLocationFact> facts) =>
+        Of(facts.Select(fact => (fact.OnHand, fact.StockValue)));
+
+    /// <summary>Coverage of any stock records, given as quantity and value; records without positive quantity are ignored.</summary>
+    public static StockValuationCoverage Of(IEnumerable<(decimal Quantity, decimal? Value)> records)
     {
-        var stocked = facts.Where(fact => fact.OnHand > 0).ToList();
-        var valued = stocked.Where(fact => fact.StockValue > 0m).ToList();
-        var zeroCost = stocked.Where(fact => fact.StockValue == 0m).ToList();
-        var unvalued = stocked.Where(fact => fact.StockValue is null).ToList();
+        var stocked = records.Where(record => record.Quantity > 0).ToList();
+        var valued = stocked.Where(record => record.Value > 0m).ToList();
+        var zeroCost = stocked.Where(record => record.Value == 0m).ToList();
+        var unvalued = stocked.Where(record => record.Value is null).ToList();
 
         var known = valued.Count + zeroCost.Count;
         var status = stocked.Count == 0
@@ -288,14 +376,14 @@ public sealed record StockValuationCoverage(
                         : StockValuationStatuses.Valued;
 
         return new StockValuationCoverage(
-            known == 0 ? null : valued.Sum(fact => fact.StockValue!.Value),
+            known == 0 ? null : valued.Sum(record => record.Value!.Value),
             status,
             valued.Count,
-            valued.Sum(fact => fact.OnHand),
+            valued.Sum(record => record.Quantity),
             zeroCost.Count,
-            zeroCost.Sum(fact => fact.OnHand),
+            zeroCost.Sum(record => record.Quantity),
             unvalued.Count,
-            unvalued.Sum(fact => fact.OnHand));
+            unvalued.Sum(record => record.Quantity));
     }
 
     public string MetricStatus => Status switch
@@ -346,7 +434,10 @@ public sealed record InventorySummaryReadModel(
     IReadOnlyList<string> DataQualityWarnings,
     StockValuationCoverage Valuation,
     StockValuationCoverage SlowMovingValuation,
-    IReadOnlyList<UnitQuantity>? QuantityByUnit = null);
+    IReadOnlyList<UnitQuantity>? QuantityByUnit = null,
+    InTransitSummary? InTransit = null,
+    IReadOnlyList<UnitQuantity>? TotalAccountedByUnit = null,
+    StockValuationCoverage? TotalAccountedValuation = null);
 
 public sealed record StockValueByLocationRow(
     long LocationId,
@@ -356,14 +447,22 @@ public sealed record StockValueByLocationRow(
     decimal? StockValue,
     decimal? PercentOfTotal,
     StockValuationCoverage Valuation,
-    IReadOnlyList<UnitQuantity>? QuantityByUnit = null);
+    IReadOnlyList<UnitQuantity>? QuantityByUnit = null,
+    InTransitStock? Incoming = null,
+    InTransitStock? Outgoing = null);
 
 public sealed record StockValueByLocationReadModel(
     DashboardContext Context,
     IReadOnlyList<StockValueByLocationRow> Locations,
     decimal? TotalStockValue,
     string ValueStatus,
-    StockValuationCoverage Valuation);
+    StockValuationCoverage Valuation,
+    InTransitStock? InTransit = null);
+
+public sealed record InTransitStockReadModel(
+    DashboardContext Context,
+    PagedResult<InTransitLine> Rows,
+    InTransitSummary Summary);
 
 public sealed record BestSellerRow(
     int Rank,

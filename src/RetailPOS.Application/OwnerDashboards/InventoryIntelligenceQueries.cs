@@ -61,6 +61,46 @@ public static class InventoryAnalytics
             || Contains(fact.Sku, search);
     }
 
+    public static bool MatchesProduct(InTransitLine line, InventoryFilter filter)
+    {
+        if (filter.CategoryId is not null && line.CategoryId != filter.CategoryId)
+            return false;
+
+        var search = OwnerDashboardRequests.NormalizeSearch(filter.Search);
+        return search is null
+            || Contains(line.MainCode, search)
+            || Contains(line.ProductName, search)
+            || Contains(line.Sku, search)
+            || Contains(line.TransferNo, search);
+    }
+
+    /// <summary>In-transit lines of the selected products that start or end at the selected location (or anywhere).</summary>
+    public static List<InTransitLine> TransitInView(InventorySnapshot snapshot, InventoryFilter filter) =>
+        snapshot.InTransitLines
+            .Where(line => MatchesProduct(line, filter)
+                && (filter.LocationId is null
+                    || line.From(filter.LocationId.Value, filter.LocationType)
+                    || line.To(filter.LocationId.Value, filter.LocationType)))
+            .ToList();
+
+    /// <summary>The lines that end at the selected location; for all locations, every line once.</summary>
+    public static List<InTransitLine> Incoming(IEnumerable<InTransitLine> lines, InventoryFilter filter) =>
+        lines.Where(line => filter.LocationId is null || line.To(filter.LocationId.Value, filter.LocationType)).ToList();
+
+    public static InTransitSummary Transit(IReadOnlyList<InTransitLine> inView, InventoryFilter filter)
+    {
+        if (filter.LocationId is null)
+        {
+            var all = InTransitStock.Of(inView);
+            return new InTransitSummary(all, all, true);
+        }
+
+        return new InTransitSummary(
+            InTransitStock.Of(Incoming(inView, filter)),
+            InTransitStock.Of(inView.Where(line => line.From(filter.LocationId.Value, filter.LocationType))),
+            false);
+    }
+
     public static bool Contains(string? value, string search) =>
         value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
 
@@ -122,11 +162,23 @@ public sealed class GetInventorySummaryQueryHandler(
                 .ToList()
             : null;
 
+        // Stock that left its source and has not arrived is still the business's stock: shown beside on-hand, never in it.
+        var transitInView = InventoryAnalytics.TransitInView(snapshot, filter);
+        var transit = InventoryAnalytics.Transit(transitInView, filter);
+        var incoming = InventoryAnalytics.Incoming(transitInView, filter);
+        var accountedByUnit = UnitQuantity.Add(UnitQuantity.Of(stocked), transit.Incoming.QuantityByUnit);
+        var accountedValuation = StockValuationCoverage.Of(
+            stocked.Select(fact => (fact.OnHand, fact.StockValue))
+                .Concat(incoming.Select(line => (line.Quantity, line.Value))));
+        var unvaluedTransit = transitInView.Count(line => line.Value is null);
+
         var warnings = new List<string>();
         if (negativeRows > 0)
             warnings.Add($"{negativeRows} stock record(s) are negative. They are excluded from quantity and value and need review.");
         if (valuation.UnvaluedRecords > 0)
             warnings.Add($"{valuation.UnvaluedRecords} stock record(s) holding {valuation.UnvaluedQuantity} unit(s) have no reliable cost and are excluded from stock value.");
+        if (unvaluedTransit > 0)
+            warnings.Add($"{unvaluedTransit} in-transit line(s) have no reliable cost and are excluded from in-transit value.");
 
         return new InventorySummaryReadModel(
             InventoryAnalytics.Context(filter, scope, snapshot.AsOfUtc),
@@ -152,7 +204,10 @@ public sealed class GetInventorySummaryQueryHandler(
             warnings,
             valuation,
             slowValuation,
-            UnitQuantity.Of(stocked));
+            UnitQuantity.Of(stocked),
+            transit,
+            accountedByUnit,
+            accountedValuation);
     }
 
     private static bool MatchesLocation(TransferOpportunity row, InventoryFilter filter) =>
@@ -196,6 +251,7 @@ public sealed class GetStockValueByLocationQueryHandler(
             .ToList();
         var valuation = StockValuationCoverage.Of(selected);
         var total = valuation.ValuedSubtotal;
+        var transit = InventoryAnalytics.TransitInView(snapshot, filter);
 
         // Every location is listed, including ones holding nothing, and only the sum itself is rounded for
         // display: the per-location subtotals add up to the valued subtotal on the summary card exactly.
@@ -220,7 +276,9 @@ public sealed class GetStockValueByLocationQueryHandler(
                         ? Math.Round(100m * value.Value / total.Value, 2, MidpointRounding.AwayFromZero)
                         : null,
                     coverage,
-                    UnitQuantity.Of(facts.Where(fact => fact.OnHand > 0m)));
+                    UnitQuantity.Of(facts.Where(fact => fact.OnHand > 0m)),
+                    InTransitStock.Of(transit.Where(line => line.To(location.Id, location.Type))),
+                    InTransitStock.Of(transit.Where(line => line.From(location.Id, location.Type))));
             })
             .OrderBy(row => row.StockValue is null)
             .ThenByDescending(row => row.StockValue ?? 0m)
@@ -233,7 +291,51 @@ public sealed class GetStockValueByLocationQueryHandler(
             rows,
             total,
             valuation.MetricStatus,
-            valuation);
+            valuation,
+            // Each line once, even when both of its ends are listed above.
+            InTransitStock.Of(transit));
+    }
+}
+
+public sealed record GetInTransitStockQuery(InventoryFilter Filter, string? Direction, int Page, int PageSize)
+    : IQuery<InTransitStockReadModel>;
+
+/// <summary>The lines behind the In Transit figures, oldest dispatch first so long-running transfers surface.</summary>
+public sealed class GetInTransitStockQueryHandler(
+    IOwnerDashboardScopeProvider scopeProvider,
+    IInventoryDashboardReadStore store)
+    : IRequestHandler<GetInTransitStockQuery, InTransitStockReadModel>
+{
+    public async Task<InTransitStockReadModel> Handle(GetInTransitStockQuery request, CancellationToken cancellationToken)
+    {
+        var (page, pageSize) = OwnerDashboardRequests.RequirePaging(request.Page, request.PageSize);
+        var filter = request.Filter;
+        var scope = await scopeProvider.GetAsync(cancellationToken);
+        InventoryAnalytics.Validate(filter, scope);
+        var direction = request.Direction?.Trim().ToLowerInvariant();
+        if (direction is not (null or "" or "all" or "incoming" or "outgoing"))
+            throw new ArgumentException("Unsupported direction filter.");
+        if (direction is "incoming" or "outgoing" && filter.LocationId is null)
+            throw new ArgumentException("Incoming and outgoing need a location.");
+
+        var snapshot = await store.GetSnapshotAsync(scope, filter.From, filter.To, true, cancellationToken);
+        var inView = InventoryAnalytics.TransitInView(snapshot, filter);
+        var rows = inView
+            .Where(line => direction switch
+            {
+                "incoming" => line.To(filter.LocationId!.Value, filter.LocationType),
+                "outgoing" => line.From(filter.LocationId!.Value, filter.LocationType),
+                _ => true
+            })
+            .OrderBy(line => line.DispatchedAtUtc ?? DateTime.MaxValue)
+            .ThenBy(line => line.TransferId)
+            .ThenBy(line => line.VariantId)
+            .ToList();
+
+        return new InTransitStockReadModel(
+            InventoryAnalytics.Context(filter, scope, snapshot.AsOfUtc),
+            InventoryAnalytics.Page(rows, page, pageSize),
+            InventoryAnalytics.Transit(inView, filter));
     }
 }
 

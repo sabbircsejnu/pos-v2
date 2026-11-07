@@ -108,10 +108,16 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
         var lastSales = await ReadLastSalesAsync(scope, outletIds, cancellationToken);
         var (outbound, inbound) = await ReadPendingTransfersAsync(outletIds, warehouseIds, cancellationToken);
         var costLedger = new StockCostLedger();
-        var ledger = await ReplayLedgerAsync(scope, outletIds, warehouseIds, from, to, includeCost, costLedger, cancellationToken);
+        var corrections = includeCost
+            ? await StockCostReader.ReadCorrectionsAsync(dbContext, scope.BusinessId, null, cancellationToken)
+            : StockCostCorrectionSet.Empty;
+        var ledger = await ReplayLedgerAsync(scope, outletIds, warehouseIds, from, to, includeCost, corrections, costLedger, cancellationToken);
         var costEvidence = includeCost
             ? await StockCostReader.ReadEvidenceAsync(dbContext, costLedger, cancellationToken)
             : StockCostEvidence.None;
+        var inTransit = await ReadInTransitAsync(
+            scope, outletIds, warehouseIds, outletNames, warehouseNames, baseUnits,
+            includeCost, corrections, costLedger, costEvidence, cancellationToken);
 
         var facts = stock.Select(row =>
         {
@@ -159,7 +165,193 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
                 baseUnits.GetValueOrDefault(key.VariantId, "pcs"));
         }).ToList();
 
-        return new InventorySnapshot(facts, asOfUtc);
+        return new InventorySnapshot(facts, asOfUtc, inTransit);
+    }
+
+    /// <summary>
+    /// Transfers in status In Transit are the existing record of stock between locations: dispatch deducted the source
+    /// and wrote what left it, and nothing has reached the destination. No second balance is kept. Each line is valued
+    /// exactly as receipt will value it (StockTransferCostFlow), so on hand plus in transit is conserved at every step.
+    /// </summary>
+    private async Task<List<InTransitLine>> ReadInTransitAsync(
+        OwnerDashboardScope scope,
+        List<long> outletIds,
+        List<long> warehouseIds,
+        Dictionary<long, string> outletNames,
+        Dictionary<long, string> warehouseNames,
+        IReadOnlyDictionary<long, string> baseUnits,
+        bool includeCost,
+        StockCostCorrectionSet corrections,
+        StockCostLedger costLedger,
+        StockCostEvidence costEvidence,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.StockTransferItems
+            .AsNoTracking()
+            .Where(item =>
+                item.Transfer.Status == StockTransfer.StatusInTransit
+                && item.Variant.BusinessId == scope.BusinessId
+                && ((item.Transfer.FromLocationType == OwnerDashboardLocationTypes.Outlet && outletIds.Contains(item.Transfer.FromLocationId))
+                    || (item.Transfer.FromLocationType == OwnerDashboardLocationTypes.Warehouse && warehouseIds.Contains(item.Transfer.FromLocationId)))
+                && ((item.Transfer.ToLocationType == OwnerDashboardLocationTypes.Outlet && outletIds.Contains(item.Transfer.ToLocationId))
+                    || (item.Transfer.ToLocationType == OwnerDashboardLocationTypes.Warehouse && warehouseIds.Contains(item.Transfer.ToLocationId))))
+            .Select(item => new
+            {
+                item.TransferId,
+                item.Transfer.TransferNo,
+                item.Transfer.OriginalTransferId,
+                item.Transfer.DispatchedAt,
+                item.Transfer.FromLocationId,
+                item.Transfer.FromLocationType,
+                item.Transfer.ToLocationId,
+                item.Transfer.ToLocationType,
+                item.VariantId,
+                item.Variant.ProductId,
+                MainCode = item.Variant.Product.ProductCode,
+                ProductName = item.Variant.Product.Name,
+                item.Variant.Sku,
+                VariantName = item.Variant.Name,
+                item.Variant.Product.CategoryId,
+                CategoryName = item.Variant.Product.Category.Name,
+                Quantity = item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity,
+                // Packaging capitalized into prepared packs travels with them (it left the source's pack state at dispatch).
+                Capitalized = item.Allocations.Sum(allocation => (decimal?)allocation.CapitalizedValue) ?? 0m
+            })
+            .ToListAsync(cancellationToken);
+        if (rows.Count == 0)
+            return [];
+
+        var values = includeCost
+            ? await ReadTransitValuesAsync(
+                rows.Select(row => (row.TransferId, row.OriginalTransferId, row.VariantId, row.Quantity)).ToList(),
+                corrections, costLedger, costEvidence, cancellationToken)
+            : null;
+
+        string Name(long id, string type) => type == OwnerDashboardLocationTypes.Outlet
+            ? outletNames.GetValueOrDefault(id, string.Empty)
+            : warehouseNames.GetValueOrDefault(id, string.Empty);
+
+        return rows.Select(row =>
+        {
+            decimal? value = null;
+            if (values is not null && values.TryGetValue((row.TransferId, row.VariantId, row.Quantity), out var known) && known is not null)
+                value = known + row.Capitalized;
+            return new InTransitLine(
+                row.TransferId,
+                row.TransferNo,
+                row.OriginalTransferId is not null,
+                row.VariantId,
+                row.ProductId,
+                string.IsNullOrWhiteSpace(row.MainCode) ? null : row.MainCode,
+                row.ProductName,
+                row.Sku,
+                string.IsNullOrWhiteSpace(row.VariantName) ? row.Sku : row.VariantName,
+                row.CategoryId,
+                row.CategoryName,
+                row.FromLocationId,
+                row.FromLocationType,
+                Name(row.FromLocationId, row.FromLocationType),
+                row.ToLocationId,
+                row.ToLocationType,
+                Name(row.ToLocationId, row.ToLocationType),
+                row.Quantity,
+                baseUnits.GetValueOrDefault(row.VariantId, "pcs"),
+                value,
+                row.DispatchedAt);
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Mirrors StockTransferCostFlow.ResolveReceiptCostAsync without its per-line queries. A system return carries the
+    /// rejected share of its original dispatch. Unknown cost stays null, never zero.
+    /// </summary>
+    private async Task<Dictionary<(long TransferId, long VariantId, decimal Quantity), decimal?>> ReadTransitValuesAsync(
+        List<(long TransferId, long? OriginalTransferId, long VariantId, decimal Quantity)> lines,
+        StockCostCorrectionSet corrections,
+        StockCostLedger costLedger,
+        StockCostEvidence costEvidence,
+        CancellationToken cancellationToken)
+    {
+        var dispatchIds = lines.Select(line => line.OriginalTransferId ?? line.TransferId).Distinct().ToList();
+        var dispatched = await dbContext.StockLedgers
+            .AsNoTracking()
+            .Where(movement =>
+                movement.ReferenceType == StockLedgerReferenceType.StockTransfer
+                && dispatchIds.Contains(movement.ReferenceId)
+                && movement.QtyOut > 0)
+            .Select(movement => new
+            {
+                movement.Id,
+                movement.ReferenceId,
+                movement.VariantId,
+                movement.LocationId,
+                movement.LocationType,
+                movement.QtyOut,
+                movement.UnitCost,
+                movement.MovementValue,
+                movement.IsCostValuationReliable
+            })
+            .ToListAsync(cancellationToken);
+        var byDispatch = dispatched.ToLookup(row => (row.ReferenceId, row.VariantId));
+
+        var originalIds = lines.Where(line => line.OriginalTransferId is not null)
+            .Select(line => line.OriginalTransferId!.Value)
+            .Distinct()
+            .ToList();
+        var originals = originalIds.Count == 0
+            ? []
+            : (await dbContext.StockTransferItems
+                .AsNoTracking()
+                .Where(line => originalIds.Contains(line.TransferId))
+                .Select(line => new
+                {
+                    line.TransferId,
+                    line.VariantId,
+                    line.AcceptedQuantity,
+                    line.RejectedQuantity,
+                    Lost = line.MissingQuantity + line.DamagedQuantity
+                })
+                .ToListAsync(cancellationToken))
+                .GroupBy(line => (line.TransferId, line.VariantId))
+                .ToDictionary(group => group.Key, group => group.First());
+
+        var result = new Dictionary<(long, long, decimal), decimal?>();
+        foreach (var line in lines)
+        {
+            var dispatchId = line.OriginalTransferId ?? line.TransferId;
+            var source = byDispatch[(dispatchId, line.VariantId)].ToList();
+            decimal? value = null;
+            var resolved = source
+                .Select(row => corrections.Resolve(row.Id, row.UnitCost, row.MovementValue, row.IsCostValuationReliable))
+                .ToList();
+            if (source.Count > 0 && resolved.All(row => row.IsReliable))
+            {
+                var dispatchedQuantity = source.Sum(row => row.QtyOut);
+                var dispatchedValue = resolved.Sum(row => row.Value);
+                if (dispatchedValue <= 0m)
+                {
+                    // A zero must be proven free at its origin, as receipt requires.
+                    var origin = new StockCostLocation(source[0].LocationId, source[0].LocationType);
+                    value = costLedger.IsProvenFreeOrigin(line.VariantId, origin, costEvidence) ? 0m : null;
+                }
+                else if (line.OriginalTransferId is null)
+                {
+                    value = StockTransferValue.Share(dispatchedValue, line.Quantity, dispatchedQuantity);
+                }
+                else if (originals.TryGetValue((line.OriginalTransferId.Value, line.VariantId), out var original)
+                         && original.RejectedQuantity > 0)
+                {
+                    value = StockTransferValue.Share(
+                        StockTransferValue.RejectedValue(dispatchedValue, dispatchedQuantity, original.AcceptedQuantity, original.Lost),
+                        line.Quantity,
+                        original.RejectedQuantity);
+                }
+            }
+
+            result[(line.TransferId, line.VariantId, line.Quantity)] = value;
+        }
+
+        return result;
     }
 
     /// <summary>A null value means the cost is unknown; a zero on stock means documents prove it was free. Master cost is never substituted.</summary>
@@ -304,13 +496,11 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
         DateOnly from,
         DateOnly to,
         bool includeCost,
+        StockCostCorrectionSet corrections,
         StockCostLedger costLedger,
         CancellationToken cancellationToken)
     {
         var states = new Dictionary<(long, long, string), LedgerState>();
-        var corrections = includeCost
-            ? await StockCostReader.ReadCorrectionsAsync(dbContext, scope.BusinessId, null, cancellationToken)
-            : StockCostCorrectionSet.Empty;
         var movements = dbContext.StockLedgers
             .AsNoTracking()
             .Where(movement =>

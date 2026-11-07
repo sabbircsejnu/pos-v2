@@ -99,6 +99,29 @@ public sealed class OwnerDashboardController(ISender sender) : ControllerBase
                 new GetStockValueByLocationQuery(new InventoryFilter(from, to, locationId, locationType, categoryId, null)),
                 cancellationToken)));
 
+    /// <summary>Dispatched transfer lines not yet received or rejected. Optional direction: incoming or outgoing (needs a location).</summary>
+    [HttpGet("inventory/in-transit")]
+    [Authorize(Policy = InventoryView)]
+    public async Task<ActionResult<ApiResponse<InTransitStockReadModel>>> GetInTransitStock(
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        [FromQuery] long? locationId,
+        [FromQuery] string? locationType,
+        [FromQuery] long? categoryId,
+        [FromQuery] string? search,
+        [FromQuery] string? direction,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 15) =>
+        Ok(ApiResponse<InTransitStockReadModel>.SuccessResponse(
+            await sender.Send(
+                new GetInTransitStockQuery(
+                    new InventoryFilter(from, to, locationId, locationType, categoryId, search),
+                    direction,
+                    page,
+                    pageSize),
+                cancellationToken)));
+
     [HttpGet("inventory/best-sellers")]
     [Authorize(Policy = InventoryView)]
     public async Task<ActionResult<ApiResponse<PagedResult<BestSellerRow>>>> GetBestSellers(
