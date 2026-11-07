@@ -255,4 +255,35 @@ public sealed partial class UomPostgresHttpTests
         });
         Assert.True(await ValuationAsync(attar) > 0m);
     }
+
+    [Fact]
+    public async Task U13_TransferAndBarcodeReads_HideCostWithoutViewCost()
+    {
+        var owner = Owner();
+        var variant = await _fixture.CreateVariantAsync("U13T");
+        await ReceivePcsAsync(owner, variant, 10m, 20m);
+        var created = await Send(owner, HttpMethod.Post, "/api/stock-transfers", new
+        {
+            transferType = "direct",
+            fromLocationId = UomPostgresFixture.Outlet,
+            fromLocationType = "outlet",
+            toLocationId = UomPostgresFixture.OutletTwo,
+            toLocationType = "outlet",
+            transferDate = DateTime.UtcNow,
+            items = new[] { new { variantId = variant, quantity = 2m } }
+        });
+        var transferId = created.GetProperty("id").GetInt64();
+        await Send(owner, HttpMethod.Post, $"/api/stock-transfers/{transferId}/submit-and-dispatch", new { });
+
+        var clerk = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "stock_transfers.view,barcode.view");
+        var seen = await Data(clerk, $"/api/stock-transfers/{transferId}");
+        Assert.Equal(JsonValueKind.Null, seen.GetProperty("items")[0].GetProperty("unitCost").ValueKind);
+        Assert.Equal(2m, seen.GetProperty("items")[0].GetProperty("quantity").GetDecimal());
+
+        var finance = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "stock_transfers.view,barcode.view,products.view_cost");
+        Assert.Equal(20m, (await Data(finance, $"/api/stock-transfers/{transferId}")).GetProperty("items")[0].GetProperty("unitCost").GetDecimal());
+
+        var found = await Data(clerk, "/api/barcodes/variants/search?query=U13T");
+        Assert.All(found.EnumerateArray(), row => Assert.Equal(JsonValueKind.Null, row.GetProperty("costPrice").ValueKind));
+    }
 }

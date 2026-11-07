@@ -588,7 +588,8 @@ public class StockTransfersController : ControllerBase
                 DamagedQuantity = item.DamagedQuantity,
                 InTransitQuantity = item.InTransitQuantity,
                 ReturnTransitQuantity = item.ReturnTransitQuantity,
-                UnitCost = item.UnitCost,
+                // U-13: the dispatch cost is cost data, shown only with products.view_cost.
+                UnitCost = User.CanViewCost() ? item.UnitCost : null,
                 Remarks = item.Remarks,
                 Allocations = item.Allocations?.Select(allocation => new TransferAllocationDto { State = allocation.State, PackCode = allocation.PackCode, BaseQtyPerPack = allocation.BaseQtyPerPack, PackCount = allocation.PackCount, BaseQuantity = allocation.BaseQuantity }).ToList(),
                 UomUnitCode = item.UomUnitCode,

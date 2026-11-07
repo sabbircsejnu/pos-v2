@@ -703,7 +703,8 @@ public class StockTransferRequisitionPermissionHttpTests : IClassFixture<RetailP
         Assert.Equal(3, item.TransferQuantity);
         Assert.Equal(0, item.AcceptedQuantity);
         Assert.Equal(0, item.RejectedQuantity);
-        Assert.Equal(0m, item.UnitCost);
+        // U-13: this caller has no products.view_cost, so the cost is left out (null), not shown as 0.
+        Assert.Null(item.UnitCost);
         Assert.Equal("pending quantity", item.Remarks);
 
         using var verifyScope = _factory.Services.CreateScope();

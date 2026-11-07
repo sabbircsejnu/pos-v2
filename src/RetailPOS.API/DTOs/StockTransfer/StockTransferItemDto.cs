@@ -19,7 +19,8 @@ public class StockTransferItemDto
     public decimal DamagedQuantity { get; set; }
     public decimal InTransitQuantity { get; set; }
     public decimal ReturnTransitQuantity { get; set; }
-    public decimal UnitCost { get; set; }
+    /// <summary>Null for a caller without products.view_cost.</summary>
+    public decimal? UnitCost { get; set; }
     public string? Remarks { get; set; }
     public List<TransferAllocationDto>? Allocations { get; set; }
     public string? UomUnitCode { get; set; }

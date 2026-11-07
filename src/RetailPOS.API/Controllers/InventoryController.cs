@@ -53,6 +53,8 @@ public class InventoryController : ControllerBase
         if (User.CanViewCost()) return;
         dto.TotalCostValue = 0;
         foreach (var cat in dto.CategoryBreakdown) cat.TotalCostValue = 0;
+        // The store orders categories by cost; that order would still reveal which carry the most (U-13).
+        dto.CategoryBreakdown = dto.CategoryBreakdown.OrderBy(cat => cat.CategoryName, StringComparer.OrdinalIgnoreCase).ToList();
     }
     // ────────────────────────────────────────────────────────────────────────
 

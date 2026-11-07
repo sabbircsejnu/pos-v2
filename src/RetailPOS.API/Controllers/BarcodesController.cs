@@ -99,6 +99,11 @@ public class BarcodesController : ControllerBase
             });
         }
 
+        // U-13: the same rule as the product variant lookup that runs this query.
+        if (!User.CanViewCost())
+            foreach (var variant in variants)
+                variant.CostPrice = null;
+
         return Ok(ApiResponse<List<ProductVariantSearchDto>>.SuccessResponse(variants));
     }
 

@@ -1,3 +1,4 @@
+using RetailPOS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
@@ -249,7 +250,8 @@ public class StockRequisitionsController : ControllerBase
                 TransferQuantity = item.TransferQuantity,
                 AcceptedQuantity = item.AcceptedQuantity,
                 RejectedQuantity = item.RejectedQuantity,
-                UnitCost = item.UnitCost,
+                // U-13: cost data, shown only with products.view_cost.
+                UnitCost = User.CanViewCost() ? item.UnitCost : null,
                 Remarks = item.Remarks
             });
         }
