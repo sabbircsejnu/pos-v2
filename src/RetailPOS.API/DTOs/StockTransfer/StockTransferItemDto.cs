@@ -10,15 +10,15 @@ public class StockTransferItemDto
     public string? VariantAttributes { get; set; }
     public string? VariantDisplay { get; set; }
     public string? PrimaryImageThumb { get; set; }
-    public int Quantity { get; set; }
-    public int RequestedQuantity { get; set; }
-    public int TransferQuantity { get; set; }
-    public int AcceptedQuantity { get; set; }
-    public int RejectedQuantity { get; set; }
-    public int MissingQuantity { get; set; }
-    public int DamagedQuantity { get; set; }
-    public int InTransitQuantity { get; set; }
-    public int ReturnTransitQuantity { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal RequestedQuantity { get; set; }
+    public decimal TransferQuantity { get; set; }
+    public decimal AcceptedQuantity { get; set; }
+    public decimal RejectedQuantity { get; set; }
+    public decimal MissingQuantity { get; set; }
+    public decimal DamagedQuantity { get; set; }
+    public decimal InTransitQuantity { get; set; }
+    public decimal ReturnTransitQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public string? Remarks { get; set; }
 }

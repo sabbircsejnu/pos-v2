@@ -12,7 +12,7 @@ public class StockValuationRowDto
     public long    LocationId     { get; set; }
     public string  LocationType   { get; set; } = string.Empty;
     public string  LocationName   { get; set; } = string.Empty;
-    public int     Quantity       { get; set; }
+    public decimal     Quantity       { get; set; }
     public decimal UnitCost       { get; set; }
     public decimal InventoryValue { get; set; }
 
@@ -23,7 +23,7 @@ public class StockValuationRowDto
 public class StockValuationSummaryDto
 {
     public int     TotalProducts      { get; set; }
-    public int     TotalQuantity      { get; set; }
+    public decimal     TotalQuantity      { get; set; }
     public decimal TotalInventoryValue { get; set; }
 
     /// <summary>Per-category breakdown, sorted by value descending.</summary>
@@ -33,7 +33,7 @@ public class StockValuationSummaryDto
 public class StockValuationCategoryDto
 {
     public string  CategoryName    { get; set; } = string.Empty;
-    public int     Quantity        { get; set; }
+    public decimal     Quantity        { get; set; }
     public decimal InventoryValue  { get; set; }
     public decimal PercentOfTotal  { get; set; }
 }

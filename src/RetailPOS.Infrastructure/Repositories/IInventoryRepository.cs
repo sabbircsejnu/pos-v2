@@ -36,5 +36,5 @@ public interface IInventoryRepository
     Task<Inventory> UpdateAsync(Inventory inventory, CancellationToken cancellationToken = default);
     Task DeleteAsync(long id);
     Task<bool> ExistsAsync(long variantId, long locationId, string locationType);
-    Task<int> GetTotalQuantityByVariantAsync(long variantId, CancellationToken cancellationToken = default);
+    Task<decimal> GetTotalQuantityByVariantAsync(long variantId, CancellationToken cancellationToken = default);
 }

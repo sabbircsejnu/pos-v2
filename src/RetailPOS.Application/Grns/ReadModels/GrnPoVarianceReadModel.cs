@@ -12,7 +12,7 @@ public sealed record GrnPoVarianceItemReadModel(
     long VariantId,
     string ProductName,
     string VariantName,
-    int OrderedQuantity,
-    int TotalReceivedQuantity,
+    decimal OrderedQuantity,
+    decimal TotalReceivedQuantity,
     decimal UnitPrice,
     decimal TotalReceivedCost);

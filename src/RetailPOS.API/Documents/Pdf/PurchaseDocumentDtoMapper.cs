@@ -47,7 +47,12 @@ internal static class PurchaseDocumentDtoMapper
             Unit = item.Unit,
             UnitPrice = item.UnitPrice,
             Discount = item.Discount,
-            Tax = item.Tax
+            Tax = item.Tax,
+            UomUnitCode = item.UomUnitCode,
+            UomLabel = item.UomLabel,
+            UomEnteredQuantity = item.UomEnteredQuantity,
+            UomEnteredUnitPrice = item.UomEnteredUnitPrice,
+            UomOptionId = item.UomOptionId
         }).ToList()
     };
 
@@ -86,7 +91,14 @@ internal static class PurchaseDocumentDtoMapper
             ReceivedQty = item.ReceivedQuantity,
             UnitPrice = item.UnitPrice,
             UnitCost = item.UnitCost,
-            Notes = item.Notes
+            Notes = item.Notes,
+            DamagedQty = item.DamagedQuantity,
+            RejectedQty = item.RejectedQuantity,
+            AcceptedSealedPacks = item.AcceptedSealedPacks,
+            AcceptedLooseQty = item.AcceptedLooseQuantity,
+            UomUnitCode = item.UomUnitCode,
+            UomLabel = item.UomLabel,
+            UomBaseUnitCode = item.UomBaseUnitCode
         }).ToList()
     };
 }

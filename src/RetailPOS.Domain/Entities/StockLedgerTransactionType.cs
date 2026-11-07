@@ -57,3 +57,15 @@ public static class StockLedgerReferenceType
     public const string StockTransfer = "stock_transfer";
     public const string StockCostCorrection = "stock_cost_correction";
 }
+
+/// <summary>Stock ledger values added by UOM v1.</summary>
+public static class UomStockLedgerTypes
+{
+    /// <summary>Packaging physically consumed by a repack job; its value moves into prepared stock.</summary>
+    public const string RepackConsumption = "repack_consumption";
+
+    /// <summary>Packaging restored because a repack job was reversed.</summary>
+    public const string RepackReversal = "repack_reversal";
+
+    public const string RepackReference = "repack_job";
+}

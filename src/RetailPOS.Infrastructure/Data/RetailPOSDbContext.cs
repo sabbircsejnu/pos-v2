@@ -128,6 +128,20 @@ public class RetailPOSDbContext : DbContext
 
     // Stock Ledger  // NEW
     public DbSet<StockLedger> StockLedgers => Set<StockLedger>();
+    public DbSet<RetailPOS.Core.Entities.Uom.UomUnit> UomUnits => Set<RetailPOS.Core.Entities.Uom.UomUnit>();
+    public DbSet<RetailPOS.Core.Entities.Uom.UomStandardConversion> UomStandardConversions => Set<RetailPOS.Core.Entities.Uom.UomStandardConversion>();
+    public DbSet<RetailPOS.Core.Entities.Uom.VariantUomConfig> VariantUomConfigs => Set<RetailPOS.Core.Entities.Uom.VariantUomConfig>();
+    public DbSet<RetailPOS.Core.Entities.Uom.VariantPurchaseUnitOption> VariantPurchaseUnitOptions => Set<RetailPOS.Core.Entities.Uom.VariantPurchaseUnitOption>();
+    public DbSet<RetailPOS.Core.Entities.Uom.VariantSellingOption> VariantSellingOptions => Set<RetailPOS.Core.Entities.Uom.VariantSellingOption>();
+    public DbSet<RetailPOS.Core.Entities.Uom.SellingOptionComponent> SellingOptionComponents => Set<RetailPOS.Core.Entities.Uom.SellingOptionComponent>();
+    public DbSet<RetailPOS.Core.Entities.Uom.PackStateBalance> PackStateBalances => Set<RetailPOS.Core.Entities.Uom.PackStateBalance>();
+    public DbSet<RetailPOS.Core.Entities.Uom.PackStateMovement> PackStateMovements => Set<RetailPOS.Core.Entities.Uom.PackStateMovement>();
+    public DbSet<RetailPOS.Core.Entities.Uom.RepackJob> RepackJobs => Set<RetailPOS.Core.Entities.Uom.RepackJob>();
+    public DbSet<RetailPOS.Core.Entities.Uom.RepackComponentLine> RepackComponentLines => Set<RetailPOS.Core.Entities.Uom.RepackComponentLine>();
+    public DbSet<RetailPOS.Core.Entities.Uom.SaleItemComponent> SaleItemComponents => Set<RetailPOS.Core.Entities.Uom.SaleItemComponent>();
+    public DbSet<RetailPOS.Core.Entities.Uom.SaleReturnLine> SaleReturnLines => Set<RetailPOS.Core.Entities.Uom.SaleReturnLine>();
+    public DbSet<RetailPOS.Core.Entities.Uom.StockTransferItemAllocation> StockTransferItemAllocations => Set<RetailPOS.Core.Entities.Uom.StockTransferItemAllocation>();
+    public DbSet<RetailPOS.Core.Entities.Uom.StockCountLineEntry> StockCountLineEntries => Set<RetailPOS.Core.Entities.Uom.StockCountLineEntry>();
 
     // Audit (legacy — kept for backward compat during transition)
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -284,6 +298,7 @@ public class RetailPOSDbContext : DbContext
         RetailPOS.Infrastructure.HR.Leave.HrLeaveRequestModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Overtime.HrOvertimeModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Exit.HrExitModelConfiguration.Configure(modelBuilder);
+        UomModelConfiguration.Configure(modelBuilder);
 
         // Configure PostgreSQL naming convention (snake_case)
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
@@ -313,6 +328,8 @@ public class RetailPOSDbContext : DbContext
                 index.SetDatabaseName(ToSnakeCase(index.GetDatabaseName()!));
             }
         }
+
+        UomModelConfiguration.ConfigureConcurrency(modelBuilder);
 
         if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
             modelBuilder.Entity<ApprovalInstance>().Property(row => row.XMin).HasColumnName("xmin");
@@ -983,7 +1000,7 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<PurchaseOrderItem>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.UnitPrice).HasColumnType("numeric");
             entity.Property(e => e.Discount).HasPrecision(5, 2);
             entity.Property(e => e.Tax).HasPrecision(5, 2);
             entity.Property(e => e.TaxCode).HasMaxLength(50);
@@ -1022,7 +1039,7 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<GrnItem>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.UnitCost).HasPrecision(10, 2);  // NEW
+            entity.Property(e => e.UnitCost).HasColumnType("numeric");
             entity.Property(e => e.TaxableAmount).HasPrecision(18, 2);
             entity.Property(e => e.VatRate).HasPrecision(5, 2);
             entity.Property(e => e.VatAmount).HasPrecision(18, 2);
@@ -1236,9 +1253,13 @@ public class RetailPOSDbContext : DbContext
         modelBuilder.Entity<SaleItem>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.UnitPrice).HasPrecision(10, 2);
+            entity.Property(e => e.UnitPrice).HasColumnType("numeric");
             entity.Property(e => e.Subtotal).HasPrecision(10, 2);
-            entity.Property(e => e.HistoricalUnitCost).HasPrecision(10, 4);
+            entity.Property(e => e.HistoricalUnitCost).HasColumnType("numeric");
+            entity.Property(e => e.PackagingCost).HasPrecision(18, 4);
+            entity.Property(e => e.PackState).HasMaxLength(20);
+            entity.Property(e => e.PackCode).HasMaxLength(40);
+            entity.Property(e => e.BaseQtyPerPack).HasColumnType("numeric");
             entity.Property(e => e.DiscountAmount).HasPrecision(10, 2);
             entity.Property(e => e.TaxableAmount).HasPrecision(18, 2);
             entity.Property(e => e.VatRate).HasPrecision(5, 2);
@@ -2581,7 +2602,7 @@ public class RetailPOSDbContext : DbContext
             entity.Property(e => e.TransactionType).HasMaxLength(30).IsRequired();
             entity.Property(e => e.ReferenceType).HasMaxLength(30).IsRequired();
             entity.Property(e => e.Remarks).HasMaxLength(500);
-            entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+            entity.Property(e => e.UnitCost).HasColumnType("numeric");
             entity.Property(e => e.MovementValue).HasPrecision(18, 4);
             entity.Property(e => e.IsCostValuationReliable).HasDefaultValue(false);
             entity.Property(e => e.BusinessDate).HasColumnType("date");

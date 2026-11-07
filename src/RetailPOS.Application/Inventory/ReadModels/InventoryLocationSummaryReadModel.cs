@@ -7,7 +7,7 @@ public sealed record InventoryLocationSummaryReadModel(
     string? WarehouseName,
     string LocationType,
     int TotalProducts,
-    int TotalQuantity,
+    decimal TotalQuantity,
     int LowStockCount,
     int OutOfStockCount,
     decimal TotalValue);

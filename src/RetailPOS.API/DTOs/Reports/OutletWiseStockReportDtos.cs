@@ -13,7 +13,7 @@ public class OutletWiseStockRowDto
     public string  Sku            { get; set; } = string.Empty;
     public string  ProductName    { get; set; } = string.Empty;
     public string  CategoryName   { get; set; } = string.Empty;
-    public int     Quantity       { get; set; }
+    public decimal     Quantity       { get; set; }
     public decimal UnitCost       { get; set; }
     public decimal StockValue     { get; set; }
 }
@@ -24,7 +24,7 @@ public class OutletStockSummaryDto
     public long    OutletId    { get; set; }
     public string  OutletName  { get; set; } = string.Empty;
     public int     TotalSkus   { get; set; }
-    public int     TotalQty    { get; set; }
+    public decimal     TotalQty    { get; set; }
     public decimal StockValue  { get; set; }
 }
 
@@ -32,7 +32,7 @@ public class OutletWiseStockSummaryDto
 {
     public int                         TotalOutlets   { get; set; }
     public int                         TotalSkus      { get; set; }
-    public int                         TotalQuantity  { get; set; }
+    public decimal                         TotalQuantity  { get; set; }
     public decimal                     TotalStockValue { get; set; }
     public List<OutletStockSummaryDto> ByOutlet       { get; set; } = new();
 }

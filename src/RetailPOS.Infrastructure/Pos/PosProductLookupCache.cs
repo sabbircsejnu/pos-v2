@@ -67,7 +67,7 @@ public sealed class PosProductLookupCache(
         }
     }
 
-    public async Task<int?> GetStockAsync(
+    public async Task<decimal?> GetStockAsync(
         long variantId,
         long outletId,
         CancellationToken cancellationToken)
@@ -75,7 +75,7 @@ public sealed class PosProductLookupCache(
         try
         {
             var value = await cache.GetStringAsync(StockKey(variantId, outletId), cancellationToken);
-            return value is null ? null : int.Parse(value);
+            return value is null ? null : decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
         }
         catch (OperationCanceledException)
         {
@@ -91,14 +91,14 @@ public sealed class PosProductLookupCache(
     public async Task SetStockAsync(
         long variantId,
         long outletId,
-        int quantity,
+        decimal quantity,
         CancellationToken cancellationToken)
     {
         try
         {
             await cache.SetStringAsync(
                 StockKey(variantId, outletId),
-                quantity.ToString(),
+                quantity.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = StockTtl },
                 cancellationToken);
         }

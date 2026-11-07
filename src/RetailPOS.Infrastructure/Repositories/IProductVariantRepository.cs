@@ -16,6 +16,6 @@ public interface IProductVariantRepository
     Task DeleteAsync(long id);
     Task<bool> SkuExistsAsync(string sku, long? excludeVariantId = null);
     Task<bool> BarcodeExistsAsync(string barcode, long? excludeVariantId = null);
-    Task<int> GetStockAsync(long variantId);
+    Task<decimal> GetStockAsync(long variantId);
     Task<IEnumerable<ProductVariant>> SearchAsync(string query, int pageNumber, int pageSize);
 }

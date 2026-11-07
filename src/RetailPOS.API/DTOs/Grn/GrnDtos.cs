@@ -12,12 +12,19 @@ public class GrnItemDto
     public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
     public string? VariantAttributes { get; set; }
-    public int OrderedQty { get; set; }
-    public int ReceivedQty { get; set; }
+    public decimal OrderedQty { get; set; }
+    public decimal ReceivedQty { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal UnitCost { get; set; }              // NEW — actual received cost
     public string? Notes { get; set; }                 // NEW — per-line notes
     public decimal TotalCost => UnitCost * ReceivedQty; // NEW — computed line total cost
+    public decimal DamagedQty { get; set; }
+    public decimal RejectedQty { get; set; }
+    public int? AcceptedSealedPacks { get; set; }
+    public decimal? AcceptedLooseQty { get; set; }
+    public string? UomUnitCode { get; set; }
+    public string? UomLabel { get; set; }
+    public string? UomBaseUnitCode { get; set; }
 }
 
 /// <summary>
@@ -51,7 +58,7 @@ public class GrnDto
     public DateTime CreatedAt { get; set; }
     public List<GrnItemDto> Items { get; set; } = new();
     public int TotalItems => Items.Count;
-    public int TotalReceivedQty => Items.Sum(i => i.ReceivedQty);
+    public decimal TotalReceivedQty => Items.Sum(i => i.ReceivedQty);
     public decimal TotalReceivedCost => Items.Sum(i => i.TotalCost); // NEW
 }
 
@@ -61,10 +68,15 @@ public class GrnDto
 public class CreateGrnItemDto
 {
     public long PoItemId { get; set; }
-    public int ReceivedQty { get; set; }
+    public decimal ReceivedQty { get; set; }
     /// <summary>Actual unit cost — if omitted, the PO unit price is used.</summary>
     public decimal? UnitCost { get; set; }              // NEW — optional override
     public string? Notes { get; set; }                  // NEW — per-line notes
+    /// <summary>Physically received but not accepted. Not stocked and not payable.</summary>
+    public decimal DamagedQty { get; set; }
+    public decimal RejectedQty { get; set; }
+    public int? AcceptedSealedPacks { get; set; }
+    public decimal? AcceptedLooseQty { get; set; }
 }
 
 /// <summary>
@@ -124,9 +136,9 @@ public class GrnVarianceItemDto
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;
-    public int OrderedQty { get; set; }
-    public int ReceivedQty { get; set; }
-    public int VarianceQty => ReceivedQty - OrderedQty;
+    public decimal OrderedQty { get; set; }
+    public decimal ReceivedQty { get; set; }
+    public decimal VarianceQty => ReceivedQty - OrderedQty;
     public bool IsFullyReceived => ReceivedQty >= OrderedQty;
 }
 
@@ -155,12 +167,12 @@ public class GrnPoVarianceItemDto
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;
-    public int OrderedQty { get; set; }
+    public decimal OrderedQty { get; set; }
     /// <summary>Total received across ALL completed GRNs on this PO.</summary>
-    public int TotalReceivedQty { get; set; }
+    public decimal TotalReceivedQty { get; set; }
     /// <summary>Remaining quantity still to be received.</summary>
-    public int RemainingQty => Math.Max(0, OrderedQty - TotalReceivedQty);
-    public int VarianceQty => TotalReceivedQty - OrderedQty;
+    public decimal RemainingQty => Math.Max(0, OrderedQty - TotalReceivedQty);
+    public decimal VarianceQty => TotalReceivedQty - OrderedQty;
     public bool IsFullyReceived => TotalReceivedQty >= OrderedQty;
     public decimal UnitPrice { get; set; }
     public decimal TotalOrderedCost => UnitPrice * OrderedQty;
@@ -179,9 +191,9 @@ public class GrnPoVarianceDto
     public int CompletedGrns { get; set; }
     public List<GrnPoVarianceItemDto> Items { get; set; } = new();
     public bool IsFullyReceived => Items.All(i => i.IsFullyReceived);
-    public int TotalOrderedQty => Items.Sum(i => i.OrderedQty);
-    public int TotalReceivedQty => Items.Sum(i => i.TotalReceivedQty);
-    public int TotalRemainingQty => Items.Sum(i => i.RemainingQty);
+    public decimal TotalOrderedQty => Items.Sum(i => i.OrderedQty);
+    public decimal TotalReceivedQty => Items.Sum(i => i.TotalReceivedQty);
+    public decimal TotalRemainingQty => Items.Sum(i => i.RemainingQty);
 }
 
 /// <summary>
@@ -220,7 +232,7 @@ public class PurchaseOrderItemForGrnDto
     public string? ProductCode { get; set; }
     public string VariantName { get; set; } = string.Empty;
     public string? VariantAttributes { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public string? PrimaryImageThumb { get; set; }
 }

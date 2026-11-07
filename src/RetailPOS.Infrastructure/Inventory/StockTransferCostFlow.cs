@@ -25,8 +25,8 @@ internal static class StockTransferCostFlow
         long variantId,
         long locationId,
         string locationType,
-        int onHandBeforeDispatch,
-        int quantity,
+        decimal onHandBeforeDispatch,
+        decimal quantity,
         CancellationToken cancellationToken)
     {
         var ledger = await StockCostReader.ReadVariantAsync(dbContext, businessId, variantId, cancellationToken);
@@ -55,7 +55,7 @@ internal static class StockTransferCostFlow
         long businessId,
         StockTransfer transfer,
         StockTransferItem item,
-        int acceptedQuantity,
+        decimal acceptedQuantity,
         CancellationToken cancellationToken)
     {
         var dispatchTransferId = transfer.OriginalTransferId ?? transfer.Id;
@@ -123,9 +123,9 @@ internal static class StockTransferCostFlow
         long locationId,
         string locationType,
         string transactionType,
-        int qtyIn,
-        int qtyOut,
-        int balanceAfter,
+        decimal qtyIn,
+        decimal qtyOut,
+        decimal balanceAfter,
         long transferId,
         string remarks,
         long? createdBy,
@@ -190,8 +190,8 @@ internal static class StockTransferCostFlow
         long originalTransferId,
         long variantId,
         decimal dispatchedValue,
-        int dispatchedQuantity,
-        int acceptedQuantity,
+        decimal dispatchedQuantity,
+        decimal acceptedQuantity,
         CancellationToken cancellationToken)
     {
         var original = await dbContext.StockTransferItems

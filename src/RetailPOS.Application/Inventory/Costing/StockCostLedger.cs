@@ -3,10 +3,10 @@ namespace RetailPOS.Application.Inventory.Costing;
 /// <summary>The approved weighted-average pool of one variant at one location (P2-06).</summary>
 public sealed class WeightedAverageCostPool
 {
-    public int Quantity { get; private set; }
+    public decimal Quantity { get; private set; }
     public decimal Value { get; private set; }
 
-    public void Apply(int qtyIn, int qtyOut, decimal movementValue, decimal movementUnitCost)
+    public void Apply(decimal qtyIn, decimal qtyOut, decimal movementValue, decimal movementUnitCost)
     {
         if (qtyIn > 0)
         {
@@ -45,8 +45,8 @@ public sealed record StockCostMovement(
     string LocationType,
     string ReferenceType,
     long ReferenceId,
-    int QtyIn,
-    int QtyOut,
+    decimal QtyIn,
+    decimal QtyOut,
     decimal UnitCost,
     decimal MovementValue,
     bool IsReliable);
@@ -72,7 +72,7 @@ public sealed record GrnLedgerCost(decimal? UnitCost, decimal? MovementValue, bo
     /// What this receipt debits to the Inventory account for the line, so the ledger and the journal stay equal.
     /// </param>
     public static GrnLedgerCost Resolve(
-        int receivedQuantity,
+        decimal receivedQuantity,
         decimal grnUnitCost,
         decimal journalValue,
         decimal orderUnitPrice,
@@ -156,7 +156,7 @@ public sealed class StockCostLedger
     public StockCostPosition Classify(
         long variantId,
         StockCostLocation location,
-        int onHand,
+        decimal onHand,
         StockCostEvidence evidence)
     {
         if (onHand <= 0 || !_states.TryGetValue((variantId, location.LocationId, location.LocationType), out var state))

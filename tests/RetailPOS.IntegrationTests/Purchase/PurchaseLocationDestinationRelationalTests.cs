@@ -148,8 +148,8 @@ public sealed class PurchaseLocationDestinationRelationalTests
                     .Select(item => new { item.LocationType, item.LocationId, item.Quantity })
                     .ToListAsync();
                 Assert.Equal(2, stock.Count);
-                Assert.Equal(new { LocationType = "outlet", LocationId = OutletId, Quantity = 3 }, stock[0]);
-                Assert.Equal(new { LocationType = "warehouse", LocationId = WarehouseId, Quantity = 3 }, stock[1]);
+                Assert.Equal(new { LocationType = "outlet", LocationId = OutletId, Quantity = 3m }, stock[0]);
+                Assert.Equal(new { LocationType = "warehouse", LocationId = WarehouseId, Quantity = 3m }, stock[1]);
 
                 var readStore = new PurchaseOrderReadStore(db);
                 Assert.Null(await readStore.FindByIdAsync(outlet.PurchaseOrder.Id, OtherBusinessId, CancellationToken.None));

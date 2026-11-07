@@ -4006,6 +4006,18 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal?>("AcceptedLooseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("accepted_loose_quantity");
+
+                    b.Property<int?>("AcceptedSealedPacks")
+                        .HasColumnType("integer")
+                        .HasColumnName("accepted_sealed_packs");
+
+                    b.Property<decimal>("DamagedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("damaged_quantity");
+
                     b.Property<long>("GrnId")
                         .HasColumnType("bigint")
                         .HasColumnName("grn_id");
@@ -4019,9 +4031,13 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("po_item_id");
 
-                    b.Property<int>("ReceivedQty")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("ReceivedQty")
+                        .HasColumnType("numeric")
                         .HasColumnName("received_qty");
+
+                    b.Property<decimal>("RejectedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("rejected_quantity");
 
                     b.Property<string>("TaxCode")
                         .HasMaxLength(50)
@@ -4038,9 +4054,53 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("taxable_amount");
 
                     b.Property<decimal>("UnitCost")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("unit_cost");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
 
                     b.Property<decimal?>("VatAmount")
                         .HasPrecision(18, 2)
@@ -13577,8 +13637,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("low_stock_threshold");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("quantity");
 
                     b.Property<long>("VariantId")
@@ -15239,8 +15299,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("po_id");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("quantity");
 
                     b.Property<decimal>("Tax")
@@ -15263,9 +15323,53 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("unit");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("unit_price");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
 
                     b.Property<long>("VariantId")
                         .HasColumnType("bigint")
@@ -15710,18 +15814,36 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("applied_rule_name");
 
+                    b.Property<decimal?>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("discount_amount");
 
                     b.Property<decimal?>("HistoricalUnitCost")
-                        .HasPrecision(10, 4)
-                        .HasColumnType("numeric(10,4)")
+                        .HasColumnType("numeric")
                         .HasColumnName("historical_unit_cost");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer")
+                    b.Property<string>("PackCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<string>("PackState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pack_state");
+
+                    b.Property<decimal>("PackagingCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("packaging_cost");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("quantity");
 
                     b.Property<long>("SaleId")
@@ -15753,9 +15875,53 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("taxable_amount");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("unit_price");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
 
                     b.Property<long>("VariantId")
                         .HasColumnType("bigint")
@@ -16125,12 +16291,16 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal?>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("NewQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("NewQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("new_quantity");
 
                     b.Property<string>("Notes")
@@ -16138,12 +16308,22 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("notes");
 
-                    b.Property<int>("PreviousQuantity")
-                        .HasColumnType("integer")
+                    b.Property<string>("PackCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<string>("PackState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pack_state");
+
+                    b.Property<decimal>("PreviousQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("previous_quantity");
 
-                    b.Property<int>("QuantityChange")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("QuantityChange")
+                        .HasColumnType("numeric")
                         .HasColumnName("quantity_change");
 
                     b.Property<string>("Reason")
@@ -16159,6 +16339,51 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<decimal?>("UnitCostSnapshot")
                         .HasColumnType("numeric")
                         .HasColumnName("unit_cost_snapshot");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -16794,8 +17019,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("BalanceAfter")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("BalanceAfter")
+                        .HasColumnType("numeric")
                         .HasColumnName("balance_after");
 
                     b.Property<DateTime>("BusinessDate")
@@ -16835,12 +17060,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("movement_value");
 
-                    b.Property<int>("QtyIn")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("QtyIn")
+                        .HasColumnType("numeric")
                         .HasColumnName("qty_in");
 
-                    b.Property<int>("QtyOut")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("QtyOut")
+                        .HasColumnType("numeric")
                         .HasColumnName("qty_out");
 
                     b.Property<long>("ReferenceId")
@@ -16869,8 +17094,7 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("transaction_type");
 
                     b.Property<decimal>("UnitCost")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)")
+                        .HasColumnType("numeric")
                         .HasColumnName("unit_cost");
 
                     b.Property<long>("VariantId")
@@ -17034,8 +17258,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("FulfilledQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("FulfilledQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("fulfilled_quantity");
 
                     b.Property<string>("Remarks")
@@ -17043,8 +17267,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("remarks");
 
-                    b.Property<int>("RequestedQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("RequestedQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("requested_quantity");
 
                     b.Property<long>("RequisitionId")
@@ -17244,24 +17468,24 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("AcceptedQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("AcceptedQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("accepted_quantity");
 
-                    b.Property<int>("DamagedQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("DamagedQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("damaged_quantity");
 
-                    b.Property<int>("MissingQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("MissingQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("missing_quantity");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("quantity");
 
-                    b.Property<int>("RejectedQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("RejectedQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("rejected_quantity");
 
                     b.Property<string>("Remarks")
@@ -17269,22 +17493,67 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("remarks");
 
-                    b.Property<int>("RequestedQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("RequestedQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("requested_quantity");
 
                     b.Property<long>("TransferId")
                         .HasColumnType("bigint")
                         .HasColumnName("transfer_id");
 
-                    b.Property<int>("TransferQuantity")
-                        .HasColumnType("integer")
+                    b.Property<decimal>("TransferQuantity")
+                        .HasColumnType("numeric")
                         .HasColumnName("transfer_quantity");
 
                     b.Property<decimal>("UnitCost")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("unit_cost");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
 
                     b.Property<long>("VariantId")
                         .HasColumnType("bigint")
@@ -17980,6 +18249,1005 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_transactions_account_id");
 
                     b.ToTable("transactions");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.PackStateBalance", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
+                    b.Property<decimal>("BaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_quantity");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CapitalizedValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("capitalized_value");
+
+                    b.Property<long>("LocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("LocationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<string>("PackCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<int>("PackCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("pack_count");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("VariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variant_id");
+
+                    b.Property<uint>("XMin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_pack_state_balances");
+
+                    b.HasIndex("BusinessId", "LocationType", "LocationId")
+                        .HasDatabaseName("i_x_pack_state_balances_business_id_location_type_location_id");
+
+                    b.HasIndex("VariantId", "LocationId", "LocationType", "State", "PackCode", "BaseQtyPerPack")
+                        .IsUnique()
+                        .HasDatabaseName("ux_pack_state_balances_identity");
+
+                    b.ToTable("pack_state_balances", t =>
+                        {
+                            t.HasCheckConstraint("ck_pack_state_balances_not_negative", "pack_count >= 0 AND base_quantity >= 0 AND capitalized_value >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.PackStateMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<decimal>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
+                    b.Property<decimal>("BaseQuantityDelta")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_quantity_delta");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CapitalizedValueDelta")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("capitalized_value_delta");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long>("LocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("LocationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("operation_type");
+
+                    b.Property<string>("PackCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<int>("PackCountDelta")
+                        .HasColumnType("integer")
+                        .HasColumnName("pack_count_delta");
+
+                    b.Property<long>("ReferenceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("reference_type");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state");
+
+                    b.Property<long>("VariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_pack_state_movements");
+
+                    b.HasIndex("BusinessId", "BusinessDate")
+                        .HasDatabaseName("i_x_pack_state_movements_business_id_business_date");
+
+                    b.HasIndex("ReferenceType", "ReferenceId")
+                        .HasDatabaseName("i_x_pack_state_movements_reference_type_reference_id");
+
+                    b.HasIndex("VariantId", "LocationId", "LocationType", "CreatedAt")
+                        .HasDatabaseName("i_x_pack_state_movements_variant_id_location_id_location_type_c~");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey", "State", "PackCode", "BaseQtyPerPack")
+                        .IsUnique()
+                        .HasDatabaseName("ux_pack_state_movements_idempotency")
+                        .HasFilter("idempotency_key IS NOT NULL");
+
+                    b.ToTable("pack_state_movements");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackComponentLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ComponentVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("component_variant_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("quantity");
+
+                    b.Property<long>("RepackJobId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("repack_job_id");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<decimal?>("Value")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_repack_component_lines");
+
+                    b.HasIndex("ComponentVariantId")
+                        .HasDatabaseName("i_x_repack_component_lines_component_variant_id");
+
+                    b.HasIndex("RepackJobId", "ComponentVariantId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_repack_component_lines_repack_job_id_component_variant_id");
+
+                    b.ToTable("repack_component_lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackJob", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("ConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("config_version_id");
+
+                    b.Property<decimal>("ContentBaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("content_base_quantity");
+
+                    b.Property<decimal?>("ContentUnitCost")
+                        .HasColumnType("numeric")
+                        .HasColumnName("content_unit_cost");
+
+                    b.Property<decimal?>("ContentValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("content_value");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("executed_at");
+
+                    b.Property<long?>("ExecutedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("executed_by");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long>("LocationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("LocationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("location_type");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<int>("OutputCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("output_count");
+
+                    b.Property<string>("OutputLabel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("output_label");
+
+                    b.Property<long>("OutputOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("output_option_id");
+
+                    b.Property<string>("OutputPackCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("output_pack_code");
+
+                    b.Property<decimal>("PackBaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("pack_base_quantity");
+
+                    b.Property<decimal?>("PackagingValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("packaging_value");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("reference");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reversed_at");
+
+                    b.Property<long?>("ReversedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversed_by");
+
+                    b.Property<long>("SourceVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_variant_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("XMin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_repack_jobs");
+
+                    b.HasIndex("SourceVariantId")
+                        .HasDatabaseName("i_x_repack_jobs_source_variant_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_repack_jobs_business_id_idempotency_key");
+
+                    b.HasIndex("BusinessId", "Reference")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_repack_jobs_business_id_reference");
+
+                    b.HasIndex("BusinessId", "LocationType", "LocationId", "CreatedAt")
+                        .HasDatabaseName("i_x_repack_jobs_business_id_location_type_location_id_created_at");
+
+                    b.ToTable("repack_jobs");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleItemComponent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ComponentVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("component_variant_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("quantity");
+
+                    b.Property<long>("SaleItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_item_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_item_components");
+
+                    b.HasIndex("ComponentVariantId")
+                        .HasDatabaseName("i_x_sale_item_components_component_variant_id");
+
+                    b.HasIndex("SaleItemId")
+                        .HasDatabaseName("i_x_sale_item_components_sale_item_id");
+
+                    b.ToTable("sale_item_components");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleReturnLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("condition");
+
+                    b.Property<decimal>("CostRestored")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("cost_restored");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("PackagingReusable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("packaging_reusable");
+
+                    b.Property<decimal>("RestockedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("restocked_quantity");
+
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("returned_quantity");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<long>("SaleItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_return_lines");
+
+                    b.HasIndex("SaleId")
+                        .HasDatabaseName("i_x_sale_return_lines_sale_id");
+
+                    b.HasIndex("SaleItemId")
+                        .HasDatabaseName("i_x_sale_return_lines_sale_item_id");
+
+                    b.ToTable("sale_return_lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SellingOptionComponent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ComponentVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("component_variant_id");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_required");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("quantity");
+
+                    b.Property<long>("SellingOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("selling_option_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_selling_option_components");
+
+                    b.HasIndex("ComponentVariantId")
+                        .HasDatabaseName("i_x_selling_option_components_component_variant_id");
+
+                    b.HasIndex("SellingOptionId", "ComponentVariantId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_selling_option_components_selling_option_id_component_varia~");
+
+                    b.ToTable("selling_option_components");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.StockCountLineEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
+                    b.Property<decimal>("BaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_quantity");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PackCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<int>("PackCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("pack_count");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state");
+
+                    b.Property<long>("StockCountLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("stock_count_line_id");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_count_line_entries");
+
+                    b.HasIndex("StockCountLineId")
+                        .HasDatabaseName("i_x_stock_count_line_entries_stock_count_line_id");
+
+                    b.ToTable("stock_count_line_entries");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.StockTransferItemAllocation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
+                    b.Property<decimal>("BaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_quantity");
+
+                    b.Property<decimal>("CapitalizedValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("capitalized_value");
+
+                    b.Property<string>("PackCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<int>("PackCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("pack_count");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("state");
+
+                    b.Property<long>("TransferItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("transfer_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stock_transfer_item_allocations");
+
+                    b.HasIndex("TransferItemId")
+                        .HasDatabaseName("i_x_stock_transfer_item_allocations_transfer_item_id");
+
+                    b.ToTable("stock_transfer_item_allocations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.UomStandardConversion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Denominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("denominator");
+
+                    b.Property<long>("FromUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("from_unit_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<decimal>("Numerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("numerator");
+
+                    b.Property<long>("ToUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("to_unit_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_uom_standard_conversions");
+
+                    b.HasIndex("ToUnitId")
+                        .HasDatabaseName("i_x_uom_standard_conversions_to_unit_id");
+
+                    b.HasIndex("FromUnitId", "ToUnitId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_uom_standard_conversions_from_unit_id_to_unit_id");
+
+                    b.ToTable("uom_standard_conversions");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.UomUnit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Dimension")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("dimension");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsWholeUnit")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_whole_unit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("QuantityPrecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity_precision");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("symbol");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<uint>("XMin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_uom_units");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_uom_units_global_code")
+                        .HasFilter("business_id IS NULL");
+
+                    b.HasIndex("BusinessId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_uom_units_business_code")
+                        .HasFilter("business_id IS NOT NULL");
+
+                    b.ToTable("uom_units");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantPurchaseUnitOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<long>("ConfigId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("config_id");
+
+                    b.Property<decimal>("FactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("factor_denominator");
+
+                    b.Property<decimal>("FactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("factor_numerator");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<bool>("IsSealedPack")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_sealed_pack");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("label");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unit_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_variant_purchase_unit_options");
+
+                    b.HasIndex("UnitId")
+                        .HasDatabaseName("i_x_variant_purchase_unit_options_unit_id");
+
+                    b.HasIndex("ConfigId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_variant_purchase_unit_options_config_id_code");
+
+                    b.ToTable("variant_purchase_unit_options");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantSellingOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal?>("BaseQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_quantity");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<long>("ConfigId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("config_id");
+
+                    b.Property<decimal>("FactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("factor_denominator");
+
+                    b.Property<decimal>("FactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("factor_numerator");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<bool>("IsPreparedEligible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_prepared_eligible");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("label");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("price");
+
+                    b.Property<string>("SealedPackCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("sealed_pack_code");
+
+                    b.Property<long?>("UnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unit_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_variant_selling_options");
+
+                    b.HasIndex("UnitId")
+                        .HasDatabaseName("i_x_variant_selling_options_unit_id");
+
+                    b.HasIndex("ConfigId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_variant_selling_options_config_id_code");
+
+                    b.ToTable("variant_selling_options");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantUomConfig", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BaseUnitId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("base_unit_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("EffectiveFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<DateTime?>("EffectiveToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_to_utc");
+
+                    b.Property<bool>("PackStateTrackingEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("pack_state_tracking_enabled");
+
+                    b.Property<bool>("RepackingEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("repacking_enabled");
+
+                    b.Property<long>("VariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variant_id");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_variant_uom_configs");
+
+                    b.HasIndex("BaseUnitId")
+                        .HasDatabaseName("i_x_variant_uom_configs_base_unit_id");
+
+                    b.HasIndex("BusinessId")
+                        .HasDatabaseName("i_x_variant_uom_configs_business_id");
+
+                    b.HasIndex("VariantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_variant_uom_configs_current")
+                        .HasFilter("effective_to_utc IS NULL");
+
+                    b.HasIndex("VariantId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_variant_uom_configs_variant_id_version");
+
+                    b.ToTable("variant_uom_configs");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.User", b =>
@@ -22948,6 +24216,231 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Account");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.PackStateBalance", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "Variant")
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_pack_state_balances_product_variants_variant_id");
+
+                    b.Navigation("Variant");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.PackStateMovement", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", null)
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_pack_state_movements_product_variants_variant_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackComponentLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "ComponentVariant")
+                        .WithMany()
+                        .HasForeignKey("ComponentVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_repack_component_lines_product_variants_component_variant_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.RepackJob", "RepackJob")
+                        .WithMany("Components")
+                        .HasForeignKey("RepackJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_repack_component_lines__repack_jobs_repack_job_id");
+
+                    b.Navigation("ComponentVariant");
+
+                    b.Navigation("RepackJob");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackJob", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "SourceVariant")
+                        .WithMany()
+                        .HasForeignKey("SourceVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_repack_jobs_product_variants_source_variant_id");
+
+                    b.Navigation("SourceVariant");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleItemComponent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "ComponentVariant")
+                        .WithMany()
+                        .HasForeignKey("ComponentVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_item_components_product_variants_component_variant_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.SaleItem", "SaleItem")
+                        .WithMany("Components")
+                        .HasForeignKey("SaleItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_item_components_sale_items_sale_item_id");
+
+                    b.Navigation("ComponentVariant");
+
+                    b.Navigation("SaleItem");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleReturnLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.SaleItem", "SaleItem")
+                        .WithMany()
+                        .HasForeignKey("SaleItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_return_lines_sale_items_sale_item_id");
+
+                    b.Navigation("SaleItem");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SellingOptionComponent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "ComponentVariant")
+                        .WithMany()
+                        .HasForeignKey("ComponentVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_selling_option_components_product_variants_component_varian~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.VariantSellingOption", "SellingOption")
+                        .WithMany("Components")
+                        .HasForeignKey("SellingOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_selling_option_components__variant_selling_options_selling_opt~");
+
+                    b.Navigation("ComponentVariant");
+
+                    b.Navigation("SellingOption");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.StockCountLineEntry", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.StockCountLine", "StockCountLine")
+                        .WithMany("Entries")
+                        .HasForeignKey("StockCountLineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_count_line_entries_stock_count_lines_stock_count_line~");
+
+                    b.Navigation("StockCountLine");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.StockTransferItemAllocation", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.StockTransferItem", "TransferItem")
+                        .WithMany("Allocations")
+                        .HasForeignKey("TransferItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_stock_transfer_item_allocations_stock_transfer_items_transf~");
+
+                    b.Navigation("TransferItem");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.UomStandardConversion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Uom.UomUnit", "FromUnit")
+                        .WithMany()
+                        .HasForeignKey("FromUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_uom_standard_conversions__uom_units_from_unit_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.UomUnit", "ToUnit")
+                        .WithMany()
+                        .HasForeignKey("ToUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_uom_standard_conversions__uom_units_to_unit_id");
+
+                    b.Navigation("FromUnit");
+
+                    b.Navigation("ToUnit");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.UomUnit", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_uom_units_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantPurchaseUnitOption", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Uom.VariantUomConfig", "Config")
+                        .WithMany("PurchaseOptions")
+                        .HasForeignKey("ConfigId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_variant_purchase_unit_options__variant_uom_configs_config_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.UomUnit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_variant_purchase_unit_options_uom_units_unit_id");
+
+                    b.Navigation("Config");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantSellingOption", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Uom.VariantUomConfig", "Config")
+                        .WithMany("SellingOptions")
+                        .HasForeignKey("ConfigId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_variant_selling_options__variant_uom_configs_config_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.UomUnit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_variant_selling_options_uom_units_unit_id");
+
+                    b.Navigation("Config");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantUomConfig", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Uom.UomUnit", "BaseUnit")
+                        .WithMany()
+                        .HasForeignKey("BaseUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_variant_uom_configs_uom_units_base_unit_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", "Variant")
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_variant_uom_configs_product_variants_variant_id");
+
+                    b.Navigation("BaseUnit");
+
+                    b.Navigation("Variant");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.User", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Business", "Business")
@@ -23441,6 +24934,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("SaleVoids");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.SaleItem", b =>
+                {
+                    b.Navigation("Components");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
                 {
                     b.Navigation("Lines");
@@ -23449,6 +24947,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
             modelBuilder.Entity("RetailPOS.Core.Entities.StockCount", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockCountLine", b =>
+                {
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockRequisition", b =>
@@ -23461,6 +24964,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
             modelBuilder.Entity("RetailPOS.Core.Entities.StockTransfer", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.StockTransferItem", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Supplier", b =>
@@ -23482,6 +24990,23 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("Advances");
 
                     b.Navigation("Allocations");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackJob", b =>
+                {
+                    b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantSellingOption", b =>
+                {
+                    b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantUomConfig", b =>
+                {
+                    b.Navigation("PurchaseOptions");
+
+                    b.Navigation("SellingOptions");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.User", b =>

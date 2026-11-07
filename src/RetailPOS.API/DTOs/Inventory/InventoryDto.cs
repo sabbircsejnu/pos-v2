@@ -20,9 +20,9 @@ public class InventoryDto
     public long? WarehouseId { get; set; }
     public string? WarehouseName { get; set; }
     public string LocationType { get; set; } = string.Empty; // "Outlet" or "Warehouse"
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public int ReorderLevel { get; set; }
-    public int? MaxStockLevel { get; set; }
+    public decimal? MaxStockLevel { get; set; }
     public string? BatchNumber { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public decimal CostPrice { get; set; }
@@ -45,7 +45,7 @@ public class InventoryByLocationDto
     public string? WarehouseName { get; set; }
     public string LocationType { get; set; } = string.Empty;
     public int TotalProducts { get; set; }
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public int LowStockCount { get; set; }
     public int OutOfStockCount { get; set; }
     public decimal TotalValue { get; set; }
@@ -64,9 +64,9 @@ public class LowStockDto
     public string? VariantAttributes { get; set; }
     public string? PrimaryImageThumb { get; set; }
     public string? Sku { get; set; }
-    public int CurrentQuantity { get; set; }
+    public decimal CurrentQuantity { get; set; }
     public int ReorderLevel { get; set; }
-    public int ShortageQuantity => Math.Max(0, ReorderLevel - CurrentQuantity);
+    public decimal ShortageQuantity => Math.Max(0, ReorderLevel - CurrentQuantity);
     public string LocationName { get; set; } = string.Empty;
     public string LocationType { get; set; } = string.Empty;
     public DateTime? LastRestockedAt { get; set; }
@@ -80,7 +80,7 @@ public class InventoryValuationDto
     public string LocationName { get; set; } = string.Empty;
     public string LocationType { get; set; } = string.Empty;
     public int TotalItems { get; set; }
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalCostValue { get; set; }
     public decimal TotalRetailValue { get; set; }
     public decimal PotentialProfit => TotalRetailValue - TotalCostValue;
@@ -95,7 +95,7 @@ public class CategoryValuationDto
 {
     public string CategoryName { get; set; } = string.Empty;
     public int ProductCount { get; set; }
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalCostValue { get; set; }
     public decimal TotalRetailValue { get; set; }
 }
@@ -106,7 +106,7 @@ public class CategoryValuationDto
 public class UpdateStockThresholdDto
 {
     public int ReorderLevel { get; set; }
-    public int MaxStockLevel { get; set; }
+    public decimal MaxStockLevel { get; set; }
 }
 
 /// <summary>

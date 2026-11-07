@@ -287,6 +287,6 @@ public sealed class StockTransferReadStore(RetailPOSDbContext dbContext)
         return $"Location {locationId}";
     }
 
-    private static int ResolveTransferQuantity(StockTransferItem item) =>
+    private static decimal ResolveTransferQuantity(StockTransferItem item) =>
         item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
 }

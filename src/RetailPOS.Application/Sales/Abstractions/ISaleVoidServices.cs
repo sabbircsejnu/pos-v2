@@ -28,14 +28,15 @@ public interface ISaleVoidTransaction : IAsyncDisposable
     Task RollbackAsync(CancellationToken cancellationToken);
 }
 
-public sealed record SaleRefundLine(long SaleItemId, long VariantId, int Quantity);
+/// <param name="RestoredCost">Value actually returned to inventory, when a condition was assessed. Null means the whole cost.</param>
+public sealed record SaleRefundLine(long SaleItemId, long VariantId, decimal Quantity, decimal? RestoredCost = null);
 
 public interface ISaleVoidStockLedgerWriter
 {
     void AppendReturn(
         Sale sale,
         SaleItem item,
-        int balanceAfter,
+        decimal balanceAfter,
         long actorUserId,
         string reason,
         DateTime createdAt);

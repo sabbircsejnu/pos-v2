@@ -3,6 +3,6 @@ namespace RetailPOS.Application.Pos.ReadModels;
 public sealed record PosStockHintReadModel(
     long VariantId,
     long OutletId,
-    int AvailableQty,
+    decimal AvailableQty,
     bool Sufficient,
     bool FromCache);

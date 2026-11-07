@@ -743,6 +743,15 @@ builder.Services.AddScoped<RetailPOS.Application.Outlets.SalesTargets.IOutletSal
     RetailPOS.Infrastructure.Outlets.OutletSalesTargetReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.OwnerDashboards.ISalesFinanceReadStore,
     RetailPOS.Infrastructure.OwnerDashboards.SalesFinanceReadStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IStockCountEntryStore, RetailPOS.Infrastructure.Uom.StockCountEntryStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IVariantUomReader, RetailPOS.Infrastructure.Uom.VariantUomReader>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IUomCatalogStore, RetailPOS.Infrastructure.Uom.UomCatalogStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IVariantUomConfigStore, RetailPOS.Infrastructure.Uom.VariantUomConfigStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IPackStateLedger, RetailPOS.Infrastructure.Uom.PackStateLedger>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IPackStateStore, RetailPOS.Infrastructure.Uom.PackStateStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IRepackStore, RetailPOS.Infrastructure.Uom.RepackStore>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IUomOperationScope, RetailPOS.API.Services.UomOperationScopeAdapter>();
+builder.Services.AddScoped<RetailPOS.Application.Uom.IUomAuditWriter, RetailPOS.API.Services.UomAuditWriter>();
 builder.Services.AddScoped<RetailPOS.Application.OwnerDashboards.IInventoryDashboardReadStore,
     RetailPOS.Infrastructure.OwnerDashboards.InventoryDashboardReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.SalesReports.Abstractions.ISalesReportReadStore,

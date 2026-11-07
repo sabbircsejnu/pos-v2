@@ -17,7 +17,7 @@ public interface IPosProductLookupCache
         PosProductLookupReadModel result,
         CancellationToken cancellationToken);
 
-    Task<int?> GetStockAsync(
+    Task<decimal?> GetStockAsync(
         long variantId,
         long outletId,
         CancellationToken cancellationToken);
@@ -25,6 +25,6 @@ public interface IPosProductLookupCache
     Task SetStockAsync(
         long variantId,
         long outletId,
-        int quantity,
+        decimal quantity,
         CancellationToken cancellationToken);
 }

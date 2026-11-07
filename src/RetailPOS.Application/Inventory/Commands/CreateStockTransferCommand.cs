@@ -13,7 +13,8 @@ public sealed record CreateStockTransferCommand(
 public sealed class CreateStockTransferCommandHandler(
     IStockTransferReadScopeProvider scopeProvider,
     IStockTransferCreationStore creationStore,
-    IStockTransferReadStore readStore)
+    IStockTransferReadStore readStore,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null)
     : IRequestHandler<CreateStockTransferCommand, StockTransferReadModel>
 {
     public async Task<StockTransferReadModel> Handle(
@@ -22,6 +23,7 @@ public sealed class CreateStockTransferCommandHandler(
     {
         var input = NormalizeAndValidate(request.Input);
         var businessId = await scopeProvider.GetBusinessIdAsync(cancellationToken);
+        input = await RetailPOS.Application.Uom.InventoryUomRules.ResolveTransferAsync(input, businessId, uomReader, cancellationToken);
         var id = await creationStore.CreateAsync(
             input,
             businessId,
@@ -68,8 +70,10 @@ public sealed class CreateStockTransferCommandHandler(
         return normalized;
     }
 
-    private static int ResolveTransferQuantity(StockTransferCreateItem item)
+    private static decimal ResolveTransferQuantity(StockTransferCreateItem item)
     {
+        if (item.EnteredQuantity is > 0m)
+            return item.EnteredQuantity.Value;
         if (item.TransferQuantity.HasValue && item.TransferQuantity.Value > 0)
             return item.TransferQuantity.Value;
         if (item.Quantity > 0)

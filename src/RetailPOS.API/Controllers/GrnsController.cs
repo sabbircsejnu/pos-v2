@@ -200,7 +200,11 @@ public class GrnsController : ControllerBase
                     item.PoItemId,
                     item.ReceivedQty,
                     item.UnitCost,
-                    item.Notes)).ToArray(),
+                    item.Notes,
+                    item.DamagedQty,
+                    item.RejectedQty,
+                    item.AcceptedSealedPacks,
+                    item.AcceptedLooseQty)).ToArray(),
                 userId),
             cancellationToken);
         var grn = MapGrn(result);

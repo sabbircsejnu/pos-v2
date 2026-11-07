@@ -105,7 +105,7 @@ public sealed class ProductStockReadStoreTests
         Assert.Equal(5, result.TotalCount);
         Assert.Equal(new[] { "in_stock", "partially_in_stock", "in_stock", "out_of_stock", "not_initialized" },
             result.Products.Select(product => product.StockStatus));
-        Assert.Equal(new[] { 7, 5, 5, 0, 0 }, result.Products.Select(product => product.TotalStock));
+        Assert.Equal(new[] { 7m, 5m, 5m, 0m, 0m }, result.Products.Select(product => product.TotalStock));
 
         foreach (var product in result.Products)
         {

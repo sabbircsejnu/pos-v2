@@ -16,5 +16,5 @@ public sealed record WarehouseStatsReadModel(
     string Name,
     int? Capacity,
     int PurchaseOrderCount,
-    int CurrentStock,
+    decimal CurrentStock,
     decimal CapacityUtilization);

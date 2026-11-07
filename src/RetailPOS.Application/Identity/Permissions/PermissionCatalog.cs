@@ -20,8 +20,27 @@ public static class PermissionCatalog
     /// </summary>
     public const string ExpenseCategoriesManage = "accounting.expense_categories.manage";
 
+    /// <summary>Read the unit of measurement catalog.</summary>
+    public const string UomView = "uom.view";
+
+    /// <summary>Create, edit and deactivate units of measurement.</summary>
+    public const string UomManage = "uom.manage";
+
+    /// <summary>Read sealed, loose and prepared stock.</summary>
+    public const string PackStateView = "inventory.pack_state.view";
+
+    /// <summary>Open sealed packs at an authorized location.</summary>
+    public const string PackStateManage = "inventory.pack_state.manage";
+
+    /// <summary>Read repack jobs.</summary>
+    public const string RepackingView = "inventory.repacking.view";
+
+    /// <summary>Create, execute, cancel and reverse repack jobs at an authorized location.</summary>
+    public const string RepackingExecute = "inventory.repacking.execute";
+
     public static readonly string[] All = new[]
     {
+        UomView, UomManage, PackStateView, PackStateManage, RepackingView, RepackingExecute,
         "users.view", "users.create", "users.edit", "users.delete",
         UserContextAccessManage, UserContextAccessGrantAll,
         "roles.view", "roles.create", "roles.edit", "roles.delete",

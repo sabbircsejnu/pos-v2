@@ -9,7 +9,7 @@ public interface IGrnCreationStore
         long? businessId,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyDictionary<long, int>> GetCompletedReceivedQuantitiesAsync(
+    Task<IReadOnlyDictionary<long, decimal>> GetCompletedReceivedQuantitiesAsync(
         long purchaseOrderId,
         CancellationToken cancellationToken);
 
@@ -36,14 +36,20 @@ public sealed record GrnCreationRecord(
 
 public sealed record GrnCreationItemRecord(
     long PurchaseOrderItemId,
-    int ReceivedQuantity,
+    decimal ReceivedQuantity,
     decimal UnitCost,
     decimal TaxableAmount,
     decimal VatRate,
     decimal VatAmount,
     string? TaxCode,
     bool? TaxInclusive,
-    string? Notes);
+    string? Notes)
+{
+    public decimal DamagedQuantity { get; init; }
+    public decimal RejectedQuantity { get; init; }
+    public int? AcceptedSealedPacks { get; init; }
+    public decimal? AcceptedLooseQuantity { get; init; }
+}
 
 public sealed record GrnCreationAuditRecord(
     long GrnId,
@@ -56,6 +62,6 @@ public sealed record GrnCreationAuditRecord(
     string Status,
     DateTime ReceivedDate,
     int ItemCount,
-    int ReceivedQuantity,
+    decimal ReceivedQuantity,
     decimal TaxableAmount,
     decimal VatAmount);

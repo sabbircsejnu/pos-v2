@@ -103,7 +103,14 @@ public class SalesController : ControllerBase
             HistoricalUnitCost = item.HistoricalUnitCost,
             DiscountAmount = item.DiscountAmount,
             Subtotal = item.Subtotal,
-            AppliedRuleName = item.AppliedRuleName
+            AppliedRuleName = item.AppliedRuleName,
+            UnitCode = item.UnitCode,
+            UnitLabel = item.UnitLabel,
+            EnteredQuantity = item.EnteredQuantity,
+            EnteredUnitPrice = item.EnteredUnitPrice,
+            BaseUnitCode = item.BaseUnitCode,
+            PackState = item.PackState,
+            ReturnedQuantity = item.ReturnedQuantity
         }).ToList(),
         Payments = sale.Payments.Select(payment => new SalePaymentDto
         {
@@ -424,7 +431,11 @@ public class SalesController : ControllerBase
                     item.UnitPrice,
                     item.DiscountAmount,
                     item.AppliedRuleId,
-                    item.AppliedRuleName)).ToArray(),
+                    item.AppliedRuleName,
+                    item.SellingOptionId,
+                    item.ExpectedConfigVersionId,
+                    item.FulfilmentState,
+                    item.IncludePackaging)).ToArray(),
                 dto.Discount,
                 dto.Tax,
                 dto.PaymentMethod,
@@ -540,7 +551,10 @@ public class SalesController : ControllerBase
                 id,
                 dto.Items?.Select(item => new RefundSaleLine(
                     item.VariantId,
-                    item.Quantity)).ToArray() ?? [],
+                    item.Quantity,
+                    item.SaleItemId,
+                    item.Condition,
+                    item.PackagingReusable)).ToArray() ?? [],
                 dto.Reason,
                 actorUserId.Value,
                 dto.TerminalId,

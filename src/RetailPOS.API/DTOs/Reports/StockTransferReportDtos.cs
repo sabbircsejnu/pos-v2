@@ -14,7 +14,7 @@ public class StockTransferRowDto
     public string   Sku              { get; set; } = string.Empty;
     public string   ProductName      { get; set; } = string.Empty;
     public string   CategoryName     { get; set; } = string.Empty;
-    public int      Quantity         { get; set; }
+    public decimal      Quantity         { get; set; }
     public decimal  UnitCost         { get; set; }
     public decimal  TransferValue    { get; set; }
     public string   CreatedBy        { get; set; } = string.Empty;
@@ -24,7 +24,7 @@ public class StockTransferSummaryDto
 {
     public int     TotalTransfers { get; set; }
     public int     TotalLines     { get; set; }
-    public int     TotalQuantity  { get; set; }
+    public decimal     TotalQuantity  { get; set; }
     public decimal TotalValue     { get; set; }
     public int     PendingCount   { get; set; }
     public int     CompletedCount { get; set; }

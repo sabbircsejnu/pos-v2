@@ -5,7 +5,7 @@ public sealed record SaleItemReadModel(
     long VariantId,
     string? ProductName,
     string VariantSku,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal? HistoricalUnitCost,
     decimal DiscountAmount,
@@ -14,7 +14,15 @@ public sealed record SaleItemReadModel(
     string? VariantName,
     decimal? VatRate = null,
     decimal? VatAmount = null,
-    bool TaxInclusive = false);
+    bool TaxInclusive = false,
+    string? UnitCode = null,
+    string? UnitLabel = null,
+    decimal? EnteredQuantity = null,
+    decimal? EnteredUnitPrice = null,
+    string? BaseUnitCode = null,
+    string? PackState = null,
+    decimal PackagingCost = 0m,
+    decimal? ReturnedQuantity = null);
 
 public sealed record SalePaymentReadModel(
     long Id,

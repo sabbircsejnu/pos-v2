@@ -23,8 +23,8 @@ public interface ISaleRefundStockLedgerWriter
     void AppendReturn(
         Sale sale,
         SaleItem item,
-        int quantity,
-        int balanceAfter,
+        decimal quantity,
+        decimal balanceAfter,
         long actorUserId,
         string? reason,
         DateTime createdAt);
@@ -36,7 +36,7 @@ public interface ISaleRefundAuditWriter
         Sale sale,
         string previousStatus,
         string? reason,
-        int refundQuantity,
+        decimal refundQuantity,
         long? journalEntryId,
         long actorUserId,
         CancellationToken cancellationToken);

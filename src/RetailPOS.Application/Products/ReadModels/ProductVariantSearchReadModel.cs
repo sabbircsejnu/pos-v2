@@ -18,5 +18,5 @@ public sealed record ProductVariantSearchReadModel(
     string? Attributes,
     decimal FinalPrice,
     decimal CostPrice,
-    int? StockQuantity,
+    decimal? StockQuantity,
     string? PrimaryImageThumb);

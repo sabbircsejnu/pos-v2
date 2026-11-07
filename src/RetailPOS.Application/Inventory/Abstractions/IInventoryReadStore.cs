@@ -31,5 +31,5 @@ public interface IInventoryReadStore
     Task<IReadOnlyList<LowStockReadModel>> GetLowStockAsync(
         InventoryLocationScope locationScope,
         CancellationToken cancellationToken);
-    Task<int> GetTotalQuantityByVariantAsync(long variantId, CancellationToken cancellationToken);
+    Task<decimal> GetTotalQuantityByVariantAsync(long variantId, CancellationToken cancellationToken);
 }

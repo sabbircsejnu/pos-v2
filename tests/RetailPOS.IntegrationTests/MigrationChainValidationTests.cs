@@ -47,7 +47,7 @@ public sealed class MigrationChainValidationTests
             var expectedMigrations = context.Database.GetMigrations().ToArray();
             Assert.NotEmpty(expectedMigrations);
             Assert.Equal("20261004095137_InitialBaseline", expectedMigrations[0]);
-            Assert.Equal("20261106173129_PosV2OutletSalesTargets", expectedMigrations[^1]);
+            Assert.Equal("20261106234558_PosV2UomFoundation", expectedMigrations[^1]);
             Assert.All(expectedMigrations.Skip(1), migration =>
                 Assert.True(string.CompareOrdinal(migration, expectedMigrations[0]) > 0));
             var employeeMigrationIndex = Array.FindIndex(expectedMigrations,

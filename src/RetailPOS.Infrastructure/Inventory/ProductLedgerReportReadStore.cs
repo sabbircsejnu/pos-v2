@@ -64,7 +64,7 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
         var rangeStart = filter.DateFrom;
         var rangeEnd = filter.DateTo;
 
-        var opening = 0;
+        var opening = 0m;
         if (rangeStart.HasValue)
         {
             var openingQuery = dbContext.StockLedgers
@@ -73,7 +73,7 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
             openingQuery = ApplyLocationScope(openingQuery, filter, outletIds, warehouseIds);
             opening = await openingQuery
                 .Where(ledger => ledger.CreatedAt < rangeStart.Value)
-                .SumAsync(ledger => (int?)(ledger.QtyIn - ledger.QtyOut), cancellationToken) ?? 0;
+                .SumAsync(ledger => (decimal?)(ledger.QtyIn - ledger.QtyOut), cancellationToken) ?? 0;
         }
 
         var ledgerQuery = dbContext.StockLedgers
@@ -187,8 +187,8 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
                 .ToDictionaryAsync(grn => grn.Id, grn => $"GRN-{grn.Id} (PO-{grn.PoId})", cancellationToken);
 
         var rows = new List<ProductLedgerRowReadModel>(ledgerRows.Count);
-        var totalIn = 0;
-        var totalOut = 0;
+        var totalIn = 0m;
+        var totalOut = 0m;
         var totalValue = 0m;
         foreach (var row in ledgerRows)
         {

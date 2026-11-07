@@ -132,6 +132,23 @@ public class GlobalExceptionHandlerMiddleware
                 };
                 break;
 
+            case RetailPOS.Application.Uom.UomConflictException uomConflict:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                errorResponse.Success = false;
+                errorResponse.Message = uomConflict.Message;
+                errorResponse.Errors = new List<string> { uomConflict.Message };
+                errorResponse.ErrorCode = uomConflict.Code;
+                errorResponse.Data = uomConflict.Details;
+                break;
+
+            case RetailPOS.Application.Uom.UomValidationException uomValidation:
+                response.StatusCode = (int)HttpStatusCode.BadRequest;
+                errorResponse.Success = false;
+                errorResponse.Message = uomValidation.Message;
+                errorResponse.Errors = new List<string> { uomValidation.Message };
+                errorResponse.ErrorCode = uomValidation.Code;
+                break;
+
             case SaleCheckoutConflictException checkoutConflict:
                 response.StatusCode = (int)HttpStatusCode.Conflict;
                 errorResponse.Success = false;

@@ -16,20 +16,20 @@ public class StockTransactionReportRowDto
     public string? VariantCode { get; set; }
     public string? VariantAttributes { get; set; }
 
-    public int QuantityIn { get; set; }
-    public int QuantityOut { get; set; }
-    public int RunningBalance { get; set; }
+    public decimal QuantityIn { get; set; }
+    public decimal QuantityOut { get; set; }
+    public decimal RunningBalance { get; set; }
     public string? Remarks { get; set; }
     public string? CreatedByName { get; set; }
 }
 
 public class StockTransactionReportSummaryDto
 {
-    public int OpeningStock { get; set; }
-    public int StockIn { get; set; }
-    public int StockOut { get; set; }
-    public int ClosingStock { get; set; }
-    public int CurrentStock { get; set; }
+    public decimal OpeningStock { get; set; }
+    public decimal StockIn { get; set; }
+    public decimal StockOut { get; set; }
+    public decimal ClosingStock { get; set; }
+    public decimal CurrentStock { get; set; }
 }
 
 public class StockTransactionReportDto

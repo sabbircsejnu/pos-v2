@@ -1,5 +1,6 @@
 using MediatR;
 using RetailPOS.Application.Sales.Abstractions;
+using RetailPOS.Application.Sales.Checkout;
 using RetailPOS.Application.Sales.FinancialPostings;
 using RetailPOS.Application.Sales.ReadModels;
 using RetailPOS.Core.Entities;
@@ -18,7 +19,9 @@ public sealed class VoidSaleCommandHandler(
     ISaleVoidAuditWriter auditWriter,
     ISaleVoidCacheInvalidator cacheInvalidator,
     ISaleVoidLogger logger,
-    ISaleCashRefundRecorder cashRefunds) : IRequestHandler<VoidSaleCommand, SaleReadModel>
+    ISaleCashRefundRecorder cashRefunds,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null,
+    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null) : IRequestHandler<VoidSaleCommand, SaleReadModel>
 {
     public async Task<SaleReadModel> Handle(
         VoidSaleCommand request,
@@ -74,6 +77,19 @@ public sealed class VoidSaleCommandHandler(
                 inventory.Quantity += item.Quantity;
                 inventoryLedger.Add((inventory, item));
             }
+
+            // A void means the sale never happened: everything it consumed returns as it was, packaging included.
+            foreach (var item in sale.Items.Where(item => item.PackState is not null || item.Components.Count > 0))
+                await SaleUomReversal.RestoreAsync(
+                    sale,
+                    item,
+                    item.Quantity,
+                    packagingRestored: true,
+                    request.ActorUserId,
+                    packState,
+                    rawStockLedger,
+                    (variantId, token) => store.FindOutletInventoryAsync(variantId, sale.OutletId, token),
+                    cancellationToken);
 
             foreach (var (inventory, item) in inventoryLedger)
             {

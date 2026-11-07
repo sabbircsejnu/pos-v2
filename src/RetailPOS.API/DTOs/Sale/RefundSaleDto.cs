@@ -15,5 +15,8 @@ public class RefundSaleDto
 public class RefundItemDto
 {
     public long VariantId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
+    public long? SaleItemId { get; set; }
+    public string? Condition { get; set; }
+    public bool PackagingReusable { get; set; }
 }

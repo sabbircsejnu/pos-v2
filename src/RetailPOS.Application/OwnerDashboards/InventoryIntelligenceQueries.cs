@@ -314,8 +314,8 @@ public sealed class GetBestSellersQueryHandler(
 public sealed record GetSlowMoversQuery(
     InventoryFilter Filter,
     string? Classification,
-    int? MinStock,
-    int? MaxStock,
+    decimal? MinStock,
+    decimal? MaxStock,
     string? SortBy,
     string? SortDirection,
     int Page,

@@ -140,7 +140,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             {
                 group.Key.OutletId,
                 group.Key.Date,
-                Units = group.Sum(line => (long)line.Quantity),
+                Units = group.Sum(line => line.Quantity),
                 MissingCost = group.Count(line => line.HistoricalUnitCost == null || line.HistoricalUnitCost == 0m)
             })
             .ToListAsync(cancellationToken);
@@ -184,7 +184,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             days[key] = day with
             {
                 NetSales = day.NetSales - reversal.Snapshot.RefundAmount,
-                NetUnits = day.NetUnits - reversal.Snapshot.Lines.Sum(line => (long)line.Quantity),
+                NetUnits = day.NetUnits - reversal.Snapshot.Lines.Sum(line => line.Quantity),
                 Cogs = day.Cogs - reversal.Snapshot.Cost
             };
         }

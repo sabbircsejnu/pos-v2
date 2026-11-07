@@ -51,6 +51,6 @@ public sealed record StockRequisitionLineReadModel(
     string ProductName,
     string? VariantAttributes,
     string? PrimaryImageThumb,
-    int RequestedQuantity,
-    int FulfilledQuantity,
+    decimal RequestedQuantity,
+    decimal FulfilledQuantity,
     string? Remarks);

@@ -2,6 +2,7 @@ using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.ReadModels;
+using RetailPOS.Application.Uom;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Money;
 
@@ -9,11 +10,13 @@ namespace RetailPOS.Application.PurchaseOrders.Commands;
 
 public sealed record UpdatePurchaseOrderItemCommand(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
     decimal Tax,
-    string? Unit);
+    string? Unit,
+    long? PurchaseOptionId = null,
+    long? ExpectedConfigVersionId = null);
 
 public sealed record UpdatePurchaseOrderCommand(
     long PurchaseOrderId,
@@ -29,7 +32,8 @@ public sealed class UpdatePurchaseOrderCommandHandler(
     IPurchaseOrderReadStore readStore,
     IPurchaseOrderTenantScope tenantScope,
     IPurchaseOrderCreationStore locationStore,
-    IPurchaseOrderLocationAuthorizer locationAuthorizer)
+    IPurchaseOrderLocationAuthorizer locationAuthorizer,
+    IVariantUomReader? uomReader = null)
     : IRequestHandler<UpdatePurchaseOrderCommand, PurchaseOrderReadModel>
 {
     public async Task<PurchaseOrderReadModel> Handle(
@@ -71,25 +75,36 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             ? DateTime.SpecifyKind(request.ExpectedDelivery.Value, DateTimeKind.Utc)
             : null;
         purchaseOrder.Notes = request.Notes;
-        purchaseOrder.TotalAmount = items.Sum(item =>
+        // Editing a draft reinterprets it under the current configuration; a stale version is refused (CALC-007).
+        var uomConfigs = uomReader is null || purchaseOrder.LocationBusinessId is not { } uomBusinessId
+            ? new Dictionary<long, ResolvedVariantUom>()
+            : await uomReader.GetCurrentAsync(uomBusinessId, items.Select(item => item.VariantId).ToList(), cancellationToken);
+        var lines = items
+            .Select(item => (Item: item, Line: PurchaseUomRules.Resolve(
+                item.Quantity, item.UnitPrice, item.PurchaseOptionId, item.ExpectedConfigVersionId, uomConfigs.GetValueOrDefault(item.VariantId))))
+            .ToArray();
+        purchaseOrder.TotalAmount = lines.Sum(line =>
             MonetaryRounding.ToCurrency(
-                item.Quantity * item.UnitPrice *
-                (1 - item.Discount / 100m) *
-                (1 + item.Tax / 100m)));
+                line.Line.Quantity * line.Line.UnitPrice *
+                (1 - line.Item.Discount / 100m) *
+                (1 + line.Item.Tax / 100m)));
 
         purchaseOrder.Items.Clear();
-        foreach (var item in items)
+        foreach (var (item, line) in lines)
         {
-            purchaseOrder.Items.Add(new PurchaseOrderItem
+            var orderItem = new PurchaseOrderItem
             {
                 PoId = request.PurchaseOrderId,
                 VariantId = item.VariantId,
-                Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
+                Quantity = line.Quantity,
+                UnitPrice = line.UnitPrice,
                 Discount = item.Discount,
                 Tax = item.Tax,
-                Unit = item.Unit
-            });
+                Unit = line.Snapshot?.BaseUnitCode ?? item.Unit
+            };
+            if (line.Snapshot is not null)
+                orderItem.CaptureUomSnapshot(line.Snapshot);
+            purchaseOrder.Items.Add(orderItem);
         }
 
         await updateStore.SaveUpdateAsync(purchaseOrder, cancellationToken);

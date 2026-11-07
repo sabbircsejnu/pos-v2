@@ -22,6 +22,6 @@ public sealed record MobileInventoryItemDto(
     JsonElement Attributes,
     long OutletId,
     string OutletName,
-    int Quantity,
+    decimal Quantity,
     int? ReorderLevel,
     bool? IsLowStock);

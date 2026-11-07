@@ -2,11 +2,11 @@ namespace RetailPOS.Application.Inventory.Abstractions;
 
 public sealed record StockTransferReceiptAuditLine(
     long VariantId,
-    int DispatchedQuantity,
-    int AcceptedQuantity,
-    int RejectedQuantity,
-    int MissingQuantity,
-    int DamagedQuantity,
+    decimal DispatchedQuantity,
+    decimal AcceptedQuantity,
+    decimal RejectedQuantity,
+    decimal MissingQuantity,
+    decimal DamagedQuantity,
     string? Remarks);
 
 public sealed record StockTransferReceiptAudit(

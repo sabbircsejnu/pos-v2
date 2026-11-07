@@ -27,6 +27,6 @@ public sealed record PendingGrnPurchaseOrderItemReadModel(
     string? ProductCode,
     string VariantName,
     string? VariantAttributes,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     string? PrimaryImageThumb);

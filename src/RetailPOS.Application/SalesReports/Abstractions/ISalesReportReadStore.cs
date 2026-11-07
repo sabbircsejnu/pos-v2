@@ -17,7 +17,7 @@ public interface ISalesReportReadStore
         SalesReportFilter filter,
         CancellationToken cancellationToken);
 
-    Task<long> GetUnitCountAsync(
+    Task<decimal> GetUnitCountAsync(
         SalesReportReadScope scope,
         SalesReportFilter filter,
         CancellationToken cancellationToken);

@@ -35,6 +35,6 @@ public class WarehouseStatsDto
     public string Name { get; set; } = string.Empty;
     public int? Capacity { get; set; }
     public int PurchaseOrderCount { get; set; }
-    public int CurrentStock { get; set; }
+    public decimal CurrentStock { get; set; }
     public decimal CapacityUtilization { get; set; }
 }

@@ -51,7 +51,15 @@ public sealed class SaleReadStore(
                 line.Variant?.Name,
                 line.VatRate,
                 line.VatAmount,
-                line.TaxInclusive ?? false)).ToArray() ?? [],
+                line.TaxInclusive ?? false,
+                line.UomUnitCode,
+                line.UomLabel,
+                line.UomEnteredQuantity,
+                line.UomEnteredUnitPrice,
+                line.UomBaseUnitCode,
+                line.PackState,
+                line.PackagingCost,
+                line.ReturnLines?.Count > 0 ? line.ReturnLines.Sum(returned => returned.ReturnedQuantity) : null)).ToArray() ?? [],
             sale.Payments?.Select(payment => new SalePaymentReadModel(
                 payment.Id,
                 payment.Method,
@@ -130,6 +138,8 @@ public sealed class SaleReadStore(
             .Include(item => item.Items)
                 .ThenInclude(item => item.Variant)
                     .ThenInclude(variant => variant.Product)
+            .Include(item => item.Items)
+                .ThenInclude(item => item.ReturnLines)
             .Include(item => item.Payments);
 
         if (includeTerminal)

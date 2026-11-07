@@ -55,7 +55,7 @@ public sealed class StockTransferCreationStore(
                 // Set from the source weighted average at dispatch. A client value is never trusted.
                 UnitCost = 0m,
                 Remarks = item.Remarks
-            }).ToList()
+            }.WithUom(item)).ToList()
         };
 
         await dbContext.StockTransfers.AddAsync(transfer, cancellationToken);

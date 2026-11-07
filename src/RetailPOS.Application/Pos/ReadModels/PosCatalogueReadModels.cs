@@ -25,7 +25,7 @@ public sealed record PosCatalogueItemReadModel(
     string? CategoryName,
     decimal ListPrice,
     string? PrimaryImageThumb,
-    int? StockQty);
+    decimal? StockQty);
 
 public sealed record PosCategoryReadModel(
     long Id,

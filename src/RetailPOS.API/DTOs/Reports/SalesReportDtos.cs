@@ -15,7 +15,7 @@ public class TopProductDto
     public long VariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalRevenue { get; set; }
 }
 

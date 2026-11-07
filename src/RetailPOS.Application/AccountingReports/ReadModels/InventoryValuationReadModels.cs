@@ -27,7 +27,7 @@ public sealed record InventoryValuationRowReadModel(
     string Sku,
     long LocationId,
     string LocationType,
-    int Quantity,
+    decimal Quantity,
     decimal UnitCost,
     decimal InventoryValue);
 

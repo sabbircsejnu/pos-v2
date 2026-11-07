@@ -25,13 +25,13 @@ public sealed class StockCostCorrectionSet(IReadOnlyDictionary<long, (decimal Un
 /// <summary>How a transfer's dispatched value divides across what happened to its units.</summary>
 public static class StockTransferValue
 {
-    public static decimal Share(decimal value, int quantity, int ofQuantity) =>
+    public static decimal Share(decimal value, decimal quantity, decimal ofQuantity) =>
         quantity == ofQuantity
             ? value
             : Math.Round(value * quantity / ofQuantity, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>What remains after the accepted and lost shares, so the dispatched value is fully accounted for.</summary>
-    public static decimal RejectedValue(decimal dispatchedValue, int dispatchedQuantity, int accepted, int lost) =>
+    public static decimal RejectedValue(decimal dispatchedValue, decimal dispatchedQuantity, decimal accepted, decimal lost) =>
         dispatchedValue
         - Share(dispatchedValue, accepted, dispatchedQuantity)
         - Share(dispatchedValue, lost, dispatchedQuantity);
@@ -45,9 +45,9 @@ public sealed record StockCostPlanMovement(
     string TransactionType,
     string ReferenceType,
     long ReferenceId,
-    int QtyIn,
-    int QtyOut,
-    int BalanceAfter,
+    decimal QtyIn,
+    decimal QtyOut,
+    decimal BalanceAfter,
     decimal UnitCost,
     decimal MovementValue,
     bool IsReliable);
@@ -55,7 +55,7 @@ public sealed record StockCostPlanMovement(
 public sealed record GrnCostLine(
     long GrnId,
     long VariantId,
-    int ReceivedQuantity,
+    decimal ReceivedQuantity,
     decimal UnitCost,
     decimal? TaxableAmount,
     decimal OrderUnitPrice,
@@ -65,10 +65,10 @@ public sealed record TransferCostLine(
     long TransferId,
     long VariantId,
     long? OriginalTransferId,
-    int AcceptedQuantity,
-    int RejectedQuantity,
-    int MissingQuantity,
-    int DamagedQuantity);
+    decimal AcceptedQuantity,
+    decimal RejectedQuantity,
+    decimal MissingQuantity,
+    decimal DamagedQuantity);
 
 public sealed record PlannedStockCostCorrection(StockCostPlanMovement Movement, decimal UnitCost, decimal Value, string Basis);
 
@@ -97,7 +97,7 @@ public static class StockCostCorrectionPlanner
         var corrections = new List<PlannedStockCostCorrection>();
         var skipped = new List<SkippedStockCostCorrection>();
         var pools = new Dictionary<(long, long, string), WeightedAverageCostPool>();
-        var dispatched = new Dictionary<(long TransferId, long VariantId), (int Quantity, decimal Value)>();
+        var dispatched = new Dictionary<(long TransferId, long VariantId), (decimal Quantity, decimal Value)>();
         var grnValues = GrnValues(grnLines, journalDebitsByGrn);
         var linesByGrn = grnLines.ToLookup(line => (line.GrnId, line.VariantId));
         var transfers = transferLines.ToDictionary(line => (line.TransferId, line.VariantId));
@@ -238,7 +238,7 @@ public static class StockCostCorrectionPlanner
 
     private static PlannedStockCostCorrection? FromDispatch(
         StockCostPlanMovement movement,
-        Dictionary<(long, long), (int Quantity, decimal Value)> dispatched,
+        Dictionary<(long, long), (decimal Quantity, decimal Value)> dispatched,
         Dictionary<(long, long), TransferCostLine> transfers,
         List<SkippedStockCostCorrection> skipped)
     {

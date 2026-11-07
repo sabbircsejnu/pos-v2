@@ -1,12 +1,23 @@
 using MediatR;
 using RetailPOS.Application.Sales.Abstractions;
+using RetailPOS.Application.Sales.Checkout;
+using RetailPOS.Application.Uom;
+using RetailPOS.Core.Entities.Uom;
 using RetailPOS.Application.Sales.FinancialPostings;
 using RetailPOS.Application.Sales.ReadModels;
 using RetailPOS.Core.Entities;
 
 namespace RetailPOS.Application.Sales.Commands;
 
-public sealed record RefundSaleLine(long VariantId, int Quantity);
+/// <param name="Quantity">Base units returned, never more than the line sold.</param>
+/// <param name="SaleItemId">Identifies the line when a sale has several lines of one variant.</param>
+/// <param name="Condition">Null keeps the standing behaviour: everything returns to stock.</param>
+public sealed record RefundSaleLine(
+    long VariantId,
+    decimal Quantity,
+    long? SaleItemId = null,
+    string? Condition = null,
+    bool PackagingReusable = false);
 
 public sealed record RefundSaleCommand(
     long SaleId,
@@ -25,7 +36,9 @@ public sealed class RefundSaleCommandHandler(
     ISaleRefundAuditWriter auditWriter,
     ISaleRefundCacheInvalidator cacheInvalidator,
     ISaleRefundLogger logger,
-    ISaleCashRefundRecorder cashRefunds) : IRequestHandler<RefundSaleCommand, SaleReadModel>
+    ISaleCashRefundRecorder cashRefunds,
+    IPackStateLedger? packState = null,
+    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null) : IRequestHandler<RefundSaleCommand, SaleReadModel>
 {
     public async Task<SaleReadModel> Handle(
         RefundSaleCommand request,
@@ -48,7 +61,8 @@ public sealed class RefundSaleCommandHandler(
             if (request.Items.Count == 0)
                 throw new InvalidOperationException("Refund must include at least one item");
 
-            var refundLines = ResolveRefundLines(sale, request.Items);
+            var assessed = ResolveAssessedLines(sale, request.Items);
+            var refundLines = assessed.Select(line => line.Line).ToArray();
             var previousStatus = sale.Status;
 
             var fullReversal = sale.Items.All(item =>
@@ -76,19 +90,54 @@ public sealed class RefundSaleCommandHandler(
                 throw new InvalidOperationException("Sale status changed while the refund was being processed");
             }
 
-            var inventoryReturns = new List<(SaleRefundLine Line, SaleItem Item, int BalanceAfter)>();
-            foreach (var line in refundLines)
+            var inventoryReturns = new List<(SaleRefundLine Line, SaleItem Item, decimal BalanceAfter)>();
+            var finalLines = new List<SaleRefundLine>(assessed.Count);
+            foreach (var (line, condition, packagingReusable) in assessed)
             {
-                var inventory = await store.FindOutletInventoryAsync(
-                    line.VariantId,
-                    sale.OutletId,
-                    cancellationToken);
-                if (inventory is null)
-                    continue;
-
-                inventory.Quantity += line.Quantity;
                 var saleItem = sale.Items.Single(item => item.Id == line.SaleItemId);
-                inventoryReturns.Add((line, saleItem, inventory.Quantity));
+                var resellable = condition is null or ReturnConditions.Resellable;
+
+                // Non-resellable goods stay out of stock. Inventory is not debited, so their cost stays expensed (RET-005).
+                var restoredPackaging = 0m;
+                if (resellable)
+                {
+                    var inventory = await store.FindOutletInventoryAsync(line.VariantId, sale.OutletId, cancellationToken);
+                    if (inventory is not null)
+                    {
+                        inventory.Quantity += line.Quantity;
+                        inventoryReturns.Add((line, saleItem, inventory.Quantity));
+                    }
+
+                    if (saleItem.PackState is not null || saleItem.Components.Count > 0)
+                        restoredPackaging = await SaleUomReversal.RestoreAsync(
+                            sale,
+                            saleItem,
+                            line.Quantity,
+                            packagingReusable,
+                            request.ActorUserId,
+                            packState,
+                            rawStockLedger,
+                            (variantId, token) => store.FindOutletInventoryAsync(variantId, sale.OutletId, token),
+                            cancellationToken);
+                }
+
+                var contentCost = resellable ? (saleItem.HistoricalUnitCost ?? 0m) * line.Quantity : 0m;
+                var isAssessedLine = condition is not null || saleItem.UomUnitCode is not null;
+                if (isAssessedLine)
+                    saleItem.ReturnLines.Add(new SaleReturnLine
+                    {
+                        SaleId = sale.Id,
+                        SaleItemId = saleItem.Id,
+                        ReturnedQuantity = line.Quantity,
+                        Condition = condition ?? ReturnConditions.Resellable,
+                        RestockedQuantity = resellable ? line.Quantity : 0m,
+                        PackagingReusable = packagingReusable,
+                        CostRestored = contentCost + restoredPackaging,
+                        ActorUserId = request.ActorUserId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                // The original cost snapshot decides this value, never today's cost or conversion (RET-001).
+                finalLines.Add(isAssessedLine ? line with { RestoredCost = contentCost + restoredPackaging } : line);
             }
 
             foreach (var (line, item, balanceAfter) in inventoryReturns)
@@ -106,7 +155,7 @@ public sealed class RefundSaleCommandHandler(
             // D10: the reversal journal intent commits with the refund and is posted asynchronously, exactly once.
             await financialPostings.AppendReversalAsync(
                 sale,
-                refundLines,
+                finalLines,
                 SaleFinancialPostingReversalTypes.Refund,
                 request.ActorUserId,
                 cancellationToken);
@@ -141,23 +190,38 @@ public sealed class RefundSaleCommandHandler(
         }
     }
 
-    private static IReadOnlyList<SaleRefundLine> ResolveRefundLines(
+    private static IReadOnlyList<(SaleRefundLine Line, string? Condition, bool PackagingReusable)> ResolveAssessedLines(
         Sale sale,
         IReadOnlyList<RefundSaleLine> items)
     {
         var resolvedLines = new List<SaleRefundLine>(items.Count);
+        var assessed = new List<(SaleRefundLine, string?, bool)>(items.Count);
         foreach (var item in items)
         {
-            var saleItem = sale.Items.FirstOrDefault(saleItem => saleItem.VariantId == item.VariantId);
+            var candidates = sale.Items.Where(saleItem => saleItem.VariantId == item.VariantId).ToList();
+            if (item.SaleItemId is null && candidates.Count > 1 && candidates.Any(saleItem => saleItem.UomUnitCode is not null))
+                throw new UomValidationException(
+                    UomErrorCodes.OptionRequired,
+                    $"Variant ID {item.VariantId} was sold on several lines. Choose which line is being returned.");
+            var saleItem = item.SaleItemId is { } saleItemId
+                ? candidates.FirstOrDefault(candidate => candidate.Id == saleItemId)
+                : candidates.FirstOrDefault();
             if (saleItem is null)
                 throw new InvalidOperationException($"Variant ID {item.VariantId} not found in this sale");
+            if (saleItem.UomUnitCode is null)
+                UomLineResolver.EnsureLegacyWholeQuantity(item.Quantity, $"Refund quantity for variant ID {item.VariantId}");
+            var condition = item.Condition?.Trim().ToLowerInvariant();
+            if (condition is not (null or ReturnConditions.Resellable or ReturnConditions.NonResellable))
+                throw new UomValidationException(UomErrorCodes.InvalidConfiguration, $"'{item.Condition}' is not a return condition.");
             if (item.Quantity <= 0)
                 throw new InvalidOperationException(
                     $"Refund quantity must be greater than zero for variant ID {item.VariantId}");
             if (item.Quantity > saleItem.Quantity)
                 throw QuantityExceedsSold(item.Quantity, saleItem.Quantity, item.VariantId);
 
-            resolvedLines.Add(new SaleRefundLine(saleItem.Id, item.VariantId, item.Quantity));
+            var line = new SaleRefundLine(saleItem.Id, item.VariantId, item.Quantity);
+            resolvedLines.Add(line);
+            assessed.Add((line, condition, item.PackagingReusable));
         }
 
         foreach (var group in resolvedLines.GroupBy(line => line.SaleItemId))
@@ -168,14 +232,14 @@ public sealed class RefundSaleCommandHandler(
                 throw QuantityExceedsSold(requestedQuantity, saleItem.Quantity, saleItem.VariantId);
         }
 
-        return resolvedLines;
+        return assessed;
     }
 
     private static InvalidOperationException QuantityExceedsSold(
-        int requestedQuantity,
-        int soldQuantity,
+        decimal requestedQuantity,
+        decimal soldQuantity,
         long variantId) =>
         new(
-            $"Refund quantity {requestedQuantity} exceeds sold quantity {soldQuantity} " +
+            $"Refund quantity {UomQuantityMath.Normalize(requestedQuantity)} exceeds sold quantity {UomQuantityMath.Normalize(soldQuantity)} " +
             $"for variant ID {variantId}");
 }

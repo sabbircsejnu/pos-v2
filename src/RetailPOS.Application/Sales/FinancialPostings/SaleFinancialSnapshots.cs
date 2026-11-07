@@ -14,7 +14,7 @@ public sealed record SaleJournalPaymentSnapshot(long PaymentId, string Method, d
 public sealed record SaleJournalLineSnapshot(
     long SaleItemId,
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal? TaxableAmount,
     decimal? VatAmount,
     decimal? VatRate,
@@ -56,8 +56,8 @@ public sealed record SaleJournalSnapshot(
 public sealed record SaleReversalLineSnapshot(
     long SaleItemId,
     long VariantId,
-    int Quantity,
-    int SoldQuantity = 0,
+    decimal Quantity,
+    decimal SoldQuantity = 0,
     decimal? NetRevenue = null,
     decimal? Vat = null,
     decimal Cost = 0m);
@@ -127,7 +127,7 @@ public static class SaleFinancialIntentFactory
             MonetaryRounding.ToCurrency(sale.Items.Sum(item => item.Quantity * item.UnitPrice)),
             MonetaryRounding.ToCurrency(sale.Items.Sum(item => item.DiscountAmount) + sale.Discount),
             MonetaryRounding.ToCurrency(sale.Tax),
-            MonetaryRounding.ToCurrency(sale.Items.Sum(item => (item.HistoricalUnitCost ?? 0m) * item.Quantity)),
+            MonetaryRounding.ToCurrency(sale.Items.Sum(item => (item.HistoricalUnitCost ?? 0m) * item.Quantity + item.PackagingCost)),
             MonetaryRounding.ToCurrency(sale.TotalAmount),
             sale.Items.Any(item => item.TaxInclusive == true),
             sale.Payments.OrderBy(payment => payment.Id)
@@ -182,7 +182,10 @@ public static class SaleFinancialIntentFactory
                     item.Quantity,
                     missing is null ? Share(item.TaxableAmount!.Value, quantity, item.Quantity) : null,
                     missing is null ? Share(item.VatAmount!.Value, quantity, item.Quantity) : null,
-                    MonetaryRounding.ToCurrency((item.HistoricalUnitCost ?? 0m) * quantity));
+                    // A condition decision says what really returned to inventory; only that value leaves COGS.
+                    group.Any(line => line.RestoredCost.HasValue)
+                        ? MonetaryRounding.ToCurrency(group.Sum(line => line.RestoredCost ?? 0m))
+                        : MonetaryRounding.ToCurrency((item.HistoricalUnitCost ?? 0m) * quantity + Share(item.PackagingCost, quantity, item.Quantity)));
             })
             .OrderBy(line => line.SaleItemId)
             .ToArray();
@@ -262,7 +265,7 @@ public static class SaleFinancialIntentFactory
         return null;
     }
 
-    private static decimal Share(decimal recorded, int quantity, int soldQuantity) =>
+    private static decimal Share(decimal recorded, decimal quantity, decimal soldQuantity) =>
         quantity >= soldQuantity ? recorded : MonetaryRounding.ToCurrency(recorded * quantity / soldQuantity);
 
     /// <summary>Splits <paramref name="total"/> by weight in whole cents (largest remainder): the parts sum exactly.</summary>

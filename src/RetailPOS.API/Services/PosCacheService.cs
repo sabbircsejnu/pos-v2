@@ -75,7 +75,7 @@ public sealed class PosCacheService : IPosCacheService
     internal static string LookupSkuKey(string sku, long? outletId) =>
         $"pos:lookup:sku:{sku}:{outletId ?? 0}";
 
-    internal static string PriceKey(long variantId, long? outletId, int qty) =>
+    internal static string PriceKey(long variantId, long? outletId, decimal qty) =>
         $"pos:price:{variantId}:{outletId ?? 0}:{qty}";
 
     internal static string StockKey(long variantId, long outletId) =>

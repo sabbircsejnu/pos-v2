@@ -40,8 +40,8 @@ public class StockRequisitionLineDto
     public string? VariantAttributes { get; set; }
     public string? VariantDisplay { get; set; }
     public string? PrimaryImageThumb { get; set; }
-    public int RequestedQuantity { get; set; }
-    public int FulfilledQuantity { get; set; }
-    public int PendingQuantity => RequestedQuantity - FulfilledQuantity;
+    public decimal RequestedQuantity { get; set; }
+    public decimal FulfilledQuantity { get; set; }
+    public decimal PendingQuantity => RequestedQuantity - FulfilledQuantity;
     public string? Remarks { get; set; }
 }

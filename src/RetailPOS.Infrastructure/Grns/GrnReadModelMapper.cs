@@ -33,7 +33,14 @@ internal static class GrnReadModelMapper
                 item.ReceivedQty,
                 item.PurchaseOrderItem?.UnitPrice ?? 0,
                 item.UnitCost,
-                item.Notes)).ToArray(),
+                item.Notes,
+                item.DamagedQuantity,
+                item.RejectedQuantity,
+                item.AcceptedSealedPacks,
+                item.AcceptedLooseQuantity,
+                item.PurchaseOrderItem?.UomUnitCode,
+                item.PurchaseOrderItem?.UomLabel,
+                item.PurchaseOrderItem?.UomBaseUnitCode)).ToArray(),
             grn.PurchaseOrder?.OutletId,
             grn.PurchaseOrder?.Outlet?.Name);
 }

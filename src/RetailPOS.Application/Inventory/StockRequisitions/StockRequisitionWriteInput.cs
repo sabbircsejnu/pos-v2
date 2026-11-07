@@ -10,5 +10,5 @@ public sealed record StockRequisitionWriteInput(
 
 public sealed record StockRequisitionWriteLineInput(
     long VariantId,
-    int RequestedQuantity,
+    decimal RequestedQuantity,
     string? Remarks);

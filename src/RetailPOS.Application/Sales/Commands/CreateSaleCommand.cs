@@ -6,7 +6,9 @@ using RetailPOS.Application.Sales.Abstractions;
 using RetailPOS.Application.Sales.Checkout;
 using RetailPOS.Application.Sales.FinancialPostings;
 using RetailPOS.Application.Sales.ReadModels;
+using RetailPOS.Application.Uom;
 using RetailPOS.Core.Entities;
+using RetailPOS.Core.Entities.Uom;
 
 namespace RetailPOS.Application.Sales.Commands;
 
@@ -15,14 +17,20 @@ namespace RetailPOS.Application.Sales.Commands;
 /// cashier saw: the server re-prices every line and rejects the sale when they differ.
 /// <see cref="DiscountAmount"/> is a manual line discount; pricing-rule discounts are already part of the server price.
 /// <see cref="AppliedRuleId"/>/<see cref="AppliedRuleName"/> are ignored; the server records the rule it applied.
+/// With a <see cref="SellingOptionId"/>, <see cref="Quantity"/> is a pack count or a measured quantity of the option's
+/// unit and <see cref="UnitPrice"/> asserts the option's price. Without one, it is whole pcs as it has always been.
 /// </summary>
 public sealed record CreateSaleLine(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal DiscountAmount,
     long? AppliedRuleId,
-    string? AppliedRuleName);
+    string? AppliedRuleName,
+    long? SellingOptionId = null,
+    long? ExpectedConfigVersionId = null,
+    string? FulfilmentState = null,
+    bool IncludePackaging = false);
 
 public sealed record CreateSalePayment(
     string Method,
@@ -62,7 +70,10 @@ public sealed class CreateSaleCommandHandler(
     ISaleCompletedPublisher saleCompletedPublisher,
     ISaleCreationLogger logger,
     IPosCartPriceCalculator priceCalculator,
-    ISaleCheckoutSettingsProvider checkoutSettings)
+    ISaleCheckoutSettingsProvider checkoutSettings,
+    IVariantUomReader? uomReader = null,
+    IPackStateLedger? packState = null,
+    RetailPOS.Application.Inventory.Abstractions.IStockLedgerWriter? rawStockLedger = null)
     : IRequestHandler<CreateSaleCommand, SaleReadModel>
 {
     private const decimal PriceTolerance = 0.005m;
@@ -120,16 +131,27 @@ public sealed class CreateSaleCommandHandler(
                     SaleCheckoutErrorCodes.VariantNotSellable,
                     $"Variant ID {string.Join(", ", unsellable)} is not available for sale.");
 
+            // A unit-configured line is priced from its option at the version in force now; the client's copy is only compared.
+            var uomConfigs = uomReader is null
+                ? new Dictionary<long, ResolvedVariantUom>()
+                : await uomReader.GetCurrentAsync(businessId, variantIds, cancellationToken);
+            var uomLines = request.Items
+                .Select(item => SaleUomLines.Resolve(item, uomConfigs.GetValueOrDefault(item.VariantId)))
+                .ToArray();
+
             // Prices are re-resolved inside the transaction and never read from the cache.
             var priced = await priceCalculator.CalculateAsync(
                 request.Items
-                    .Select(item => new PosCartPriceLine(item.VariantId, request.OutletId, item.Quantity))
+                    .Select((item, index) => new PosCartPriceLine(item.VariantId, request.OutletId, uomLines[index].BaseQuantity))
                     .ToArray(),
                 readFromCache: false,
                 cancellationToken);
 
             var priceChanges = request.Items
-                .Select((item, index) => new SalePriceChange(item.VariantId, item.UnitPrice, priced[index].FinalPrice))
+                .Select((item, index) => new SalePriceChange(
+                    item.VariantId,
+                    item.UnitPrice,
+                    uomLines[index].Resolution?.Option.Price ?? priced[index].FinalPrice))
                 .Where(change => Math.Abs(change.SubmittedUnitPrice - change.CurrentUnitPrice) > PriceTolerance)
                 .ToArray();
             if (priceChanges.Length > 0)
@@ -143,11 +165,12 @@ public sealed class CreateSaleCommandHandler(
                 request.Items
                     .Select((item, index) => new SaleCheckoutLineInput(
                         item.VariantId,
-                        item.Quantity,
-                        priced[index].FinalPrice,
+                        uomLines[index].BaseQuantity,
+                        uomLines[index].Resolution?.BaseUnitPrice ?? priced[index].FinalPrice,
                         item.DiscountAmount,
                         priced[index].TaxRate,
-                        priced[index].TaxClassification))
+                        priced[index].TaxClassification,
+                        uomLines[index].Resolution?.LineGross))
                     .ToArray(),
                 request.Discount,
                 taxPolicy);
@@ -176,20 +199,42 @@ public sealed class CreateSaleCommandHandler(
             if (request.OriginalSaleId.HasValue)
                 exchangeOriginal = await LoadExchangeOriginalAsync(request, cancellationToken);
 
-            var inventoryLines = new List<(RetailPOS.Core.Entities.Inventory Inventory, CreateSaleLine Item)>();
-            foreach (var item in request.Items)
+            var inventoryLines = new List<(RetailPOS.Core.Entities.Inventory Inventory, long VariantId, decimal Quantity, decimal BalanceAfter)>();
+            var touchedVariants = new HashSet<long>();
+            for (var index = 0; index < request.Items.Count; index++)
             {
+                var item = request.Items[index];
+                var baseQuantity = uomLines[index].BaseQuantity;
                 var inventory = await store.FindOutletInventoryAsync(item.VariantId, request.OutletId, cancellationToken);
                 if (inventory is null)
                     throw new InvalidOperationException(
                         $"No inventory found for variant ID {item.VariantId} at outlet ID {request.OutletId}");
-                if (inventory.Quantity < item.Quantity)
+                if (inventory.Quantity < baseQuantity)
                     throw new InvalidOperationException(
                         $"Insufficient stock for variant ID {item.VariantId}. " +
-                        $"Available: {inventory.Quantity}, Requested: {item.Quantity}");
+                        $"Available: {inventory.Quantity}, Requested: {baseQuantity}");
 
-                inventory.Quantity -= item.Quantity;
-                inventoryLines.Add((inventory, item));
+                inventory.Quantity -= baseQuantity;
+                inventoryLines.Add((inventory, item.VariantId, baseQuantity, inventory.Quantity));
+                touchedVariants.Add(item.VariantId);
+            }
+
+            // Packaging comes off its own stock, and a shortage blocks the whole sale (PACK-003).
+            var packagingLines = new List<(int LineIndex, SalePackagingNeed Need, decimal BalanceAfter)>();
+            for (var index = 0; index < uomLines.Length; index++)
+            {
+                foreach (var need in uomLines[index].Packaging)
+                {
+                    var inventory = await store.FindOutletInventoryAsync(need.VariantId, request.OutletId, cancellationToken);
+                    if (inventory is null || inventory.Quantity < need.Quantity)
+                        throw new UomValidationException(
+                            UomErrorCodes.InsufficientPackagingStock,
+                            $"Not enough packaging item {need.VariantId}. Available: {inventory?.Quantity ?? 0}, needed: {need.Quantity}.");
+
+                    inventory.Quantity -= need.Quantity;
+                    packagingLines.Add((index, need, inventory.Quantity));
+                    touchedVariants.Add(need.VariantId);
+                }
             }
 
             var totalAmount = totals.TotalAmount;
@@ -254,7 +299,10 @@ public sealed class CreateSaleCommandHandler(
                     VatAmount = line.VatAmount,
                     TaxClassification = line.TaxClassification,
                     TaxCode = line.TaxRatePercent > 0m ? "VAT" : null,
-                    TaxInclusive = totals.TaxInclusive
+                    TaxInclusive = totals.TaxInclusive,
+                    PackState = uomLines[index].Form?.State,
+                    PackCode = uomLines[index].Form?.PackCode,
+                    BaseQtyPerPack = uomLines[index].Form?.BaseQtyPerPack
                 }).ToList(),
                 Payments = paymentPlans.Select(plan => new SalePayment
                 {
@@ -265,6 +313,11 @@ public sealed class CreateSaleCommandHandler(
                     NetCashRetained = plan.NetCashRetained
                 }).ToList()
             };
+
+            var saleLines = sale.Items.ToList();
+            for (var index = 0; index < uomLines.Length; index++)
+                if (uomLines[index].Resolution is { } resolution)
+                    saleLines[index].CaptureUomSnapshot(resolution.Snapshot);
 
             await store.AddSaleAsync(sale, cancellationToken);
             try
@@ -284,6 +337,54 @@ public sealed class CreateSaleCommandHandler(
                 item.CaptureHistoricalUnitCost(costSnapshot);
             }
 
+            // Packaging cost joins COGS on the line, so the journal and the ledger take the same value (PACK-002).
+            var packagingCosts = new List<decimal>();
+            foreach (var (lineIndex, need, _) in packagingLines)
+            {
+                var unitCost = await store.ResolveHistoricalUnitCostSnapshotAsync(need.VariantId, cancellationToken);
+                if (unitCost <= 0m)
+                    throw new UomValidationException(
+                        UomErrorCodes.PackagingCostMissing,
+                        $"Packaging item {need.VariantId} has no known cost, so this sale's margin would be wrong. Receive it through a GRN first.");
+
+                var value = Core.Money.MonetaryRounding.ToCurrency(unitCost * need.Quantity);
+                saleLines[lineIndex].Components.Add(new SaleItemComponent
+                {
+                    ComponentVariantId = need.VariantId,
+                    Quantity = need.Quantity,
+                    UnitCost = unitCost,
+                    Value = value
+                });
+                saleLines[lineIndex].PackagingCost += value;
+                packagingCosts.Add(unitCost);
+            }
+
+            if (packState is not null)
+            {
+                for (var index = 0; index < uomLines.Length; index++)
+                {
+                    if (uomLines[index].Form is not { } form)
+                        continue;
+                    var item = saleLines[index];
+                    var capitalized = 0m;
+                    if (form.State == PackStates.Prepared)
+                    {
+                        var balances = await packState.GetBalancesForUpdateAsync(businessId, item.VariantId, request.OutletId, "outlet", cancellationToken);
+                        var prepared = balances.FirstOrDefault(row =>
+                            row.State == PackStates.Prepared && row.PackCode == form.PackCode && row.BaseQtyPerPack == form.BaseQtyPerPack);
+                        capitalized = prepared is null ? 0m : CapitalizedValueShare.For(prepared.CapitalizedValue, prepared.PackCount, form.PackCount);
+                    }
+
+                    await packState.ApplyAsync(
+                        new PackStateChange(businessId, item.VariantId, request.OutletId, "outlet", form.State, form.PackCode, form.BaseQtyPerPack,
+                            -form.PackCount, -uomLines[index].BaseQuantity, -capitalized,
+                            PackStateOperations.Sale, StockLedgerReferenceType.Sale, sale.Id, request.CashierId),
+                        cancellationToken);
+                    // The prepared pack's bottle has been in inventory since the repack; it leaves now, once.
+                    item.PackagingCost += capitalized;
+                }
+            }
+
             await store.SaveChangesAsync(cancellationToken);
             if (exchangeOriginal is not null)
             {
@@ -293,19 +394,30 @@ public sealed class CreateSaleCommandHandler(
 
             // D10: the journal intent and its outbox event commit with the sale; the GL journal is posted afterwards.
             await financialPostings.AppendSaleAsync(sale, cancellationToken);
-            foreach (var (inventory, item) in inventoryLines)
+            for (var index = 0; index < inventoryLines.Count; index++)
             {
-                var saleItem = sale.Items.First(line => line.VariantId == item.VariantId);
+                var line = inventoryLines[index];
                 stockLedgerWriter.AppendSaleMovement(
-                    item.VariantId,
+                    line.VariantId,
                     request.OutletId,
-                    item.Quantity,
-                    inventory.Quantity,
+                    line.Quantity,
+                    line.BalanceAfter,
                     sale.Id,
                     request.CashierId,
                     saleDate,
-                    saleItem.HistoricalUnitCost ?? 0m);
+                    saleLines[index].HistoricalUnitCost ?? 0m);
             }
+
+            for (var index = 0; index < packagingLines.Count; index++)
+                stockLedgerWriter.AppendSaleMovement(
+                    packagingLines[index].Need.VariantId,
+                    request.OutletId,
+                    packagingLines[index].Need.Quantity,
+                    packagingLines[index].BalanceAfter,
+                    sale.Id,
+                    request.CashierId,
+                    saleDate,
+                    packagingCosts[index]);
 
             // Legacy integer loyalty points are no longer earned at checkout: a sale must not mutate a balance that the
             // upcoming Loyalty module will own. The notice keeps the field (0) so downstream contracts stay stable.
@@ -324,13 +436,17 @@ public sealed class CreateSaleCommandHandler(
                 throw new InvalidOperationException("Stock was modified by another transaction. Please retry the sale.");
             }
 
+            if (packState is not null)
+                foreach (var line in inventoryLines.Where(line => uomConfigs.GetValueOrDefault(line.VariantId)?.PackStateTrackingEnabled == true).DistinctBy(line => line.VariantId))
+                    await packState.EnsureReconciledAsync(businessId, line.VariantId, request.OutletId, "outlet", line.Inventory.Quantity, cancellationToken);
+
             await cashSessionValidator.ValidateFinalGateAsync(session, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             financialPostings.NotifyCommitted();
             logger.SaleCreated(sale.SaleNumber, sale.Id, request.OutletId);
 
-            foreach (var item in request.Items)
-                await stockCacheInvalidator.InvalidateAsync(item.VariantId, request.OutletId, cancellationToken);
+            foreach (var variantId in touchedVariants)
+                await stockCacheInvalidator.InvalidateAsync(variantId, request.OutletId, cancellationToken);
 
             _ = saleCompletedPublisher.PublishAsync(
                 new SaleCompletedNotice(

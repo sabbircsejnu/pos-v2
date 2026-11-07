@@ -11,16 +11,16 @@ public class LowStockRowDto
     public long   LocationId          { get; set; }
     public string LocationType        { get; set; } = string.Empty;
     public string LocationName        { get; set; } = string.Empty;
-    public int    CurrentStock        { get; set; }
+    public decimal    CurrentStock        { get; set; }
     public int    ReorderLevel        { get; set; }
-    public int    SuggestedOrderQty   { get; set; }
+    public decimal    SuggestedOrderQty   { get; set; }
     public string UrgencyLevel        { get; set; } = string.Empty; // "Critical", "Low", "Below Reorder"
 }
 
 public class LowStockSummaryDto
 {
     public int TotalSkus          { get; set; }
-    public int TotalDeficitQty    { get; set; }
+    public decimal TotalDeficitQty    { get; set; }
     public int CriticalCount      { get; set; }
     public int LowCount           { get; set; }
 }

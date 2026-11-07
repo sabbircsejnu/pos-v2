@@ -72,7 +72,7 @@ public sealed class GetPosProductLookupQueryHandler(
             cancellationToken);
         var price = prices.Single();
 
-        var stockQuantity = 0;
+        var stockQuantity = 0m;
         var stockFromCache = false;
         if (request.OutletId.HasValue)
         {

@@ -14,7 +14,9 @@ public sealed class GrnCompletionStore(
     IGrnCompletionStockLedgerWriter stockLedgerWriter,
     IGrnCompletionAccountingPoster accountingPoster,
     IGrnCompletionAuditWriter auditWriter,
-    ILogger<GrnCompletionStore> logger) : IGrnCompletionStore
+    ILogger<GrnCompletionStore> logger,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null) : IGrnCompletionStore
 {
     public Task<GrnCompletionScopeReadModel?> FindScopeAsync(
         long grnId,
@@ -71,6 +73,10 @@ public sealed class GrnCompletionStore(
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            var packBusinessId = purchaseOrder.LocationBusinessId;
+            var uomConfigs = uomReader is null || packBusinessId is null
+                ? new Dictionary<long, RetailPOS.Application.Uom.ResolvedVariantUom>()
+                : await uomReader.GetCurrentAsync(packBusinessId.Value, grn.Items.Select(line => line.PurchaseOrderItem.VariantId).ToList(), cancellationToken);
             foreach (var item in grn.Items)
             {
                 var variantId = item.PurchaseOrderItem.VariantId;
@@ -116,6 +122,20 @@ public sealed class GrnCompletionStore(
                         item.TaxableAmount ?? item.ReceivedQty * item.UnitCost,
                         item.PurchaseOrderItem.UnitPrice,
                         item.PurchaseOrderItem.Discount));
+
+                // Physical state joins the same transaction as the stock and the journal (PUR-006).
+                if (packState is not null && uomConfigs.TryGetValue(variantId, out var uomConfig) && uomConfig.PackStateTrackingEnabled)
+                {
+                    var snapshot = item.PurchaseOrderItem.ReadUomSnapshot();
+                    var breakdown = RetailPOS.Application.Uom.PurchaseUomRules.Breakdown(
+                        item.ReceivedQty, item.AcceptedSealedPacks, item.AcceptedLooseQuantity, snapshot,
+                        uomConfig.PurchaseOptions.Any(option => option.Id == snapshot?.OptionId && option.IsSealedPack));
+                    item.AcceptedSealedPacks = breakdown.SealedPacks;
+                    item.AcceptedLooseQuantity = breakdown.LooseQuantity;
+                    await RetailPOS.Application.Uom.PurchaseUomRules.ApplyReceiptAsync(
+                        packState, packBusinessId!.Value, variantId, locationId, locationType, grn.Id, actorUserId,
+                        breakdown, inventory.Quantity, cancellationToken);
+                }
             }
 
             var journalEntryId = await accountingPoster.PostReceiptAndCreatePayableAsync(

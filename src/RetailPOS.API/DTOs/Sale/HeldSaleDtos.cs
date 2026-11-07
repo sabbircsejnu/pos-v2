@@ -13,10 +13,15 @@ public class HeldSaleItemDto
     public long    VariantId       { get; set; }
     public string  ProductName     { get; set; } = string.Empty;
     public string  VariantSku      { get; set; } = string.Empty;
-    public int     Quantity        { get; set; }
+    public decimal     Quantity        { get; set; }
     public decimal UnitPrice       { get; set; }
     public decimal DiscountAmount  { get; set; } = 0;
     public string? AppliedRuleName { get; set; }
+    public long? SellingOptionId { get; set; }
+    public long? ExpectedConfigVersionId { get; set; }
+    public string? FulfilmentState { get; set; }
+    public bool IncludePackaging { get; set; }
+    public string? UnitLabel { get; set; }
 }
 
 public class HoldSaleDto

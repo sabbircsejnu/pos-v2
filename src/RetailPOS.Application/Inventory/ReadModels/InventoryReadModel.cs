@@ -16,7 +16,7 @@ public sealed record InventoryReadModel(
     long? WarehouseId,
     string? WarehouseName,
     string LocationType,
-    int Quantity,
+    decimal Quantity,
     int ReorderLevel,
     string? BatchNumber,
     DateTime? ExpiryDate,

@@ -142,8 +142,8 @@ public sealed class SaleStockLedgerWriter(IStockLedgerWriter stockLedger) : ISal
     public void AppendSaleMovement(
         long variantId,
         long outletId,
-        int quantity,
-        int balanceAfter,
+        decimal quantity,
+        decimal balanceAfter,
         long saleId,
         long cashierId,
         DateTime saleDate,
@@ -213,8 +213,8 @@ public sealed class SaleRefundStockLedgerWriter(IStockLedgerWriter stockLedger)
     public void AppendReturn(
         Sale sale,
         SaleItem item,
-        int quantity,
-        int balanceAfter,
+        decimal quantity,
+        decimal balanceAfter,
         long actorUserId,
         string? reason,
         DateTime createdAt)
@@ -252,7 +252,7 @@ public sealed class SaleRefundAuditWriter(IAuditService audit) : ISaleRefundAudi
         Sale sale,
         string previousStatus,
         string? reason,
-        int refundQuantity,
+        decimal refundQuantity,
         long? journalEntryId,
         long actorUserId,
         CancellationToken cancellationToken) =>
@@ -315,7 +315,7 @@ public sealed class SaleVoidStockLedgerWriter(IStockLedgerWriter stockLedger) : 
     public void AppendReturn(
         Sale sale,
         SaleItem item,
-        int balanceAfter,
+        decimal balanceAfter,
         long actorUserId,
         string reason,
         DateTime createdAt)

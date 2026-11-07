@@ -41,11 +41,13 @@ public sealed class GrnCreationStore(
                     item.UnitPrice,
                     item.Discount,
                     item.Tax,
-                    item.TaxInclusive))
+                    item.TaxInclusive,
+                    item.VariantId,
+                    item.ReadUomSnapshot()))
                     .ToArray());
     }
 
-    public async Task<IReadOnlyDictionary<long, int>> GetCompletedReceivedQuantitiesAsync(
+    public async Task<IReadOnlyDictionary<long, decimal>> GetCompletedReceivedQuantitiesAsync(
         long purchaseOrderId,
         CancellationToken cancellationToken) =>
         await dbContext.GrnItems
@@ -89,7 +91,11 @@ public sealed class GrnCreationStore(
                 VatAmount = item.VatAmount,
                 TaxCode = item.TaxCode,
                 TaxInclusive = item.TaxInclusive,
-                Notes = item.Notes
+                Notes = item.Notes,
+                DamagedQuantity = item.DamagedQuantity,
+                RejectedQuantity = item.RejectedQuantity,
+                AcceptedSealedPacks = item.AcceptedSealedPacks,
+                AcceptedLooseQuantity = item.AcceptedLooseQuantity
             }).ToList()
         };
         dbContext.Grns.Add(grn);

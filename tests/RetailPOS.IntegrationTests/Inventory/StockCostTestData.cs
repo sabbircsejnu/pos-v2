@@ -9,7 +9,7 @@ internal static class StockCostTestData
         long variantId,
         long locationId,
         string locationType,
-        int quantity,
+        decimal quantity,
         decimal unitCost,
         long sequence = 1,
         long referenceId = 900,

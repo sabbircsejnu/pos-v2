@@ -226,7 +226,12 @@ public sealed class PurchaseOrderReadStore(RetailPOSDbContext dbContext)
                 item.Unit,
                 item.UnitPrice,
                 item.Discount,
-                item.Tax)).ToArray() ?? [],
+                item.Tax,
+                item.UomUnitCode,
+                item.UomLabel,
+                item.UomEnteredQuantity,
+                item.UomEnteredUnitPrice,
+                item.UomOptionId)).ToArray() ?? [],
             order.OutletId,
             order.Outlet?.Name);
 }

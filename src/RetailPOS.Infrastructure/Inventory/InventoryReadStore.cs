@@ -450,7 +450,7 @@ public sealed class InventoryReadStore(
                 .FirstOrDefaultAsync(cancellationToken)
             : Task.FromResult<string?>(null);
 
-    public Task<int> GetTotalQuantityByVariantAsync(
+    public Task<decimal> GetTotalQuantityByVariantAsync(
         long variantId,
         CancellationToken cancellationToken) =>
         inventoryRepository.GetTotalQuantityByVariantAsync(variantId, cancellationToken);

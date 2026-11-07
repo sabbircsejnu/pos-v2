@@ -13,7 +13,7 @@ internal enum PostgresTestDatabasePrefix
     FinancialYearClosePrepare, StockAdjustmentApproval, StockAdjustmentReverse,
     StockTransferDispatch, StockRequisitionConversion, StockRequisitionLifecycle,
     PricingRuleRead, StockCountCreate, StockCountAdjustmentGeneration, PayrollAdjustment,
-    InventoryLocationAuthorization, MobileSalesDashboard, OwnerDashboard
+    InventoryLocationAuthorization, MobileSalesDashboard, OwnerDashboard, Uom
 }
 
 internal sealed record PostgresTestDatabaseCandidate(
@@ -454,6 +454,7 @@ internal sealed class PostgresTestDatabase : IAsyncDisposable
         PostgresTestDatabasePrefix.InventoryLocationAuthorization => "retailpos_a2_inventory_location",
         PostgresTestDatabasePrefix.MobileSalesDashboard => "retailpos_mobile_sales_dashboard",
         PostgresTestDatabasePrefix.OwnerDashboard => "retailpos_owner_dashboard",
+        PostgresTestDatabasePrefix.Uom => "retailpos_uom",
         _ => throw new ArgumentOutOfRangeException(nameof(prefix), prefix, "Unapproved PostgreSQL test database prefix.")
     };
 }

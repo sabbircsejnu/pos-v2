@@ -8,9 +8,9 @@ public class StockAdjustmentLineDto
     public string VariantSku { get; set; } = string.Empty;
     public string ProductCode { get; set; } = string.Empty;
     public string Barcode { get; set; } = string.Empty;
-    public int PreviousQuantity { get; set; }
-    public int QuantityChange { get; set; }
-    public int NewQuantity { get; set; }
+    public decimal PreviousQuantity { get; set; }
+    public decimal QuantityChange { get; set; }
+    public decimal NewQuantity { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Notes { get; set; }
 }

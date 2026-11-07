@@ -416,7 +416,7 @@ public class PosController : ControllerBase
     public async Task<ActionResult<ApiResponse<PosStockHintDto>>> StockHint(
         [FromQuery] long variantId,
         [FromQuery] long outletId,
-        [FromQuery] int  qty = 1,
+        [FromQuery] decimal  qty = 1,
         CancellationToken cancellationToken = default)
     {
         if (outletId <= 0)

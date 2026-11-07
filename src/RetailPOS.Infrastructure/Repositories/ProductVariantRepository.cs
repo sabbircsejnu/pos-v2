@@ -131,7 +131,7 @@ public class ProductVariantRepository : IProductVariantRepository
         return await query.AnyAsync();
     }
 
-    public async Task<int> GetStockAsync(long variantId)
+    public async Task<decimal> GetStockAsync(long variantId)
     {
         // TODO: Implement when Inventory entity is available
         // var stock = await _context.Inventory

@@ -6,7 +6,7 @@ public class Inventory
     public long VariantId { get; set; }
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty; // 'outlet' or 'warehouse'
-    public int Quantity { get; set; } = 0;
+    public decimal Quantity { get; set; } = 0;
     public int LowStockThreshold { get; set; } = 10;
     public string? BatchNumber { get; set; }
     public DateTime? ExpiryDate { get; set; }

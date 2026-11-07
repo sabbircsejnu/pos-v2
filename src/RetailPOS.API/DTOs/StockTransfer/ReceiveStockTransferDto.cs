@@ -9,9 +9,9 @@ public class ReceiveStockTransferDto
 public class ReceiveStockTransferItemDto
 {
     public long VariantId { get; set; }
-    public int AcceptedQuantity { get; set; }
-    public int RejectedQuantity { get; set; }
-    public int MissingQuantity { get; set; }
-    public int DamagedQuantity { get; set; }
+    public decimal AcceptedQuantity { get; set; }
+    public decimal RejectedQuantity { get; set; }
+    public decimal MissingQuantity { get; set; }
+    public decimal DamagedQuantity { get; set; }
     public string? Remarks { get; set; }
 }

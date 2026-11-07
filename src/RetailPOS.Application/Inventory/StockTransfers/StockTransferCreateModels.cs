@@ -2,11 +2,19 @@ namespace RetailPOS.Application.Inventory.StockTransfers;
 
 public sealed record StockTransferCreateItem(
     long VariantId,
-    int Quantity,
-    int? RequestedQuantity,
-    int? TransferQuantity,
+    decimal Quantity,
+    decimal? RequestedQuantity,
+    decimal? TransferQuantity,
     decimal UnitCost,
-    string? Remarks);
+    string? Remarks,
+    long? UnitOptionId = null,
+    decimal? EnteredQuantity = null,
+    long? ExpectedConfigVersionId = null,
+    IReadOnlyList<RetailPOS.Application.Uom.TransferAllocationInput>? Allocations = null)
+{
+    /// <summary>Set by the handler once the entered unit is converted.</summary>
+    public RetailPOS.Core.Entities.Uom.UnitTransactionSnapshot? Snapshot { get; init; }
+}
 
 public sealed record StockTransferCreateInput(
     string? TransferType,

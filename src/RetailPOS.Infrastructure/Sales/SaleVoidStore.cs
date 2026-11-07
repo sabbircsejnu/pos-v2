@@ -20,6 +20,8 @@ public sealed class SaleVoidStore(RetailPOSDbContext dbContext) : ISaleVoidStore
             .Include(sale => sale.Items)
                 .ThenInclude(item => item.Variant)
                     .ThenInclude(variant => variant.Product)
+            .Include(sale => sale.Items)
+                .ThenInclude(item => item.Components)
             .Include(sale => sale.Payments)
             .FirstOrDefaultAsync(sale => sale.Id == saleId, cancellationToken);
 

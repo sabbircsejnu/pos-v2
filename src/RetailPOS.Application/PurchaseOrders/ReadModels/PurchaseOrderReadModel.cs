@@ -37,8 +37,13 @@ public sealed record PurchaseOrderItemReadModel(
     string? ProductCode,
     string? Sku,
     string? VariantAttributes,
-    int Quantity,
+    decimal Quantity,
     string? Unit,
     decimal UnitPrice,
     decimal Discount,
-    decimal Tax);
+    decimal Tax,
+    string? UomUnitCode = null,
+    string? UomLabel = null,
+    decimal? UomEnteredQuantity = null,
+    decimal? UomEnteredUnitPrice = null,
+    long? UomOptionId = null);

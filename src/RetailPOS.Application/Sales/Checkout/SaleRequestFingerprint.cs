@@ -29,7 +29,8 @@ public static class SaleRequestFingerprint
         {
             Append(canonical, "item");
             Append(canonical, item.VariantId);
-            Append(canonical, item.Quantity);
+            // Formatted as the integer it used to be, so a retry across this change keeps its fingerprint.
+            Append(canonical, item.Quantity.ToString("0.######", CultureInfo.InvariantCulture));
             Append(canonical, item.UnitPrice);
             Append(canonical, item.DiscountAmount);
         }

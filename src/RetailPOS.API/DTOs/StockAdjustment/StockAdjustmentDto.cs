@@ -12,15 +12,15 @@ public class StockAdjustmentDto
     public long VariantId { get; set; }
     public string VariantSku { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
-    public int PreviousQuantity { get; set; }
-    public int QuantityChange { get; set; }
-    public int NewQuantity { get; set; }
+    public decimal PreviousQuantity { get; set; }
+    public decimal QuantityChange { get; set; }
+    public decimal NewQuantity { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public int LineCount { get; set; }
-    public int TotalIncrease { get; set; }
-    public int TotalDecrease { get; set; }
-    public int NetQuantityChange { get; set; }
+    public decimal TotalIncrease { get; set; }
+    public decimal TotalDecrease { get; set; }
+    public decimal NetQuantityChange { get; set; }
     public List<StockAdjustmentLineDto> Lines { get; set; } = new();
     public long AdjustedBy { get; set; }
     public string AdjusterName { get; set; } = string.Empty;

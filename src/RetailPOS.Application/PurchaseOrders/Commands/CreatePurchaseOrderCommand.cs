@@ -2,6 +2,7 @@ using MediatR;
 using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.ReadModels;
+using RetailPOS.Application.Uom;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Money;
 
@@ -9,11 +10,13 @@ namespace RetailPOS.Application.PurchaseOrders.Commands;
 
 public sealed record CreatePurchaseOrderItemCommand(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
     decimal Tax,
-    string? Unit);
+    string? Unit,
+    long? PurchaseOptionId = null,
+    long? ExpectedConfigVersionId = null);
 
 public sealed record CreatePurchaseOrderCommand(
     long SupplierId,
@@ -29,7 +32,8 @@ public sealed class CreatePurchaseOrderCommandHandler(
     IPurchaseOrderCreationStore creationStore,
     IPurchaseOrderReadStore readStore,
     IPurchaseOrderTenantScope tenantScope,
-    IPurchaseOrderLocationAuthorizer locationAuthorizer)
+    IPurchaseOrderLocationAuthorizer locationAuthorizer,
+    IVariantUomReader? uomReader = null)
     : IRequestHandler<CreatePurchaseOrderCommand, PurchaseOrderReadModel>
 {
     public async Task<PurchaseOrderReadModel> Handle(
@@ -69,11 +73,18 @@ public sealed class CreatePurchaseOrderCommandHandler(
                 throw new KeyNotFoundException($"Product variant with ID {item.VariantId} not found");
         }
 
-        var totalAmount = items.Sum(item =>
+        var uomConfigs = uomReader is null
+            ? new Dictionary<long, ResolvedVariantUom>()
+            : await uomReader.GetCurrentAsync(supplierBusinessId, items.Select(item => item.VariantId).ToList(), cancellationToken);
+        var lines = items
+            .Select(item => (Item: item, Line: PurchaseUomRules.Resolve(
+                item.Quantity, item.UnitPrice, item.PurchaseOptionId, item.ExpectedConfigVersionId, uomConfigs.GetValueOrDefault(item.VariantId))))
+            .ToArray();
+        var totalAmount = lines.Sum(line =>
             MonetaryRounding.ToCurrency(
-                item.Quantity * item.UnitPrice *
-                (1 - item.Discount / 100m) *
-                (1 + item.Tax / 100m)));
+                line.Line.Quantity * line.Line.UnitPrice *
+                (1 - line.Item.Discount / 100m) *
+                (1 + line.Item.Tax / 100m)));
         var purchaseOrder = new PurchaseOrder
         {
             SupplierId = request.SupplierId,
@@ -85,14 +96,20 @@ public sealed class CreatePurchaseOrderCommandHandler(
             Notes = request.Notes,
             TotalAmount = totalAmount,
             CreatedBy = request.UserId,
-            Items = items.Select(item => new PurchaseOrderItem
+            Items = lines.Select(line =>
             {
-                VariantId = item.VariantId,
-                Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
-                Discount = item.Discount,
-                Tax = item.Tax,
-                Unit = item.Unit
+                var orderItem = new PurchaseOrderItem
+                {
+                    VariantId = line.Item.VariantId,
+                    Quantity = line.Line.Quantity,
+                    UnitPrice = line.Line.UnitPrice,
+                    Discount = line.Item.Discount,
+                    Tax = line.Item.Tax,
+                    Unit = line.Line.Snapshot?.BaseUnitCode ?? line.Item.Unit
+                };
+                if (line.Line.Snapshot is not null)
+                    orderItem.CaptureUomSnapshot(line.Line.Snapshot);
+                return orderItem;
             }).ToList()
         };
         purchaseOrder.SetDestination(destination.LocationType, destination.LocationId);

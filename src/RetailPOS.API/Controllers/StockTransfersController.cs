@@ -190,7 +190,12 @@ public class StockTransfersController : ControllerBase
                         item.RequestedQuantity,
                         item.TransferQuantity,
                         item.UnitCost,
-                        item.Remarks)).ToArray() ?? []),
+                        item.Remarks,
+                        item.UnitOptionId,
+                        item.EnteredQuantity,
+                        item.ExpectedConfigVersionId,
+                        item.Allocations?.Select(allocation => new RetailPOS.Application.Uom.TransferAllocationInput(
+                            allocation.State, allocation.PackCode, allocation.BaseQtyPerPack, allocation.PackCount, allocation.BaseQuantity)).ToArray())).ToArray() ?? []),
                 userId),
             cancellationToken);
         var transfer = await MapTransferAsync(created);
@@ -260,7 +265,12 @@ public class StockTransfersController : ControllerBase
                         item.RequestedQuantity,
                         item.TransferQuantity,
                         item.UnitCost,
-                        item.Remarks)).ToArray() ?? [])),
+                        item.Remarks,
+                        item.UnitOptionId,
+                        item.EnteredQuantity,
+                        item.ExpectedConfigVersionId,
+                        item.Allocations?.Select(allocation => new RetailPOS.Application.Uom.TransferAllocationInput(
+                            allocation.State, allocation.PackCode, allocation.BaseQtyPerPack, allocation.PackCount, allocation.BaseQuantity)).ToArray())).ToArray() ?? [])),
             cancellationToken);
         return Ok(ApiResponse<StockTransferDto>.SuccessResponse(
             await MapTransferAsync(updated),

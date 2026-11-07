@@ -23,7 +23,7 @@ public sealed record TopProductReadModel(
     long VariantId,
     string ProductName,
     string Sku,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalRevenue);
 
 public sealed record SalesByOutletReadModel(
@@ -48,7 +48,7 @@ public sealed record MobileSalesDashboardReadModel(
     decimal TotalRevenue,
     decimal NetRevenue,
     int InvoiceCount,
-    long UnitCount,
+    decimal UnitCount,
     decimal AverageInvoiceValue);
 
 public sealed record MobileDailySalesActivityReadModel(

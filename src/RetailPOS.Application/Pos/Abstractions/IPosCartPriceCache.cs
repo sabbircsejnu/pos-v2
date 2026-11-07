@@ -12,14 +12,14 @@ public interface IPosCartPriceCache
         string scope,
         long variantId,
         long? outletId,
-        int quantity,
+        decimal quantity,
         CancellationToken cancellationToken);
 
     Task SetAsync(
         string scope,
         long variantId,
         long? outletId,
-        int quantity,
+        decimal quantity,
         PosCartPriceReadModel result,
         CancellationToken cancellationToken);
 }

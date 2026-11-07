@@ -68,12 +68,12 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
             .Where(ledger => variantIds.Contains(ledger.VariantId));
         baseQuery = ApplyLocationScope(baseQuery, filter, outletIds, warehouseIds);
 
-        var opening = 0;
+        var opening = 0m;
         if (rangeStart.HasValue)
         {
             opening = await baseQuery
                 .Where(ledger => ledger.CreatedAt < rangeStart.Value)
-                .SumAsync(ledger => (int?)(ledger.QtyIn - ledger.QtyOut), cancellationToken) ?? 0;
+                .SumAsync(ledger => (decimal?)(ledger.QtyIn - ledger.QtyOut), cancellationToken) ?? 0;
         }
 
         var inWindowQuery = baseQuery;
@@ -185,8 +185,8 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
 
         var rows = new List<StockTransactionReportRowReadModel>(ledgerRows.Count);
         var running = opening;
-        var totalIn = 0;
-        var totalOut = 0;
+        var totalIn = 0m;
+        var totalOut = 0m;
         foreach (var row in ledgerRows)
         {
             running += row.QtyIn - row.QtyOut;
@@ -244,7 +244,7 @@ public sealed class StockTransactionReportReadStore(RetailPOSDbContext dbContext
             outletIds,
             warehouseIds);
         var currentStock = await currentStockQuery
-            .SumAsync(inventory => (int?)inventory.Quantity, cancellationToken) ?? 0;
+            .SumAsync(inventory => (decimal?)inventory.Quantity, cancellationToken) ?? 0;
 
         return new StockTransactionReportReadModel(
             product.Id,

@@ -59,7 +59,7 @@ public sealed class ReverseStockAdjustmentCommandHandler(
 
 public sealed record UpdateStockAdjustmentDraftLine(
     long VariantId,
-    int QuantityChange,
+    decimal QuantityChange,
     string? Reason,
     string? Notes);
 
@@ -75,7 +75,9 @@ public sealed class UpdateStockAdjustmentDraftCommandHandler(
     IStockAdjustmentCreateContextProvider contextProvider,
     IStockAdjustmentLifecycleStore lifecycleStore,
     IStockAdjustmentReadStore readStore,
-    IStockAdjustmentAuditWriter auditWriter)
+    IStockAdjustmentAuditWriter auditWriter,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IUomOperationScope? uomScope = null)
     : IRequestHandler<UpdateStockAdjustmentDraftCommand, StockAdjustmentReadModel>
 {
     private static readonly HashSet<string> ValidReasons = new(StringComparer.OrdinalIgnoreCase)
@@ -104,6 +106,12 @@ public sealed class UpdateStockAdjustmentDraftCommandHandler(
                 $"Stock adjustment with ID {request.AdjustmentId} not found");
         EnsureDraft(before);
         var input = Normalize(request);
+        if (uomScope is not null)
+            input = input with
+            {
+                Items = await RetailPOS.Application.Uom.InventoryUomRules.ResolveAdjustmentLinesAsync(
+                    input.Items, uomScope.RequireBusinessId(), uomReader, cancellationToken)
+            };
         var id = await lifecycleStore.UpdateDraftAsync(
             request.AdjustmentId,
             input,

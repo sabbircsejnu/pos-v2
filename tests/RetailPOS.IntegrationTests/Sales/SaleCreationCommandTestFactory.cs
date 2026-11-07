@@ -68,10 +68,10 @@ internal static class SaleCreationCommandTestFactory
 
     private sealed class NoCartPriceCache : IPosCartPriceCache
     {
-        public Task<PosCartPriceReadModel?> GetAsync(string scope, long variantId, long? outletId, int quantity, CancellationToken cancellationToken) =>
+        public Task<PosCartPriceReadModel?> GetAsync(string scope, long variantId, long? outletId, decimal quantity, CancellationToken cancellationToken) =>
             Task.FromResult<PosCartPriceReadModel?>(null);
 
-        public Task SetAsync(string scope, long variantId, long? outletId, int quantity, PosCartPriceReadModel result, CancellationToken cancellationToken) =>
+        public Task SetAsync(string scope, long variantId, long? outletId, decimal quantity, PosCartPriceReadModel result, CancellationToken cancellationToken) =>
             Task.CompletedTask;
     }
 

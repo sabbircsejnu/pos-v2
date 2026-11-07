@@ -67,7 +67,7 @@ public sealed class StockAdjustmentLifecycleStore(
                     $"Adjustment would result in negative stock for variant {item.VariantId}. Current: {currentQuantity}, Change: {item.QuantityChange}, Result: {projectedQuantity}");
             }
 
-            replacementLines.Add(new StockAdjustmentLine
+            replacementLines.Add(item.ApplyUomTo(new StockAdjustmentLine
             {
                 VariantId = item.VariantId,
                 PreviousQuantity = currentQuantity,
@@ -77,7 +77,7 @@ public sealed class StockAdjustmentLifecycleStore(
                 Notes = item.Notes,
                 CreatedAt = adjustment.CreatedAt,
                 UpdatedAt = DateTime.UtcNow
-            });
+            }));
         }
 
         var now = DateTime.UtcNow;

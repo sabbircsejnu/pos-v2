@@ -48,7 +48,7 @@ public sealed class CreateGrnCommandHandlerTests
         store.Setup(value => value.GetCompletedReceivedQuantitiesAsync(
                 20,
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<long, int> { [21] = 4 });
+            .ReturnsAsync(new Dictionary<long, decimal> { [21] = 4 });
         var tenantScope = new Mock<IGrnTenantScope>();
         tenantScope.Setup(scope => scope.GetBusinessIdAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);

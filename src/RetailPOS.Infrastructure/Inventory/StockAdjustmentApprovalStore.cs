@@ -13,7 +13,9 @@ public sealed class StockAdjustmentApprovalStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
     IStockAdjustmentPostingAccountResolver postingAccountResolver,
-    ISender sender)
+    ISender sender,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null)
     : IStockAdjustmentApprovalStore
 {
     public async Task<StockAdjustmentApprovalResult> ApproveAsync(
@@ -104,7 +106,7 @@ public sealed class StockAdjustmentApprovalStore(
                     item.QuantityChange,
                     item.VariantId,
                     context.AllowNegativeStock);
-                lines.Add(new StockAdjustmentLine
+                lines.Add(item.ApplyUomTo(new StockAdjustmentLine
                 {
                     VariantId = item.VariantId,
                     PreviousQuantity = currentQuantity,
@@ -114,7 +116,7 @@ public sealed class StockAdjustmentApprovalStore(
                     Notes = item.Notes,
                     CreatedAt = now,
                     UpdatedAt = now
-                });
+                }));
             }
 
             var maxId = await dbContext.StockAdjustments
@@ -194,6 +196,14 @@ public sealed class StockAdjustmentApprovalStore(
             line.PreviousQuantity = currentQuantity;
             line.NewQuantity = newQuantity;
             line.UpdatedAt = now;
+            if (uomReader is not null && packState is not null && await PackBusinessIdAsync(line.VariantId, cancellationToken) is var packBusinessId)
+            {
+                var uomConfigs = await uomReader.GetCurrentAsync(packBusinessId, [line.VariantId], cancellationToken);
+                if (uomConfigs.GetValueOrDefault(line.VariantId)?.PackStateTrackingEnabled == true)
+                    await RetailPOS.Application.Uom.InventoryUomRules.ApplyAdjustmentAsync(
+                        packState, packBusinessId, adjustment.LocationId, adjustment.LocationType, line, line.QuantityChange,
+                        adjustment.Id, adjustment.AdjustedBy, newQuantity, cancellationToken);
+            }
             line.UnitCostSnapshot ??= await ResolveWeightedAverageCostSnapshotAsync(
                 line.VariantId,
                 cancellationToken);
@@ -407,8 +417,8 @@ public sealed class StockAdjustmentApprovalStore(
     }
 
     private static void ValidateProjectedQuantity(
-        int currentQuantity,
-        int quantityChange,
+        decimal currentQuantity,
+        decimal quantityChange,
         long variantId,
         bool allowNegativeStock)
     {
@@ -419,4 +429,10 @@ public sealed class StockAdjustmentApprovalStore(
                 $"Adjustment would result in negative stock for variant {variantId}. Current: {currentQuantity}, Change: {quantityChange}, Result: {projectedQuantity}");
         }
     }
+
+    private Task<long> PackBusinessIdAsync(long variantId, CancellationToken cancellationToken) =>
+        dbContext.ProductVariants.AsNoTracking()
+            .Where(variant => variant.Id == variantId)
+            .Select(variant => variant.BusinessId)
+            .FirstAsync(cancellationToken);
 }

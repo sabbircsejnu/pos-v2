@@ -158,7 +158,7 @@ public sealed class InventoryValuationReadStore(
         List<StockLedger> movements)
     {
         var first = movements[0];
-        var quantity = 0;
+        var quantity = 0m;
         decimal value = 0;
         foreach (var movement in movements)
         {

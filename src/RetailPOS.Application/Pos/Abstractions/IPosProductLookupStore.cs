@@ -20,7 +20,7 @@ public interface IPosProductLookupStore
         long variantId,
         CancellationToken cancellationToken);
 
-    Task<int> GetOutletStockAsync(
+    Task<decimal> GetOutletStockAsync(
         long variantId,
         long outletId,
         CancellationToken cancellationToken);

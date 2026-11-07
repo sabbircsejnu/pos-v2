@@ -13,13 +13,13 @@ public sealed record StockCostLocationSummary(
     string LocationType,
     long LocationId,
     int Records,
-    long Quantity,
+    decimal Quantity,
     int ValuedRecords,
-    long ValuedQuantity,
+    decimal ValuedQuantity,
     decimal Value,
     int ZeroCostRecords,
     int UnvaluedRecords,
-    long UnvaluedQuantity);
+    decimal UnvaluedQuantity);
 
 public sealed record StockCostCorrectionPreview(
     StockCostCorrectionPlan Plan,
@@ -344,13 +344,13 @@ public sealed class StockCostCorrectionService(RetailPOSDbContext dbContext, ISt
                 group.Key.Type,
                 group.Key.LocationId,
                 group.Count(),
-                group.Sum(row => (long)row.Quantity),
+                group.Sum(row => row.Quantity),
                 group.Count(row => row.Position.Kind == StockCostKind.Valued),
-                group.Where(row => row.Position.Kind == StockCostKind.Valued).Sum(row => (long)row.Quantity),
+                group.Where(row => row.Position.Kind == StockCostKind.Valued).Sum(row => row.Quantity),
                 group.Sum(row => row.Position.Value ?? 0m),
                 group.Count(row => row.Position.Kind == StockCostKind.VerifiedZero),
                 group.Count(row => row.Position.Kind == StockCostKind.Unvalued),
-                group.Where(row => row.Position.Kind == StockCostKind.Unvalued).Sum(row => (long)row.Quantity)))
+                group.Where(row => row.Position.Kind == StockCostKind.Unvalued).Sum(row => row.Quantity)))
             .ToList();
     }
 }

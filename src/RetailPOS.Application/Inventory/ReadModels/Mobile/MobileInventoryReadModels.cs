@@ -27,6 +27,6 @@ public sealed record MobileInventoryItemReadModel(
     string Attributes,
     long OutletId,
     string OutletName,
-    int Quantity,
+    decimal Quantity,
     int ReorderLevel,
     bool IsLowStock);

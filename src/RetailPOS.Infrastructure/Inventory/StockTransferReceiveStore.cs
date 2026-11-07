@@ -11,7 +11,9 @@ public sealed class StockTransferReceiveStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
     IStockTransferReceiptAuditWriter auditWriter,
-    ILogger<StockTransferReceiveStore> logger)
+    ILogger<StockTransferReceiveStore> logger,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null)
     : IStockTransferReceiveStore
 {
     public async Task<StockTransferReceiveResult> ReceiveAsync(
@@ -34,7 +36,7 @@ public sealed class StockTransferReceiveStore(
             }
 
             var transfer = await StockTransferWriteRules.TransfersInBusiness(dbContext, businessId)
-                .Include(candidate => candidate.Items)
+                .Include(candidate => candidate.Items).ThenInclude(item => item.Allocations)
                 .FirstOrDefaultAsync(candidate => candidate.Id == transferId, cancellationToken);
             if (transfer is null)
                 throw new KeyNotFoundException($"Stock transfer with ID {transferId} not found");
@@ -65,6 +67,10 @@ public sealed class StockTransferReceiveStore(
                 item.DamagedQuantity = line.DamagedQuantity;
                 item.Remarks = line.Remarks;
                 totals.Add(line);
+                await StockTransferWriteRules.ReceivePackStateAsync(
+                    uomReader, packState, businessId, transfer, item, normalizedToType, dispatched, line.AcceptedQuantity,
+                    await ProjectedOnHandAsync(item.VariantId, transfer.ToLocationId, normalizedToType, line.AcceptedQuantity, cancellationToken),
+                    receivedBy ?? transfer.CreatedBy, cancellationToken);
 
                 var inventory = await dbContext.Inventories.FirstOrDefaultAsync(
                     row => row.VariantId == item.VariantId
@@ -201,6 +207,15 @@ public sealed class StockTransferReceiveStore(
         }
     }
 
+    private async Task<decimal> ProjectedOnHandAsync(long variantId, long locationId, string locationType, decimal accepted, CancellationToken cancellationToken)
+    {
+        var current = await dbContext.Inventories.AsNoTracking()
+            .Where(row => row.VariantId == variantId && row.LocationId == locationId && row.LocationType.ToLower() == locationType)
+            .Select(row => (decimal?)row.Quantity)
+            .FirstOrDefaultAsync(cancellationToken);
+        return (current ?? 0m) + accepted;
+    }
+
     /// <summary>
     /// No lines means the whole transfer was accepted. Once lines are sent, every transfer line must be accounted for.
     /// </summary>
@@ -230,7 +245,7 @@ public sealed class StockTransferReceiveStore(
 
     private static void ValidateReconciliation(
         long variantId,
-        int dispatched,
+        decimal dispatched,
         StockTransferReceiveItemInput line,
         bool isSystemReturn)
     {
@@ -286,7 +301,7 @@ public sealed class StockTransferReceiveStore(
             createdBy: actorId ?? transfer.CreatedBy,
             unitCost: item.UnitCost);
 
-    private static int ResolveTransferQuantity(StockTransferItem item) =>
+    private static decimal ResolveTransferQuantity(StockTransferItem item) =>
         item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
 
     private static string NormalizeLocationType(string locationType)
@@ -303,9 +318,9 @@ public sealed class StockTransferReceiveStore(
 
     private sealed class ReceiptTotals
     {
-        private int _accepted;
-        private int _rejected;
-        private int _discrepancy;
+        private decimal _accepted;
+        private decimal _rejected;
+        private decimal _discrepancy;
 
         public void Add(StockTransferReceiveItemInput line)
         {

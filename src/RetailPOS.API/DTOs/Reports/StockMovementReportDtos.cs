@@ -15,28 +15,28 @@ public class StockMovementRowDto
     public string LocationName { get; set; } = string.Empty;
 
     /// <summary>BalanceAfter of the last StockLedger row strictly before DateFrom (0 if no prior rows).</summary>
-    public int OpeningStock { get; set; }
+    public decimal OpeningStock { get; set; }
 
     /// <summary>Sum of QtyIn during the selected period.</summary>
-    public int StockIn { get; set; }
+    public decimal StockIn { get; set; }
 
     /// <summary>Sum of QtyOut during the selected period.</summary>
-    public int StockOut { get; set; }
+    public decimal StockOut { get; set; }
 
     /// <summary>OpeningStock + StockIn - StockOut</summary>
-    public int ClosingStock { get; set; }
+    public decimal ClosingStock { get; set; }
 
     /// <summary>StockIn - StockOut</summary>
-    public int NetMovement { get; set; }
+    public decimal NetMovement { get; set; }
 }
 
 public class StockMovementSummaryDto
 {
-    public int TotalOpeningStock { get; set; }
-    public int TotalStockIn      { get; set; }
-    public int TotalStockOut     { get; set; }
-    public int TotalClosingStock { get; set; }
-    public int NetMovement       { get; set; }
+    public decimal TotalOpeningStock { get; set; }
+    public decimal TotalStockIn      { get; set; }
+    public decimal TotalStockOut     { get; set; }
+    public decimal TotalClosingStock { get; set; }
+    public decimal NetMovement       { get; set; }
 }
 
 public class StockMovementReportDto

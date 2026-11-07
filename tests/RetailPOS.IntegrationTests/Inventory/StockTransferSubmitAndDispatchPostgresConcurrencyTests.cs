@@ -684,8 +684,8 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
     private static Task<StockTransferReadModel> ReceiveAsync(
         ReceiveStockTransferCommandHandler handler,
         long transferId,
-        int acceptedQuantity,
-        int rejectedQuantity) =>
+        decimal acceptedQuantity,
+        decimal rejectedQuantity) =>
         handler.Handle(
             new ReceiveStockTransferCommand(
                 transferId,
@@ -893,7 +893,7 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static StockTransfer CreateInTransitTransfer(long id, int quantity) =>
+    private static StockTransfer CreateInTransitTransfer(long id, decimal quantity) =>
         new()
         {
             Id = id,
@@ -923,7 +923,7 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             ]
         };
 
-    private static StockTransfer CreateDraftTransfer(long id, int quantity) =>
+    private static StockTransfer CreateDraftTransfer(long id, decimal quantity) =>
         new()
         {
             Id = id,
@@ -981,9 +981,9 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             long locationId,
             string locationType,
             string transactionType,
-            int qtyIn,
-            int qtyOut,
-            int balanceAfter,
+            decimal qtyIn,
+            decimal qtyOut,
+            decimal balanceAfter,
             string referenceType,
             long referenceId,
             string? remarks = null,
@@ -1018,9 +1018,9 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
             long locationId,
             string locationType,
             string transactionType,
-            int qtyIn,
-            int qtyOut,
-            int balanceAfter,
+            decimal qtyIn,
+            decimal qtyOut,
+            decimal balanceAfter,
             string referenceType,
             long referenceId,
             string? remarks = null,
@@ -1055,8 +1055,8 @@ public sealed class StockTransferSubmitAndDispatchPostgresConcurrencyTests
         }
 
         public void WriteVerifiedZeroCostEntry(
-            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
-            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            long variantId, long locationId, string locationType, string transactionType, decimal qtyIn, decimal qtyOut,
+            decimal balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
             DateTime? createdAt = null) =>
             inner.WriteVerifiedZeroCostEntry(variantId, locationId, locationType, transactionType, qtyIn, qtyOut,
                 balanceAfter, referenceType, referenceId, remarks, createdBy, createdAt);

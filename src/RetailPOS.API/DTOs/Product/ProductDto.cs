@@ -30,7 +30,7 @@ public class ProductDto
     
     // Related data
     public int VariantCount { get; set; }
-    public int TotalStock { get; set; }
+    public decimal TotalStock { get; set; }
     /// <summary>Inventory availability in the authorized, optionally selected location scope.</summary>
     public string StockStatus { get; set; } = "unavailable";
     public List<ProductVariantDto> Variants { get; set; } = new();

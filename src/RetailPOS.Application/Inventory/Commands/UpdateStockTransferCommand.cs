@@ -14,7 +14,8 @@ public sealed record UpdateStockTransferCommand(
 public sealed class UpdateStockTransferCommandHandler(
     IStockTransferReadScopeProvider scopeProvider,
     IStockTransferDraftStore draftStore,
-    IStockTransferReadStore readStore)
+    IStockTransferReadStore readStore,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null)
     : IRequestHandler<UpdateStockTransferCommand, StockTransferReadModel>
 {
     public async Task<StockTransferReadModel> Handle(
@@ -30,7 +31,8 @@ public sealed class UpdateStockTransferCommandHandler(
                 $"Cannot edit transfer in status '{existing.Status}'. Only draft transfers are editable.");
         }
 
-        var input = CreateStockTransferCommandHandler.NormalizeAndValidate(request.Input);
+        var input = await RetailPOS.Application.Uom.InventoryUomRules.ResolveTransferAsync(
+            CreateStockTransferCommandHandler.NormalizeAndValidate(request.Input), businessId, uomReader, cancellationToken);
         var updatedId = await draftStore.UpdateDraftAsync(
             request.Id,
             input,

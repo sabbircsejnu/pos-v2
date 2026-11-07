@@ -36,7 +36,7 @@ public sealed record PosProductLookupReadModel(
     decimal EffectivePrice,
     decimal TaxRate,
     string? AppliedRuleName,
-    int StockQty,
+    decimal StockQty,
     bool InStock,
     bool StockFromCache,
     string TaxClassification = "standard",

@@ -3,6 +3,8 @@ using RetailPOS.Application.Abstractions.Messaging;
 using RetailPOS.Application.Grns.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.ReadModels;
+using RetailPOS.Application.Uom;
+using RetailPOS.Core.Entities.Uom;
 
 namespace RetailPOS.Application.PurchaseOrders.Commands;
 
@@ -18,11 +20,23 @@ public sealed record PurchaseAndReceiveCommand(
 
 public sealed record PurchaseAndReceiveItemCommand(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
     decimal Tax,
-    string? Unit);
+    string? Unit,
+    long? PurchaseOptionId = null,
+    long? ExpectedConfigVersionId = null,
+    int? AcceptedSealedPacks = null,
+    decimal? AcceptedLooseQuantity = null)
+{
+    /// <summary>Set by the handler: Quantity and UnitPrice are then already in base units.</summary>
+    public UnitTransactionSnapshot? Snapshot { get; init; }
+
+    public bool IsSealedPackLine { get; init; }
+
+    public bool TrackPackState { get; init; }
+}
 
 public sealed record PurchaseAndReceiveResultReadModel(
     PurchaseOrderReadModel PurchaseOrder,
@@ -33,7 +47,8 @@ public sealed class PurchaseAndReceiveCommandHandler(
     IPurchaseAndReceiveStore store,
     IPurchaseOrderReadStore readStore,
     IPurchaseOrderTenantScope tenantScope,
-    IGrnReceiptLocationAuthorizer locationAuthorizer)
+    IGrnReceiptLocationAuthorizer locationAuthorizer,
+    IVariantUomReader? uomReader = null)
     : IRequestHandler<PurchaseAndReceiveCommand, PurchaseAndReceiveResultReadModel>
 {
     public async Task<PurchaseAndReceiveResultReadModel> Handle(
@@ -49,8 +64,26 @@ public sealed class PurchaseAndReceiveCommandHandler(
             request.Destination.LocationId,
             cancellationToken);
 
+        var uomConfigs = uomReader is null || businessId is not { } uomBusinessId
+            ? new Dictionary<long, ResolvedVariantUom>()
+            : await uomReader.GetCurrentAsync(uomBusinessId, (request.Items ?? []).Select(item => item.VariantId).ToList(), cancellationToken);
+        var resolvedItems = request.Items?.Select(item =>
+        {
+            var config = uomConfigs.GetValueOrDefault(item.VariantId);
+            var line = PurchaseUomRules.Resolve(item.Quantity, item.UnitPrice, item.PurchaseOptionId, item.ExpectedConfigVersionId, config);
+            return item with
+            {
+                Quantity = line.Quantity,
+                UnitPrice = line.UnitPrice,
+                Unit = line.Snapshot?.BaseUnitCode ?? item.Unit,
+                Snapshot = line.Snapshot,
+                IsSealedPackLine = config?.PurchaseOptions.Any(option => option.Id == item.PurchaseOptionId && option.IsSealedPack) == true,
+                TrackPackState = config?.PackStateTrackingEnabled == true
+            };
+        }).ToArray();
+
         var result = await store.ExecuteAsync(
-            request with { IdempotencyKey = request.IdempotencyKey.Trim() },
+            request with { IdempotencyKey = request.IdempotencyKey.Trim(), Items = resolvedItems },
             businessId,
             cancellationToken);
         var purchaseOrder = await readStore.FindByIdAsync(

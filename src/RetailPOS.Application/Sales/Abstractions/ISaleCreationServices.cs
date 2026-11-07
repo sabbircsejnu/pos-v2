@@ -60,8 +60,8 @@ public interface ISaleStockLedgerWriter
     void AppendSaleMovement(
         long variantId,
         long outletId,
-        int quantity,
-        int balanceAfter,
+        decimal quantity,
+        decimal balanceAfter,
         long saleId,
         long cashierId,
         DateTime saleDate,

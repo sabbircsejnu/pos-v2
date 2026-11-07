@@ -589,7 +589,7 @@ public sealed class StockCountAsyncAdjustmentPostgresHttpTests
             .ToArrayAsync();
     }
 
-    private async Task<int> InventoryAsync(long outletId)
+    private async Task<decimal> InventoryAsync(long outletId)
     {
         await using var scope = _fixture.CreateServiceScope();
         var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();

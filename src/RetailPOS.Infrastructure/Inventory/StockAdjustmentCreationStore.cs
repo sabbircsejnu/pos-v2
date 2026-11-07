@@ -66,7 +66,7 @@ public sealed class StockAdjustmentCreationStore(RetailPOSDbContext dbContext)
                         $"Adjustment would result in negative stock for variant {item.VariantId}. Current: {currentQuantity}, Change: {item.QuantityChange}, Result: {projectedQuantity}");
                 }
 
-                lines.Add(new StockAdjustmentLine
+                lines.Add(item.ApplyUomTo(new StockAdjustmentLine
                 {
                     VariantId = item.VariantId,
                     PreviousQuantity = currentQuantity,
@@ -76,7 +76,7 @@ public sealed class StockAdjustmentCreationStore(RetailPOSDbContext dbContext)
                     Notes = item.Notes,
                     CreatedAt = now,
                     UpdatedAt = now
-                });
+                }));
             }
 
             var maxId = await dbContext.StockAdjustments

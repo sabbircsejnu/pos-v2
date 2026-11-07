@@ -13,6 +13,6 @@ public class CreateStockRequisitionDto
 public class CreateStockRequisitionLineDto
 {
     public long VariantId { get; set; }
-    public int RequestedQuantity { get; set; }
+    public decimal RequestedQuantity { get; set; }
     public string? Remarks { get; set; }
 }

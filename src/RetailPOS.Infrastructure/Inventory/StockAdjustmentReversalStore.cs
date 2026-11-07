@@ -14,7 +14,9 @@ public sealed class StockAdjustmentReversalStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
     ISender sender,
-    ILogger<StockAdjustmentReversalStore> logger)
+    ILogger<StockAdjustmentReversalStore> logger,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null)
     : IStockAdjustmentReversalStore
 {
     public async Task<StockAdjustmentReversalResult> ReverseAsync(
@@ -100,6 +102,14 @@ public sealed class StockAdjustmentReversalStore(
                 }
 
                 line.NewQuantity = restoredQuantity;
+                if (uomReader is not null && packState is not null && await PackBusinessIdAsync(line.VariantId, cancellationToken) is var packBusinessId)
+                {
+                    var uomConfigs = await uomReader.GetCurrentAsync(packBusinessId, [line.VariantId], cancellationToken);
+                    if (uomConfigs.GetValueOrDefault(line.VariantId)?.PackStateTrackingEnabled == true)
+                        await RetailPOS.Application.Uom.InventoryUomRules.ApplyAdjustmentAsync(
+                            packState, packBusinessId, adjustment.LocationId, adjustment.LocationType, line, -line.QuantityChange,
+                            adjustment.Id, adjustment.AdjustedBy, restoredQuantity, cancellationToken);
+                }
                 line.UpdatedAt = now;
                 stockLedger.WriteEntryWithValuation(
                     variantId: line.VariantId,
@@ -136,4 +146,10 @@ public sealed class StockAdjustmentReversalStore(
             throw;
         }
     }
+
+    private Task<long> PackBusinessIdAsync(long variantId, CancellationToken cancellationToken) =>
+        dbContext.ProductVariants.AsNoTracking()
+            .Where(variant => variant.Id == variantId)
+            .Select(variant => variant.BusinessId)
+            .FirstAsync(cancellationToken);
 }

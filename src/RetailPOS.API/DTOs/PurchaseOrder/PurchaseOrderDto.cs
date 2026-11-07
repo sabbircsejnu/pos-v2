@@ -12,9 +12,14 @@ public class PurchaseOrderItemDto
     public string? ProductCode { get; set; }
     public string? Sku { get; set; }
     public string? VariantAttributes { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public string? Unit { get; set; }
     public decimal UnitPrice { get; set; }
+    public string? UomUnitCode { get; set; }
+    public string? UomLabel { get; set; }
+    public decimal? UomEnteredQuantity { get; set; }
+    public decimal? UomEnteredUnitPrice { get; set; }
+    public long? UomOptionId { get; set; }
     /// <summary>Item-level discount percentage (0–100).</summary>
     public decimal Discount { get; set; }
     /// <summary>Item-level tax percentage (0–100).</summary>
@@ -60,7 +65,7 @@ public class PurchaseOrderDto
     public string? LatestGrnNumber => LatestGrnId.HasValue ? $"GRN-{LatestGrnId.Value:D6}" : null;
     public List<PurchaseOrderItemDto> Items { get; set; } = new();
     public int TotalItems => Items.Count;
-    public int TotalQuantity => Items.Sum(i => i.Quantity);
+    public decimal TotalQuantity => Items.Sum(i => i.Quantity);
 }
 
 /// <summary>
@@ -69,7 +74,7 @@ public class PurchaseOrderDto
 public class CreatePurchaseOrderItemDto
 {
     public long VariantId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     /// <summary>Discount percentage (0–100). Default: 0.</summary>
     public decimal Discount { get; set; } = 0;
@@ -77,6 +82,12 @@ public class CreatePurchaseOrderItemDto
     public decimal Tax { get; set; } = 0;
     /// <summary>Unit of measurement (e.g. pcs, kg, box). Optional.</summary>
     public string? Unit { get; set; }
+    /// <summary>The purchase unit bought. With one, Quantity and UnitPrice are per that unit.</summary>
+    public long? PurchaseOptionId { get; set; }
+    public long? ExpectedConfigVersionId { get; set; }
+    /// <summary>Whole sealed packs accepted, for an immediate purchase and receive of a pack-tracked item.</summary>
+    public int? AcceptedSealedPacks { get; set; }
+    public decimal? AcceptedLooseQuantity { get; set; }
 }
 
 /// <summary>

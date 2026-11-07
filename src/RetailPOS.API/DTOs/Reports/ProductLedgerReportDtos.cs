@@ -13,13 +13,13 @@ public class ProductLedgerRowDto
     public long LocationId { get; set; }
     public string LocationName { get; set; } = string.Empty;
     /// <summary>Inventory balance before this transaction.</summary>
-    public int OpeningQuantity { get; set; }
+    public decimal OpeningQuantity { get; set; }
     /// <summary>Units received / added during this transaction.</summary>
-    public int StockIn { get; set; }
+    public decimal StockIn { get; set; }
     /// <summary>Units dispatched / removed during this transaction.</summary>
-    public int StockOut { get; set; }
+    public decimal StockOut { get; set; }
     /// <summary>Inventory balance after this transaction (= BalanceAfter from StockLedger).</summary>
-    public int ClosingQuantity { get; set; }
+    public decimal ClosingQuantity { get; set; }
     /// <summary>Unit cost at reporting time (Product.CostPrice + Variant.CostAdjustment).</summary>
     public decimal UnitCost { get; set; }
     /// <summary>UnitCost × (StockIn + StockOut).</summary>
@@ -30,10 +30,10 @@ public class ProductLedgerRowDto
 
 public class ProductLedgerSummaryDto
 {
-    public int OpeningStock { get; set; }
-    public int TotalStockIn { get; set; }
-    public int TotalStockOut { get; set; }
-    public int ClosingStock { get; set; }
+    public decimal OpeningStock { get; set; }
+    public decimal TotalStockIn { get; set; }
+    public decimal TotalStockOut { get; set; }
+    public decimal ClosingStock { get; set; }
     public decimal TotalTransactionValue { get; set; }
 }
 

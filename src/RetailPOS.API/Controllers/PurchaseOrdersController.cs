@@ -164,7 +164,9 @@ public class PurchaseOrdersController : ControllerBase
                     item.UnitPrice,
                     item.Discount,
                     item.Tax,
-                    item.Unit)).ToArray(),
+                    item.Unit,
+                    item.PurchaseOptionId,
+                    item.ExpectedConfigVersionId)).ToArray(),
                 userId),
             cancellationToken);
         var po = MapPurchaseOrder(purchaseOrder);
@@ -219,7 +221,11 @@ public class PurchaseOrdersController : ControllerBase
                         item.UnitPrice,
                         item.Discount,
                         item.Tax,
-                        item.Unit)).ToArray(),
+                        item.Unit,
+                        item.PurchaseOptionId,
+                        item.ExpectedConfigVersionId,
+                        item.AcceptedSealedPacks,
+                        item.AcceptedLooseQuantity)).ToArray(),
                     dto.IdempotencyKey,
                     userId.Value),
                 cancellationToken);
@@ -269,7 +275,9 @@ public class PurchaseOrdersController : ControllerBase
                     item.UnitPrice,
                     item.Discount,
                     item.Tax,
-                    item.Unit)).ToArray()),
+                    item.Unit,
+                    item.PurchaseOptionId,
+                    item.ExpectedConfigVersionId)).ToArray()),
             cancellationToken);
         var po = MapPurchaseOrder(purchaseOrder);
         return Ok(ApiResponse<PurchaseOrderDto>.SuccessResponse(po, "Purchase order updated successfully"));

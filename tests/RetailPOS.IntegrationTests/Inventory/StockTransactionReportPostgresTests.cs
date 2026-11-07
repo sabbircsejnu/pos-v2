@@ -49,7 +49,7 @@ public sealed class StockTransactionReportPostgresTests
                 Assert.Equal(0, report.Summary.StockOut);
                 Assert.Equal(7, report.Summary.ClosingStock);
                 Assert.Equal(15, report.Summary.CurrentStock);
-                Assert.Equal(new[] { 3, 7 }, report.Rows.Select(row => row.RunningBalance));
+                Assert.Equal(new[] { 3m, 7m }, report.Rows.Select(row => row.RunningBalance));
             });
     }
 

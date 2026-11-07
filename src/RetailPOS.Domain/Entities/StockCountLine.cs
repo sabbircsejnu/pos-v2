@@ -16,6 +16,7 @@ public class StockCountLine
     public decimal? Difference { get; set; }
     public string? Remarks { get; set; }
 
+    public virtual ICollection<RetailPOS.Core.Entities.Uom.StockCountLineEntry> Entries { get; set; } = new List<RetailPOS.Core.Entities.Uom.StockCountLineEntry>();
     public virtual StockCount StockCount { get; set; } = null!;
     public virtual Product Product { get; set; } = null!;
     public virtual ProductVariant Variant { get; set; } = null!;

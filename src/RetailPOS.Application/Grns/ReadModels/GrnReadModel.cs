@@ -40,8 +40,15 @@ public sealed record GrnItemReadModel(
     string? ProductCode,
     string VariantName,
     string? VariantAttributes,
-    int OrderedQuantity,
-    int ReceivedQuantity,
+    decimal OrderedQuantity,
+    decimal ReceivedQuantity,
     decimal UnitPrice,
     decimal UnitCost,
-    string? Notes);
+    string? Notes,
+    decimal DamagedQuantity = 0m,
+    decimal RejectedQuantity = 0m,
+    int? AcceptedSealedPacks = null,
+    decimal? AcceptedLooseQuantity = null,
+    string? UomUnitCode = null,
+    string? UomLabel = null,
+    string? UomBaseUnitCode = null);

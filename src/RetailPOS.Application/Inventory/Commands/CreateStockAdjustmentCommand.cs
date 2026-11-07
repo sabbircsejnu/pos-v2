@@ -22,7 +22,9 @@ public sealed class CreateStockAdjustmentCommandHandler(
     IStockAdjustmentCreationStore store,
     IStockAdjustmentApprovalStore approvalStore,
     IStockAdjustmentReadStore readStore,
-    IStockAdjustmentAuditWriter auditWriter)
+    IStockAdjustmentAuditWriter auditWriter,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IUomOperationScope? uomScope = null)
     : IRequestHandler<CreateStockAdjustmentCommand, StockAdjustmentReadModel>
 {
     private static readonly HashSet<string> ValidActions = new(StringComparer.OrdinalIgnoreCase)
@@ -49,6 +51,12 @@ public sealed class CreateStockAdjustmentCommandHandler(
         CreateStockAdjustmentCommand request,
         CancellationToken cancellationToken)
     {
+        if (uomScope is not null)
+            request = request with
+            {
+                Items = await RetailPOS.Application.Uom.InventoryUomRules.ResolveAdjustmentLinesAsync(
+                    request.Items, uomScope.RequireBusinessId(), uomReader, cancellationToken)
+            };
         var input = Normalize(request);
         var context = await contextProvider.GetAsync(cancellationToken);
         var approval = request.ApproveImmediately
@@ -118,11 +126,7 @@ public sealed class CreateStockAdjustmentCommandHandler(
                     $"Invalid reason '{reason}'. Valid reasons are: {string.Join(", ", ValidReasons)}");
             }
 
-            return new StockAdjustmentCreateLine(
-                item.VariantId,
-                item.QuantityChange,
-                reason,
-                string.IsNullOrWhiteSpace(item.Notes) ? request.DefaultNotes : item.Notes);
+            return item with { Reason = reason, Notes = string.IsNullOrWhiteSpace(item.Notes) ? request.DefaultNotes : item.Notes };
         }).ToArray();
 
         return new StockAdjustmentCreateInput(

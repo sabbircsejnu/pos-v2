@@ -88,14 +88,14 @@ public static class DashboardBuckets
 /// </summary>
 public sealed class InStockDayTracker(DateOnly from, DateOnly to)
 {
-    private int _balance;
+    private decimal _balance;
     private DateOnly _nextUncounted = from;
     private int _days;
 
     public bool HasEvidence { get; private set; }
-    public int LatestBalance => _balance;
+    public decimal LatestBalance => _balance;
 
-    public void Apply(DateOnly date, int balanceAfter)
+    public void Apply(DateOnly date, decimal balanceAfter)
     {
         HasEvidence = true;
         if (date > to)
@@ -193,9 +193,9 @@ public static class TransferOpportunityEngine
         decimal DestinationVelocity,
         decimal? SourceCover,
         decimal DestinationCover,
-        int SourceProtected,
-        int SourceSpare,
-        int DestinationNeed);
+        decimal SourceProtected,
+        decimal SourceSpare,
+        decimal DestinationNeed);
 
     public static IReadOnlyList<TransferOpportunity> Build(
         IReadOnlyList<VariantLocationFact> facts,
@@ -233,8 +233,8 @@ public static class TransferOpportunityEngine
             .ThenBy(candidate => candidate.Destination.LocationId);
 
         // Competing pairs share one pool of spare and one pool of need, so suggestions never jointly exceed either.
-        var spareLeft = new Dictionary<(long Variant, long Location), int>();
-        var needLeft = new Dictionary<(long Variant, long Location), int>();
+        var spareLeft = new Dictionary<(long Variant, long Location), decimal>();
+        var needLeft = new Dictionary<(long Variant, long Location), decimal>();
         var result = new List<TransferOpportunity>();
         foreach (var candidate in ordered)
         {
@@ -244,7 +244,7 @@ public static class TransferOpportunityEngine
             var need = needLeft.GetValueOrDefault(destinationKey, candidate.DestinationNeed);
             var suggested = Math.Min(spare, need);
             var capped = false;
-            if (policy.MaxSuggestedQty is int cap && suggested > cap)
+            if (policy.MaxSuggestedQty is decimal cap && suggested > cap)
             {
                 suggested = cap;
                 capped = true;
@@ -293,12 +293,12 @@ public static class TransferOpportunityEngine
         // The safety quantity is subtracted exactly once, here: pending outbound is a separate commitment.
         var protectedQty = Math.Max(
             policy.MinimumRetainedUnits,
-            (int)decimal.Ceiling(sourceVelocity * policy.SourceRetainedCoverageDays));
-        var transferable = Math.Max(0, source.Available - source.PendingOutbound);
-        var spare = Math.Max(0, transferable - protectedQty);
+            decimal.Ceiling(sourceVelocity * policy.SourceRetainedCoverageDays));
+        var transferable = Math.Max(0m, source.Available - source.PendingOutbound);
+        var spare = Math.Max(0m, transferable - protectedQty);
         var need = Math.Max(
             0,
-            (int)decimal.Ceiling(destinationVelocity * policy.DestinationTargetCoverageDays)
+            decimal.Ceiling(destinationVelocity * policy.DestinationTargetCoverageDays)
                 - destination.Available
                 - destination.PendingInbound);
         if (spare <= 0 || need <= 0)
@@ -318,9 +318,9 @@ public static class TransferOpportunityEngine
 
     private static TransferOpportunity ToOpportunity(
         Candidate candidate,
-        int suggested,
-        int spareAvailable,
-        int needRemaining,
+        decimal suggested,
+        decimal spareAvailable,
+        decimal needRemaining,
         bool capped,
         OwnerDashboardPolicy policy,
         Func<VariantLocationFact, bool>? canInitiate)

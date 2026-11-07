@@ -140,7 +140,7 @@ public sealed class StockMovementReportReadStore(RetailPOSDbContext dbContext)
             })
             .ToDictionaryAsync(variant => variant.Id, cancellationToken);
 
-        var openingBalances = new Dictionary<(long VariantId, long LocationId, string LocationType), int>();
+        var openingBalances = new Dictionary<(long VariantId, long LocationId, string LocationType), decimal>();
         if (filter.DateFrom.HasValue)
         {
             var priorRows = await dbContext.StockLedgers

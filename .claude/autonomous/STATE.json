@@ -21,5 +21,37 @@
     "Permission model per SRS 2.1: dashboard.sales_finance.view and dashboard.inventory_intelligence.view; business-wide reads.",
     "No migration, no seeding, no new package.",
     "Use List<long>, never arrays, in EF Contains. Build with -c Release if bin/Debug is locked."
-  ]
+  ],
+  "activeFeature": "uom-d01-d12",
+  "uom": {
+    "updated": "2026-11-07",
+    "spec": "Docs/Unit_Of_Measurement/",
+    "phase": "backend-core-done-reports-and-frontend-next",
+    "completed": [
+      "audit",
+      "quantity widening",
+      "uom master+config+versioning",
+      "po/grn",
+      "pos sale/held/void/refund",
+      "packaging",
+      "pack-state",
+      "transfer/adjust/count entries",
+      "repack"
+    ],
+    "remaining": [
+      "valuation+dashboards+reports unit-aware",
+      "Angular UI",
+      "unit tests",
+      "full suites",
+      "IMPLEMENTATION_REPORT.md"
+    ],
+    "migrations": [
+      "20261106234558_PosV2UomFoundation (not applied to Development)"
+    ],
+    "nextAction": "Unit-aware valuation and dashboards, then Angular UI per Docs/Unit_Of_Measurement API contract",
+    "resumeNotes": [
+      "Every existing quantity column holds base units; Uom* snapshot columns hold entered values; null snapshot = legacy pcs",
+      "Build with -c Release; helper scripts in scratchpad are disposable"
+    ]
+  }
 }

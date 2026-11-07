@@ -21,9 +21,9 @@ public class StockLedgerDto
     /// <summary>e.g. "grn", "sale", "return", "adjustment", "transfer_in", "transfer_out"</summary>
     public string TransactionType { get; set; } = string.Empty;
 
-    public int QtyIn { get; set; }
-    public int QtyOut { get; set; }
-    public int BalanceAfter { get; set; }
+    public decimal QtyIn { get; set; }
+    public decimal QtyOut { get; set; }
+    public decimal BalanceAfter { get; set; }
     public decimal UnitCost { get; set; }
     public decimal MovementValue { get; set; }
     public bool IsCostValuationReliable { get; set; }

@@ -67,7 +67,7 @@ public sealed class PosCatalogueReadStore(RetailPOSDbContext dbContext, IBusines
                         .Where(inventory =>
                             inventory.LocationId == outletId &&
                             inventory.LocationType == "outlet")
-                        .Select(inventory => (int?)inventory.Quantity)
+                        .Select(inventory => (decimal?)inventory.Quantity)
                         .FirstOrDefault() ?? 0))
             .ToListAsync(cancellationToken);
     }

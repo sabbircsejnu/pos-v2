@@ -112,7 +112,7 @@ public sealed class StockCountAdjustmentGenerationPostgresConcurrencyTests
                 long userId;
                 long outletId;
                 long stockCountId;
-                int currentQuantity;
+                decimal currentQuantity;
                 await using (var setup = CreateDbContext(database.ConnectionString))
                 {
                     await setup.Database.MigrateAsync();

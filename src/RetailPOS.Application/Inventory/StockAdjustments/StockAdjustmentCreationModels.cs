@@ -2,9 +2,30 @@ namespace RetailPOS.Application.Inventory.StockAdjustments;
 
 public sealed record StockAdjustmentCreateLine(
     long VariantId,
-    int QuantityChange,
+    decimal QuantityChange,
     string? Reason,
-    string? Notes);
+    string? Notes,
+    long? UnitOptionId = null,
+    decimal? EnteredQuantity = null,
+    long? ExpectedConfigVersionId = null,
+    string? PackState = null,
+    string? PackCode = null,
+    decimal? BaseQtyPerPack = null)
+{
+    /// <summary>Set by the handler once the entered unit is converted.</summary>
+    public RetailPOS.Core.Entities.Uom.UnitTransactionSnapshot? Snapshot { get; init; }
+
+    /// <summary>Copies the unit and physical form onto the stored line.</summary>
+    public RetailPOS.Core.Entities.StockAdjustmentLine ApplyUomTo(RetailPOS.Core.Entities.StockAdjustmentLine line)
+    {
+        if (Snapshot is not null)
+            line.CaptureUomSnapshot(Snapshot);
+        line.PackState = PackState;
+        line.PackCode = PackCode;
+        line.BaseQtyPerPack = BaseQtyPerPack;
+        return line;
+    }
+}
 
 public sealed record StockAdjustmentCreateInput(
     bool SubmitForApproval,

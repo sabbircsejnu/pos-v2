@@ -987,7 +987,7 @@ public sealed class OwnerDashboardPostgresFixture : IAsyncLifetime
         await action(scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>());
     }
 
-    public async Task<int> ReadOnHandAsync(long variantId, long outletId)
+    public async Task<decimal> ReadOnHandAsync(long variantId, long outletId)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();

@@ -105,7 +105,7 @@ public class InventoryValuationRowDto
     public string Sku { get; set; } = string.Empty;
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty;
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitCost { get; set; }
     public decimal InventoryValue { get; set; }
 }

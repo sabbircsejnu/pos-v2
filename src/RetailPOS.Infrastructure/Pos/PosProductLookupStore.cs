@@ -118,7 +118,7 @@ public sealed class PosProductLookupStore(RetailPOSDbContext dbContext, IBusines
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<int> GetOutletStockAsync(
+    public Task<decimal> GetOutletStockAsync(
         long variantId,
         long outletId,
         CancellationToken cancellationToken) =>

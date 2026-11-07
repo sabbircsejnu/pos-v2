@@ -33,7 +33,7 @@ public sealed class StockTransferRejectionStore(
             }
 
             var transfer = await StockTransferWriteRules.TransfersInBusiness(dbContext, businessId)
-                .Include(candidate => candidate.Items)
+                .Include(candidate => candidate.Items).ThenInclude(item => item.Allocations)
                 .FirstOrDefaultAsync(candidate => candidate.Id == transferId, cancellationToken);
             if (transfer is null)
                 throw new KeyNotFoundException($"Stock transfer with ID {transferId} not found");
@@ -126,7 +126,7 @@ public sealed class StockTransferRejectionStore(
         }
     }
 
-    private static int ResolveTransferQuantity(StockTransferItem item) =>
+    private static decimal ResolveTransferQuantity(StockTransferItem item) =>
         item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
 
     private static string NormalizeLocationType(string locationType)

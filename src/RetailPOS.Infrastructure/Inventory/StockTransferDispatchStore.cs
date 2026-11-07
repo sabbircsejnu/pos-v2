@@ -10,7 +10,9 @@ namespace RetailPOS.Infrastructure.StockTransfers;
 public sealed class StockTransferDispatchStore(
     RetailPOSDbContext dbContext,
     IStockLedgerWriter stockLedger,
-    ILogger<StockTransferDispatchStore> logger)
+    ILogger<StockTransferDispatchStore> logger,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null)
     : IStockTransferDispatchStore
 {
     public async Task<StockTransferDispatchResult> DispatchApprovedAsync(
@@ -20,7 +22,7 @@ public sealed class StockTransferDispatchStore(
         CancellationToken cancellationToken)
     {
         var transfer = await StockTransferWriteRules.TransfersInBusiness(dbContext, businessId)
-            .Include(candidate => candidate.Items)
+            .Include(candidate => candidate.Items).ThenInclude(item => item.Allocations)
             .FirstOrDefaultAsync(candidate => candidate.Id == transferId, cancellationToken);
         if (transfer is null)
             throw new KeyNotFoundException($"Stock transfer with ID {transferId} not found");
@@ -58,7 +60,7 @@ public sealed class StockTransferDispatchStore(
         CancellationToken cancellationToken)
     {
         var transfer = await StockTransferWriteRules.TransfersInBusiness(dbContext, businessId)
-            .Include(candidate => candidate.Items)
+            .Include(candidate => candidate.Items).ThenInclude(item => item.Allocations)
             .FirstOrDefaultAsync(candidate => candidate.Id == transferId, cancellationToken);
         if (transfer is null)
             throw new KeyNotFoundException($"Stock transfer with ID {transferId} not found");
@@ -164,6 +166,8 @@ public sealed class StockTransferDispatchStore(
             item.UnitCost = cost.UnitCost;
 
             sourceInventory.Quantity -= transferQuantity;
+            await StockTransferWriteRules.DispatchPackStateAsync(
+                uomReader, packState, businessId, transfer, item, fromLocationType, transferQuantity, sourceInventory.Quantity, dispatchedBy, cancellationToken);
             var transactionType = transfer.TransferType.Equals(
                     StockTransfer.TransferTypeReturn,
                     StringComparison.OrdinalIgnoreCase)
@@ -242,6 +246,6 @@ public sealed class StockTransferDispatchStore(
     private static string NormalizeStatus(string? status) =>
         string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToLowerInvariant();
 
-    private static int ResolveTransferQuantity(StockTransferItem item) =>
+    private static decimal ResolveTransferQuantity(StockTransferItem item) =>
         item.TransferQuantity > 0 ? item.TransferQuantity : item.Quantity;
 }

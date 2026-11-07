@@ -8,17 +8,17 @@ public sealed record OwnerDashboardPolicy
 {
     public int MinEligibleSellingDays { get; init; } = 14;
     public decimal SlowVelocityPerDay { get; init; } = 0.20m;
-    public int MinOnHandQty { get; init; } = 1;
+    public decimal MinOnHandQty { get; init; } = 1;
     public decimal MinDemandVelocityPerDay { get; init; } = 0.5m;
     public int SourceExcessCoverageDays { get; init; } = 60;
     public int SourceRetainedCoverageDays { get; init; } = 30;
     public int DestinationTargetCoverageDays { get; init; } = 21;
     public decimal MinVelocityRatio { get; init; } = 2.0m;
-    public int MinimumRetainedUnits { get; init; } = 1;
-    public int MinRecommendationQty { get; init; } = 1;
+    public decimal MinimumRetainedUnits { get; init; } = 1;
+    public decimal MinRecommendationQty { get; init; } = 1;
 
     /// <summary>No cap unless the business approves one (LLD-D07).</summary>
-    public int? MaxSuggestedQty { get; init; }
+    public decimal? MaxSuggestedQty { get; init; }
 
     public int HighPriorityCoverDays { get; init; } = 7;
     public int MediumPriorityCoverDays { get; init; } = 14;
@@ -90,7 +90,7 @@ public sealed record SalesDayFact(
     long OutletId,
     DateOnly BusinessDate,
     decimal NetSales,
-    long NetUnits,
+    decimal NetUnits,
     decimal Cogs,
     int MissingCostLines);
 
@@ -212,10 +212,10 @@ public sealed record VariantLocationFact(
     long LocationId,
     string LocationType,
     string LocationName,
-    int OnHand,
-    int PendingOutbound,
-    int PendingInbound,
-    long NetUnitsSold,
+    decimal OnHand,
+    decimal PendingOutbound,
+    decimal PendingInbound,
+    decimal NetUnitsSold,
     decimal NetSales,
     int EligibleSellingDays,
     bool HasStockEvidence,
@@ -224,7 +224,7 @@ public sealed record VariantLocationFact(
     decimal? UnitCost,
     decimal? StockValue)
 {
-    public int Available => Math.Max(0, OnHand);
+    public decimal Available => Math.Max(0, OnHand);
     public bool IsShowroom => LocationType == OwnerDashboardLocationTypes.Outlet;
 }
 
@@ -248,11 +248,11 @@ public sealed record StockValuationCoverage(
     decimal? ValuedSubtotal,
     string Status,
     int ValuedRecords,
-    long ValuedQuantity,
+    decimal ValuedQuantity,
     int ZeroCostRecords,
     long ZeroCostQuantity,
     int UnvaluedRecords,
-    long UnvaluedQuantity)
+    decimal UnvaluedQuantity)
 {
     public static StockValuationCoverage Of(IEnumerable<VariantLocationFact> facts)
     {
@@ -318,10 +318,10 @@ public sealed record InventorySummaryReadModel(
     MetricValue TotalStockValue,
     long TotalStockQuantity,
     int ActiveStockedProducts,
-    int StockedVariants,
+    decimal StockedVariants,
     MetricValue SlowMovingStockValue,
     decimal? SlowMovingSharePercent,
-    int OutOfStockVariants,
+    decimal OutOfStockVariants,
     int? TransferOpportunities,
     int? HighPriorityTransferOpportunities,
     string TransferOpportunityStatus,
@@ -357,7 +357,7 @@ public sealed record BestSellerRow(
     string Sku,
     string VariantLabel,
     string CategoryName,
-    long NetUnitsSold,
+    decimal NetUnitsSold,
     decimal NetSales,
     long CurrentAvailableStock);
 
@@ -385,8 +385,8 @@ public sealed record SlowMoverRow(
     string CategoryName,
     long LocationId,
     string LocationName,
-    int AvailableStock,
-    long NetUnitsSold,
+    decimal AvailableStock,
+    decimal NetUnitsSold,
     int? DaysSinceLastSale,
     decimal? StockValue,
     int EligibleSellingDays,
@@ -422,13 +422,13 @@ public static class TransferReasonCodes
 public sealed record TransferSideDetail(
     long LocationId,
     string LocationName,
-    int Available,
-    long NetUnitsSold,
+    decimal Available,
+    decimal NetUnitsSold,
     int EligibleSellingDays,
     decimal VelocityPerDay,
     decimal? CoverageDays,
-    int PendingOutbound,
-    int PendingInbound);
+    decimal PendingOutbound,
+    decimal PendingInbound);
 
 public sealed record TransferOpportunity(
     string RecommendationKey,
@@ -442,10 +442,10 @@ public sealed record TransferOpportunity(
     string CategoryName,
     TransferSideDetail Source,
     TransferSideDetail Destination,
-    int SourceProtectedQty,
-    int SourceSpareQty,
-    int DestinationNeedQty,
-    int SuggestedQty,
+    decimal SourceProtectedQty,
+    decimal SourceSpareQty,
+    decimal DestinationNeedQty,
+    decimal SuggestedQty,
     string Priority,
     IReadOnlyList<string> ReasonCodes,
     bool CanInitiate);
@@ -463,8 +463,8 @@ public sealed record ProductInsightLocationRow(
     long VariantId,
     string Sku,
     string VariantLabel,
-    int AvailableStock,
-    long NetUnitsSold,
+    decimal AvailableStock,
+    decimal NetUnitsSold,
     decimal NetSales,
     decimal? StockValue,
     int? DaysSinceLastSale);
@@ -476,7 +476,7 @@ public sealed record ProductInsightsReadModel(
     string ProductName,
     string CategoryName,
     long TotalAvailableStock,
-    long TotalNetUnitsSold,
+    decimal TotalNetUnitsSold,
     decimal TotalNetSales,
     decimal? TotalStockValue,
     IReadOnlyList<ProductInsightLocationRow> Locations,

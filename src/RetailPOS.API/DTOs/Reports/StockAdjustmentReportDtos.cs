@@ -13,7 +13,7 @@ public class StockAdjustmentRowDto
     public string   LocationType    { get; set; } = string.Empty;
     public string   LocationName    { get; set; } = string.Empty;
     public string   AdjustmentType  { get; set; } = string.Empty;  // "Addition" | "Reduction"
-    public int      QuantityChange  { get; set; }
+    public decimal      QuantityChange  { get; set; }
     public string   Reason          { get; set; } = string.Empty;
     public string   AdjustedBy      { get; set; } = string.Empty;
 }
@@ -21,9 +21,9 @@ public class StockAdjustmentRowDto
 public class StockAdjustmentSummaryDto
 {
     public int TotalAdjustments  { get; set; }
-    public int TotalAdditions    { get; set; }
-    public int TotalReductions   { get; set; }
-    public int NetQuantityChange { get; set; }
+    public decimal TotalAdditions    { get; set; }
+    public decimal TotalReductions   { get; set; }
+    public decimal NetQuantityChange { get; set; }
 }
 
 public class StockAdjustmentReportDto

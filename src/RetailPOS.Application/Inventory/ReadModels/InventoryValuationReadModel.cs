@@ -4,7 +4,7 @@ public sealed record InventoryValuationReadModel(
     string LocationName,
     string LocationType,
     int TotalItems,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalCostValue,
     decimal TotalRetailValue,
     IReadOnlyList<CategoryValuationReadModel> CategoryBreakdown);
@@ -12,6 +12,6 @@ public sealed record InventoryValuationReadModel(
 public sealed record CategoryValuationReadModel(
     string CategoryName,
     int ProductCount,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalCostValue,
     decimal TotalRetailValue);

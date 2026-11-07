@@ -15,3 +15,20 @@ Spec: `Docs/Owner_Dashboards/`. Mapping and decisions: `Docs/Owner_Dashboards/IM
 | OD-08 | Inventory Intelligence page and details dialog | OD-05, OD-06 | Vitest | done |
 | OD-09 | Transfer-create prefill | OD-08 | Vitest | done |
 | OD-10 | Security and code review, full builds and suites | all | verify-build | done |
+
+# UOM v1 (D01–D12) — implementation tasks
+
+Spec: `Docs/Unit_Of_Measurement/`. Audit and decisions: `Docs/Unit_Of_Measurement/IMPLEMENTATION_IMPACT_ANALYSIS.md`.
+
+| ID | Task | Verify with | Status |
+|---|---|---|---|
+| UOM-00 | Audit and impact analysis | Document exists | done |
+| UOM-01 | Widen quantities to decimal, migration | Full backend suites | done |
+| UOM-02 | Unit master, versioned config, conversion engine, API | `UomPostgresHttpTests` | done |
+| UOM-03 | PO, GRN, damaged and sealed/loose receiving | `UomPostgresHttpTests` | done |
+| UOM-04 | POS sale, held sale, void, refund, packaging | `UomPostgresHttpTests` | done |
+| UOM-05 | Pack-state, open, transfer, adjustment, count | `UomPostgresHttpTests` | done |
+| UOM-06 | Repacking with Pattern P1 | `UomPostgresHttpTests` | done |
+| UOM-07 | Valuation, dashboards, reports | Integration tests | pending |
+| UOM-08 | Angular UI | Vitest, build | pending |
+| UOM-09 | Full regression, report | verify-build | pending |

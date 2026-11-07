@@ -208,7 +208,7 @@ public sealed class GrnLocationAuthorizationHttpTests(RetailPosApiFactory factor
                 20, 1, 10, locationId, locationType, "approved",
                 [new GrnCreationPurchaseOrderItemReadModel(21, 5, 10m, 0m, 0m, null)]));
         _creation.Setup(store => store.GetCompletedReceivedQuantitiesAsync(20, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<long, int>());
+            .ReturnsAsync(new Dictionary<long, decimal>());
         _creation.Setup(store => store.CreateAsync(
                 It.IsAny<GrnCreationRecord>(),
                 It.IsAny<long?>(),

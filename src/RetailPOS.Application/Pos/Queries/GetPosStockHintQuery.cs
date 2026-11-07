@@ -8,7 +8,7 @@ namespace RetailPOS.Application.Pos.Queries;
 public sealed record GetPosStockHintQuery(
     long VariantId,
     long OutletId,
-    int RequestedQty) : IQuery<PosStockHintReadModel>;
+    decimal RequestedQty) : IQuery<PosStockHintReadModel>;
 
 public sealed class GetPosStockHintQueryHandler(
     IPosProductLookupStore store,
@@ -43,7 +43,7 @@ public sealed class GetPosStockHintQueryHandler(
 
     private static PosStockHintReadModel CreateReadModel(
         GetPosStockHintQuery request,
-        int quantity,
+        decimal quantity,
         bool fromCache) =>
         new(
             request.VariantId,

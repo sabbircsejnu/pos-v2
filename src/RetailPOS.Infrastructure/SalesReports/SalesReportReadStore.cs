@@ -40,7 +40,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             .ToListAsync(cancellationToken);
 
         decimal refundAmount = 0m;
-        long returnedUnits = 0L;
+        decimal returnedUnits = 0m;
         if (saleIds.Count > 0)
         {
             var saleIdReferences = saleIds.Select(id => id.ToString()).ToList();
@@ -80,13 +80,13 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                     && scope.OutletIds.Contains(movement.LocationId)
                     && movement.CreatedAt >= filter.StartDate
                     && movement.CreatedAt <= filter.EndDate)
-                .SumAsync(movement => (long?)movement.QtyIn, cancellationToken) ?? 0L;
+                .SumAsync(movement => (decimal?)movement.QtyIn, cancellationToken) ?? 0m;
         }
 
         var unitsSold = await dbContext.SaleItems
             .AsNoTracking()
             .Where(item => eligibleSaleIds.Contains(item.SaleId))
-            .SumAsync(item => (long?)item.Quantity, cancellationToken) ?? 0L;
+            .SumAsync(item => (decimal?)item.Quantity, cancellationToken) ?? 0m;
         var netRevenue = totalRevenue - refundAmount;
 
         return new MobileSalesDashboardReadModel(
@@ -95,7 +95,8 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             totalRevenue,
             netRevenue,
             invoiceCount,
-            unitsSold - returnedUnits,
+            // Normalized: a SQL COALESCE(..., 0.0) carries a scale that mobile clients would read as a non-integer.
+            RetailPOS.Application.Uom.UomQuantityMath.Normalize(unitsSold - returnedUnits),
             invoiceCount > 0 ? netRevenue / invoiceCount : 0m);
     }
 
@@ -156,7 +157,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             totals.TotalTransactions > 0 ? netRevenue / totals.TotalTransactions : 0);
     }
 
-    public async Task<long> GetUnitCountAsync(
+    public async Task<decimal> GetUnitCountAsync(
         SalesReportReadScope scope,
         SalesReportFilter filter,
         CancellationToken cancellationToken)
@@ -169,7 +170,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                 && item.Sale.SaleDate <= filter.EndDate
                 && (!filter.OutletId.HasValue || item.Sale.OutletId == filter.OutletId.Value)
                 && (!filter.CashierId.HasValue || item.Sale.CashierId == filter.CashierId.Value))
-            .SumAsync(item => (long?)item.Quantity, cancellationToken) ?? 0L;
+            .SumAsync(item => (decimal?)item.Quantity, cancellationToken) ?? 0m;
     }
 
     public async Task<IReadOnlyList<TopProductReadModel>> GetTopProductsAsync(

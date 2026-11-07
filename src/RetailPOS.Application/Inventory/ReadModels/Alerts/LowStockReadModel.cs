@@ -9,7 +9,7 @@ public sealed record LowStockReadModel(
     string? VariantAttributes,
     string? PrimaryImageThumb,
     string? Sku,
-    int CurrentQuantity,
+    decimal CurrentQuantity,
     int ReorderLevel,
     string LocationName,
     string LocationType);

@@ -181,7 +181,9 @@ public sealed class SaleCreationStore(
             return 0m;
 
         var weightedAverageCost = completedReceiptLines.Sum(item => item.ReceivedQty * item.UnitCost) / totalReceivedQty;
-        return Math.Round(weightedAverageCost, 4);
+        // A base unit can be a millilitre or a gram, where four decimals would lose real money. Plain pcs items keep four.
+        var isConfigured = await dbContext.VariantUomConfigs.AnyAsync(config => config.VariantId == variantId, cancellationToken);
+        return Math.Round(weightedAverageCost, isConfigured ? 8 : 4);
     }
 
     public Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken) =>

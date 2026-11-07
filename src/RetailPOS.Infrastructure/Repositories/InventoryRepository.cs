@@ -224,7 +224,7 @@ public class InventoryRepository : IInventoryRepository
         }
     }
 
-    public async Task<int> GetTotalQuantityByVariantAsync(
+    public async Task<decimal> GetTotalQuantityByVariantAsync(
         long variantId,
         CancellationToken cancellationToken = default)
     {

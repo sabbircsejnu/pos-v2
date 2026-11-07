@@ -6,11 +6,11 @@ public sealed record StockTransferReceiveInput(
 
 public sealed record StockTransferReceiveItemInput(
     long VariantId,
-    int AcceptedQuantity,
-    int RejectedQuantity,
+    decimal AcceptedQuantity,
+    decimal RejectedQuantity,
     string? Remarks,
-    int MissingQuantity = 0,
-    int DamagedQuantity = 0);
+    decimal MissingQuantity = 0,
+    decimal DamagedQuantity = 0);
 
 public sealed record StockTransferReceiveResult(
     long TransferId,

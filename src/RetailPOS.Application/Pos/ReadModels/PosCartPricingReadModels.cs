@@ -1,6 +1,6 @@
 namespace RetailPOS.Application.Pos.ReadModels;
 
-public sealed record PosCartPriceLine(long ProductVariantId, long? OutletId, int Quantity);
+public sealed record PosCartPriceLine(long ProductVariantId, long? OutletId, decimal Quantity);
 
 public sealed record PosCartPricingVariantReadModel(
     long Id,

@@ -11,8 +11,10 @@ public sealed record GrnCreationPurchaseOrderReadModel(
 
 public sealed record GrnCreationPurchaseOrderItemReadModel(
     long Id,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
     decimal Tax,
-    bool? TaxInclusive);
+    bool? TaxInclusive,
+    long VariantId = 0,
+    RetailPOS.Core.Entities.Uom.UnitTransactionSnapshot? Snapshot = null);

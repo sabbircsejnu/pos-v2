@@ -28,8 +28,8 @@ public sealed class StockTransferReconciliationPostgresTests
     private const long Warehouse = 21;
     private const long Outlet = 11;
     private const long TransferId = 601;
-    private const int SourceStock = 20;
-    private const int DestinationStock = 5;
+    private const decimal SourceStock = 20;
+    private const decimal DestinationStock = 5;
     private const int Dispatched = 10;
 
     [Fact]
@@ -79,9 +79,9 @@ public sealed class StockTransferReconciliationPostgresTests
             Assert.Equal(
                 new[]
                 {
-                    (StockLedgerTransactionType.TransferIn, 6, 0, DestinationStock + 6),
-                    (StockLedgerTransactionType.TransferRejection, 0, 0, DestinationStock + 6),
-                    (StockLedgerTransactionType.TransferDiscrepancy, 0, 0, DestinationStock + 6)
+                    (StockLedgerTransactionType.TransferIn, (decimal)6, (decimal)0, (decimal)(DestinationStock + 6)),
+                    (StockLedgerTransactionType.TransferRejection, (decimal)0, (decimal)0, (decimal)(DestinationStock + 6)),
+                    (StockLedgerTransactionType.TransferDiscrepancy, (decimal)0, (decimal)0, (decimal)(DestinationStock + 6))
                 },
                 atOutlet.Select(row => (row.TransactionType, row.QtyIn, row.QtyOut, row.BalanceAfter)));
             Assert.Equal(new long[] { 1, 2, 3 }, atOutlet.Select(row => row.MovementSequence));
@@ -95,10 +95,10 @@ public sealed class StockTransferReconciliationPostgresTests
             Assert.Equal(
                 new[]
                 {
-                    (StockLedgerTransactionType.Grn, SourceStock, 0, SourceStock),
-                    (StockLedgerTransactionType.TransferOut, 0, Dispatched, SourceStock - Dispatched),
-                    (StockLedgerTransactionType.ReturnTransferIn, 1, 0, SourceStock - Dispatched + 1),
-                    (StockLedgerTransactionType.TransferDiscrepancy, 0, 0, SourceStock - Dispatched + 1)
+                    (StockLedgerTransactionType.Grn, (decimal)SourceStock, (decimal)0, (decimal)(SourceStock)),
+                    (StockLedgerTransactionType.TransferOut, (decimal)0, (decimal)Dispatched, (decimal)(SourceStock - Dispatched)),
+                    (StockLedgerTransactionType.ReturnTransferIn, (decimal)1, (decimal)0, (decimal)(SourceStock - Dispatched + 1)),
+                    (StockLedgerTransactionType.TransferDiscrepancy, (decimal)0, (decimal)0, (decimal)(SourceStock - Dispatched + 1))
                 },
                 atWarehouse.Select(row => (row.TransactionType, row.QtyIn, row.QtyOut, row.BalanceAfter)));
             Assert.Equal(75m, atWarehouse[1].MovementValue);
@@ -385,8 +385,8 @@ public sealed class StockTransferReconciliationPostgresTests
     private sealed class InterleavingLedgerWriter(IStockLedgerWriter inner, Action beforeWrite) : IStockLedgerWriter
     {
         public void WriteEntry(
-            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
-            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            long variantId, long locationId, string locationType, string transactionType, decimal qtyIn, decimal qtyOut,
+            decimal balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
             DateTime? createdAt = null, decimal? unitCost = null, decimal? movementValue = null,
             DateTime? businessDate = null, long? movementSequence = null, long? reversalOfMovementId = null)
         {
@@ -397,8 +397,8 @@ public sealed class StockTransferReconciliationPostgresTests
         }
 
         public void WriteEntryWithValuation(
-            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
-            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            long variantId, long locationId, string locationType, string transactionType, decimal qtyIn, decimal qtyOut,
+            decimal balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
             DateTime? createdAt = null, decimal? unitCost = null, decimal? movementValue = null,
             DateTime? businessDate = null, long? movementSequence = null, long? reversalOfMovementId = null)
         {
@@ -409,8 +409,8 @@ public sealed class StockTransferReconciliationPostgresTests
         }
 
         public void WriteVerifiedZeroCostEntry(
-            long variantId, long locationId, string locationType, string transactionType, int qtyIn, int qtyOut,
-            int balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
+            long variantId, long locationId, string locationType, string transactionType, decimal qtyIn, decimal qtyOut,
+            decimal balanceAfter, string referenceType, long referenceId, string? remarks = null, long? createdBy = null,
             DateTime? createdAt = null) =>
             inner.WriteVerifiedZeroCostEntry(variantId, locationId, locationType, transactionType, qtyIn, qtyOut,
                 balanceAfter, referenceType, referenceId, remarks, createdBy, createdAt);
@@ -492,7 +492,7 @@ public sealed class StockTransferReconciliationPostgresTests
             ?? throw new InvalidOperationException($"Transfer {transferId} not found.");
     }
 
-    private static async Task<(int Source, int Destination)> StockAsync(PostgresTestDatabase database)
+    private static async Task<(decimal Source, decimal Destination)> StockAsync(PostgresTestDatabase database)
     {
         await using var context = CreateContext(database);
         var rows = await context.Inventories.AsNoTracking()

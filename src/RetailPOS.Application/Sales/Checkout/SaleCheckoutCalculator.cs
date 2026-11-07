@@ -12,18 +12,21 @@ public sealed record SaleTaxPolicy(bool Enabled, decimal RatePercent, bool Price
 /// <summary>
 /// A cart line whose <see cref="UnitPrice"/> has already been resolved by the server pricing pipeline. A null
 /// <see cref="TaxRatePercent"/> means "use the policy rate" (a product without its own tax configuration).
+/// <see cref="LineGross"/> is set for a unit-configured line: the pack or custom amount is the authority, and
+/// <see cref="UnitPrice"/> is that amount spread over the base quantity.
 /// </summary>
 public sealed record SaleCheckoutLineInput(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal LineDiscount,
     decimal? TaxRatePercent = null,
-    string? TaxClassification = null);
+    string? TaxClassification = null,
+    decimal? LineGross = null);
 
 public sealed record SaleCheckoutLineResult(
     long VariantId,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal LineDiscount,
     decimal Subtotal,
@@ -68,11 +71,14 @@ public static class SaleCheckoutCalculator
         for (var index = 0; index < lines.Count; index++)
         {
             var line = lines[index];
-            if (line.Quantity < 1)
+            if (line.LineGross.HasValue ? line.Quantity <= 0m : line.Quantity < 1)
                 throw new SaleCheckoutValidationException(
                     SaleCheckoutErrorCodes.InvalidQuantity,
                     $"Quantity for variant ID {line.VariantId} must be at least 1.");
-            RequireCurrencyPrecision(line.UnitPrice, "Unit price", SaleCheckoutErrorCodes.InvalidDiscount);
+            if (line.LineGross.HasValue)
+                RequireCurrencyPrecision(line.LineGross.Value, "Line amount", SaleCheckoutErrorCodes.InvalidDiscount);
+            else
+                RequireCurrencyPrecision(line.UnitPrice, "Unit price", SaleCheckoutErrorCodes.InvalidDiscount);
             RequireCurrencyPrecision(line.LineDiscount, "Line discount", SaleCheckoutErrorCodes.InvalidDiscount);
             if (line.UnitPrice < 0m)
                 throw new SaleCheckoutValidationException(
@@ -83,7 +89,7 @@ public static class SaleCheckoutCalculator
                     SaleCheckoutErrorCodes.InvalidDiscount,
                     $"Line discount for variant ID {line.VariantId} cannot be negative.");
 
-            var gross = line.Quantity * line.UnitPrice;
+            var gross = line.LineGross ?? line.Quantity * line.UnitPrice;
             if (line.LineDiscount > gross)
                 throw new SaleCheckoutValidationException(
                     SaleCheckoutErrorCodes.InvalidDiscount,

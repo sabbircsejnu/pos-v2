@@ -19,7 +19,7 @@ public sealed record ProductReadModel(
     string Status,
     bool IsActive,
     int VariantCount,
-    int TotalStock,
+    decimal TotalStock,
     IReadOnlyList<ProductVariantReadModel> Variants,
     DateTime CreatedAt,
     DateTime UpdatedAt)

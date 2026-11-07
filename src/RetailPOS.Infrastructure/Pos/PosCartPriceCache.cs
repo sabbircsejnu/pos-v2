@@ -20,7 +20,7 @@ public sealed class PosCartPriceCache(
         string scope,
         long variantId,
         long? outletId,
-        int quantity,
+        decimal quantity,
         CancellationToken cancellationToken)
     {
         try
@@ -47,7 +47,7 @@ public sealed class PosCartPriceCache(
         string scope,
         long variantId,
         long? outletId,
-        int quantity,
+        decimal quantity,
         PosCartPriceReadModel result,
         CancellationToken cancellationToken)
     {
@@ -69,6 +69,6 @@ public sealed class PosCartPriceCache(
         }
     }
 
-    private static string PriceKey(string scope, long variantId, long? outletId, int quantity) =>
+    private static string PriceKey(string scope, long variantId, long? outletId, decimal quantity) =>
         $"pos:price:{scope}:{variantId}:{outletId ?? 0}:{quantity}";
 }

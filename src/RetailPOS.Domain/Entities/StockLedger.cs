@@ -24,13 +24,13 @@ public class StockLedger
     public string TransactionType { get; set; } = string.Empty;
 
     /// <summary>Units added (0 when this row is a pure deduction).</summary>
-    public int QtyIn { get; set; }
+    public decimal QtyIn { get; set; }
 
     /// <summary>Units removed (0 when this row is a pure addition).</summary>
-    public int QtyOut { get; set; }
+    public decimal QtyOut { get; set; }
 
     /// <summary>Inventory balance for this variant+location immediately after this movement.</summary>
-    public int BalanceAfter { get; set; }
+    public decimal BalanceAfter { get; set; }
 
     /// <summary>Unit cost used when this movement was recorded.</summary>
     public decimal UnitCost { get; set; }

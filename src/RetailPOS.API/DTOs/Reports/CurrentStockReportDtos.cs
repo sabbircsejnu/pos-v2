@@ -10,8 +10,8 @@ public class CurrentStockRowDto
     public long LocationId { get; set; }
     public string LocationType { get; set; } = string.Empty;
     public string LocationName { get; set; } = string.Empty;
-    public int AvailableQuantity { get; set; }
-    public int ReservedQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public decimal ReservedQuantity { get; set; }
     public int ReorderLevel { get; set; }
     public decimal UnitCost { get; set; }
     public decimal StockValue { get; set; }
@@ -23,7 +23,7 @@ public class CurrentStockRowDto
 public class CurrentStockSummaryDto
 {
     public int TotalProducts { get; set; }
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalStockValue { get; set; }
 }
 

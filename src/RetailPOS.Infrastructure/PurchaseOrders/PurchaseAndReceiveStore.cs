@@ -3,17 +3,19 @@ using Microsoft.Extensions.Logging;
 using RetailPOS.Application.Inventory.Costing;
 using RetailPOS.Application.PurchaseOrders.Abstractions;
 using RetailPOS.Application.PurchaseOrders.Commands;
+using RetailPOS.Application.Uom;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Money;
 using RetailPOS.Infrastructure.Data;
 
 namespace RetailPOS.Infrastructure.PurchaseOrders;
 
-public sealed class PurchaseAndReceiveStore(
-    RetailPOSDbContext dbContext,
-    IPurchaseAndReceiveStockLedgerWriter stockLedgerWriter,
-    IPurchaseReceiptJournalPoster journalPoster,
-    ILogger<PurchaseAndReceiveStore> logger)
+public sealed class PurchaseAndReceiveStore(
+    RetailPOSDbContext dbContext,
+    IPurchaseAndReceiveStockLedgerWriter stockLedgerWriter,
+    IPurchaseReceiptJournalPoster journalPoster,
+    ILogger<PurchaseAndReceiveStore> logger,
+    RetailPOS.Application.Uom.IPackStateLedger? packState = null)
     : IPurchaseAndReceiveStore
 {
     public async Task<PurchaseAndReceiveStoreResult> ExecuteAsync(
@@ -79,14 +81,20 @@ public sealed class PurchaseAndReceiveStore(
                 Notes = command.Notes,
                 TotalAmount = totalAmount,
                 CreatedBy = command.UserId,
-                Items = items.Select(item => new PurchaseOrderItem
+                Items = items.Select(item =>
                 {
-                    VariantId = item.VariantId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    Discount = item.Discount,
-                    Tax = item.Tax,
-                    Unit = item.Unit
+                    var orderItem = new PurchaseOrderItem
+                    {
+                        VariantId = item.VariantId,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        Discount = item.Discount,
+                        Tax = item.Tax,
+                        Unit = item.Unit
+                    };
+                    if (item.Snapshot is not null)
+                        orderItem.CaptureUomSnapshot(item.Snapshot);
+                    return orderItem;
                 }).ToList()
             };
             purchaseOrder.SetDestination(destination.LocationType, destination.LocationId);
@@ -168,6 +176,19 @@ public sealed class PurchaseAndReceiveStore(
                         receiptItem.ReceivedQty * receiptItem.UnitCost,
                         purchaseOrderItem.UnitPrice,
                         purchaseOrderItem.Discount));
+
+                var commandItem = items.FirstOrDefault(item => item.VariantId == purchaseOrderItem.VariantId && item.TrackPackState);
+                if (commandItem is not null && packState is not null)
+                {
+                    var breakdown = PurchaseUomRules.Breakdown(
+                        receiptItem.ReceivedQty, commandItem.AcceptedSealedPacks, commandItem.AcceptedLooseQuantity,
+                        purchaseOrderItem.ReadUomSnapshot(), commandItem.IsSealedPackLine);
+                    receiptItem.AcceptedSealedPacks = breakdown.SealedPacks;
+                    receiptItem.AcceptedLooseQuantity = breakdown.LooseQuantity;
+                    await PurchaseUomRules.ApplyReceiptAsync(
+                        packState, supplierBusinessId, purchaseOrderItem.VariantId, locationId, locationType, grn.Id, command.UserId,
+                        breakdown, inventory.Quantity, cancellationToken);
+                }
             }
 
             await journalPoster.PostAsync(

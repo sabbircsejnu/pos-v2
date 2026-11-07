@@ -4,12 +4,12 @@ using RetailPOS.Application.Inventory.Abstractions;
 
 namespace RetailPOS.Application.Inventory.Queries;
 
-public sealed record GetTotalStockByVariantQuery(long VariantId) : IQuery<int>;
+public sealed record GetTotalStockByVariantQuery(long VariantId) : IQuery<decimal>;
 
 public sealed class GetTotalStockByVariantQueryHandler(IInventoryReadStore store)
-    : IRequestHandler<GetTotalStockByVariantQuery, int>
+    : IRequestHandler<GetTotalStockByVariantQuery, decimal>
 {
-    public Task<int> Handle(
+    public Task<decimal> Handle(
         GetTotalStockByVariantQuery request,
         CancellationToken cancellationToken) =>
         store.GetTotalQuantityByVariantAsync(request.VariantId, cancellationToken);

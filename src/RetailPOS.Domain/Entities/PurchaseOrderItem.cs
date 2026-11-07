@@ -1,11 +1,11 @@
 namespace RetailPOS.Core.Entities;
 
-public class PurchaseOrderItem
+public class PurchaseOrderItem : RetailPOS.Core.Entities.Uom.UomSnapshotColumns
 {
     public long Id { get; set; }
     public long PoId { get; set; }
     public long VariantId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     /// <summary>Item-level discount percentage (0–100). Default: 0.</summary>
     public decimal Discount { get; set; } = 0;

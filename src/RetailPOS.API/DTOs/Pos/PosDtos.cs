@@ -39,7 +39,7 @@ public class PosProductLookupDto
     ///   from Redis. Authoritative stock deduction happens inside the Application sale command
     ///   using a DB-level xmin concurrency token — not from this field.
     /// </summary>
-    public int  StockQty       { get; set; }
+    public decimal  StockQty       { get; set; }
     public bool InStock        { get; set; }
     /// <summary>True when StockQty was read from Redis rather than a live DB query.</summary>
     public bool StockFromCache { get; set; }
@@ -57,7 +57,7 @@ public class PosStockHintDto
 {
     public long VariantId    { get; set; }
     public long OutletId     { get; set; }
-    public int  AvailableQty { get; set; }
+    public decimal  AvailableQty { get; set; }
     /// <summary>True when AvailableQty >= requested quantity.</summary>
     public bool Sufficient   { get; set; }
     /// <summary>True when the value was read from the Redis cache (≤30 s stale).</summary>
@@ -83,7 +83,7 @@ public class PosCatalogueItemDto
     public decimal ListPrice         { get; set; }
     public string? PrimaryImageThumb { get; set; }
     /// <summary>Quantity at the requested (authorized) outlet; null when no outlet was requested.</summary>
-    public int?    StockQty          { get; set; }
+    public decimal?    StockQty          { get; set; }
 }
 
 /// <summary>Active category returned by GET /api/pos/categories for POS filtering.</summary>

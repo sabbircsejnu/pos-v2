@@ -13,9 +13,16 @@ public class CreateStockAdjustmentBatchDto
 public class CreateStockAdjustmentLineDto
 {
     public long VariantId { get; set; }
-    public int QuantityChange { get; set; }
+    public decimal QuantityChange { get; set; }
     public string? Reason { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Signed quantity as entered. With it the server converts to base units and ignores QuantityChange.</summary>
+    public decimal? EnteredQuantity { get; set; }
+    public long? UnitOptionId { get; set; }
+    public long? ExpectedConfigVersionId { get; set; }
+    public string? PackState { get; set; }
+    public string? PackCode { get; set; }
+    public decimal? BaseQtyPerPack { get; set; }
 }
 
 public static class StockAdjustmentCreateActions

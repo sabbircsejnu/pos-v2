@@ -6,7 +6,7 @@ public sealed record MobileSalesDashboardDto(
     decimal TotalRevenue,
     decimal NetRevenue,
     int InvoiceCount,
-    long UnitCount,
+    decimal UnitCount,
     decimal AverageInvoiceValue);
 
 public sealed record MobileSalesActivityTrendDto(

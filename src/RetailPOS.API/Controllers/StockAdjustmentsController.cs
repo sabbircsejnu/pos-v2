@@ -265,7 +265,13 @@ public class StockAdjustmentsController : ControllerBase
                                 item.VariantId,
                                 item.QuantityChange,
                                 item.Reason,
-                                item.Notes))
+                                item.Notes,
+                                item.UnitOptionId,
+                                item.EnteredQuantity,
+                                item.ExpectedConfigVersionId,
+                                item.PackState,
+                                item.PackCode,
+                                item.BaseQtyPerPack))
                             .ToArray(),
                         string.Equals(
                             NormalizeCreationAction(dto.Action),

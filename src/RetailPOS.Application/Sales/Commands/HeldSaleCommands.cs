@@ -11,10 +11,15 @@ public sealed record HoldSaleItem(
     long VariantId,
     string ProductName,
     string VariantSku,
-    int Quantity,
+    decimal Quantity,
     decimal UnitPrice,
     decimal DiscountAmount,
-    string? AppliedRuleName);
+    string? AppliedRuleName,
+    long? SellingOptionId = null,
+    long? ExpectedConfigVersionId = null,
+    string? FulfilmentState = null,
+    bool IncludePackaging = false,
+    string? UnitLabel = null);
 
 public sealed record HoldSaleCommand(
     long OutletId,

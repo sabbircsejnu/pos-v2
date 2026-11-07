@@ -11,5 +11,5 @@ public sealed record GrnVarianceItemReadModel(
     long VariantId,
     string ProductName,
     string VariantName,
-    int OrderedQuantity,
-    int ReceivedQuantity);
+    decimal OrderedQuantity,
+    decimal ReceivedQuantity);

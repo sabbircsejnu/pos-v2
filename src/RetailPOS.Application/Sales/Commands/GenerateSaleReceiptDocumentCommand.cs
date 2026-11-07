@@ -74,8 +74,8 @@ public sealed class GenerateSaleReceiptDocumentCommandHandler(
         var items = sale.Items.Select(item => new SaleReceiptLineItemReadModel(
             item.ProductName ?? item.VariantName ?? "Item",
             item.VariantName ?? item.VariantSku,
-            item.Quantity,
-            item.UnitPrice,
+            item.EnteredQuantity ?? item.Quantity,
+            item.EnteredUnitPrice ?? item.UnitPrice,
             item.DiscountAmount,
             item.Subtotal,
             item.VatRate,
@@ -174,6 +174,8 @@ public sealed class GenerateSaleReceiptDocumentCommandHandler(
             name = $"{name} - {variant}";
         }
 
+        if (item.UnitLabel is not null)
+            name = $"{name} [{item.UnitLabel}]";
         return string.IsNullOrWhiteSpace(item.VariantSku) ? name : $"{name} ({item.VariantSku})";
     }
 

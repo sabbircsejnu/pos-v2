@@ -17,6 +17,6 @@ public class ProductVariantSearchDto
     public string? VariantDisplay { get; set; }
     public decimal FinalPrice { get; set; }
     public decimal? CostPrice { get; set; }
-    public int? StockQuantity { get; set; }
+    public decimal? StockQuantity { get; set; }
     public string? PrimaryImageThumb { get; set; }
 }

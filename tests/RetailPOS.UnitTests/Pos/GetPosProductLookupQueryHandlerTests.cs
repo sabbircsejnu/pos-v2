@@ -165,10 +165,10 @@ public sealed class GetPosProductLookupQueryHandlerTests
     {
         public PosProductLookupVariantReadModel? BarcodeVariant { get; init; }
         public PosProductLookupVariantReadModel? FallbackVariant { get; init; }
-        public int StockQuantity { get; init; }
+        public decimal StockQuantity { get; init; }
         public int LookupCalls { get; private set; }
         public int FallbackCalls { get; private set; }
-        public int StockCalls { get; private set; }
+        public decimal StockCalls { get; private set; }
         public long? StockOutletId { get; private set; }
         public CancellationToken CancellationToken { get; private set; }
 
@@ -208,7 +208,7 @@ public sealed class GetPosProductLookupQueryHandlerTests
             return Task.FromResult<PosProductLookupVariantReadModel?>(null);
         }
 
-        public Task<int> GetOutletStockAsync(
+        public Task<decimal> GetOutletStockAsync(
             long variantId,
             long outletId,
             CancellationToken cancellationToken)
@@ -224,7 +224,7 @@ public sealed class GetPosProductLookupQueryHandlerTests
     {
         public PosProductLookupReadModel? CachedLookup { get; init; }
         public PosProductLookupReadModel? SavedLookup { get; private set; }
-        public int? CachedStock { get; init; }
+        public decimal? CachedStock { get; init; }
         public PosProductLookupMode LookupMode { get; private set; }
         public string? LookupQuery { get; private set; }
         public long? LookupOutletId { get; private set; }
@@ -255,7 +255,7 @@ public sealed class GetPosProductLookupQueryHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<int?> GetStockAsync(
+        public Task<decimal?> GetStockAsync(
             long variantId,
             long outletId,
             CancellationToken cancellationToken)
@@ -267,7 +267,7 @@ public sealed class GetPosProductLookupQueryHandlerTests
         public Task SetStockAsync(
             long variantId,
             long outletId,
-            int quantity,
+            decimal quantity,
             CancellationToken cancellationToken)
         {
             CancellationToken = cancellationToken;

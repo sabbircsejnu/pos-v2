@@ -18,9 +18,9 @@ public sealed record ReconciliationLineEvidence(
 public sealed record ReconciliationLedgerEntry(
     long VariantId,
     string TransactionType,
-    int QtyIn,
-    int QtyOut,
-    int BalanceAfter,
+    decimal QtyIn,
+    decimal QtyOut,
+    decimal BalanceAfter,
     long MovementSequence,
     DateTime CreatedAtUtc);
 

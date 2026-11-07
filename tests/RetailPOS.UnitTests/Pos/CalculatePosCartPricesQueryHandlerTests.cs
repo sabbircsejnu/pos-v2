@@ -261,14 +261,14 @@ public sealed class CalculatePosCartPricesQueryHandlerTests
     {
         public List<PosCartPriceReadModel> Results { get; } = [];
         public List<long> Outlets { get; } = [];
-        public Dictionary<(string Scope, long VariantId, long OutletId, int Quantity), PosCartPriceReadModel> CachedResults { get; } = [];
+        public Dictionary<(string Scope, long VariantId, long OutletId, decimal Quantity), PosCartPriceReadModel> CachedResults { get; } = [];
         public CancellationToken CancellationToken { get; private set; }
 
         public Task<PosCartPriceReadModel?> GetAsync(
             string scope,
             long variantId,
             long? outletId,
-            int quantity,
+            decimal quantity,
             CancellationToken cancellationToken)
         {
             CachedResults.TryGetValue((scope, variantId, outletId ?? 0, quantity), out var result);
@@ -279,7 +279,7 @@ public sealed class CalculatePosCartPricesQueryHandlerTests
             string scope,
             long variantId,
             long? outletId,
-            int quantity,
+            decimal quantity,
             PosCartPriceReadModel result,
             CancellationToken cancellationToken)
         {

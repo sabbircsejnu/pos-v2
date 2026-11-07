@@ -153,7 +153,7 @@ public sealed class ProductReadStore(
                 displayName = "Standard";
             }
 
-            int? stockQuantity = null;
+            decimal? stockQuantity = null;
             if (criteria.LocationId.HasValue &&
                 (normalizedLocationType == "outlet" || normalizedLocationType == "warehouse"))
             {

@@ -13,23 +13,23 @@ public sealed record StockLevelReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int Quantity,
+    decimal Quantity,
     int ReorderLevel,
     bool IsLowStock,
     decimal EstimatedValue);
 
-public sealed record InventoryReportCategoryValuationReadModel(string CategoryName, decimal Value, int ItemCount);
+public sealed record InventoryReportCategoryValuationReadModel(string CategoryName, decimal Value, decimal ItemCount);
 
 public sealed record InventoryReportValuationReadModel(
     decimal TotalValue,
-    int TotalItems,
+    decimal TotalItems,
     IReadOnlyList<InventoryReportCategoryValuationReadModel> ByCategory);
 
 public sealed record SlowMovingItemReadModel(
     long VariantId,
     string ProductName,
     string Sku,
-    int CurrentStock,
+    decimal CurrentStock,
     int DaysSinceLastSale,
     decimal EstimatedValue);
 
@@ -54,8 +54,8 @@ public sealed record CurrentStockRowReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int AvailableQuantity,
-    int ReservedQuantity,
+    decimal AvailableQuantity,
+    decimal ReservedQuantity,
     int ReorderLevel,
     decimal UnitCost,
     decimal StockValue,
@@ -65,7 +65,7 @@ public sealed record CurrentStockRowReadModel(
 
 public sealed record CurrentStockSummaryReadModel(
     int TotalProducts,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalStockValue);
 
 public sealed record CurrentStockReportReadModel(
@@ -95,20 +95,20 @@ public sealed record ProductLedgerRowReadModel(
     string Sku,
     long LocationId,
     string LocationName,
-    int OpeningQuantity,
-    int StockIn,
-    int StockOut,
-    int ClosingQuantity,
+    decimal OpeningQuantity,
+    decimal StockIn,
+    decimal StockOut,
+    decimal ClosingQuantity,
     decimal UnitCost,
     decimal TransactionValue,
     string? PerformedBy,
     string? Remarks);
 
 public sealed record ProductLedgerSummaryReadModel(
-    int OpeningStock,
-    int TotalStockIn,
-    int TotalStockOut,
-    int ClosingStock,
+    decimal OpeningStock,
+    decimal TotalStockIn,
+    decimal TotalStockOut,
+    decimal ClosingStock,
     decimal TotalTransactionValue);
 
 public sealed record ProductLedgerReportReadModel(
@@ -142,18 +142,18 @@ public sealed record StockTransactionReportRowReadModel(
     long VariantId,
     string? VariantCode,
     string? VariantAttributes,
-    int QuantityIn,
-    int QuantityOut,
-    int RunningBalance,
+    decimal QuantityIn,
+    decimal QuantityOut,
+    decimal RunningBalance,
     string? Remarks,
     string? CreatedByName);
 
 public sealed record StockTransactionReportSummaryReadModel(
-    int OpeningStock,
-    int StockIn,
-    int StockOut,
-    int ClosingStock,
-    int CurrentStock);
+    decimal OpeningStock,
+    decimal StockIn,
+    decimal StockOut,
+    decimal ClosingStock,
+    decimal CurrentStock);
 
 public sealed record StockTransactionReportReadModel(
     long ProductId,
@@ -195,18 +195,18 @@ public sealed record StockMovementRowReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int OpeningStock,
-    int StockIn,
-    int StockOut,
-    int ClosingStock,
-    int NetMovement);
+    decimal OpeningStock,
+    decimal StockIn,
+    decimal StockOut,
+    decimal ClosingStock,
+    decimal NetMovement);
 
 public sealed record StockMovementSummaryReadModel(
-    int TotalOpeningStock,
-    int TotalStockIn,
-    int TotalStockOut,
-    int TotalClosingStock,
-    int NetMovement);
+    decimal TotalOpeningStock,
+    decimal TotalStockIn,
+    decimal TotalStockOut,
+    decimal TotalClosingStock,
+    decimal NetMovement);
 
 public sealed record StockMovementReportReadModel(
     IReadOnlyList<StockMovementRowReadModel> Items,
@@ -233,20 +233,20 @@ public sealed record StockValuationRowReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int Quantity,
+    decimal Quantity,
     decimal UnitCost,
     decimal InventoryValue,
     decimal PercentOfTotal);
 
 public sealed record StockValuationCategoryReadModel(
     string CategoryName,
-    int Quantity,
+    decimal Quantity,
     decimal InventoryValue,
     decimal PercentOfTotal);
 
 public sealed record StockValuationSummaryReadModel(
     int TotalProducts,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalInventoryValue,
     IReadOnlyList<StockValuationCategoryReadModel> ByCategory);
 
@@ -273,7 +273,7 @@ public sealed record OutletWiseStockRowReadModel(
     string Sku,
     string ProductName,
     string CategoryName,
-    int Quantity,
+    decimal Quantity,
     decimal UnitCost,
     decimal StockValue);
 
@@ -281,13 +281,13 @@ public sealed record OutletStockSummaryReadModel(
     long OutletId,
     string OutletName,
     int TotalSkus,
-    int TotalQty,
+    decimal TotalQty,
     decimal StockValue);
 
 public sealed record OutletWiseStockSummaryReadModel(
     int TotalOutlets,
     int TotalSkus,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalStockValue,
     IReadOnlyList<OutletStockSummaryReadModel> ByOutlet);
 
@@ -316,14 +316,14 @@ public sealed record LowStockRowReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int CurrentStock,
+    decimal CurrentStock,
     int ReorderLevel,
-    int SuggestedOrderQty,
+    decimal SuggestedOrderQty,
     string UrgencyLevel);
 
 public sealed record LowStockSummaryReadModel(
     int TotalSkus,
-    int TotalDeficitQty,
+    decimal TotalDeficitQty,
     int CriticalCount,
     int LowCount);
 
@@ -385,13 +385,13 @@ public sealed record NegativeStockRowReadModel(
     long LocationId,
     string LocationType,
     string LocationName,
-    int CurrentStock,
+    decimal CurrentStock,
     decimal UnitCost,
     decimal StockValue);
 
 public sealed record NegativeStockSummaryReadModel(
     int TotalSkus,
-    int TotalNegativeQty,
+    decimal TotalNegativeQty,
     decimal TotalNegativeValue);
 
 public sealed record NegativeStockReportReadModel(
@@ -423,15 +423,15 @@ public sealed record StockAdjustmentRowReadModel(
     string LocationType,
     string LocationName,
     string AdjustmentType,
-    int QuantityChange,
+    decimal QuantityChange,
     string Reason,
     string AdjustedBy);
 
 public sealed record StockAdjustmentSummaryReadModel(
     int TotalAdjustments,
-    int TotalAdditions,
-    int TotalReductions,
-    int NetQuantityChange);
+    decimal TotalAdditions,
+    decimal TotalReductions,
+    decimal NetQuantityChange);
 
 public sealed record StockAdjustmentReportReadModel(
     IReadOnlyList<StockAdjustmentRowReadModel> Items,
@@ -464,7 +464,7 @@ public sealed record StockTransferReportRowReadModel(
     string Sku,
     string ProductName,
     string CategoryName,
-    int Quantity,
+    decimal Quantity,
     decimal UnitCost,
     decimal TransferValue,
     string CreatedBy);
@@ -472,7 +472,7 @@ public sealed record StockTransferReportRowReadModel(
 public sealed record StockTransferReportSummaryReadModel(
     int TotalTransfers,
     int TotalLines,
-    int TotalQuantity,
+    decimal TotalQuantity,
     decimal TotalValue,
     int PendingCount,
     int CompletedCount);

@@ -46,13 +46,13 @@ public sealed class GetPosStockHintQueryHandlerTests
 
     private sealed class FakeStore : IPosProductLookupStore
     {
-        public int Quantity { get; init; }
-        public int StockCalls { get; private set; }
+        public decimal Quantity { get; init; }
+        public decimal StockCalls { get; private set; }
         public long VariantId { get; private set; }
         public long OutletId { get; private set; }
         public CancellationToken CancellationToken { get; private set; }
 
-        public Task<int> GetOutletStockAsync(
+        public Task<decimal> GetOutletStockAsync(
             long variantId,
             long outletId,
             CancellationToken cancellationToken)
@@ -87,11 +87,11 @@ public sealed class GetPosStockHintQueryHandlerTests
 
     private sealed class FakeCache : IPosProductLookupCache
     {
-        public int? CachedQuantity { get; init; }
-        public int? SavedQuantity { get; private set; }
+        public decimal? CachedQuantity { get; init; }
+        public decimal? SavedQuantity { get; private set; }
         public CancellationToken CancellationToken { get; private set; }
 
-        public Task<int?> GetStockAsync(
+        public Task<decimal?> GetStockAsync(
             long variantId,
             long outletId,
             CancellationToken cancellationToken)
@@ -103,7 +103,7 @@ public sealed class GetPosStockHintQueryHandlerTests
         public Task SetStockAsync(
             long variantId,
             long outletId,
-            int quantity,
+            decimal quantity,
             CancellationToken cancellationToken)
         {
             SavedQuantity = quantity;

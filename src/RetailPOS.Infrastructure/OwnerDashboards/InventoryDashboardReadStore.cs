@@ -14,10 +14,10 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
     {
         public InStockDayTracker Days { get; } = new(from, to);
         public (long Sequence, long Id) Latest { get; set; } = (long.MinValue, long.MinValue);
-        public int LatestBalance { get; set; }
+        public decimal LatestBalance { get; set; }
     }
 
-    private sealed record SalesTotal(long Units, decimal Net);
+    private sealed record SalesTotal(decimal Units, decimal Net);
 
     public async Task<IReadOnlyList<CategoryOption>> GetCategoriesAsync(
         long businessId,
@@ -138,7 +138,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
                 row.OnHand,
                 outbound.GetValueOrDefault(locationKey),
                 inbound.GetValueOrDefault(locationKey),
-                sold?.Units ?? 0L,
+                sold?.Units ?? 0m,
                 sold?.Net ?? 0m,
                 state?.Days.Complete() ?? 0,
                 // History that does not end at the current balance cannot support a demand claim.
@@ -153,7 +153,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
     }
 
     /// <summary>A null value means the cost is unknown; a zero on stock means documents prove it was free. Master cost is never substituted.</summary>
-    private static (decimal? UnitCost, decimal? Value) Value(int onHand, StockCostPosition position) =>
+    private static (decimal? UnitCost, decimal? Value) Value(decimal onHand, StockCostPosition position) =>
         onHand <= 0 ? (null, 0m) : (position.UnitCost, position.Value);
 
     private async Task<Dictionary<(long Outlet, long Variant), SalesTotal>> ReadNetSalesAsync(
@@ -180,7 +180,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
             {
                 group.Key.OutletId,
                 group.Key.VariantId,
-                Units = group.Sum(line => (long)line.Quantity),
+                Units = group.Sum(line => line.Quantity),
                 Net = group.Sum(line => line.Net)
             })
             .ToListAsync(cancellationToken);
@@ -200,7 +200,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
             foreach (var line in reversal.Snapshot.Lines)
             {
                 var key = (reversal.OutletId, line.VariantId);
-                var total = result.GetValueOrDefault(key) ?? new SalesTotal(0L, 0m);
+                var total = result.GetValueOrDefault(key) ?? new SalesTotal(0m, 0m);
                 result[key] = new SalesTotal(total.Units - line.Quantity, total.Net - (line.NetRevenue ?? 0m));
             }
         }
@@ -238,7 +238,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
     /// Stock leaves the source at dispatch and reaches the destination at receipt. So drafts, submitted and approved
     /// transfers are still source commitments, while in-transit units only count as inbound.
     /// </summary>
-    private async Task<(Dictionary<(long, long, string), int> Outbound, Dictionary<(long, long, string), int> Inbound)>
+    private async Task<(Dictionary<(long, long, string), decimal> Outbound, Dictionary<(long, long, string), decimal> Inbound)>
         ReadPendingTransfersAsync(
             List<long> outletIds,
             List<long> warehouseIds,
