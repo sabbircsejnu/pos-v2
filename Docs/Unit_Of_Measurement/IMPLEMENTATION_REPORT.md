@@ -115,7 +115,13 @@ Existing tests were changed only for types and two real requirement changes:
 
 **Migration trial on real data:** a copy of Development ran the migration in 2 seconds. Row counts and totals for inventory, stock ledger, sale items, GRN items and journal entries were identical before and after. The copy was then dropped. Development data is small, so this says nothing about lock time on Production.
 
-**Independent code review** found 10 issues, all now fixed and covered by the suites above. The main ones were sealed-pack detection after a config change, fractional `pcs` on transfer receipt, lock ordering, and location checks on repack reads.
+**Independent code review** found 10 issues, and all were addressed:
+
+- **Fixed, with a new test:** sealed-pack detection after a config change, fractional `pcs` on transfer receipt, location checks on repack reads, and the idempotency fingerprint.
+- **Fixed, with no dedicated test:** lock ordering, audits inside transactions, refund after tracking is switched off, and the pricing rule recorded on pack lines. The full suites still pass, but nothing forces these specific scenarios.
+- **Reduced, not eliminated:** deadlocks and unique-key races now return a retryable 409 instead of a 500, and a tracking switch now waits for in-flight stock transactions. These races can still occur, and neither behaviour has been forced in a test.
+
+The review did not cover report queries beyond valuation, the adjustment lifecycle commands, or the mobile count paths in depth.
 
 ## 10. Environment limitations
 
