@@ -29,6 +29,6 @@ Spec: `Docs/Unit_Of_Measurement/`. Audit and decisions: `Docs/Unit_Of_Measuremen
 | UOM-04 | POS sale, held sale, void, refund, packaging | `UomPostgresHttpTests` | done |
 | UOM-05 | Pack-state, open, transfer, adjustment, count | `UomPostgresHttpTests` | done |
 | UOM-06 | Repacking with Pattern P1 | `UomPostgresHttpTests` | done |
-| UOM-07 | Valuation, dashboards, reports | Integration tests | pending |
-| UOM-08 | Angular UI | Vitest, build | pending |
-| UOM-09 | Full regression, report | verify-build | pending |
+| UOM-07 | Valuation, dashboards, reports | Integration tests | done |
+| UOM-08 | Angular UI | Vitest, build | done |
+| UOM-09 | Full regression, report | verify-build | done |

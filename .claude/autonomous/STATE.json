@@ -26,32 +26,38 @@
   "uom": {
     "updated": "2026-11-07",
     "spec": "Docs/Unit_Of_Measurement/",
-    "phase": "backend-core-done-reports-and-frontend-next",
+    "phase": "implemented-verification-pending",
+    "report": "Docs/Unit_Of_Measurement/IMPLEMENTATION_REPORT.md",
     "completed": [
-      "audit",
-      "quantity widening",
-      "uom master+config+versioning",
-      "po/grn",
-      "pos sale/held/void/refund",
-      "packaging",
-      "pack-state",
-      "transfer/adjust/count entries",
-      "repack"
-    ],
-    "remaining": [
-      "valuation+dashboards+reports unit-aware",
-      "Angular UI",
-      "unit tests",
-      "full suites",
-      "IMPLEMENTATION_REPORT.md"
+      "UOM-00",
+      "UOM-01",
+      "UOM-02",
+      "UOM-03",
+      "UOM-04",
+      "UOM-05",
+      "UOM-06",
+      "UOM-07",
+      "UOM-08",
+      "UOM-09"
     ],
     "migrations": [
-      "20261106234558_PosV2UomFoundation (not applied to Development)"
+      "20261106234558_PosV2UomFoundation (created, trial-run on a disposable copy, not applied to Development)"
     ],
-    "nextAction": "Unit-aware valuation and dashboards, then Angular UI per Docs/Unit_Of_Measurement API contract",
+    "tests": {
+      "unit": "1037 passed",
+      "integration": "2681 passed, 3 failed (LiveInfrastructure, also failed on baseline)",
+      "frontend": "1951 passed",
+      "build": "ok"
+    },
+    "remaining": [
+      "Browser walk-through of SRS section 20",
+      "Apply migration to Development after approval",
+      "Owner decisions in BLOCKERS.md"
+    ],
+    "nextAction": "Wait for owner decisions; then apply the migration to Development and verify in a browser.",
     "resumeNotes": [
-      "Every existing quantity column holds base units; Uom* snapshot columns hold entered values; null snapshot = legacy pcs",
-      "Build with -c Release; helper scripts in scratchpad are disposable"
+      "Every existing quantity column holds base units; Uom* snapshot columns hold entered values; a null snapshot means legacy pcs",
+      "Build with -c Release"
     ]
   }
 }
