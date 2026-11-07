@@ -36,7 +36,19 @@ public sealed class StockLedgerReadHttpTests : IClassFixture<RetailPosApiFactory
         var byId = byIdDocument.RootElement.GetProperty("data");
         Assert.Equal(9101, byId.GetProperty("id").GetInt64());
         Assert.Equal("Ledger outlet", byId.GetProperty("locationName").GetString());
-        Assert.Equal(12.5m, byId.GetProperty("unitCost").GetDecimal());
+        // I07: cost is left out without products.view_cost (null, not 0); with it, the value is there.
+        Assert.Equal(JsonValueKind.Null, byId.GetProperty("unitCost").ValueKind);
+        using (var costClient = _factory.CreateClient())
+        {
+            costClient.DefaultRequestHeaders.Add("X-Test-Permissions", "inventory.view,products.view_cost");
+            costClient.DefaultRequestHeaders.Add("X-Test-BusinessId", "4101");
+            costClient.DefaultRequestHeaders.Add("X-Test-UserId", "4102");
+            costClient.DefaultRequestHeaders.Add("X-Test-Role", "BusinessOwner");
+            costClient.DefaultRequestHeaders.Add("X-Test-EffectiveRole", "BusinessOwner");
+            using var costResponse = await costClient.GetAsync("/api/stock-ledger/9101");
+            using var costDocument = JsonDocument.Parse(await costResponse.Content.ReadAsStringAsync());
+            Assert.Equal(12.5m, costDocument.RootElement.GetProperty("data").GetProperty("unitCost").GetDecimal());
+        }
 
         using var deniedById = await client.GetAsync("/api/stock-ledger/9102");
         Assert.Equal(HttpStatusCode.NotFound, deniedById.StatusCode);

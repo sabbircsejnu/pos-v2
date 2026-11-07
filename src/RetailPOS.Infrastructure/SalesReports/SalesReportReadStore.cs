@@ -83,16 +83,15 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                     && line.JournalEntry.PostedAt <= filter.EndDate)
                 .SumAsync(line => (decimal?)line.DebitAmount, cancellationToken) ?? 0m;
 
-            // Units sold count pieces only, so only pieces come off them; ml or kg returned are not pieces.
-            var measuredVariants = await dbContext.VariantUomConfigs
-                .AsNoTracking()
-                .Where(config => config.EffectiveToUtc == null && config.BaseUnit.Code != "pcs")
-                .Select(config => config.VariantId)
-                .ToListAsync(cancellationToken);
+            // Units sold count the sale's own pcs lines, so only those lines' returns come off them: never packaging
+            // restored with a return, and never ml or kg, judged by the unit the line was sold in.
             returnedUnits = await dbContext.StockLedgers
                 .AsNoTracking()
                 .Where(movement =>
-                    !measuredVariants.Contains(movement.VariantId)
+                    dbContext.SaleItems.Any(item =>
+                        item.SaleId == movement.ReferenceId
+                        && item.VariantId == movement.VariantId
+                        && (item.UomBaseUnitCode == null || item.UomBaseUnitCode.ToLower() == "pcs"))
                     && movement.TransactionType == StockLedgerTransactionType.Return
                     && movement.ReferenceType == StockLedgerReferenceType.Sale
                     && saleIds.Contains(movement.ReferenceId)

@@ -30,7 +30,30 @@ public sealed partial class UomPostgresHttpTests
         var refunded = await RefundAsync(cashier, saleId, RefundBody(attar, line.GetProperty("id").GetInt64(), 2m, Unique("r")));
         Assert.Equal(JsonValueKind.Null, refunded.GetProperty("items")[0].GetProperty("historicalUnitCost").ValueKind);
         using var list = await cashier.PostAsJsonAsync("/api/sales/search", new { pageNumber = 1, pageSize = 50 });
-        Assert.DoesNotContain("\"historicalUnitCost\":2", await list.Content.ReadAsStringAsync());
+        using (var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync()))
+        {
+            var items = listJson.RootElement.GetProperty("data").GetProperty("sales").EnumerateArray()
+                .SelectMany(row => row.GetProperty("items").EnumerateArray()).ToArray();
+            Assert.NotEmpty(items);
+            Assert.All(items, item => Assert.Equal(JsonValueKind.Null, item.GetProperty("historicalUnitCost").ValueKind));
+        }
+
+        // The stock ledger, readable with inventory.view alone, shows the movement but neither its cost nor a remark quoting it.
+        var storekeeper = _fixture.Client(UomPostgresFixture.OwnerId, "Warehouse", "inventory.view");
+        using (var ledger = await storekeeper.GetAsync($"/api/stock-ledger/variant/{attar}/location/{UomPostgresFixture.Outlet}?locationType=outlet"))
+        {
+            var text = await ledger.Content.ReadAsStringAsync();
+            Assert.True(ledger.IsSuccessStatusCode, text);
+            using var ledgerJson = JsonDocument.Parse(text);
+            var rows = ledgerJson.RootElement.GetProperty("data").EnumerateArray().ToArray();
+            Assert.NotEmpty(rows);
+            Assert.All(rows, row =>
+            {
+                Assert.Equal(JsonValueKind.Null, row.GetProperty("unitCost").ValueKind);
+                Assert.Equal(JsonValueKind.Null, row.GetProperty("movementValue").ValueKind);
+                Assert.DoesNotContain("historical unit cost", row.GetProperty("remarks").GetString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            });
+        }
 
         // Granted the permission, the cost is there.
         var finance = _fixture.Client(UomPostgresFixture.OwnerId, "Accountant", "sales.view,products.view_cost");
@@ -211,5 +234,25 @@ public sealed partial class UomPostgresHttpTests
         Assert.Equal(before.Value, after.Value);
         Assert.Equal(before.Gl, after.Gl);
         Assert.Equal(before.Capitalized - 16m, after.Capitalized);
+    }
+
+    [Fact]
+    public async Task Refund_OfAFractionOfACent_NeverRecordsAZeroValueThatWouldUnvalueTheStock()
+    {
+        var owner = Owner();
+        var attar = await _fixture.CreateVariantAsync("TNY");
+        var config = await SaveConfigAsync(owner, attar, "ml", Jar500(owner), [Pack("P12", 12m, 100m), CustomMl(5m)]);
+        // ৳0.50 for 500 ml: ৳0.001 an ml, so 1 ml's cost rounds to ৳0.00.
+        await PurchaseAsync(owner, attar, config.GetProperty("purchaseOptions")[0].GetProperty("id").GetInt64(), 1m, 0.5m);
+        var sale = await SellAsync(owner, new SaleLine(attar, 2m, 5m, Option(config, "ML"), config.GetProperty("configId").GetInt64()));
+        await RefundAsync(owner, sale.GetProperty("id").GetInt64(), RefundBody(attar, sale.GetProperty("items")[0].GetProperty("id").GetInt64(), 1m, Unique("r")));
+
+        await _fixture.WithDbAsync(async db =>
+        {
+            var returned = await db.StockLedgers.AsNoTracking()
+                .SingleAsync(row => row.VariantId == attar && row.TransactionType == StockLedgerTransactionType.Return);
+            Assert.True(returned.MovementValue > 0m);
+        });
+        Assert.True(await ValuationAsync(attar) > 0m);
     }
 }

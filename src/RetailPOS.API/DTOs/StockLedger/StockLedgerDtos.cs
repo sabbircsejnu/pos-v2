@@ -24,8 +24,8 @@ public class StockLedgerDto
     public decimal QtyIn { get; set; }
     public decimal QtyOut { get; set; }
     public decimal BalanceAfter { get; set; }
-    public decimal UnitCost { get; set; }
-    public decimal MovementValue { get; set; }
+    public decimal? UnitCost { get; set; }
+    public decimal? MovementValue { get; set; }
     public bool IsCostValuationReliable { get; set; }
     public DateTime BusinessDate { get; set; }
     public long MovementSequence { get; set; }

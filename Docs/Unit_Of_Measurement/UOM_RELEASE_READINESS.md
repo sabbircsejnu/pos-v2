@@ -4,6 +4,8 @@
 
 ## Final status: IMPLEMENTED — VERIFICATION PENDING
 
+> **Verification round 3 (2026-11-07, latest):** see §16. The status is unchanged and is not `COMPLETE — VERIFIED`. The Development migration is still unapplied, because no authorized execution route exists in this session, and still no browser tool is available. The independent review ran this time; its findings were fixed, and one owner decision was raised (inventory report cost visibility).
+
 The code for D01–D12 and I01–I07 is complete and passes every automated suite, apart from three live-infrastructure tests that fail on the baseline too. Two required gates are not met in this environment:
 1. **The Development migration is not applied.** All gates passed and the full chain was rehearsed, but the execution route was refused twice by the session's permission control. As instructed, nothing was bypassed.
 2. **No browser verification.** No browser tool was available, so no screen was opened.
@@ -145,3 +147,60 @@ Not performed: no browser tool. The 390/768/1440 layouts, the POS keyboard flow,
 ## 15. Recommendation
 
 Merge to the next stage only after blockers 1, 2 and 4 are done. Production release only after blocker 3 as well.
+
+## 16. Verification round 3
+
+### Development migration
+- **Rechecked:** `127.0.0.1:5435 / retailpos_db` is still on `20261106173129_PosV2OutletSalesTargets`, with nothing connected. All 17 totals are unchanged since the backup `retailpos_db_pre_uom_20261107T105053Z.dump`, so that backup and its rehearsal (§9) still apply.
+- **Permissions:** unchanged. There is no `settings.local.json` and no new allow rule. `dotnet ef database update` is denied in `.claude/settings.json`, and starting the API with migrate-on-startup was refused twice before. With no authorized route, no attempt was made this round. **Not applied.**
+- **Smoke tests on Development (§15):** not possible without the migration. The same flows pass on freshly migrated PostgreSQL in the test fixture: legacy pcs sale, jar purchase/GRN, pack and custom sales, several refunds, the VAT report, transfers, repacking, opening packs, and reconciliation of inventory to GL.
+
+**To finish, the owner should:**
+1. Apply the migration (§9).
+2. In Development, run a pcs sale, a jar purchase and GRN, a 12 ml pack sale, a 24 ml custom sale, two partial refunds and a repack.
+3. Check the VAT details report and the accounting inventory valuation, where ledger plus capitalized value should equal the GL.
+
+### Regression (final code)
+| Suite | Result |
+|---|---|
+| Backend unit | **1,047 passed**, 0 failed |
+| Backend integration | **2,716 passed, 4 failed** of 2,720. Three are the Redis, RabbitMQ and Elasticsearch live-infrastructure tests, failing as on the baseline. The fourth, `PostgresTestTemplateTests.Parallel_clones_are_isolated_from_each_other`, timed out dropping a test database under load; it is unchanged since before UOM and passes 9/9 on rerun. |
+| Angular | **1,976 passed** in 138 files; production build succeeds with the existing POS CSS budget warning |
+| Flutter | **124 passed**; `flutter analyze` finds no issues in the whole app |
+
+**Flaky under load:** an earlier full run this round also lost one UOM test (`PackState_GrnSplit…`) to a database "transient failure". It passes on rerun.
+
+### Browser verification
+**Blocked.** No browser automation tool is available in this session; the only web tool cannot reach localhost. No screen, layout (390/768/1440) or keyboard flow was verified.
+
+### Independent review of `dcfcc48f..c38063f7`
+A separate review agent ran this round. It found no Critical or High issues. Fixed, with tests:
+
+| Finding | Fix | Test |
+|---|---|---|
+| M1: a refund cost share rounding to ৳0.00 marked the item's stock value unknown | Fall back to the 4-place value when the share is 0 | `Refund_OfAFractionOfACent_NeverRecordsAZeroValueThatWouldUnvalueTheStock` |
+| M2: mobile dashboard returned units counted restored bottles and used the item's current unit | Count only returns of the sale's own pcs lines, by their sold unit | Mobile dashboard and sales suites |
+| M3: `api/stock-ledger` (`inventory.view`) showed cost and cost remarks without `products.view_cost` | Unit cost and value become null, and cost remarks are hidden. `StockLedgerDto` cost fields are now nullable; the frontend does not call this API. | `Security_SaleCost_…` (stock ledger part), `StockLedgerReadHttpTests` updated for the approved I07 rule |
+| M4: VAT report loaded every posted reversal on each call | Only reversals whose journal falls in the report window | VAT tests |
+| Test gap: the sales list redaction check could pass with `2.0` | Asserts null on every item | `Security_SaleCost_…` |
+
+**Left open:**
+- **L1, warehouse filter:** sale and refund VAT rows ignore the warehouse filter, while reconciliation uses it. This existed before for sale rows.
+- **L2, void rounding:** voids still record 4-place ledger values against a currency-rounded journal.
+
+### New owner decision (U-13)
+`api/reports/inventory/*` (permission `reports.inventory`) shows unit cost, stock value and transaction value in about 15 reports and exports, with no `products.view_cost` check. This existed before UOM. Redacting it would change what holders of `reports.inventory` see, so it is an authorization decision, not a defect fix:
+- Should inventory reports require `products.view_cost` for cost and value columns?
+- Or does `reports.inventory` itself grant them?
+
+Not changed.
+
+### Remaining blockers
+1. Apply the Development migration, then run the smoke tests above.
+2. The browser and responsive walk-through.
+3. U-13, the inventory report cost visibility.
+4. A Production-sized migration rehearsal and release review.
+5. Housekeeping: delete the test-server databases `uom_restore_check_20261107094240` and `uom_rehearsal_20261107105053`.
+
+**Status: IMPLEMENTED — VERIFICATION PENDING.** This is not `COMPLETE — VERIFIED`, because the migration and browser gates are unmet.
+

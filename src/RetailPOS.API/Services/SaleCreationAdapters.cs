@@ -225,7 +225,10 @@ public sealed class SaleRefundStockLedgerWriter(IStockLedgerWriter stockLedger)
                 $"Historical unit cost is missing for sale line {item.Id}. Legacy sales without a historical snapshot cannot be reversed using current cost.");
 
         var historicalUnitCost = item.HistoricalUnitCost.Value;
-        // The value the refund's journal debits to Inventory, so ledger and GL move by exactly the same amount.
+        // The value the refund's journal debits to Inventory, so ledger and GL move by exactly the same amount. A share
+        // that rounds to 0.00 for a tiny cost keeps the 4-place value: a zero would mark the item's stock unvalued.
+        if (movementValue is not > 0m)
+            movementValue = null;
         var reversalCost = movementValue ?? Math.Round(historicalUnitCost * quantity, 4);
         var remarks = $"Refund reversal using historical unit cost {historicalUnitCost:0.0000} x {quantity} = {reversalCost:0.0000}";
         if (!string.IsNullOrWhiteSpace(reason))

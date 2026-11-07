@@ -24,3 +24,14 @@
 | G-18 | No dedicated test of a configuration change during a stock operation | P2 | — | Not added. Covered indirectly: `VariantUomReader` takes `FOR SHARE` in transactions, and `UOM_CONFIG_CHANGED` refuses stale versions. | — | `ChangedConfiguration_RefusesStaleCheckout…` | Partly covered |
 
 **Verification evidence:** see `UOM_RELEASE_READINESS.md` §10 for the full regression, and §8–9 for the migration rehearsal.
+
+## Round 3 (independent review of dcfcc48f..c38063f7)
+
+| ID | Gap | Severity | Fix | Test | Status |
+|---|---|---|---|---|---|
+| G-19 | A refund share rounding to ৳0.00 marked the stock unvalued | Medium | Fall back to the 4-place value (`SaleCreationAdapters.cs`) | `Refund_OfAFractionOfACent_…` | Closed |
+| G-20 | Dashboard returned units counted restored packaging and used the current unit | Medium | Only returns of the sale's own pcs lines (`SalesReportReadStore.cs`) | Mobile dashboard suite | Closed |
+| G-21 | The stock ledger showed sale and refund cost to `inventory.view` holders | Medium security | Cost, value and cost remarks hidden without `products.view_cost` (`StockLedgerController.cs`, `StockLedgerDtos.cs`) | `Security_SaleCost_…`, `StockLedgerReadHttpTests` | Closed |
+| G-22 | VAT report read every posted reversal | Medium performance | Report window only (`VatReportReadStore.cs`) | VAT tests | Closed |
+| G-23 | Inventory reports show cost to `reports.inventory` holders | Owner decision | None; raised as U-13 | — | Open (decision) |
+

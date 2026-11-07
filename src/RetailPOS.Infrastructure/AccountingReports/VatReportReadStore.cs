@@ -222,10 +222,17 @@ public sealed class VatReportReadStore(
         long businessId,
         CancellationToken cancellationToken)
     {
+        var windowEnd = filter.DateTo.Date.AddDays(1);
+        var journalsInWindow = journalRows
+            .Where(entry => entry.PostingDate >= filter.DateFrom.Date && entry.PostingDate < windowEnd)
+            .Select(entry => entry.Id)
+            .ToList();
         var postings = await dbContext.SaleFinancialPostings
             .AsNoTracking()
             .Where(posting =>
-                posting.BusinessId == businessId
+                posting.JournalEntryId != null
+                && journalsInWindow.Contains(posting.JournalEntryId.Value)
+                && posting.BusinessId == businessId
                 && posting.Kind == SaleFinancialPostingKinds.Reversal
                 && posting.Status == SaleFinancialPostingStatuses.Posted
                 && posting.JournalEntryId != null

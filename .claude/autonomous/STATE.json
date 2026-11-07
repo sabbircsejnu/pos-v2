@@ -56,15 +56,16 @@
     ],
     "tests": {
       "unit": "1047 passed",
-      "integration": "full run 2713 passed, 6 failed (3 LiveInfrastructure; 3 fixed and green on rerun of 431 affected tests)",
-      "frontend": "1976 passed (no change this round)",
-      "flutter": "124 passed (no change this round)",
+      "integration": "2716 passed, 4 failed (3 LiveInfrastructure; 1 test-DB drop timeout, passes on rerun)",
+      "frontend": "1976 passed, build ok",
+      "flutter": "124 passed, analyze clean",
       "browser": "not run - no tool"
     },
     "remaining": [
-      "Apply the three migrations to Development (owner)",
+      "Apply the three migrations to Development (owner; no authorized route in session)",
+      "Development smoke tests after migration",
       "Browser walk-through, 390/768/1440",
-      "Independent review of dcfcc48f (sub-agent refused in session)",
+      "U-13 inventory report cost visibility decision",
       "Production-sized migration rehearsal",
       "Delete test-server DBs uom_restore_check_20261107094240 and uom_rehearsal_20261107105053"
     ],
@@ -79,7 +80,8 @@
       "5ffb06e7 I01-I04 and gaps",
       "f81342ba I01/I05 proofs and mobile guard",
       "final: review fixes, inventory row lock, verification report",
-      "dcfcc48f final gaps: cost redaction, refund VAT, exact refund cost, posting guard"
+      "dcfcc48f final gaps: cost redaction, refund VAT, exact refund cost, posting guard",
+      "round 3: review fixes M1-M4 and readiness report"
     ],
     "backup": "backups/retailpos_db_pre_uom_20261107T094240Z.dump (sha256 903d3341...fd9818), restore verified",
     "releaseReadiness": "Docs/Unit_Of_Measurement/UOM_RELEASE_READINESS.md",

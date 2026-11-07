@@ -1,3 +1,4 @@
+using RetailPOS.API.Authorization;
 // =====================================================================
 // NEW — Stock Ledger query controller
 // Read-only: ledger entries are written automatically by inventory-mutating
@@ -65,7 +66,7 @@ public class StockLedgerController : ControllerBase
             cancellationToken);
 
         return Ok(ApiResponse<List<StockLedgerDto>>.SuccessResponse(
-            entries.Select(MapToDto).ToList()));
+            entries.Select(entry => MapToDto(entry)).ToList()));
     }
 
     /// <summary>
@@ -82,7 +83,7 @@ public class StockLedgerController : ControllerBase
             new GetStockLedgerByReferenceQuery(referenceType, referenceId),
             cancellationToken);
         return Ok(ApiResponse<List<StockLedgerDto>>.SuccessResponse(
-            entries.Select(MapToDto).ToList()));
+            entries.Select(entry => MapToDto(entry)).ToList()));
     }
 
     /// <summary>
@@ -136,7 +137,7 @@ public class StockLedgerController : ControllerBase
             cancellationToken);
         return Ok(ApiResponse<StockLedgerListDto>.SuccessResponse(new StockLedgerListDto
         {
-            Entries = result.Entries.Select(MapToDto).ToList(),
+            Entries = result.Entries.Select(entry => MapToDto(entry)).ToList(),
             TotalCount = result.TotalCount,
             PageNumber = result.PageNumber,
             PageSize = result.PageSize,
@@ -146,7 +147,23 @@ public class StockLedgerController : ControllerBase
         }));
     }
 
-    private static StockLedgerDto MapToDto(StockLedgerReadModel entry) => new()
+    /// <summary>
+    /// Cost and value, and remarks that quote a cost, are left out for a caller without <c>products.view_cost</c>.
+    /// Quantities and balances stay visible to everyone with <c>inventory.view</c>.
+    /// </summary>
+    private StockLedgerDto MapToDto(StockLedgerReadModel entry)
+    {
+        var dto = MapEntry(entry);
+        if (User.CanViewCost())
+            return dto;
+        dto.UnitCost = null;
+        dto.MovementValue = null;
+        if (dto.Remarks?.Contains("cost", StringComparison.OrdinalIgnoreCase) == true)
+            dto.Remarks = "Cost details require the view-cost permission.";
+        return dto;
+    }
+
+    private static StockLedgerDto MapEntry(StockLedgerReadModel entry) => new()
     {
         Id = entry.Id,
         VariantId = entry.VariantId,

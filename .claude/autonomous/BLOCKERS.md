@@ -28,5 +28,6 @@ None of these stop the build. Details: `Docs/Unit_Of_Measurement/IMPLEMENTATION_
 | U-08 | Confirm that opening a prepared pack may return a reusable bottle to packaging stock at its capitalized value (SRS PACK-006/REP-008). | Finance | Approved as I06 Option A (reusable bottle recovery) | resolved |
 | U-09 | VAT report omits SalesReturnPosting refund VAT (existed before UOM). | Finance, tech lead | Fixed under I07: posted refunds and voids are reported | resolved |
 | U-10 | Remove the rehearsal DB uom_restore_check_20261107094240 (test server) and container /tmp files; the session safety check blocked the deletion. | Tech lead | Disposable, harmless | open |
-| U-11 | Independent review of commit dcfcc48f; the review sub-agent was refused by the session permission control. | Tech lead | Checked in session only | open |
+| U-11 | Independent review of commit dcfcc48f; the review sub-agent was refused by the session permission control. | Tech lead | Done in round 3; Medium findings fixed | resolved |
 | U-12 | Apply the three UOM migrations to Development; MigrateOnStartup refused twice in session. Script, backup and rehearsal are ready (UOM_RELEASE_READINESS.md section 9). | Tech lead | Development on 20261106173129 | open |
+| U-13 | Should inventory reports (`reports.inventory`) require `products.view_cost` for cost and value columns? About 15 reports and exports show them today (existed before UOM). | Business owner | Unchanged | open |
