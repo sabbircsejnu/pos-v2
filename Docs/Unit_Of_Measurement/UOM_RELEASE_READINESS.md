@@ -4,7 +4,9 @@
 
 ## Final status: IMPLEMENTED — VERIFICATION PENDING
 
-> **Verification round 3 (2026-11-07, latest):** see §16. The status is unchanged and is not `COMPLETE — VERIFIED`. The Development migration is still unapplied, because no authorized execution route exists in this session, and still no browser tool is available. The independent review ran this time; its findings were fixed, and one owner decision was raised (inventory report cost visibility).
+> **Verification round 4 (2026-11-07, latest):** see §17. U-13 is implemented and reviewed. The **Development migration is applied** (by the owner) and verified: all three migrations are in the history and all 17 totals are identical. Status: **IMPLEMENTED — VERIFICATION PENDING**, because browser verification is still blocked and the write workflows have not yet been run on Development.
+>
+> **Verification round 3:** see §16. The status is unchanged and is not `COMPLETE — VERIFIED`. The Development migration is still unapplied, because no authorized execution route exists in this session, and still no browser tool is available. The independent review ran this time; its findings were fixed, and one owner decision was raised (inventory report cost visibility).
 
 The code for D01–D12 and I01–I07 is complete and passes every automated suite, apart from three live-infrastructure tests that fail on the baseline too. Two required gates are not met in this environment:
 1. **The Development migration is not applied.** All gates passed and the full chain was rehearsed, but the execution route was refused twice by the session's permission control. As instructed, nothing was bypassed.
@@ -203,4 +205,95 @@ Not changed.
 5. Housekeeping: delete the test-server databases `uom_restore_check_20261107094240` and `uom_rehearsal_20261107105053`.
 
 **Status: IMPLEMENTED — VERIFICATION PENDING.** This is not `COMPLETE — VERIFIED`, because the migration and browser gates are unmet.
+
+## 17. Verification round 4: U-13 and Development migration
+
+### U-13: inventory report cost needs `products.view_cost` (Option A)
+`reports.inventory` grants the reports: quantities, movements, dates, references and units. `products.view_cost` is also required for any cost-derived figure. Without it, the API sends `null`, never 0, in rows, summaries and category or outlet breakdowns. Exports omit those columns and summary lines entirely. BusinessOwner keeps everything through the wildcard; no role was given `products.view_cost`.
+
+| Endpoint (`api/reports/inventory/…`) | Hidden without `products.view_cost` | Export |
+|---|---|---|
+| stock-levels, slow-moving | `estimatedValue` | — |
+| valuation | `totalValue`, category `value` (categories in name order) | — |
+| current-stock | `unitCost`, `stockValue`, total | CSV/Excel without cost columns or total |
+| product-ledger | `unitCost`, `transactionValue`, total; cost remarks | CSV/Excel without cost columns |
+| stock-valuation | `unitCost`, `inventoryValue`, `percentOfTotal`, totals, category values (quantities stay; value sort refused) | CSV/Excel without value columns, lines or category values |
+| outlet-wise-stock | `unitCost`, `stockValue`, totals, per-outlet value | CSV/Excel incl. outlet sheet |
+| out-of-stock | `unitCost`, `estimatedCostImpact` | CSV/Excel without "Est. Cost to Restock" |
+| negative-stock | `unitCost`, `stockValue`, `totalNegativeValue` | CSV/Excel |
+| stock-transfers-report | `unitCost`, `transferValue`, `totalValue` | CSV/Excel |
+| low-stock, stock-movement, stock-adjustments | no cost fields | unchanged |
+
+**Other endpoints covered:**
+- `api/reports/stock-transactions`: cost remarks are hidden.
+- From the independent review:
+  - stock transfer and requisition item `unitCost` is now null without the permission;
+  - barcode variant search clears `costPrice`;
+  - `api/inventory/valuation` orders categories by name when cost is hidden.
+- `api/stock-ledger` and sales were already covered in round 3. No PDF export exists for these reports.
+
+**Bug fixed along the way:** `GET /api/reports/inventory/valuation` returned 500 once a measured unit existed. `UomReportTotals` read an unloaded `BaseUnit`; this also affected the owner inventory dashboard.
+
+**Frontend:** the eight report pages hide cost columns, totals, cards and cost sorting without `products.view_cost`, and show "—" for a null amount instead of ৳0.00.
+
+### Role matrix (PostgreSQL, `UomPostgresHttpTests.CostVisibility.cs` and `.Final.cs`)
+| Caller | Result |
+|---|---|
+| BusinessOwner `*` | Values present; exports carry cost columns |
+| `reports.inventory` only | Every report 200, all cost fields null; CSV and Excel have no cost header, line or figure (Excel read with ClosedXML) |
+| `reports.inventory` + `products.view_cost` | Values and export cost columns present |
+| `products.view_cost` only | 403 on every report and export |
+| Restricted to assigned locations | 403 for another outlet |
+| Another business | 403 or 404; none of this business's data |
+| pcs and ml variants | Same quantities for both callers, matching the stock in the database |
+| `stock_transfers.view` + `barcode.view` | Transfer `unitCost` and barcode `costPrice` null; present with `products.view_cost` |
+
+### Development migration: applied and verified
+The owner applied the three migrations outside this session. Read-only checks afterwards:
+- **History:** `20261106234558_PosV2UomFoundation`, `20261107084952_PosV2UomRefundsAndPromotionEligibility` and `20261107104508_PosV2UomPostingRefundGuard` are all applied.
+- **Totals:** all 17 are identical to the pre-migration baseline (§9): inventories, stock ledger quantities and value, sales and statuses, sale items, payments, GRN and PO lines, transfer and adjustment lines, journals and their lines (debit = credit = 1,280,196.82), sale postings, products, variants, customers and cash movements.
+- **Schema:**
+  - the posting guard covers `sale_refund_id`;
+  - `ck_sale_items_returned_quantity` and `ck_sale_refunds_amounts` exist;
+  - `sale_refunds`, `sale_refund_payments`, `uom_units` (12 seeded), `pack_state_balances`, `repack_jobs` and `variant_selling_options` exist;
+  - `inventories.quantity` is `numeric`;
+  - `ux_sale_financial_postings_sale_kind` is filtered `WHERE sale_refund_id IS NULL`;
+  - no historical returned quantity needed a backfill.
+- **API on Development:** it started cleanly against the migrated database. There were no `fail` or `crit` log entries, the background workers (financial posting heartbeat) ran without errors, and an unauthenticated `/api/sales` returned 401. It was then stopped.
+- **Not run on Development:** the write workflows (pcs sale, jar GRN, pack and custom sales, refunds, repack, transfer). They need a signed-in user, whose credentials this session must not read, and they would add transactions to the shared Development database. The same flows pass on freshly migrated PostgreSQL in the test fixture.
+
+### Regression
+| Suite | Result |
+|---|---|
+| Backend unit | **1,047 passed** |
+| Backend integration (U-13 code) | **2,721 passed, 3 failed** of 2,724. The three failures are the live-infrastructure tests (Redis, RabbitMQ, Elasticsearch), as on the baseline. |
+| Affected suites after the review fixes | 559 run; the requisition test was updated for the null rule (23/23 pass). `OpenPrepared_…` failed once with an EF "transient failure" under load and passed 12/12 alone. |
+| Angular | **1,983 passed** in 139 files; build succeeds (existing POS CSS budget warning) |
+| Flutter | 124 passed (no mobile change this round) |
+
+**Flakiness under load:** three pack-state tests have each failed once with EF's "transient failure" during full parallel runs, and all pass in isolation. This matches the test database server's timeouts seen elsewhere in the same runs (dropping fixture databases). No code defect has been found, but it should be watched.
+
+### Browser verification
+**BROWSER VERIFICATION BLOCKED.** No browser automation tool is available in this session; the only web tool cannot reach localhost. No screen, layout (390/768/1440) or keyboard flow was verified.
+
+### Independent review of U-13 (`9cd6da61`)
+It found no leak in the inventory reports or exports. Fixed in `0e71c1d5`:
+- **M1:** transfer and requisition cost.
+- **M2:** barcode search cost.
+- **L1:** valuation category order.
+
+**Left open:**
+- `api/inventory/*` hides cost as 0, not null. Changing that would alter the contract.
+- The owner dashboard inventory endpoints (`dashboard.inventory_intelligence.view`) show stock value. Whether that permission implies cost is a decision for you.
+- Hiding cost remarks depends on the keyword "cost", so free-text remarks typed by users are not caught.
+- The stock-valuation export sums category quantities across units when cost is hidden.
+
+### Status
+**IMPLEMENTED — VERIFICATION PENDING.**
+- The code (D01–D12, I01–I07, U-13) is complete and passes all suites, apart from the classified infrastructure failures.
+- The Development migration is applied and reconciled.
+- Two gates remain unmet:
+  1. the browser walk-through at 390/768/1440, including POS keyboard flow, refund dialog, UOM setup, repacking and inventory reports with and without cost;
+  2. the Development write workflows: a signed-in user runs a pcs sale, jar GRN, 12 ml pack and 24 ml custom sale, two partial refunds, a repack and opening one pack, then checks the VAT report and accounting inventory valuation (ledger plus capitalized value should equal the GL).
+- **Production** still needs a Production-sized migration rehearsal and a release review.
 

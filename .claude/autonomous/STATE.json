@@ -52,24 +52,24 @@
       "20261106234558_PosV2UomFoundation",
       "20261107084952_PosV2UomRefundsAndPromotionEligibility",
       "20261107104508_PosV2UomPostingRefundGuard",
-      "All three: fresh backup backups/retailpos_db_pre_uom_20261107T105053Z.dump (sha256 c84ad4ae...74d96) restored and rehearsed (1.0 s, totals identical); NOT applied to Development - MigrateOnStartup refused twice by the session permission control"
+      "APPLIED to Development by the owner; verified read-only: history, schema, 17 totals identical to baseline"
     ],
     "tests": {
       "unit": "1047 passed",
-      "integration": "2716 passed, 4 failed (3 LiveInfrastructure; 1 test-DB drop timeout, passes on rerun)",
-      "frontend": "1976 passed, build ok",
-      "flutter": "124 passed, analyze clean",
-      "browser": "not run - no tool"
+      "integration": "2721 passed, 3 failed (LiveInfrastructure)",
+      "frontend": "1983 passed, build ok",
+      "flutter": "124 passed (unchanged)",
+      "browser": "BLOCKED - no tool"
     },
     "remaining": [
-      "Apply the three migrations to Development (owner; no authorized route in session)",
-      "Development smoke tests after migration",
-      "Browser walk-through, 390/768/1440",
-      "U-13 inventory report cost visibility decision",
+      "Browser walk-through 390/768/1440",
+      "Development write workflows by a signed-in user",
+      "Owner decision: dashboard inventory value vs products.view_cost",
       "Production-sized migration rehearsal",
-      "Delete test-server DBs uom_restore_check_20261107094240 and uom_rehearsal_20261107105053"
+      "Delete test-server DBs uom_restore_check_20261107094240 and uom_rehearsal_20261107105053",
+      "Owner's local edits to RetailPOSDbContextFactory.cs and Infrastructure.csproj (EF Tools package) are uncommitted"
     ],
-    "nextAction": "Owner applies the migration (UOM_RELEASE_READINESS.md section 9), then runs the Development smoke tests and the browser walk-through.",
+    "nextAction": "Owner: browser walk-through and Development write workflows (UOM_RELEASE_READINESS.md section 17).",
     "resumeNotes": [
       "Every existing quantity column holds base units; Uom* snapshot columns hold entered values; a null snapshot means legacy pcs",
       "Build with -c Release"
@@ -81,7 +81,9 @@
       "f81342ba I01/I05 proofs and mobile guard",
       "final: review fixes, inventory row lock, verification report",
       "dcfcc48f final gaps: cost redaction, refund VAT, exact refund cost, posting guard",
-      "round 3: review fixes M1-M4 and readiness report"
+      "round 3: review fixes M1-M4 and readiness report",
+      "9cd6da61 U-13",
+      "0e71c1d5 U-13 review fixes"
     ],
     "backup": "backups/retailpos_db_pre_uom_20261107T094240Z.dump (sha256 903d3341...fd9818), restore verified",
     "releaseReadiness": "Docs/Unit_Of_Measurement/UOM_RELEASE_READINESS.md",

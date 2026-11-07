@@ -33,5 +33,16 @@
 | G-20 | Dashboard returned units counted restored packaging and used the current unit | Medium | Only returns of the sale's own pcs lines (`SalesReportReadStore.cs`) | Mobile dashboard suite | Closed |
 | G-21 | The stock ledger showed sale and refund cost to `inventory.view` holders | Medium security | Cost, value and cost remarks hidden without `products.view_cost` (`StockLedgerController.cs`, `StockLedgerDtos.cs`) | `Security_SaleCost_…`, `StockLedgerReadHttpTests` | Closed |
 | G-22 | VAT report read every posted reversal | Medium performance | Report window only (`VatReportReadStore.cs`) | VAT tests | Closed |
-| G-23 | Inventory reports show cost to `reports.inventory` holders | Owner decision | None; raised as U-13 | — | Open (decision) |
+| G-23 | Inventory reports show cost to `reports.inventory` holders | Security | U-13 Option A: cost needs `products.view_cost`; null in API, omitted in CSV/Excel (`InventoryReportsController.cs`, exporters, `ReportExportCostColumns.cs`, 8 Angular pages) | `UomPostgresHttpTests.CostVisibility.cs`, `inventory-report-cost-visibility.spec.ts` | Closed (`9cd6da61`) |
+
+## Round 4 (U-13 review)
+
+| ID | Gap | Severity | Fix | Test | Status |
+|---|---|---|---|---|---|
+| G-24 | Transfer and requisition item cost visible to `stock_transfers.view` | Medium security | Null without `products.view_cost` | `U13_TransferAndBarcodeReads…`, requisition test | Closed (`0e71c1d5`) |
+| G-25 | Barcode variant search returned cost price | Medium security | Cleared without `products.view_cost` | `U13_TransferAndBarcodeReads…` | Closed |
+| G-26 | `api/inventory/valuation` category order revealed cost | Low | Name order when cost is hidden | — | Closed |
+| G-27 | Valuation report returned 500 once a measured unit existed | High (bug) | `UomReportTotals` reads the unit code in the query | CostVisibility tests | Closed (`9cd6da61`) |
+| G-28 | Owner dashboard inventory value under `dashboard.inventory_intelligence.view` | Decision | None | — | Open (owner) |
+| G-29 | `api/inventory/*` hides cost as 0 rather than null | Low | None (contract) | — | Open |
 
