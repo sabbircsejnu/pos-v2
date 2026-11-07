@@ -17,7 +17,8 @@ public sealed record InventoryValuationReadModel(
     decimal GeneralLedgerBalance,
     decimal ReconciliationDifference,
     long InventoryAccountId,
-    DateTime AsOfDate);
+    DateTime AsOfDate,
+    decimal CapitalizedPackagingValue = 0m);
 
 public sealed record InventoryValuationRowReadModel(
     long VariantId,

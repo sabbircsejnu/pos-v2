@@ -236,12 +236,13 @@ public sealed class StockMovementReportReadStore(RetailPOSDbContext dbContext)
             _ => allRows.OrderBy(row => row.ProductName).ThenBy(row => row.Sku).ToList()
         };
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var summary = new StockMovementSummaryReadModel(
-            allRows.Sum(row => row.OpeningStock),
-            allRows.Sum(row => row.StockIn),
-            allRows.Sum(row => row.StockOut),
-            allRows.Sum(row => row.ClosingStock),
-            allRows.Sum(row => row.NetMovement));
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.OpeningStock),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.StockIn),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.StockOut),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.ClosingStock),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.NetMovement));
         var totalCount = allRows.Count;
         if (filter.PageSize > 0)
         {

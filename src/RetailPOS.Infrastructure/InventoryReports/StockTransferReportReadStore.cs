@@ -127,6 +127,7 @@ public sealed class StockTransferReportReadStore(RetailPOSDbContext dbContext)
 
         var search = filter.Search.Trim().ToLower();
         var rows = new List<StockTransferReportRowReadModel>();
+        var rowVariantIds = new List<long>();
         foreach (var transfer in transfers)
         {
             var creatorName = transfer.Creator?.Name ?? string.Empty;
@@ -154,6 +155,7 @@ public sealed class StockTransferReportReadStore(RetailPOSDbContext dbContext)
                 }
 
                 var unitCost = item.Variant.Product.CostPrice + item.Variant.CostAdjustment;
+                rowVariantIds.Add(item.VariantId);
                 rows.Add(new StockTransferReportRowReadModel(
                     transfer.Id,
                     transfer.TransferDate,
@@ -174,11 +176,12 @@ public sealed class StockTransferReportReadStore(RetailPOSDbContext dbContext)
             }
         }
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var visibleTransferIds = rows.Select(row => row.TransferId).Distinct().ToList();
         var summary = new StockTransferReportSummaryReadModel(
             visibleTransferIds.Count,
             rows.Count,
-            rows.Sum(row => row.Quantity),
+            rows.Where((_, index) => !nonPcsVariants.Contains(rowVariantIds[index])).Sum(row => row.Quantity),
             rows.Sum(row => row.TransferValue),
             transfers.Count(transfer =>
                 visibleTransferIds.Contains(transfer.Id) && transfer.Status == "pending"),

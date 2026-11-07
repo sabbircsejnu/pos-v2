@@ -369,7 +369,8 @@ public static class TransferOpportunityEngine
             suggested,
             priority,
             reasons,
-            canInitiate?.Invoke(source) ?? false);
+            canInitiate?.Invoke(source) ?? false,
+            BaseUnitCode: source.BaseUnitCode);
     }
 
     private static TransferSideDetail Side(VariantLocationFact fact, decimal velocity, decimal? cover) =>

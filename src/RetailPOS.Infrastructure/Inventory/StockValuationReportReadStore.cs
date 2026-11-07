@@ -155,11 +155,12 @@ public sealed class StockValuationReportReadStore(RetailPOSDbContext dbContext)
                     : 0
             })
             .ToList();
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var byCategory = allRows
             .GroupBy(row => row.CategoryName)
             .Select(group => new StockValuationCategoryReadModel(
                 group.Key,
-                group.Sum(row => row.Quantity),
+                group.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.Quantity),
                 group.Sum(row => row.InventoryValue),
                 totalValue > 0
                     ? Math.Round(group.Sum(row => row.InventoryValue) / totalValue * 100, 2)
@@ -168,7 +169,7 @@ public sealed class StockValuationReportReadStore(RetailPOSDbContext dbContext)
             .ToArray();
         var summary = new StockValuationSummaryReadModel(
             allRows.Select(row => row.VariantId).Distinct().Count(),
-            allRows.Sum(row => row.Quantity),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.Quantity),
             totalValue,
             byCategory);
 

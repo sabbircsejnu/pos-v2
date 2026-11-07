@@ -222,13 +222,28 @@ public sealed record VariantLocationFact(
     bool EverSold,
     DateOnly? LastSaleDate,
     decimal? UnitCost,
-    decimal? StockValue)
+    decimal? StockValue,
+    string BaseUnitCode = "pcs")
 {
     public decimal Available => Math.Max(0, OnHand);
     public bool IsShowroom => LocationType == OwnerDashboardLocationTypes.Outlet;
 }
 
 public sealed record InventorySnapshot(IReadOnlyList<VariantLocationFact> Facts, DateTime AsOfUtc);
+
+/// <summary>A quantity in one unit. Unlike units are listed side by side and never added together (BI-002).</summary>
+public sealed record UnitQuantity(string UnitCode, decimal Quantity)
+{
+    public static IReadOnlyList<UnitQuantity> Of(IEnumerable<VariantLocationFact> facts) =>
+        facts.GroupBy(fact => fact.BaseUnitCode)
+            .Select(group => new UnitQuantity(group.Key, group.Sum(fact => fact.Available)))
+            .OrderBy(row => row.UnitCode, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>The legacy single figure: pcs only, so it stays meaningful and unchanged for a pcs-only business.</summary>
+    public static decimal PcsTotal(IEnumerable<VariantLocationFact> facts) =>
+        facts.Where(fact => fact.BaseUnitCode == "pcs").Sum(fact => fact.OnHand);
+}
 
 public static class StockValuationStatuses
 {
@@ -250,7 +265,7 @@ public sealed record StockValuationCoverage(
     int ValuedRecords,
     decimal ValuedQuantity,
     int ZeroCostRecords,
-    long ZeroCostQuantity,
+    decimal ZeroCostQuantity,
     int UnvaluedRecords,
     decimal UnvaluedQuantity)
 {
@@ -276,11 +291,11 @@ public sealed record StockValuationCoverage(
             known == 0 ? null : valued.Sum(fact => fact.StockValue!.Value),
             status,
             valued.Count,
-            valued.Sum(fact => (long)fact.OnHand),
+            valued.Sum(fact => fact.OnHand),
             zeroCost.Count,
-            zeroCost.Sum(fact => (long)fact.OnHand),
+            zeroCost.Sum(fact => fact.OnHand),
             unvalued.Count,
-            unvalued.Sum(fact => (long)fact.OnHand));
+            unvalued.Sum(fact => fact.OnHand));
     }
 
     public string MetricStatus => Status switch
@@ -316,7 +331,7 @@ public interface IInventoryDashboardReadStore
 public sealed record InventorySummaryReadModel(
     DashboardContext Context,
     MetricValue TotalStockValue,
-    long TotalStockQuantity,
+    decimal TotalStockQuantity,
     int ActiveStockedProducts,
     decimal StockedVariants,
     MetricValue SlowMovingStockValue,
@@ -330,16 +345,18 @@ public sealed record InventorySummaryReadModel(
     string ValuationMethod,
     IReadOnlyList<string> DataQualityWarnings,
     StockValuationCoverage Valuation,
-    StockValuationCoverage SlowMovingValuation);
+    StockValuationCoverage SlowMovingValuation,
+    IReadOnlyList<UnitQuantity>? QuantityByUnit = null);
 
 public sealed record StockValueByLocationRow(
     long LocationId,
     string LocationType,
     string LocationName,
-    long Quantity,
+    decimal Quantity,
     decimal? StockValue,
     decimal? PercentOfTotal,
-    StockValuationCoverage Valuation);
+    StockValuationCoverage Valuation,
+    IReadOnlyList<UnitQuantity>? QuantityByUnit = null);
 
 public sealed record StockValueByLocationReadModel(
     DashboardContext Context,
@@ -359,7 +376,8 @@ public sealed record BestSellerRow(
     string CategoryName,
     decimal NetUnitsSold,
     decimal NetSales,
-    long CurrentAvailableStock);
+    decimal CurrentAvailableStock,
+    string BaseUnitCode = "pcs");
 
 public static class SlowClassifications
 {
@@ -392,7 +410,8 @@ public sealed record SlowMoverRow(
     int EligibleSellingDays,
     decimal? VelocityPerDay,
     string Classification,
-    string Reason);
+    string Reason,
+    string BaseUnitCode = "pcs");
 
 public sealed record SlowMoversReadModel(
     DashboardContext Context,
@@ -448,7 +467,8 @@ public sealed record TransferOpportunity(
     decimal SuggestedQty,
     string Priority,
     IReadOnlyList<string> ReasonCodes,
-    bool CanInitiate);
+    bool CanInitiate,
+    string BaseUnitCode = "pcs");
 
 public sealed record TransferOpportunitiesReadModel(
     DashboardContext Context,
@@ -467,7 +487,8 @@ public sealed record ProductInsightLocationRow(
     decimal NetUnitsSold,
     decimal NetSales,
     decimal? StockValue,
-    int? DaysSinceLastSale);
+    int? DaysSinceLastSale,
+    string BaseUnitCode = "pcs");
 
 public sealed record ProductInsightsReadModel(
     DashboardContext Context,
@@ -475,12 +496,13 @@ public sealed record ProductInsightsReadModel(
     string? MainCode,
     string ProductName,
     string CategoryName,
-    long TotalAvailableStock,
+    decimal TotalAvailableStock,
     decimal TotalNetUnitsSold,
     decimal TotalNetSales,
     decimal? TotalStockValue,
     IReadOnlyList<ProductInsightLocationRow> Locations,
-    StockValuationCoverage Valuation);
+    StockValuationCoverage Valuation,
+    IReadOnlyList<UnitQuantity>? QuantityByUnit = null);
 
 public sealed record OwnerDashboardMetaReadModel(
     DateOnly Today,

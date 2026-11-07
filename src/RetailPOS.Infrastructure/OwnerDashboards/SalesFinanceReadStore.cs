@@ -121,7 +121,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             {
                 sale.OutletId,
                 Date = sale.BusinessDate ?? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(sale.SaleDate, zone).Date,
-                Cogs = Math.Round(sale.Items.Sum(item => (item.HistoricalUnitCost ?? 0m) * item.Quantity), 2)
+                Cogs = Math.Round(sale.Items.Sum(item => (item.HistoricalUnitCost ?? 0m) * item.Quantity + item.PackagingCost), 2)
             })
             .GroupBy(sale => new { sale.OutletId, sale.Date })
             .Select(group => new { group.Key.OutletId, group.Key.Date, Cogs = group.Sum(sale => sale.Cogs) })
@@ -133,6 +133,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
                 sale.OutletId,
                 Date = sale.BusinessDate ?? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(sale.SaleDate, zone).Date,
                 item.Quantity,
+                item.UomBaseUnitCode,
                 item.HistoricalUnitCost
             }))
             .GroupBy(line => new { line.OutletId, line.Date })
@@ -140,7 +141,8 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             {
                 group.Key.OutletId,
                 group.Key.Date,
-                Units = group.Sum(line => line.Quantity),
+                // Only pcs add up to a unit count; other units still count in money.
+                Units = group.Sum(line => line.UomBaseUnitCode == null || line.UomBaseUnitCode == "pcs" ? line.Quantity : 0m),
                 MissingCost = group.Count(line => line.HistoricalUnitCost == null || line.HistoricalUnitCost == 0m)
             })
             .ToListAsync(cancellationToken);
@@ -177,6 +179,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             to,
             zone,
             cancellationToken);
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         foreach (var reversal in reversals.Where(reversal => reversal.Trusted))
         {
             (long Outlet, DateOnly Date) key = (reversal.OutletId, reversal.AccountingDate);
@@ -184,7 +187,7 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             days[key] = day with
             {
                 NetSales = day.NetSales - reversal.Snapshot.RefundAmount,
-                NetUnits = day.NetUnits - reversal.Snapshot.Lines.Sum(line => line.Quantity),
+                NetUnits = day.NetUnits - reversal.Snapshot.Lines.Where(line => !nonPcsVariants.Contains(line.VariantId)).Sum(line => line.Quantity),
                 Cogs = day.Cogs - reversal.Snapshot.Cost
             };
         }

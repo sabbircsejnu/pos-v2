@@ -131,7 +131,7 @@ public sealed class GetInventorySummaryQueryHandler(
         return new InventorySummaryReadModel(
             InventoryAnalytics.Context(filter, scope, snapshot.AsOfUtc),
             new MetricValue(valuation.ValuedSubtotal, valuation.MetricStatus, InventoryAnalytics.ValuationMethod),
-            stocked.Sum(fact => (long)fact.OnHand),
+            UnitQuantity.PcsTotal(stocked),
             stocked.Select(fact => fact.ProductId).Distinct().Count(),
             stocked.Select(fact => fact.VariantId).Distinct().Count(),
             new MetricValue(
@@ -151,7 +151,8 @@ public sealed class GetInventorySummaryQueryHandler(
             InventoryAnalytics.ValuationMethod,
             warnings,
             valuation,
-            slowValuation);
+            slowValuation,
+            UnitQuantity.Of(stocked));
     }
 
     private static bool MatchesLocation(TransferOpportunity row, InventoryFilter filter) =>
@@ -213,12 +214,13 @@ public sealed class GetStockValueByLocationQueryHandler(
                     location.Id,
                     location.Type,
                     location.Name,
-                    facts.Sum(fact => (long)fact.OnHand),
+                    UnitQuantity.PcsTotal(facts),
                     value,
                     total > 0m && value is not null
                         ? Math.Round(100m * value.Value / total.Value, 2, MidpointRounding.AwayFromZero)
                         : null,
-                    coverage);
+                    coverage,
+                    UnitQuantity.Of(facts.Where(fact => fact.OnHand > 0m)));
             })
             .OrderBy(row => row.StockValue is null)
             .ThenByDescending(row => row.StockValue ?? 0m)
@@ -258,6 +260,7 @@ public sealed class GetBestSellersQueryHandler(
         InventoryAnalytics.Validate(filter, scope);
         var snapshot = await store.GetSnapshotAsync(scope, filter.From, filter.To, false, cancellationToken);
 
+        var hasMixedUnits = snapshot.Facts.Select(fact => fact.BaseUnitCode).Distinct().Skip(1).Any();
         var ranked = snapshot.Facts
             .Where(fact => InventoryAnalytics.AtLocation(fact, filter) && InventoryAnalytics.MatchesProduct(fact, filter))
             .GroupBy(fact => fact.VariantId)
@@ -266,10 +269,11 @@ public sealed class GetBestSellersQueryHandler(
                 First = group.First(),
                 Units = group.Sum(fact => fact.NetUnitsSold),
                 Net = group.Sum(fact => fact.NetSales),
-                Available = group.Sum(fact => (long)fact.Available)
+                Available = group.Sum(fact => fact.Available)
             })
             .Where(row => row.Units > 0)
-            .OrderByDescending(row => row.Units)
+            // 500 ml and 10 pcs cannot be compared by quantity, so a mixed list ranks by revenue (BI-004).
+            .OrderByDescending(row => hasMixedUnits ? row.Net : row.Units)
             .ThenByDescending(row => row.Net)
             .ThenBy(row => row.First.MainCode, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.First.Sku, StringComparer.OrdinalIgnoreCase)
@@ -284,7 +288,8 @@ public sealed class GetBestSellersQueryHandler(
                 row.First.CategoryName,
                 row.Units,
                 row.Net,
-                row.Available))
+                row.Available,
+                row.First.BaseUnitCode))
             .ToList();
 
         return InventoryAnalytics.Page(Sort(ranked, request.SortBy, request.SortDirection), page, pageSize);
@@ -375,7 +380,8 @@ public sealed class GetSlowMoversQueryHandler(
                 row.Fact.EligibleSellingDays,
                 row.Result.VelocityPerDay,
                 row.Result.Classification,
-                row.Result.Reason))
+                row.Result.Reason,
+                row.Fact.BaseUnitCode))
             .ToList();
 
         return new SlowMoversReadModel(
@@ -547,8 +553,8 @@ public sealed class GetProductInsightsQueryHandler(
             first.MainCode,
             first.ProductName,
             first.CategoryName,
-            facts.Sum(fact => (long)fact.Available),
-            facts.Sum(fact => fact.NetUnitsSold),
+            facts.Where(fact => fact.BaseUnitCode == "pcs").Sum(fact => fact.Available),
+            facts.Where(fact => fact.BaseUnitCode == "pcs").Sum(fact => fact.NetUnitsSold),
             facts.Sum(fact => fact.NetSales),
             valuation.ValuedSubtotal,
             facts
@@ -565,8 +571,10 @@ public sealed class GetProductInsightsQueryHandler(
                     fact.NetUnitsSold,
                     fact.NetSales,
                     fact.StockValue,
-                    InventoryAnalytics.DaysSince(fact.LastSaleDate, scope.Today)))
+                    InventoryAnalytics.DaysSince(fact.LastSaleDate, scope.Today),
+                    fact.BaseUnitCode))
                 .ToList(),
-            valuation);
+            valuation,
+            UnitQuantity.Of(facts));
     }
 }

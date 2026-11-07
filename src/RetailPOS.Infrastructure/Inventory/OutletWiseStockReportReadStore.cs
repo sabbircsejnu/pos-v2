@@ -102,20 +102,21 @@ public sealed class OutletWiseStockReportReadStore(RetailPOSDbContext dbContext)
                 unitCost * row.Quantity);
         }).ToList();
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var byOutlet = allRows
             .GroupBy(row => row.OutletId)
             .Select(group => new OutletStockSummaryReadModel(
                 group.Key,
                 group.First().OutletName,
                 group.Select(row => row.VariantId).Distinct().Count(),
-                group.Sum(row => row.Quantity),
+                group.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.Quantity),
                 group.Sum(row => row.StockValue)))
             .OrderBy(outlet => outlet.OutletName)
             .ToArray();
         var summary = new OutletWiseStockSummaryReadModel(
             byOutlet.Length,
             allRows.Select(row => row.VariantId).Distinct().Count(),
-            allRows.Sum(row => row.Quantity),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.Quantity),
             allRows.Sum(row => row.StockValue),
             byOutlet);
 

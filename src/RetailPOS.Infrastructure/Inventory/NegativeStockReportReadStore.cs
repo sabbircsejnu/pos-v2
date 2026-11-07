@@ -143,9 +143,10 @@ public sealed class NegativeStockReportReadStore(RetailPOSDbContext dbContext)
                 row.UnitCost * row.Quantity);
         }).ToList();
 
+        var nonPcsVariants = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var summary = new NegativeStockSummaryReadModel(
             allRows.Select(row => row.VariantId).Distinct().Count(),
-            allRows.Sum(row => row.CurrentStock),
+            allRows.Where(row => !nonPcsVariants.Contains(row.VariantId)).Sum(row => row.CurrentStock),
             allRows.Sum(row => row.StockValue));
 
         allRows = (filter.SortBy.ToLower(), filter.SortDir.ToLower() == "desc") switch

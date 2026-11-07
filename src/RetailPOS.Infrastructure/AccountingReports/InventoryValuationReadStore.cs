@@ -105,7 +105,22 @@ public sealed class InventoryValuationReadStore(
             .Select(group => ReplayPool(group.ToList()))
             .Where(row => row.Quantity != 0)
             .ToList();
-        var ledgerValue = rows.Sum(row => row.InventoryValue);
+        // Bottles capitalized into prepared packs left their own pool but not the Inventory account (D-G).
+        var capitalizedQuery = dbContext.PackStateMovements.AsNoTracking()
+            .Where(movement => movement.BusinessId == businessId && movement.BusinessDate <= asOf.Date && movement.CapitalizedValueDelta != 0m);
+        if (filter.OutletId.HasValue)
+            capitalizedQuery = capitalizedQuery.Where(movement => movement.LocationType == "outlet" && movement.LocationId == filter.OutletId.Value);
+        if (filter.WarehouseId.HasValue)
+            capitalizedQuery = capitalizedQuery.Where(movement => movement.LocationType == "warehouse" && movement.LocationId == filter.WarehouseId.Value);
+        if (filter.LocationId.HasValue)
+            capitalizedQuery = capitalizedQuery.Where(movement => movement.LocationId == filter.LocationId.Value);
+        if (!string.IsNullOrWhiteSpace(filter.LocationType))
+            capitalizedQuery = capitalizedQuery.Where(movement => movement.LocationType == filter.LocationType.Trim().ToLower());
+        if (filter.VariantId.HasValue)
+            capitalizedQuery = capitalizedQuery.Where(movement => movement.VariantId == filter.VariantId.Value);
+        var capitalizedValue = await capitalizedQuery.SumAsync(movement => (decimal?)movement.CapitalizedValueDelta, cancellationToken) ?? 0m;
+        var ledgerValue = rows.Sum(row => row.InventoryValue) + capitalizedValue;
+        var nonPcs = await RetailPOS.Infrastructure.Uom.UomReportTotals.NonPcsVariantIdsAsync(dbContext, cancellationToken);
         var glJournals = await ApplyScopeAndPeriod(
                 dbContext.JournalEntries
                     .AsNoTracking()
@@ -122,12 +137,13 @@ public sealed class InventoryValuationReadStore(
         return new InventoryValuationReadModel(
             rows,
             unvalued,
-            rows.Sum(row => row.Quantity),
+            rows.Where(row => !nonPcs.Contains(row.VariantId)).Sum(row => row.Quantity),
             ledgerValue,
             glBalance,
             ledgerValue - glBalance,
             configuration.InventoryAccountId.Value,
-            asOf.Date);
+            asOf.Date,
+            capitalizedValue);
     }
 
     /// <summary>

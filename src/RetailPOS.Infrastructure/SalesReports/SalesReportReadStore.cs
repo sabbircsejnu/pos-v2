@@ -86,7 +86,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
         var unitsSold = await dbContext.SaleItems
             .AsNoTracking()
             .Where(item => eligibleSaleIds.Contains(item.SaleId))
-            .SumAsync(item => (decimal?)item.Quantity, cancellationToken) ?? 0m;
+            .SumAsync(item => (decimal?)(item.UomBaseUnitCode == null || item.UomBaseUnitCode == "pcs" ? item.Quantity : 0m), cancellationToken) ?? 0m;
         var netRevenue = totalRevenue - refundAmount;
 
         return new MobileSalesDashboardReadModel(
@@ -170,7 +170,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                 && item.Sale.SaleDate <= filter.EndDate
                 && (!filter.OutletId.HasValue || item.Sale.OutletId == filter.OutletId.Value)
                 && (!filter.CashierId.HasValue || item.Sale.CashierId == filter.CashierId.Value))
-            .SumAsync(item => (decimal?)item.Quantity, cancellationToken) ?? 0m;
+            .SumAsync(item => (decimal?)(item.UomBaseUnitCode == null || item.UomBaseUnitCode == "pcs" ? item.Quantity : 0m), cancellationToken) ?? 0m;
     }
 
     public async Task<IReadOnlyList<TopProductReadModel>> GetTopProductsAsync(

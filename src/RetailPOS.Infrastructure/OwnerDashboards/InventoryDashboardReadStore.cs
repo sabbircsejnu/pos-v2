@@ -95,6 +95,15 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
             .Select(group => new { group.Key, OnHand = group.Sum(inventory => inventory.Quantity) })
             .ToListAsync(cancellationToken);
 
+        var baseUnits = await RetailPOS.Infrastructure.Uom.UomReportTotals.BaseUnitCodesAsync(dbContext, scope.BusinessId, cancellationToken);
+        // Packaging value inside prepared packs is inventory too; it just no longer sits in the packaging variant's pool.
+        var capitalized = includeCost
+            ? await dbContext.PackStateBalances.AsNoTracking()
+                .Where(row => row.BusinessId == scope.BusinessId && row.CapitalizedValue != 0m)
+                .GroupBy(row => new { row.VariantId, row.LocationId, row.LocationType })
+                .Select(group => new { group.Key, Value = group.Sum(row => row.CapitalizedValue) })
+                .ToDictionaryAsync(row => (row.Key.VariantId, row.Key.LocationId, row.Key.LocationType), row => row.Value, cancellationToken)
+            : [];
         var sales = await ReadNetSalesAsync(scope, outletIds, from, to, cancellationToken);
         var lastSales = await ReadLastSalesAsync(scope, outletIds, cancellationToken);
         var (outbound, inbound) = await ReadPendingTransfersAsync(outletIds, warehouseIds, cancellationToken);
@@ -146,7 +155,8 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
                 lastSale is not null,
                 lastSale,
                 unitCost,
-                value);
+                value is null ? null : value + capitalized.GetValueOrDefault(locationKey),
+                baseUnits.GetValueOrDefault(key.VariantId, "pcs"));
         }).ToList();
 
         return new InventorySnapshot(facts, asOfUtc);

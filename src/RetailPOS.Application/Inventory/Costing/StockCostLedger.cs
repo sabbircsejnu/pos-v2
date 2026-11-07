@@ -218,6 +218,8 @@ public sealed class StockCostLedger
                 StockCostReferenceTypes.StockTransfer =>
                     evidence.TransferOrigins.TryGetValue(referenceId, out var origin)
                     && IsProvenFreeOrigin(variantId, origin, evidence, visiting),
+                // A reversed repack returns stock that was proven free when the job consumed it.
+                Core.Entities.UomStockLedgerTypes.RepackReference => true,
                 _ => false
             };
             if (!proven)
