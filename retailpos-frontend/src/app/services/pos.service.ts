@@ -22,6 +22,10 @@ export interface CartPriceRequestItem {
   productVariantId: number;
   quantity: number;
   outletId: number;
+  /** A pack or custom option; the line is then priced from the option using `enteredQuantity`. */
+  sellingOptionId?: number;
+  /** Pack count or measured quantity of `sellingOptionId`. */
+  enteredQuantity?: number;
 }
 
 /** Per-item result from POST /api/pos/cart-prices (per-unit amounts). */
@@ -41,6 +45,10 @@ export interface CartPriceResultItem {
   pricesIncludeTax?: boolean;
   appliedRuleId?: number;
   appliedRuleName?: string;
+  /** Option lines: the whole line amount after automatic rules, before manual discount and tax-exclusive VAT. */
+  lineGross?: number | null;
+  /** Option lines: rules that match but cannot be applied to a measured quantity. */
+  rulesNotApplied?: string[] | null;
 }
 
 export interface PosApiResponse<T> {

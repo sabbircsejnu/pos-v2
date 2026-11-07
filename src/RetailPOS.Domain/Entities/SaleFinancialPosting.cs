@@ -60,6 +60,9 @@ public class SaleFinancialPosting
     public string Kind { get; set; } = SaleFinancialPostingKinds.Sale;
     public string? ReversalType { get; set; }
 
+    /// <summary>The refund transaction behind this reversal. Null for voids and for refunds recorded before multiple refunds.</summary>
+    public long? SaleRefundId { get; set; }
+
     /// <summary>Stable posting intent key, e.g. <c>sale:42:posting:v1</c>; unique per Business.</summary>
     public string SourceKey { get; set; } = string.Empty;
 

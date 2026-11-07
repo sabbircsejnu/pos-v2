@@ -68,4 +68,10 @@ public static class UomStockLedgerTypes
     public const string RepackReversal = "repack_reversal";
 
     public const string RepackReference = "repack_job";
+
+    /// <summary>Packaging back in stock because prepared packs were opened; it carries their capitalized value.</summary>
+    public const string PreparedOpen = "prepared_open";
+
+    /// <summary>Reference type of a prepared-pack opening. The reference id is the opened item's variant.</summary>
+    public const string PreparedOpenReference = "prepared_open";
 }

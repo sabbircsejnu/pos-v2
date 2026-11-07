@@ -1,5 +1,17 @@
 import { SellingOption, VariantUomConfig } from '../../models/uom.model';
-import { allowedForms, canChoosePackaging, cartLineKey, lineNeedsRepick, sellingBaseQuantity, sellingPrecision, uomLineFields } from './pos-uom';
+import {
+  allowedForms,
+  canChoosePackaging,
+  cartLineKey,
+  cartPriceRequestItem,
+  expectedLineGrossField,
+  lineNeedsRepick,
+  priceRequestMatches,
+  sellingBaseQuantity,
+  sellingPrecision,
+  uomLineFields
+} from './pos-uom';
+import { CartItem } from '../../models/sale.model';
 
 const unit = { id: 1, code: 'ml', symbol: 'ml', dimension: 'volume' as const, precision: 1, isWhole: false };
 
@@ -86,5 +98,37 @@ describe('POS unit helpers', () => {
     expect(lineNeedsRepick({ ...current, sellingOptionId: 99 }, config())).toBe(true);
     expect(lineNeedsRepick({}, config())).toBe(true);
     expect(lineNeedsRepick({}, config({ baseUnit: { ...unit, code: 'pcs' } }))).toBe(false);
+  });
+});
+
+describe('option line pricing helpers', () => {
+  const line = (over: Partial<CartItem> = {}): CartItem => ({
+    variantId: 5, productName: 'Attar', variantSku: 'ATR', quantity: 2, unitPrice: 500, discountAmount: 0, subtotal: 1000, ...over,
+  });
+
+  it('keeps the pcs cart-prices request unchanged', () => {
+    expect(cartPriceRequestItem(line(), 3)).toEqual({ productVariantId: 5, quantity: 2, outletId: 3 });
+  });
+
+  it('sends an option line with quantity 1 and the entered quantity', () => {
+    expect(cartPriceRequestItem(line({ sellingOptionId: 12, quantity: 2.5 }), 3))
+      .toEqual({ productVariantId: 5, quantity: 1, outletId: 3, sellingOptionId: 12, enteredQuantity: 2.5 });
+  });
+
+  it('matches a result only to the line it was requested for', () => {
+    const optionLine = line({ sellingOptionId: 12, quantity: 2.5 });
+    const requested = cartPriceRequestItem(optionLine, 3);
+    expect(priceRequestMatches(requested, optionLine)).toBe(true);
+    expect(priceRequestMatches(requested, { ...optionLine, quantity: 3 })).toBe(false);
+    expect(priceRequestMatches(requested, { ...optionLine, sellingOptionId: 11 })).toBe(false);
+    expect(priceRequestMatches(requested, line())).toBe(false);
+    expect(priceRequestMatches(requested, undefined)).toBe(false);
+    expect(priceRequestMatches(cartPriceRequestItem(line(), 3), line({ quantity: 7 }))).toBe(true);
+  });
+
+  it('adds expectedLineGross only to a priced option line', () => {
+    expect(expectedLineGrossField(line({ lineGross: 900 }))).toEqual({});
+    expect(expectedLineGrossField(line({ sellingOptionId: 10 }))).toEqual({});
+    expect(expectedLineGrossField(line({ sellingOptionId: 10, lineGross: 900 }))).toEqual({ expectedLineGross: 900 });
   });
 });

@@ -15,7 +15,8 @@ namespace RetailPOS.API.Services;
 /// accounts (net + VAT, allocated in whole cents) · Dr Inventory / Cr COGS (historical cost), dated on the reversal's
 /// own accounting date (P3.2-D02).</para>
 /// The journal reference (<c>Sale</c>/<c>SaleRefund</c> + sale id) is unchanged, so a journal that already exists for
-/// the sale is resolved instead of duplicated. The Business always comes from the snapshot, never from an HTTP context.
+/// the sale is resolved instead of duplicated. Each refund transaction has its own reference (sale id + sequence), so
+/// several refunds of one sale post several journals. The Business always comes from the snapshot, never from an HTTP context.
 /// </summary>
 public sealed class SaleFinancialJournalPoster(
     ISender sender,
@@ -112,15 +113,15 @@ public sealed class SaleFinancialJournalPoster(
                 accountingDay,
                 accountingDay,
                 "SaleRefund",
-                snapshot.SaleId.ToString(),
-                snapshot.SaleNumber,
+                SaleFinancialIntentFactory.RefundJournalReference(snapshot.SaleId, snapshot.RefundSequence ?? 1),
+                snapshot.RefundNumber ?? snapshot.SaleNumber,
                 $"POS {snapshot.ReversalType} reversal for {snapshot.SaleNumber} (sale business date {snapshot.BusinessDate:yyyy-MM-dd})",
                 snapshot.OutletId,
                 snapshot.TerminalId,
                 snapshot.CashSessionId,
                 lines,
                 snapshot.RequestedAtUtc),
-            SaleFinancialIntentFactory.ReversalSourceKey(snapshot.SaleId),
+            SaleFinancialIntentFactory.SourceKeyOf(snapshot),
             cancellationToken);
     }
 

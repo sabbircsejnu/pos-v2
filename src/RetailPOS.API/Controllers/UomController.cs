@@ -16,6 +16,8 @@ public sealed record VariantUnitConfigBatchRequest(IReadOnlyList<long> VariantId
 
 public sealed record UnitSaleQuoteRequest(long VariantId, long SellingOptionId, decimal EnteredQuantity, long? ExpectedConfigVersionId);
 
+public sealed record OpenPreparedPackRequest(long VariantId, long LocationId, string LocationType, string PackCode, decimal BaseQtyPerPack, int Count, bool PackagingReusable, string IdempotencyKey);
+
 public sealed record OpenSealedPackRequest(long VariantId, long LocationId, string LocationType, string PackCode, decimal BaseQtyPerPack, int Count, string IdempotencyKey);
 
 public sealed record CreateRepackJobRequest(long SourceVariantId, long LocationId, string LocationType, long OutputSellingOptionId, int OutputCount, string IdempotencyKey, string? Notes);
@@ -152,6 +154,24 @@ public sealed class UomController(ISender sender) : ControllerBase
         [FromBody] OpenSealedPackRequest request,
         CancellationToken cancellationToken) =>
         Ok(ApiResponse<PackStateReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(new OpenSealedPackCommand(request.VariantId, request.LocationId, request.LocationType, request.PackCode, request.BaseQtyPerPack, request.Count, request.IdempotencyKey), cancellationToken))));
+
+    /// <summary>Opens prepared packs: content to loose stock, packaging back to packaging stock with its capitalized value.</summary>
+    [HttpPost("pack-state/open-prepared")]
+    [Authorize(Policy = PermissionCatalog.PackStateManage)]
+    public async Task<ActionResult<ApiResponse<PackStateReadModel>>> OpenPreparedPack(
+        [FromBody] OpenPreparedPackRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(ApiResponse<PackStateReadModel>.SuccessResponse(WithVisibleCost(await sender.Send(
+            new OpenPreparedPackCommand(
+                request.VariantId,
+                request.LocationId,
+                request.LocationType,
+                request.PackCode,
+                request.BaseQtyPerPack,
+                request.Count,
+                request.PackagingReusable,
+                request.IdempotencyKey),
+            cancellationToken))));
 
     [HttpPut("stock-counts/{stockCountId:long}/lines/{lineId:long}/entries")]
     [Authorize(Policy = "inventory.edit")]

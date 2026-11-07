@@ -184,6 +184,29 @@ describe('VariantUnitsPageComponent', () => {
     expect(page.form.controls.packs.at(0).controls.isPreparedEligible.value).toBe(false);
   });
 
+  it('defaults automatic promotions off for a new pack, on for a new custom quantity, and sends them explicitly', async () => {
+    const { page, service, fixture } = await create(CONFIGURED);
+    expect(page.form.controls.packs.at(0).controls.applyAutomaticPricingRules.value).toBe(false);
+    page.addPack();
+    page.addCustom();
+    expect(page.form.controls.packs.at(1).controls.applyAutomaticPricingRules.value).toBe(false);
+    expect(page.form.controls.customs.at(0).controls.applyAutomaticPricingRules.value).toBe(true);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Apply automatic promotions');
+
+    page.form.controls.packs.removeAt(1);
+    page.form.controls.customs.removeAt(0);
+    page.form.controls.packs.at(0).controls.applyAutomaticPricingRules.setValue(true);
+    page.save();
+    expect(service.saveVariantConfig.mock.calls[0][2].sellingOptions[0].applyAutomaticPricingRules).toBe(true);
+  });
+
+  it('loads the saved promotion flag', async () => {
+    const view: VariantUomConfigView = { ...CONFIGURED, current: { ...CONFIG, sellingOptions: [{ ...CONFIG.sellingOptions[0], applyAutomaticPricingRules: true }] } };
+    const { page } = await create(view);
+    expect(page.form.controls.packs.at(0).controls.applyAutomaticPricingRules.value).toBe(true);
+  });
+
   it('suggests a code for a new option only', async () => {
     const { page } = await create(CONFIGURED);
     page.addPack();

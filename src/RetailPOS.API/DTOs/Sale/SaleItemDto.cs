@@ -18,5 +18,6 @@ public class SaleItemDto
     public decimal? EnteredUnitPrice { get; set; }
     public string? BaseUnitCode { get; set; }
     public string? PackState { get; set; }
-    public decimal? ReturnedQuantity { get; set; }
+    public decimal ReturnedQuantity { get; set; }
+    public decimal RemainingReturnableQuantity { get; set; }
 }

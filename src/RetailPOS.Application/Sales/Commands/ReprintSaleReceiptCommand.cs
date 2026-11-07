@@ -22,7 +22,8 @@ public sealed class ReprintSaleReceiptCommandHandler(
 
         if (!string.Equals(sale.Status, "completed", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(sale.Status, "voided", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(sale.Status, "refunded", StringComparison.OrdinalIgnoreCase))
+            !string.Equals(sale.Status, "refunded", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(sale.Status, "partially_refunded", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Only finalized sales can be reprinted");
         }

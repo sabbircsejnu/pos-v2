@@ -32,7 +32,7 @@
             <div class="flex items-center gap-3">
               <h1 class="text-xl font-bold text-gray-900 font-mono">{{ sale()?.saleNumber }}</h1>
               <span [class]="'status-badge ' + getStatusClass(sale()?.status || '')">
-                {{ sale()?.status }}
+                {{ statusLabel(sale()?.status) }}
               </span>
             </div>
             <p class="text-sm text-gray-500 mt-1">{{ sale()?.saleDate | appDate:'MMMM d, y HH:mm' }}</p>
@@ -166,33 +166,83 @@
         </div>
       </div>
     </div>
+
+    <!-- Refund history -->
+    @if (refunds().length > 0) {
+      <app-ui-card title="Refunds" subtitle="Amounts were calculated by the server from the original sale." class="sale-refund-history">
+        <ol class="sale-refund-history__list">
+          @for (refund of refunds(); track refund.id) {
+            <li class="sale-refund-history__entry">
+              <div class="sale-refund-history__head">
+                <span class="sale-refund-history__number">{{ refund.refundNumber }}</span>
+                <span class="sale-uom-note">{{ refund.createdAtUtc | appDate:'MMMM d, y HH:mm' }} · {{ refund.actorName || 'Unknown user' }}</span>
+              </div>
+              @if (refund.reason) {
+                <p class="sale-uom-note">Reason: {{ refund.reason }}</p>
+              }
+              <ul class="sale-refund-history__lines">
+                @for (line of refund.lines; track line.saleItemId) {
+                  <li>
+                    <span class="sale-refund-history__product">{{ refundedItem(line)?.productName || 'Sale line ' + line.saleItemId }}</span>
+                    <span class="sale-uom-note">
+                      Returned {{ refundLineQuantity(line, line.quantity) }} · {{ conditionLabel(line.condition) }} · restocked {{ refundLineQuantity(line, line.restockedQuantity) }}@if (line.packagingReusable) { · packaging reused }
+                    </span>
+                  </li>
+                }
+              </ul>
+              <div class="sale-refund-history__totals">
+                <span>Total refunded <strong>{{ refund.totalAmount | appCurrency }}</strong></span>
+                @for (payment of refund.payments; track $index) {
+                  <span class="sale-uom-note capitalize">{{ payment.method }}: {{ payment.amount | appCurrency }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      </app-ui-card>
+    } @else if (refundedWithoutHistory()) {
+      <app-ui-alert variant="info" class="sale-refund-history">This sale was refunded before refund history was recorded, so no refund details are available.</app-ui-alert>
+    }
   }
 </div>
 
 <!-- Refund Dialog -->
 @if (showRefundDialog()) {
   <app-ui-dialog [(open)]="showRefundDialog" title="Refund Sale" size="lg" [dismissible]="!isRefunding()">
-    <p class="sale-uom-note">A sale can be refunded only once. Quantities are in the stored base unit, and a line may be returned in part. Leave a line at 0 to keep it.</p>
+    <p class="sale-uom-note">
+      A sale can be refunded in several parts until nothing is left to return. Quantities are in the stored base unit;
+      leave a line at 0 to keep it. The server calculates the refund amounts, VAT and payment split from the original sale.
+    </p>
     <div class="sale-refund-lines">
       @for (line of refundLines(); track line.item.id; let i = $index) {
-        <fieldset class="sale-refund-line">
+        <fieldset class="sale-refund-line" [disabled]="remaining(line.item) <= 0">
           <legend>{{ line.item.productName }}</legend>
-          <p class="sale-uom-note">
-            Sold {{ isUnitLine(line.item) ? displayQuantity(line.item) + ' = ' : '' }}{{ refundUnit(line.item) }} · {{ line.item.subtotal | appCurrency }}
-          </p>
-          <div class="sale-refund-fields">
-            <app-ui-form-field [label]="isUnitLine(line.item) ? 'Quantity (' + (line.item.baseUnitCode || 'base unit') + ')' : 'Quantity'">
-              <input
-                appUiControl
-                type="number"
-                min="0"
-                [attr.max]="line.item.quantity"
-                [attr.step]="isUnitLine(line.item) ? 'any' : '1'"
-                [ngModel]="line.quantity"
-                (ngModelChange)="updateRefundLine(i, { quantity: $event })"
-                [disabled]="isRefunding()" />
-            </app-ui-form-field>
+          <dl class="sale-refund-facts">
             @if (isUnitLine(line.item)) {
+              <div><dt>Sold as</dt><dd>{{ displayQuantity(line.item) }} = {{ refundUnit(line.item) }}</dd></div>
+            } @else {
+              <div><dt>Sold</dt><dd>{{ refundUnit(line.item) }}</dd></div>
+            }
+            <div><dt>Returned before</dt><dd>{{ refundUnitOf(line.item) }}</dd></div>
+            <div><dt>Returnable</dt><dd>{{ remainingText(line.item) }}</dd></div>
+            <div><dt>Line total</dt><dd>{{ line.item.subtotal | appCurrency }}</dd></div>
+          </dl>
+          @if (remaining(line.item) > 0) {
+            <div class="sale-refund-fields">
+              <app-ui-form-field
+                [label]="'Quantity to return (' + (line.item.baseUnitCode || 'pcs') + ')'"
+                [hint]="isUnitLine(line.item) ? 'Up to 6 decimal places' : 'Whole numbers only'">
+                <input
+                  appUiControl
+                  type="number"
+                  min="0"
+                  [attr.max]="remaining(line.item)"
+                  [attr.step]="isUnitLine(line.item) ? 'any' : '1'"
+                  [attr.inputmode]="isUnitLine(line.item) ? 'decimal' : 'numeric'"
+                  [ngModel]="line.quantity"
+                  (ngModelChange)="updateRefundLine(i, { quantity: $event })"
+                  [disabled]="isRefunding()" />
+              </app-ui-form-field>
               <app-ui-form-field label="Condition">
                 <select
                   appUiControl
@@ -203,20 +253,29 @@
                   <option value="non_resellable">Non-resellable: not restocked</option>
                 </select>
               </app-ui-form-field>
-              <label class="sale-refund-check">
-                <input
-                  appUiControl
-                  type="checkbox"
-                  [ngModel]="line.packagingReusable"
-                  (ngModelChange)="updateRefundLine(i, { packagingReusable: $event })"
-                  [disabled]="isRefunding() || line.condition === 'non_resellable'" />
-                <span>Packaging can be reused</span>
-              </label>
-            }
-          </div>
+              @if (isUnitLine(line.item)) {
+                <label class="sale-refund-check">
+                  <input
+                    appUiControl
+                    type="checkbox"
+                    [ngModel]="line.packagingReusable"
+                    (ngModelChange)="updateRefundLine(i, { packagingReusable: $event })"
+                    [disabled]="isRefunding() || line.condition === 'non_resellable'" />
+                  <span>Packaging can be reused</span>
+                </label>
+              }
+            </div>
+            <p class="sale-uom-note sale-refund-estimate">Estimated refund: {{ estimatedRefund(line) | appCurrency }} (estimate only)</p>
+          } @else {
+            <p class="sale-uom-note">Nothing left to return on this line.</p>
+          }
         </fieldset>
       }
     </div>
+    <p class="sale-refund-estimate-total">
+      Estimated refund: <strong>{{ estimatedRefundTotal() | appCurrency }}</strong>
+      <span class="sale-uom-note">Estimate only; the final amount is calculated by the server.</span>
+    </p>
     <div class="ui-form-stack">
       <app-ui-form-field label="Reason" [required]="true">
         <textarea
@@ -227,7 +286,7 @@
           [disabled]="isRefunding()"></textarea>
       </app-ui-form-field>
       @if (needsCashAmount()) {
-        <app-ui-form-field label="Cash paid back" [required]="true" hint="This is a partial refund of a cash sale, so state the amount handed to the customer.">
+        <app-ui-form-field label="Cash paid back" [required]="true" hint="This older sale has no recorded payment split, so state the cash handed to the customer.">
           <input
             appUiControl
             type="number"

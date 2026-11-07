@@ -120,6 +120,9 @@ public class VariantSellingOption
     /// <summary>This pack can be produced by repacking and sold from prepared stock.</summary>
     public bool IsPreparedEligible { get; set; }
 
+    /// <summary>Automatic pricing rules may discount this option. Its own price always stays the starting point.</summary>
+    public bool ApplyAutomaticPricingRules { get; set; }
+
     public virtual VariantUomConfig Config { get; set; } = null!;
     public virtual UomUnit? Unit { get; set; }
     public virtual ICollection<SellingOptionComponent> Components { get; set; } = new List<SellingOptionComponent>();
@@ -296,7 +299,60 @@ public class SaleReturnLine
     public long ActorUserId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>The refund transaction this line belongs to.</summary>
+    public long? SaleRefundId { get; set; }
+
+    /// <summary>The returned share of the line's checkout net amount.</summary>
+    public decimal? NetAmount { get; set; }
+
+    /// <summary>The returned share of the line's checkout VAT.</summary>
+    public decimal? VatAmount { get; set; }
+
     public virtual SaleItem SaleItem { get; set; } = null!;
+    public virtual SaleRefund? SaleRefund { get; set; }
+}
+
+/// <summary>One refund transaction of a sale. A sale may have several; each posts its own journal exactly once.</summary>
+public class SaleRefund
+{
+    public long Id { get; set; }
+    public long? BusinessId { get; set; }
+    public long SaleId { get; set; }
+
+    /// <summary>1 for the sale's first refund, then 2, 3... Unique within the sale.</summary>
+    public int Sequence { get; set; }
+
+    /// <summary>The refund's reference, for example <c>INV-100-R2</c>.</summary>
+    public string RefundNumber { get; set; } = string.Empty;
+
+    public string? IdempotencyKey { get; set; }
+    public string RequestFingerprint { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+    public long ActorUserId { get; set; }
+    public long? DispensingTerminalId { get; set; }
+    public decimal NetAmount { get; set; }
+    public decimal VatAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal CostRestored { get; set; }
+    public decimal CashAmount { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public virtual Sale Sale { get; set; } = null!;
+    public virtual User? Actor { get; set; }
+    public virtual ICollection<SaleReturnLine> Lines { get; set; } = new List<SaleReturnLine>();
+    public virtual ICollection<SaleRefundPayment> Payments { get; set; } = new List<SaleRefundPayment>();
+}
+
+/// <summary>How much of one original payment a refund pays back. Their sum never exceeds the payment.</summary>
+public class SaleRefundPayment
+{
+    public long Id { get; set; }
+    public long SaleRefundId { get; set; }
+    public long SalePaymentId { get; set; }
+    public string Method { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+
+    public virtual SaleRefund SaleRefund { get; set; } = null!;
 }
 
 /// <summary>The pack-state make-up of one transfer line. Moved as dispatched, so nothing is created or destroyed.</summary>

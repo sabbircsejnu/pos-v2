@@ -45,7 +45,7 @@ public sealed class PosCartPriceCalculator(
             cancellationToken.ThrowIfCancellationRequested();
             var item = items[index];
             var cacheScope = cacheScopes[item.OutletId.GetValueOrDefault()];
-            var cached = readFromCache && cacheScope is not null
+            var cached = readFromCache && cacheScope is not null && item.Option is null
                 ? await priceCache.GetAsync(
                     cacheScope,
                     item.ProductVariantId,
@@ -102,6 +102,12 @@ public sealed class PosCartPriceCalculator(
                     $"ProductVariant with ID {item.ProductVariantId} not found");
             }
 
+            if (item.Option is { } option)
+            {
+                results[index] = CalculateOptionPrice(variant, item.OutletId, option, data.Rules, taxPolicy);
+                continue;
+            }
+
             overrides.TryGetValue(
                 (item.OutletId.GetValueOrDefault(), item.ProductVariantId),
                 out var priceOverride);
@@ -144,6 +150,90 @@ public sealed class PosCartPriceCalculator(
         (rule.RuleType == "category" && rule.TargetId == variant.CategoryId) ||
         (outletId.HasValue && rule.RuleType == "outlet" && rule.TargetId == outletId.Value) ||
         rule.RuleType == "global";
+
+    /// <summary>
+    /// A rule's minimum and fixed amount were written for pieces. A pack is one countable piece, so both carry over: three
+    /// 12 ml packs count as 3, never as 36. A measured quantity has no such count, so only a percentage rule with no real
+    /// minimum applies to it. Any other rule is left out and named, and the sale is never mispriced by a guess.
+    /// </summary>
+    private static PosCartPriceReadModel CalculateOptionPrice(
+        PosCartPricingVariantReadModel variant,
+        long? outletId,
+        UnitOptionPricing option,
+        IReadOnlyList<PosCartPricingRuleReadModel> rules,
+        SaleTaxPolicy taxPolicy)
+    {
+        var isPack = option.Kind == RetailPOS.Core.Entities.Uom.SellingOptionKinds.Pack;
+        var listGross = isPack ? option.EnteredQuantity * option.Price : ToCurrency(option.EnteredQuantity * option.Price);
+        var breakdown = new List<PosCartPriceBreakdownReadModel> { new("Option price", option.Price) };
+
+        var candidates = option.ApplyAutomaticRules
+            ? rules
+                .Where(candidate => Matches(candidate, variant, outletId))
+                .OrderByDescending(candidate => candidate.Priority)
+                .ThenByDescending(candidate => candidate.Id)
+                .ToArray()
+            : [];
+        bool Unambiguous(PosCartPricingRuleReadModel candidate) =>
+            isPack || (candidate.DiscountType == "percentage" && candidate.MinQuantity <= 1);
+        var rule = candidates.FirstOrDefault(candidate =>
+            Unambiguous(candidate) && (!isPack || candidate.MinQuantity <= option.EnteredQuantity));
+        var notApplied = candidates
+            .Where(candidate => !Unambiguous(candidate))
+            .Select(candidate => candidate.Name)
+            .ToArray();
+
+        var unitPrice = option.Price;
+        var lineGross = listGross;
+        var discount = 0m;
+        if (rule is not null)
+        {
+            if (isPack)
+            {
+                discount = rule.DiscountType == "percentage"
+                    ? ToCurrency(option.Price * rule.DiscountValue / 100m)
+                    : rule.DiscountValue;
+                discount = Math.Min(discount, option.Price);
+                unitPrice = ToCurrency(option.Price - discount);
+                lineGross = option.EnteredQuantity * unitPrice;
+            }
+            else
+            {
+                discount = Math.Min(ToCurrency(listGross * rule.DiscountValue / 100m), listGross);
+                lineGross = listGross - discount;
+            }
+
+            breakdown.Add(new($"Discount: {rule.Name}", -discount));
+        }
+
+        var resolved = TaxResolver.Resolve(
+            taxPolicy,
+            new ProductTaxConfiguration(variant.TaxRate, variant.TaxClassification));
+        var taxAmount = taxPolicy.PricesIncludeTax
+            ? ToCurrency(lineGross * resolved.RatePercent / (100m + resolved.RatePercent))
+            : ToCurrency(lineGross * resolved.RatePercent / 100m);
+        breakdown.Add(new($"Tax ({resolved.RatePercent}%{(taxPolicy.PricesIncludeTax ? " included" : string.Empty)})", taxAmount));
+
+        return new PosCartPriceReadModel(
+            variant.Id,
+            variant.ProductName,
+            variant.VariantName,
+            option.Price,
+            option.Price,
+            discount,
+            unitPrice,
+            resolved.RatePercent,
+            taxAmount,
+            taxPolicy.PricesIncludeTax ? lineGross : lineGross + taxAmount,
+            false,
+            rule?.Id,
+            rule?.Name,
+            breakdown,
+            resolved.Classification,
+            taxPolicy.PricesIncludeTax,
+            lineGross,
+            notApplied);
+    }
 
     private static PosCartPriceReadModel CalculatePrice(
         PosCartPricingVariantReadModel variant,
@@ -218,11 +308,41 @@ public sealed class PosCartPriceCalculator(
         Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }
 
-public sealed class CalculatePosCartPricesQueryHandler(IPosCartPriceCalculator calculator)
+public sealed class CalculatePosCartPricesQueryHandler(
+    IPosCartPriceCalculator calculator,
+    RetailPOS.Application.Uom.IVariantUomReader? uomReader = null,
+    IBusinessScope? businessScope = null)
     : IRequestHandler<CalculatePosCartPricesQuery, IReadOnlyList<PosCartPriceReadModel>>
 {
-    public Task<IReadOnlyList<PosCartPriceReadModel>> Handle(
+    public async Task<IReadOnlyList<PosCartPriceReadModel>> Handle(
         CalculatePosCartPricesQuery request,
         CancellationToken cancellationToken) =>
-        calculator.CalculateAsync(request.Items, request.ReadFromCache, cancellationToken);
+        await calculator.CalculateAsync(await WithOptionsAsync(request.Items, cancellationToken), request.ReadFromCache, cancellationToken);
+
+    /// <summary>A line whose option is no longer current stays unpriced by option here; checkout refuses it with its own error.</summary>
+    private async Task<IReadOnlyList<PosCartPriceLine>> WithOptionsAsync(
+        IReadOnlyList<PosCartPriceLine> items,
+        CancellationToken cancellationToken)
+    {
+        if (uomReader is null || businessScope is null || !items.Any(item => item.SellingOptionId.HasValue))
+            return items;
+
+        var variantIds = items
+            .Where(item => item.SellingOptionId.HasValue)
+            .Select(item => item.ProductVariantId)
+            .Distinct()
+            .ToList();
+        var configs = await uomReader.GetCurrentAsync(businessScope.RequireBusinessId(), variantIds, cancellationToken);
+        return items
+            .Select(item =>
+            {
+                if (item.SellingOptionId is not { } optionId || item.EnteredQuantity is not > 0m)
+                    return item;
+                var option = configs.GetValueOrDefault(item.ProductVariantId)?.SellingOptions.FirstOrDefault(candidate => candidate.Id == optionId);
+                return option is null
+                    ? item
+                    : item with { Option = new UnitOptionPricing(option.Kind, option.Price, item.EnteredQuantity.Value, option.ApplyAutomaticPricingRules) };
+            })
+            .ToArray();
+    }
 }

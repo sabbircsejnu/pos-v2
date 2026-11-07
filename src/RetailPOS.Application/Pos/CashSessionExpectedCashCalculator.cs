@@ -13,7 +13,7 @@ namespace RetailPOS.Application.Pos;
 public static class CashSessionExpectedCashCalculator
 {
     private static readonly HashSet<string> ReceivedStatuses =
-        new(StringComparer.OrdinalIgnoreCase) { "completed", "voided", "refunded" };
+        new(StringComparer.OrdinalIgnoreCase) { "completed", "voided", "refunded", "partially_refunded" };
 
     public static CashSessionCloseSummaryReadModel Calculate(
         CashSessionFacts facts,

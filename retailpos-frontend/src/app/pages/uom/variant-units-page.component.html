@@ -144,6 +144,10 @@
                   <input #defaultBox appUiControl type="checkbox" [checked]="row.controls.isDefault.value" (change)="toggleSellingDefault(row, defaultBox.checked)" />
                   <span>Default</span>
                 </label>
+                <label class="ui-check">
+                  <input appUiControl type="checkbox" formControlName="applyAutomaticPricingRules" [attr.aria-describedby]="'pack-promo-hint-' + i" />
+                  <span>Apply automatic promotions</span>
+                </label>
                 @if (form.controls.packStateTrackingEnabled.value) {
                   <label class="ui-check">
                     <input appUiControl type="checkbox" formControlName="isPreparedEligible" />
@@ -153,6 +157,7 @@
                 <button class="uv-row__end" appUiButton type="button" variant="ghost" size="sm"
                   [attr.aria-label]="'Remove selling pack ' + (i + 1)" (click)="removeSelling(form.controls.packs, i)">Remove</button>
               </div>
+              <p class="uv-hint" [id]="'pack-promo-hint-' + i">Automatic promotions apply to the pack's own price; a rule's minimum quantity counts packs.</p>
               <ng-container [ngTemplateOutlet]="componentsBlock" [ngTemplateOutletContext]="{ $implicit: row }" />
             </div>
           } @empty {
@@ -190,9 +195,14 @@
                   <input #defaultBox appUiControl type="checkbox" [checked]="row.controls.isDefault.value" (change)="toggleSellingDefault(row, defaultBox.checked)" />
                   <span>Default</span>
                 </label>
+                <label class="ui-check">
+                  <input appUiControl type="checkbox" formControlName="applyAutomaticPricingRules" [attr.aria-describedby]="'custom-promo-hint-' + i" />
+                  <span>Apply automatic promotions</span>
+                </label>
                 <button class="uv-row__end" appUiButton type="button" variant="ghost" size="sm"
                   [attr.aria-label]="'Remove custom quantity ' + (i + 1)" (click)="removeSelling(form.controls.customs, i)">Remove</button>
               </div>
+              <p class="uv-hint" [id]="'custom-promo-hint-' + i">Automatic promotions apply to the rate per unit; only percentage rules without a minimum quantity apply to a custom quantity.</p>
               <ng-container [ngTemplateOutlet]="componentsBlock" [ngTemplateOutletContext]="{ $implicit: row }" />
             </div>
           } @empty {

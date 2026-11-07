@@ -79,6 +79,9 @@ public sealed class GrnCompletionStore(
                 : await uomReader.GetCurrentAsync(packBusinessId.Value, grn.Items.Select(line => line.PurchaseOrderItem.VariantId).ToList(), cancellationToken);
             foreach (var item in grn.Items)
             {
+                // Evidence of damaged or rejected goods only: nothing reaches stock, the ledger or pack state.
+                if (item.ReceivedQty == 0m)
+                    continue;
                 var variantId = item.PurchaseOrderItem.VariantId;
                 var inventory = await dbContext.Inventories
                     .FirstOrDefaultAsync(

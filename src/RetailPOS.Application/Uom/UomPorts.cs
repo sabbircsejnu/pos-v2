@@ -106,7 +106,8 @@ public sealed record SellingOptionInput(
     bool IsDefault,
     string? SealedPackCode,
     bool IsPreparedEligible,
-    IReadOnlyList<SellingComponentInput> Components);
+    IReadOnlyList<SellingComponentInput> Components,
+    bool? ApplyAutomaticPricingRules = null);
 
 public sealed record VariantUomConfigInput(
     long BaseUnitId,

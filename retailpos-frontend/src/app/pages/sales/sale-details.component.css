@@ -18,6 +18,11 @@
   color: #991b1b;
 }
 
+.status-partial {
+  background: var(--rp-color-status-warning-bg);
+  color: var(--rp-color-status-warning-fg);
+}
+
 .status-default {
   background: #f3f4f6;
   color: #374151;
@@ -143,4 +148,93 @@
   color: var(--rp-color-status-danger-fg);
   font-size: var(--rp-text-helper-size);
   line-height: var(--rp-text-helper-line);
+}
+
+.sale-refund-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--rp-space-2);
+  margin: 0;
+}
+
+.sale-refund-facts dt {
+  color: var(--rp-color-text-secondary);
+  font-size: var(--rp-text-helper-size);
+  line-height: var(--rp-text-helper-line);
+}
+
+.sale-refund-facts dd {
+  margin: 0;
+  color: var(--rp-color-text-primary);
+  font-weight: var(--rp-font-weight-semibold);
+}
+
+.sale-refund-line:disabled {
+  background: var(--rp-color-surface-muted);
+}
+
+.sale-refund-estimate {
+  margin-top: var(--rp-space-2);
+}
+
+.sale-refund-estimate-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--rp-space-2);
+  margin: 0 0 var(--rp-space-3);
+  color: var(--rp-color-text-primary);
+}
+
+/* Refund history */
+.sale-refund-history {
+  display: block;
+  margin-bottom: var(--rp-space-4);
+}
+
+.sale-refund-history__list,
+.sale-refund-history__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sale-refund-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rp-space-3);
+}
+
+.sale-refund-history__entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rp-space-2);
+  padding: var(--rp-space-3);
+  border: 1px solid var(--rp-color-border);
+  border-radius: var(--rp-radius-control);
+}
+
+.sale-refund-history__head,
+.sale-refund-history__totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--rp-space-2) var(--rp-space-3);
+}
+
+.sale-refund-history__number {
+  color: var(--rp-color-text-primary);
+  font-family: var(--rp-font-family-mono);
+  font-weight: var(--rp-font-weight-semibold);
+}
+
+.sale-refund-history__lines li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rp-space-1);
+}
+
+.sale-refund-history__product {
+  color: var(--rp-color-text-primary);
+  font-weight: var(--rp-font-weight-semibold);
 }

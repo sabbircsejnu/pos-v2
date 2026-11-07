@@ -9,11 +9,19 @@ import { SaleService } from '../../services/sale.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { AuthService } from '../../services/auth.service';
-import { RefundSaleDto, RefundSaleItemDto, SaleDto, SaleItemDto } from '../../models/sale.model';
+import {
+  RefundSaleDto,
+  RefundSaleItemDto,
+  SaleDto,
+  SaleItemDto,
+  SaleRefundDto,
+  SaleRefundLineDto,
+  saleStatusLabel
+} from '../../models/sale.model';
 import { ReturnCondition, UOM_ERROR_MESSAGES } from '../../models/uom.model';
-import { fitsPrecision, formatUnitQuantity } from '../../services/uom.service';
+import { fitsPrecision, formatUnitQuantity, newIdempotencyKey } from '../../services/uom.service';
 import { apiErrorCode } from '../../utils/uom-line.util';
-import { UiButtonComponent, UiControlDirective, UiFormFieldComponent } from '../../components/shared/ui';
+import { UiAlertComponent, UiButtonComponent, UiCardComponent, UiControlDirective, UiFormFieldComponent } from '../../components/shared/ui';
 import { UiDialogComponent } from '../../components/shared/ui/ui-dialog.component';
 
 /** One sale line in the refund dialog. A line left at zero is not returned. */
@@ -29,10 +37,18 @@ function isUnitLine(item: SaleItemDto): boolean {
   return !!item.unitCode;
 }
 
+/** Base quantity still returnable on a line, as stated by the server. */
+function remainingOf(item: SaleItemDto): number {
+  return Math.max(0, Number(item.remainingReturnableQuantity ?? 0));
+}
+
+/** Server code for an old sale whose cash share cannot be derived (`CashSessionErrors.CashRefundPolicyUndefined`). */
+export const CASH_REFUND_POLICY_UNDEFINED = 'CASH_REFUND_POLICY_UNDEFINED';
+
 @Component({
   selector: 'app-sale-details',
   standalone: true,
-  imports: [AppDatePipe, CommonModule, FormsModule, AppCurrencyPipe, UiDialogComponent, UiButtonComponent, UiControlDirective, UiFormFieldComponent],
+  imports: [AppDatePipe, CommonModule, FormsModule, AppCurrencyPipe, UiDialogComponent, UiButtonComponent, UiControlDirective, UiFormFieldComponent, UiAlertComponent, UiCardComponent],
   templateUrl: './sale-details.component.html',
   styleUrls: ['./sale-details.component.css']
 })
@@ -50,13 +66,19 @@ export class SaleDetailsComponent implements OnInit {
   refundReason = signal('');
   refundCashAmount = signal<number | null>(null);
   refundError = signal('');
+  /** Shown only after the server said this old sale needs the cash paid back stated (CASH_REFUND_POLICY_UNDEFINED). */
+  needsCashAmount = signal(false);
 
-  /** Every line returned in full: the server then pays back the sale's remaining cash itself. */
-  private readonly isFullRefund = computed(() =>
-    this.refundLines().every(line => Number(line.quantity ?? 0) >= line.item.quantity));
+  /**
+   * One key per refund request. It is kept for a retry of the same request and renewed after a success or when the
+   * request changed since it was last sent (the server refuses a key reused with another payload).
+   */
+  private refundIdempotencyKey = '';
+  private refundKeyPayload: string | null = null;
 
-  /** A partial refund of a sale paid in cash must state the cash actually paid back. */
-  needsCashAmount = computed(() => !this.isFullRefund() && this.saleHasCashPayment());
+  /** Client-side estimate only: line subtotals pro-rated by the quantity returned. The server computes the refund. */
+  estimatedRefundTotal = computed(() =>
+    this.refundLines().reduce((total, line) => total + this.estimatedRefund(line), 0));
 
   constructor(
     private route: ActivatedRoute,
@@ -148,33 +170,63 @@ export class SaleDetailsComponent implements OnInit {
   }
 
   /**
-   * The refund dialog is offered for sales with at least one unit line. A plain pcs sale has no refund screen today
-   * and stays as it is; the server enforces the permission, the outlet and the single refund.
+   * Refund is offered for every completed or partially refunded sale with something left to return, when the user holds
+   * `sales.refund`. The server stays authoritative for the permission, the outlet and the quantities.
    */
   canRefund(): boolean {
     const s = this.sale();
-    if (!s || s.status?.toLowerCase() !== 'completed') return false;
+    const status = s?.status?.toLowerCase();
+    if (!s || (status !== 'completed' && status !== 'partially_refunded')) return false;
     if (!this.authService.hasPermission('sales.refund')) return false;
-    return (s.items ?? []).some(isUnitLine);
+    return (s.items ?? []).some(item => remainingOf(item) > 0);
   }
 
-  private saleHasCashPayment(): boolean {
+  remaining(item: SaleItemDto): number {
+    return remainingOf(item);
+  }
+
+  /** Recorded refunds, oldest first. */
+  refunds(): SaleRefundDto[] {
+    return this.sale()?.refunds ?? [];
+  }
+
+  /** A sale closed as refunded before refund history was recorded has no refund entries. */
+  refundedWithoutHistory(): boolean {
     const s = this.sale();
-    if (!s) return false;
-    return (s.payments ?? []).some(payment => payment.method?.toLowerCase() === 'cash')
-      || s.paymentMethod?.toLowerCase() === 'cash';
+    return s?.status?.toLowerCase() === 'refunded' && this.refunds().length === 0;
+  }
+
+  statusLabel(status: string | null | undefined): string {
+    return saleStatusLabel(status);
+  }
+
+  /** The sale line a refund line returned, for its name and unit. */
+  refundedItem(line: SaleRefundLineDto): SaleItemDto | undefined {
+    return this.sale()?.items?.find(item => item.id === line.saleItemId);
+  }
+
+  refundLineQuantity(line: SaleRefundLineDto, quantity: number): string {
+    return formatUnitQuantity(quantity, this.refundedItem(line)?.baseUnitCode);
+  }
+
+  conditionLabel(condition: string | null | undefined): string {
+    if (condition === 'non_resellable') return 'Non-resellable';
+    if (condition === 'resellable') return 'Resellable';
+    return condition ?? '';
   }
 
   openRefundDialog(): void {
     this.refundLines.set((this.sale()?.items ?? []).map(item => ({
       item,
-      quantity: item.quantity,
+      quantity: 0,
       condition: 'resellable' as ReturnCondition,
       packagingReusable: false
     })));
     this.refundReason.set('');
     this.refundCashAmount.set(null);
+    this.needsCashAmount.set(false);
     this.refundError.set('');
+    this.renewRefundKey();
     this.showRefundDialog.set(true);
   }
 
@@ -187,19 +239,30 @@ export class SaleDetailsComponent implements OnInit {
     }));
   }
 
+  /** Client-side estimate for one line: subtotal x returned / sold. The final amount comes from the server. */
+  estimatedRefund(line: RefundLineDraft): number {
+    const quantity = Number(line.quantity ?? 0);
+    const sold = Number(line.item.quantity ?? 0);
+    if (!(quantity > 0) || !(sold > 0)) return 0;
+    return Number(line.item.subtotal ?? 0) * quantity / sold;
+  }
+
   /** The first problem with the entered refund, phrased for the user; empty when it can be sent. */
   refundProblem(): string {
     const lines = this.refundLines();
-    if (!lines.some(line => Number(line.quantity ?? 0) > 0)) return 'Enter a quantity for at least one line.';
     for (const line of lines) {
       const quantity = Number(line.quantity ?? 0);
       const name = line.item.productName;
+      if (!Number.isFinite(quantity)) return `${name}: enter a valid quantity.`;
       if (quantity < 0) return `${name}: the quantity cannot be negative.`;
-      if (quantity > line.item.quantity) return `${name}: the quantity cannot exceed the ${this.refundUnit(line.item)} sold.`;
+      if (quantity > remainingOf(line.item)) {
+        return `${name}: the quantity cannot exceed the ${this.remainingText(line.item)} still returnable.`;
+      }
       if (!fitsPrecision(quantity, isUnitLine(line.item) ? 6 : 0)) {
         return isUnitLine(line.item) ? `${name}: use at most 6 decimal places.` : `${name}: the quantity must be a whole number.`;
       }
     }
+    if (!lines.some(line => Number(line.quantity ?? 0) > 0)) return 'Enter a quantity for at least one line.';
     if (!this.refundReason().trim()) return 'Enter a reason for this refund.';
     if (this.needsCashAmount()) {
       const cash = Number(this.refundCashAmount() ?? 0);
@@ -217,18 +280,25 @@ export class SaleDetailsComponent implements OnInit {
     return formatUnitQuantity(item.quantity, item.baseUnitCode);
   }
 
-  /** A plain pcs line keeps the standing behaviour: no condition is sent and everything returns to stock. */
+  remainingText(item: SaleItemDto): string {
+    return formatUnitQuantity(remainingOf(item), item.baseUnitCode);
+  }
+
+  /** Every line states its condition; only unit lines carry the packaging flag. */
   private toRefundItem(line: RefundLineDraft): RefundSaleItemDto {
     const dto: RefundSaleItemDto = {
       variantId: line.item.variantId,
       quantity: Number(line.quantity),
-      saleItemId: line.item.id
+      saleItemId: line.item.id,
+      condition: line.condition
     };
-    if (isUnitLine(line.item)) {
-      dto.condition = line.condition;
-      dto.packagingReusable = line.packagingReusable;
-    }
+    if (isUnitLine(line.item)) dto.packagingReusable = line.packagingReusable;
     return dto;
+  }
+
+  private renewRefundKey(): void {
+    this.refundIdempotencyKey = newIdempotencyKey('refund');
+    this.refundKeyPayload = null;
   }
 
   confirmRefund(): void {
@@ -240,27 +310,50 @@ export class SaleDetailsComponent implements OnInit {
       return;
     }
 
-    const dto: RefundSaleDto = {
+    const request: RefundSaleDto = {
       items: this.refundLines().filter(line => Number(line.quantity ?? 0) > 0).map(line => this.toRefundItem(line)),
       reason: this.refundReason().trim()
     };
-    if (this.needsCashAmount()) dto.cashRefundAmount = Number(this.refundCashAmount());
+    if (this.needsCashAmount()) request.cashRefundAmount = Number(this.refundCashAmount());
+
+    // A changed request is a new refund attempt and gets a new key; an unchanged retry repeats the key.
+    const payload = JSON.stringify(request);
+    if (this.refundKeyPayload !== null && this.refundKeyPayload !== payload) this.renewRefundKey();
+    this.refundKeyPayload = payload;
+    const dto: RefundSaleDto = { ...request, idempotencyKey: this.refundIdempotencyKey };
 
     this.refundError.set('');
     this.isRefunding.set(true);
     this.saleService.refundSale(s.id, dto).subscribe({
       next: () => {
         this.isRefunding.set(false);
+        this.renewRefundKey();
         this.showRefundDialog.set(false);
-        this.alertService.success('Sale refunded successfully');
+        this.alertService.success('Refund recorded successfully');
         this.loadSale(s.id);
       },
       // The dialog stays open with everything entered, so the refund can be corrected and sent again.
       error: (err) => {
         this.isRefunding.set(false);
-        this.refundError.set(UOM_ERROR_MESSAGES[apiErrorCode(err)] ?? this.errorHandler.extractErrorMessage(err));
+        this.refundError.set(this.refundErrorMessage(err));
       }
     });
+  }
+
+  private refundErrorMessage(err: unknown): string {
+    // 403 is access denied: shown here, never a logout.
+    if ((err as { status?: number } | null)?.status === 403) {
+      return 'Access denied: you do not have permission to refund this sale.';
+    }
+    const code = apiErrorCode(err);
+    if (code === CASH_REFUND_POLICY_UNDEFINED) {
+      this.needsCashAmount.set(true);
+      return 'This older sale has no recorded payment split. Enter the cash paid back to the customer, then refund again.';
+    }
+    if (code === 'SALE_REFUND_IDEMPOTENCY_KEY_REQUIRED' || code === 'IDEMPOTENCY_KEY_PAYLOAD_MISMATCH') {
+      return 'The refund request could not be matched to an earlier attempt. Check the lines and refund again.';
+    }
+    return UOM_ERROR_MESSAGES[code] ?? this.errorHandler.extractErrorMessage(err);
   }
 
   /** Records the reprint on the server (print history, audited), then opens the same receipt as a PDF to print. */
@@ -314,6 +407,7 @@ export class SaleDetailsComponent implements OnInit {
   getStatusClass(status: string): string {
     switch (status?.toLowerCase()) {
       case 'completed': return 'status-completed';
+      case 'partially_refunded': return 'status-partial';
       case 'void':
       case 'voided':
       case 'refunded': return 'status-void';

@@ -131,6 +131,18 @@ internal static class StockTransferWriteRules
                             BaseQuantity = allocation.BaseQuantity,
                             CapitalizedValue = allocation.CapitalizedValue
                         });
+                else if (item.Allocations.Count == 1
+                         && item.Allocations.First() is { State: not RetailPOS.Core.Entities.Uom.PackStates.Loose, BaseQtyPerPack: > 0m } pack
+                         && item.RejectedQuantity % pack.BaseQtyPerPack == 0m)
+                    returned.Allocations.Add(new RetailPOS.Core.Entities.Uom.StockTransferItemAllocation
+                    {
+                        State = pack.State,
+                        PackCode = pack.PackCode,
+                        BaseQtyPerPack = pack.BaseQtyPerPack,
+                        PackCount = (int)(item.RejectedQuantity / pack.BaseQtyPerPack),
+                        BaseQuantity = item.RejectedQuantity,
+                        CapitalizedValue = pack.CapitalizedValue - AcceptedCapitalizedValue(pack, item.AcceptedQuantity)
+                    });
                 else if (item.Allocations.Count > 0)
                     returned.Allocations.Add(new RetailPOS.Core.Entities.Uom.StockTransferItemAllocation
                     {
@@ -207,8 +219,11 @@ internal static class StockTransferWriteRules
     }
 
     /// <summary>
-    /// Puts accepted stock into the destination in the form it left. A sealed or prepared line is accepted or rejected
-    /// whole: a partly missing pack has no approved value treatment, so it fails rather than guessing (STATE-006).
+    /// Puts accepted stock into the destination in the form it left. A line of one kind of sealed or prepared pack can be
+    /// received in part, in whole packs: 8 of 10 sealed packs accepted and 2 recorded as missing under the transfer's own
+    /// discrepancy rules. A pack is never split (STATE-006). A line that mixes several forms is still taken whole, because
+    /// which packs arrived cannot be told from base quantities. Missing or damaged prepared packs stay refused: their
+    /// capitalized packaging value has no approved destination.
     /// </summary>
     public static async Task ReceivePackStateAsync(
         RetailPOS.Application.Uom.IVariantUomReader? reader,
@@ -230,11 +245,14 @@ internal static class StockTransferWriteRules
             return;
 
         var physical = item.Allocations.Where(allocation => allocation.State != RetailPOS.Core.Entities.Uom.PackStates.Loose).ToList();
-        if (physical.Count > 0 && accepted != dispatched && accepted != 0m)
+        var singlePack = physical.Count == 1 && item.Allocations.Count == 1 ? physical[0] : null;
+        if (singlePack is not null && accepted != dispatched)
+            EnsureWholePackReceipt(item, singlePack, accepted);
+        if (physical.Count > 0 && singlePack is null && accepted != dispatched && accepted != 0m)
             throw new RetailPOS.Application.Uom.UomValidationException(
                 RetailPOS.Application.Uom.UomErrorCodes.UnsupportedOperation,
-                $"Variant {item.VariantId} includes sealed or prepared packs. Accept or reject the whole line.");
-        if (physical.Count > 0 && accepted == 0m && item.RejectedQuantity != dispatched)
+                $"Variant {item.VariantId} mixes several pack forms on one line. Accept or reject the whole line.");
+        if (physical.Count > 0 && singlePack is null && accepted == 0m && item.RejectedQuantity != dispatched)
             throw new RetailPOS.Application.Uom.UomValidationException(
                 RetailPOS.Application.Uom.UomErrorCodes.UnsupportedOperation,
                 $"Variant {item.VariantId} includes sealed or prepared packs. Missing or damaged packs cannot be recorded on this line; reject it and record the loss as an adjustment.");
@@ -251,6 +269,16 @@ internal static class StockTransferWriteRules
                         RetailPOS.Core.Entities.Uom.PackStateOperations.TransferIn, StockLedgerReferenceType.StockTransfer, transfer.Id, actorId),
                     cancellationToken);
         }
+        else if (singlePack is not null)
+        {
+            var packs = (int)(accepted / singlePack.BaseQtyPerPack);
+            await ledger.ApplyAsync(
+                new RetailPOS.Application.Uom.PackStateChange(
+                    businessId, item.VariantId, transfer.ToLocationId, locationType, singlePack.State, singlePack.PackCode, singlePack.BaseQtyPerPack,
+                    packs, accepted, AcceptedCapitalizedValue(singlePack, accepted),
+                    RetailPOS.Core.Entities.Uom.PackStateOperations.TransferIn, StockLedgerReferenceType.StockTransfer, transfer.Id, actorId),
+                cancellationToken);
+        }
         else
         {
             await ledger.ApplyAsync(
@@ -263,6 +291,38 @@ internal static class StockTransferWriteRules
 
         await ledger.EnsureReconciledAsync(businessId, item.VariantId, transfer.ToLocationId, locationType, onHandAfter, cancellationToken);
     }
+
+    /// <summary>Every part of a partly received pack line must be whole packs, and a prepared pack cannot go missing.</summary>
+    private static void EnsureWholePackReceipt(
+        StockTransferItem item,
+        RetailPOS.Core.Entities.Uom.StockTransferItemAllocation pack,
+        decimal accepted)
+    {
+        var perPack = pack.BaseQtyPerPack;
+        foreach (var (label, quantity) in new[]
+                 {
+                     ("accepted", accepted),
+                     ("rejected", item.RejectedQuantity),
+                     ("missing", item.MissingQuantity),
+                     ("damaged", item.DamagedQuantity)
+                 })
+            if (perPack <= 0m || quantity % perPack != 0m)
+                throw new RetailPOS.Application.Uom.UomValidationException(
+                    RetailPOS.Application.Uom.UomErrorCodes.QuantityMismatch,
+                    $"Variant {item.VariantId} moves in whole {pack.PackCode} packs of {RetailPOS.Application.Uom.UomQuantityMath.Normalize(perPack)}. " +
+                    $"The {label} quantity {RetailPOS.Application.Uom.UomQuantityMath.Normalize(quantity)} is not a whole number of packs.");
+        if (pack.State == RetailPOS.Core.Entities.Uom.PackStates.Prepared && item.MissingQuantity + item.DamagedQuantity > 0m)
+            throw new RetailPOS.Application.Uom.UomValidationException(
+                RetailPOS.Application.Uom.UomErrorCodes.UnsupportedOperation,
+                $"Variant {item.VariantId} is prepared packs. A missing or damaged prepared pack would lose its packaging value, which has no approved treatment. " +
+                "Reject those packs so they return to the source.");
+    }
+
+    /// <summary>The accepted packs' share of the line's capitalized value. The rejected packs take exactly the rest.</summary>
+    public static decimal AcceptedCapitalizedValue(RetailPOS.Core.Entities.Uom.StockTransferItemAllocation pack, decimal accepted) =>
+        pack.BaseQtyPerPack <= 0m
+            ? 0m
+            : RetailPOS.Application.Uom.CapitalizedValueShare.For(pack.CapitalizedValue, pack.PackCount, (int)(accepted / pack.BaseQtyPerPack));
 
     /// <summary>
     /// A movement that changes no quantity still takes a ledger sequence for this location, so it must conflict with

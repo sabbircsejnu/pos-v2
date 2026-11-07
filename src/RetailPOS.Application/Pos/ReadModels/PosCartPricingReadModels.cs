@@ -1,6 +1,9 @@
 namespace RetailPOS.Application.Pos.ReadModels;
 
-public sealed record PosCartPriceLine(long ProductVariantId, long? OutletId, decimal Quantity);
+public sealed record PosCartPriceLine(long ProductVariantId, long? OutletId, decimal Quantity, long? SellingOptionId = null, decimal? EnteredQuantity = null, UnitOptionPricing? Option = null);
+
+/// <summary>A pack or custom quantity: the option's own price is what any rule discounts, and what counts toward a rule's minimum.</summary>
+public sealed record UnitOptionPricing(string Kind, decimal Price, decimal EnteredQuantity, bool ApplyAutomaticRules);
 
 public sealed record PosCartPricingVariantReadModel(
     long Id,
@@ -55,4 +58,6 @@ public sealed record PosCartPriceReadModel(
     string? AppliedRuleName,
     IReadOnlyList<PosCartPriceBreakdownReadModel> Breakdown,
     string TaxClassification = "standard",
-    bool PricesIncludeTax = false);
+    bool PricesIncludeTax = false,
+    decimal? LineGross = null,
+    IReadOnlyList<string>? RulesNotApplied = null);

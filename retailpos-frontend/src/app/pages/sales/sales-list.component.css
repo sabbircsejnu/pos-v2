@@ -18,6 +18,11 @@
   color: #991b1b;
 }
 
+.status-partial {
+  background: var(--rp-color-status-warning-bg);
+  color: var(--rp-color-status-warning-fg);
+}
+
 .status-default {
   background: #f3f4f6;
   color: #374151;

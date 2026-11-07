@@ -232,7 +232,7 @@ public sealed class InventoryDashboardReadStore(RetailPOSDbContext dbContext, Ti
             .Where(item =>
                 outletIds.Contains(item.Sale.OutletId)
                 && (item.Sale.BusinessId == null || item.Sale.BusinessId == scope.BusinessId)
-                && (item.Sale.Status.ToLower() == "completed" || item.Sale.Status.ToLower() == "refunded"))
+                && (item.Sale.Status.ToLower() == "completed" || item.Sale.Status.ToLower() == "refunded" || item.Sale.Status.ToLower() == "partially_refunded"))
             .GroupBy(item => new { item.Sale.OutletId, item.VariantId })
             .Select(group => new
             {

@@ -110,7 +110,8 @@ public class SalesController : ControllerBase
             EnteredUnitPrice = item.EnteredUnitPrice,
             BaseUnitCode = item.BaseUnitCode,
             PackState = item.PackState,
-            ReturnedQuantity = item.ReturnedQuantity
+            ReturnedQuantity = item.ReturnedQuantity,
+            RemainingReturnableQuantity = item.RemainingReturnableQuantity
         }).ToList(),
         Payments = sale.Payments.Select(payment => new SalePaymentDto
         {
@@ -119,6 +120,35 @@ public class SalesController : ControllerBase
             Amount = payment.Amount,
             Tendered = payment.Tendered,
             Change = payment.Change
+        }).ToList(),
+        Refunds = sale.Refunds.Select(refund => new SaleRefundDto
+        {
+            Id = refund.Id,
+            RefundNumber = refund.RefundNumber,
+            Sequence = refund.Sequence,
+            CreatedAtUtc = refund.CreatedAtUtc,
+            Reason = refund.Reason,
+            ActorUserId = refund.ActorUserId,
+            ActorName = refund.ActorName,
+            NetAmount = refund.NetAmount,
+            VatAmount = refund.VatAmount,
+            TotalAmount = refund.TotalAmount,
+            CashAmount = refund.CashAmount,
+            Lines = refund.Lines.Select(line => new SaleRefundLineDto
+            {
+                SaleItemId = line.SaleItemId,
+                Quantity = line.Quantity,
+                Condition = line.Condition,
+                RestockedQuantity = line.RestockedQuantity,
+                PackagingReusable = line.PackagingReusable,
+                NetAmount = line.NetAmount,
+                VatAmount = line.VatAmount
+            }).ToList(),
+            Payments = refund.Payments.Select(payment => new SaleRefundPaymentDto
+            {
+                Method = payment.Method,
+                Amount = payment.Amount
+            }).ToList()
         }).ToList()
     };
 
@@ -435,7 +465,8 @@ public class SalesController : ControllerBase
                     item.SellingOptionId,
                     item.ExpectedConfigVersionId,
                     item.FulfilmentState,
-                    item.IncludePackaging)).ToArray(),
+                    item.IncludePackaging,
+                    item.ExpectedLineGross)).ToArray(),
                 dto.Discount,
                 dto.Tax,
                 dto.PaymentMethod,
@@ -558,7 +589,8 @@ public class SalesController : ControllerBase
                 dto.Reason,
                 actorUserId.Value,
                 dto.TerminalId,
-                dto.CashRefundAmount),
+                dto.CashRefundAmount,
+                dto.IdempotencyKey),
             cancellationToken);
         return Ok(ApiResponse<SaleDto>.SuccessResponse(ToDto(sale), "Sale refunded successfully"));
     }

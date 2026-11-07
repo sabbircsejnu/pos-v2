@@ -492,7 +492,9 @@ public class PosController : ControllerBase
                 .Select(item => new PosCartPriceLine(
                     item.ProductVariantId,
                     item.OutletId,
-                    item.Quantity))
+                    item.Quantity,
+                    item.SellingOptionId,
+                    item.EnteredQuantity))
                 .ToArray()),
             cancellationToken);
         return Ok(ApiResponse<List<PriceCalculationResultDto>>.SuccessResponse(
@@ -516,6 +518,8 @@ public class PosController : ControllerBase
         OutletOverrideApplied = result.OutletOverrideApplied,
         AppliedRuleId = result.AppliedRuleId,
         AppliedRuleName = result.AppliedRuleName,
+        LineGross = result.LineGross,
+        RulesNotApplied = result.RulesNotApplied?.ToList(),
         Breakdown = result.Breakdown.Select(line => new PriceBreakdownLineDto
         {
             Label = line.Label,

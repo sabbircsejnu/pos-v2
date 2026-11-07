@@ -27,7 +27,60 @@ export interface SaleItemDto {
   enteredUnitPrice?: number | null;
   baseUnitCode?: string | null;
   packState?: PackStateKind | null;
+  /** Quantity already returned over every refund, in the stored base unit (0 when none). */
   returnedQuantity?: number | null;
+  /** Quantity that can still be returned, in the stored base unit; 0 when the sale is closed. */
+  remainingReturnableQuantity?: number | null;
+}
+
+/** Sale statuses sent by the API. */
+export type SaleStatus = 'completed' | 'partially_refunded' | 'refunded' | 'voided';
+
+const SALE_STATUS_LABELS: Readonly<Record<string, string>> = {
+  completed: 'Completed',
+  partially_refunded: 'Partially refunded',
+  refunded: 'Refunded',
+  voided: 'Voided',
+  void: 'Void',
+};
+
+/** A readable label for a sale status; unknown values are shown as sent. */
+export function saleStatusLabel(status: string | null | undefined): string {
+  const key = (status ?? '').toLowerCase();
+  return SALE_STATUS_LABELS[key] ?? (status ?? '');
+}
+
+/** One returned line of a recorded refund. Quantities are in the line's stored base unit. */
+export interface SaleRefundLineDto {
+  saleItemId: number;
+  quantity: number;
+  condition: ReturnCondition | string;
+  restockedQuantity: number;
+  packagingReusable: boolean;
+  netAmount?: number | null;
+  vatAmount?: number | null;
+}
+
+export interface SaleRefundPaymentDto {
+  method: string;
+  amount: number;
+}
+
+/** One recorded refund of a sale. Amounts are computed by the server from the original sale. */
+export interface SaleRefundDto {
+  id: number;
+  refundNumber: string;
+  sequence: number;
+  createdAtUtc: string;
+  reason?: string | null;
+  actorUserId: number;
+  actorName?: string | null;
+  netAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  cashAmount: number;
+  lines: SaleRefundLineDto[];
+  payments: SaleRefundPaymentDto[];
 }
 
 // NEW — per-row payment method breakdown
@@ -66,6 +119,8 @@ export interface SaleDto {
   createdAt: string;
   items: SaleItemDto[];
   payments: SalePaymentDto[];
+  /** Recorded refunds, oldest first. Sales refunded before refund history was kept have none. */
+  refunds?: SaleRefundDto[];
 }
 
 export interface SaleListDto {
@@ -91,6 +146,8 @@ export interface CreateSaleItemDto extends SaleLineUomFields {
   discountAmount: number;
   appliedRuleId?: number;
   appliedRuleName?: string;
+  /** The line amount the cashier saw for a pack or custom option (after automatic rules, before manual discount). */
+  expectedLineGross?: number;
 }
 
 // NEW — one entry per payment method for split-payment checkout
@@ -135,8 +192,14 @@ export interface RefundSaleItemDto {
 export interface RefundSaleDto {
   items: RefundSaleItemDto[];
   reason?: string;
-  /** The cash actually paid back; required only for a partial refund of a sale paid in cash. */
+  terminalId?: number;
+  /**
+   * The cash actually paid back. Normally omitted: the server works out the cash share. Sent only after the server
+   * answered CASH_REFUND_POLICY_UNDEFINED for an old sale without line allocations.
+   */
   cashRefundAmount?: number;
+  /** One value per refund attempt (max 120 chars), repeated on a retry. Required from a sale's second refund on. */
+  idempotencyKey?: string;
 }
 
 export interface SaleSummaryDto {
@@ -170,6 +233,13 @@ export interface CartItem extends SaleLineUomFields {
   taxClassification?: TaxClassification;
   /** The selling option's label. With an option, `quantity` is a pack count or a measured quantity of its unit. */
   unitLabel?: string;
+  /**
+   * Option lines only: the whole line amount from the server (after automatic rules, before manual discount and
+   * tax-exclusive VAT). Unset until the line is priced, and cleared when its quantity or option changes.
+   */
+  lineGross?: number;
+  /** Option lines only: rules that match but cannot be applied to a measured quantity. */
+  rulesNotApplied?: string[];
 }
 
 export interface PosProduct {

@@ -163,7 +163,7 @@ public sealed class VoidSaleCommandHandler(
         if (sale.Status == "voided")
             throw new InvalidOperationException("Sale is already voided");
 
-        if (sale.Status == "refunded")
+        if (sale.Status is "refunded" or "partially_refunded")
             throw new InvalidOperationException("Cannot void a refunded sale");
 
         if (!string.Equals(sale.Status, "completed", StringComparison.OrdinalIgnoreCase))

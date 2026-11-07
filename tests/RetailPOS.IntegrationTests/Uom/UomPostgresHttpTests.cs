@@ -17,7 +17,7 @@ namespace RetailPOS.Tests.Uom;
 /// The Attar scenarios of the UOM SRS through the real HTTP pipeline, real DI and real migrations on PostgreSQL.
 /// Each test builds its own variants, so tests stay independent inside the shared database.
 /// </summary>
-public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
+public sealed partial class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
 {
     private readonly UomPostgresFixture _fixture;
 
@@ -523,7 +523,7 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
             reason = "Partly used",
             cashRefundAmount = 58.33m
         });
-        Assert.Equal("refunded", refunded.GetProperty("status").GetString());
+        Assert.Equal("partially_refunded", refunded.GetProperty("status").GetString());
         Assert.Equal(495m, await OnHandAsync(attar));
 
         await _fixture.WithDbAsync(async db =>
@@ -649,7 +649,7 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
     }
 
     [Fact]
-    public async Task Transfer_RejectedPacks_ComeBackAsPacksWithTheirValue_AndPartialPackReceiptIsRefused()
+    public async Task Transfer_PreparedPacks_SplitIntoWholePacks_AcceptedAndRejectedKeepTheirValue_NeverAFraction()
     {
         var owner = Owner();
         var bottle = await _fixture.CreateVariantAsync("TRB");
@@ -684,19 +684,33 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
 
         var receiver = _fixture.Client(UomPostgresFixture.OwnerId, "Manager", "*");
         receiver.DefaultRequestHeaders.Add("X-Test-OutletId", UomPostgresFixture.OutletTwo.ToString());
-        using (var partial = await receiver.PostAsJsonAsync($"/api/stock-transfers/{transferId}/receive", new
+        // Half a pack is never received, and a prepared pack cannot go missing: its bottle value has nowhere to go.
+        using (var fraction = await receiver.PostAsJsonAsync($"/api/stock-transfers/{transferId}/receive", new
         {
-            items = new[] { new { variantId = attar, acceptedQuantity = 24m, rejectedQuantity = 36m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Partly" } }
+            items = new[] { new { variantId = attar, acceptedQuantity = 30m, rejectedQuantity = 30m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Partly" } }
         }))
         {
-            Assert.Equal(HttpStatusCode.BadRequest, partial.StatusCode);
-            Assert.Contains(UomErrorCode("UNSUPPORTED_OPERATION"), await partial.Content.ReadAsStringAsync());
+            Assert.Equal(HttpStatusCode.BadRequest, fraction.StatusCode);
+            Assert.Contains(UomErrorCode("QUANTITY_MISMATCH"), await fraction.Content.ReadAsStringAsync());
+        }
+        using (var missing = await receiver.PostAsJsonAsync($"/api/stock-transfers/{transferId}/receive", new
+        {
+            items = new[] { new { variantId = attar, acceptedQuantity = 48m, rejectedQuantity = 0m, missingQuantity = 12m, damagedQuantity = 0m, remarks = "One lost" } }
+        }))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+            Assert.Contains(UomErrorCode("UNSUPPORTED_OPERATION"), await missing.Content.ReadAsStringAsync());
         }
 
+        // Two whole packs accepted, three rejected: ৳40 of packaging splits ৳16 here and ৳24 back to the source.
         await Send(receiver, HttpMethod.Post, $"/api/stock-transfers/{transferId}/receive", new
         {
-            items = new[] { new { variantId = attar, acceptedQuantity = 0m, rejectedQuantity = 60m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Wrong item" } }
+            items = new[] { new { variantId = attar, acceptedQuantity = 24m, rejectedQuantity = 36m, missingQuantity = 0m, damagedQuantity = 0m, remarks = "Three wrong" } }
         });
+        var destination = await PackStateAsync(owner, attar, UomPostgresFixture.OutletTwo);
+        Assert.True(destination.GetProperty("isReconciled").GetBoolean());
+        Assert.Equal(2, Balance(destination, "prepared").GetProperty("packCount").GetInt32());
+        Assert.Equal(16m, Balance(destination, "prepared").GetProperty("capitalizedValue").GetDecimal());
 
         long returnId = 0;
         await _fixture.WithDbAsync(async db => returnId = await db.StockTransfers.AsNoTracking()
@@ -705,8 +719,8 @@ public sealed class UomPostgresHttpTests : IClassFixture<UomPostgresFixture>
 
         var after = await PackStateAsync(owner, attar);
         Assert.True(after.GetProperty("isReconciled").GetBoolean());
-        Assert.Equal(20, Balance(after, "prepared").GetProperty("packCount").GetInt32());
-        Assert.Equal(160m, Balance(after, "prepared").GetProperty("capitalizedValue").GetDecimal());
+        Assert.Equal(18, Balance(after, "prepared").GetProperty("packCount").GetInt32());
+        Assert.Equal(144m, Balance(after, "prepared").GetProperty("capitalizedValue").GetDecimal());
     }
 
     [Fact]

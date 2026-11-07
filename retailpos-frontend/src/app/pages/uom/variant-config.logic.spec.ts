@@ -1,4 +1,4 @@
-import { UomUnit, VariantUomConfigView } from '../../models/uom.model';
+import { ResolvedUnit, SellingOption, UomUnit, VariantUomConfigView } from '../../models/uom.model';
 import { ConfigValue, SellingValue, standardFactor, suggestOptionCode, toConfigInput, toConfigValue, validateConfig } from './variant-config.logic';
 
 const unit = (id: number, code: string, dimension: UomUnit['dimension'], quantityPrecision = 0): UomUnit => ({
@@ -13,7 +13,7 @@ const UNITS = [PCS, ML, LITRE, JAR, KG];
 
 const pack = (overrides: Partial<SellingValue> = {}): SellingValue => ({
   code: '12ml', label: '12 ml', unitId: null, baseQuantity: 12, price: 100, isDefault: false,
-  sealedPackCode: '', isPreparedEligible: false, components: [], ...overrides,
+  sealedPackCode: '', isPreparedEligible: false, components: [], applyAutomaticPricingRules: false, ...overrides,
 });
 const config = (overrides: Partial<ConfigValue> = {}): ConfigValue => ({
   baseUnitId: ML.id, packStateTrackingEnabled: false, repackingEnabled: false,
@@ -27,6 +27,32 @@ describe('toConfigValue', () => {
     expect(toConfigValue(view, UNITS)).toEqual({
       baseUnitId: PCS.id, packStateTrackingEnabled: false, repackingEnabled: false, purchaseOptions: [], packs: [], customs: [],
     });
+  });
+});
+
+const ML_RESOLVED: ResolvedUnit = { id: ML.id, code: 'ml', symbol: 'ml', dimension: 'volume', precision: 2, isWhole: false };
+
+describe('toConfigValue promotion flag', () => {
+  const option = (kind: 'pack' | 'custom', applyAutomaticPricingRules?: boolean): SellingOption => ({
+    id: 1, kind, code: kind, label: kind, unit: kind === 'custom' ? ML_RESOLVED : null,
+    baseQuantity: kind === 'pack' ? 12 : null, factorNumerator: 1, factorDenominator: 1, price: 10, isDefault: false,
+    sealedPackCode: null, isPreparedEligible: false, components: [], applyAutomaticPricingRules,
+  });
+  const view = (options: SellingOption[]): VariantUomConfigView => ({
+    variantId: 7, hasStockActivity: false, history: [],
+    current: { configId: 1, version: 1, variantId: 7, baseUnit: ML_RESOLVED, packStateTrackingEnabled: false, repackingEnabled: false, purchaseOptions: [], sellingOptions: options },
+  });
+
+  it('loads the saved value', () => {
+    const value = toConfigValue(view([option('pack', true), option('custom', false)]), UNITS);
+    expect(value.packs[0].applyAutomaticPricingRules).toBe(true);
+    expect(value.customs[0].applyAutomaticPricingRules).toBe(false);
+  });
+
+  it('falls back to the server default when the value is missing', () => {
+    const value = toConfigValue(view([option('pack'), option('custom')]), UNITS);
+    expect(value.packs[0].applyAutomaticPricingRules).toBe(false);
+    expect(value.customs[0].applyAutomaticPricingRules).toBe(true);
   });
 });
 
@@ -108,7 +134,9 @@ describe('toConfigInput', () => {
     const input = toConfigInput(config({
       purchaseOptions: [{ ...jar, code: ' jar500 ', label: '' }],
       packs: [pack({ code: ' 12ml ', components: [{ componentVariantId: 9, name: 'Bottle', quantity: 1, isRequired: true }] })],
-      customs: [pack({ code: 'custom', label: '', unitId: ML.id, baseQuantity: 5, sealedPackCode: 'x', isPreparedEligible: true, price: 5 })],
+      customs: [pack({
+        code: 'custom', label: '', unitId: ML.id, baseQuantity: 5, sealedPackCode: 'x', isPreparedEligible: true, price: 5, applyAutomaticPricingRules: true,
+      })],
     }));
     expect(input.purchaseOptions[0]).toEqual({
       code: 'jar500', unitId: JAR.id, label: 'jar500', factorNumerator: 500, factorDenominator: 1, isDefault: true, isSealedPack: false,
@@ -116,11 +144,18 @@ describe('toConfigInput', () => {
     expect(input.sellingOptions[0]).toEqual({
       kind: 'pack', code: '12ml', label: '12 ml', unitId: null, baseQuantity: 12, price: 100, isDefault: false,
       sealedPackCode: null, isPreparedEligible: false, components: [{ componentVariantId: 9, quantity: 1, isRequired: true }],
+      applyAutomaticPricingRules: false,
     });
     expect(input.sellingOptions[1]).toEqual({
       kind: 'custom', code: 'custom', label: 'custom', unitId: ML.id, baseQuantity: null, price: 5, isDefault: false,
-      sealedPackCode: null, isPreparedEligible: false, components: [],
+      sealedPackCode: null, isPreparedEligible: false, components: [], applyAutomaticPricingRules: true,
     });
+  });
+
+  it('always sends the promotion flag explicitly, including false', () => {
+    const input = toConfigInput(config({ packs: [pack({ applyAutomaticPricingRules: false })] }));
+    expect(input.sellingOptions[0].applyAutomaticPricingRules).toBe(false);
+    expect('applyAutomaticPricingRules' in input.sellingOptions[0]).toBe(true);
   });
 });
 

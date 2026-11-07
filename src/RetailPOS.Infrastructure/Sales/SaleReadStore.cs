@@ -59,7 +59,9 @@ public sealed class SaleReadStore(
                 line.UomBaseUnitCode,
                 line.PackState,
                 line.PackagingCost,
-                line.ReturnLines?.Count > 0 ? line.ReturnLines.Sum(returned => returned.ReturnedQuantity) : null)).ToArray() ?? [],
+                line.ReturnedQuantity,
+                // A sale closed as refunded or voided has nothing to return, even if its old refund was partial.
+                sale.Status.ToLowerInvariant() is "refunded" or "voided" ? 0m : line.Quantity - line.ReturnedQuantity)).ToArray() ?? [],
             sale.Payments?.Select(payment => new SalePaymentReadModel(
                 payment.Id,
                 payment.Method,
@@ -69,7 +71,33 @@ public sealed class SaleReadStore(
                     ? Math.Max(0, payment.Tendered.Value - payment.Amount)
                     : 0m))).ToArray() ?? [],
             sale.SalespersonUserId,
-            sale.Salesperson?.Name);
+            sale.Salesperson?.Name)
+        {
+            Refunds = sale.Refunds?
+                .OrderBy(refund => refund.Sequence)
+                .Select(refund => new SaleRefundReadModel(
+                    refund.Id,
+                    refund.RefundNumber,
+                    refund.Sequence,
+                    refund.CreatedAtUtc,
+                    refund.Reason,
+                    refund.ActorUserId,
+                    refund.Actor?.Name,
+                    refund.NetAmount,
+                    refund.VatAmount,
+                    refund.TotalAmount,
+                    refund.CashAmount,
+                    refund.Lines.Select(line => new SaleRefundLineReadModel(
+                        line.SaleItemId,
+                        line.ReturnedQuantity,
+                        line.Condition,
+                        line.RestockedQuantity,
+                        line.PackagingReusable,
+                        line.NetAmount,
+                        line.VatAmount)).ToArray(),
+                    refund.Payments.Select(payment => new SaleRefundPaymentReadModel(payment.Method, payment.Amount)).ToArray()))
+                .ToArray() ?? []
+        };
 
     public async Task<SaleReadModel?> FindByIdAsync(
         long saleId,
@@ -138,9 +166,13 @@ public sealed class SaleReadStore(
             .Include(item => item.Items)
                 .ThenInclude(item => item.Variant)
                     .ThenInclude(variant => variant.Product)
-            .Include(item => item.Items)
-                .ThenInclude(item => item.ReturnLines)
-            .Include(item => item.Payments);
+            .Include(item => item.Payments)
+            .Include(item => item.Refunds)
+                .ThenInclude(refund => refund.Lines)
+            .Include(item => item.Refunds)
+                .ThenInclude(refund => refund.Payments)
+            .Include(item => item.Refunds)
+                .ThenInclude(refund => refund.Actor);
 
         if (includeTerminal)
         {

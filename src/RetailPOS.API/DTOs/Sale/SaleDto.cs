@@ -28,6 +28,7 @@ public class SaleDto
     public DateTime CreatedAt { get; set; }
     public List<SaleItemDto> Items { get; set; } = new();
     public List<SalePaymentDto> Payments { get; set; } = new(); // UPDATED — split-payment breakdown
+    public List<SaleRefundDto> Refunds { get; set; } = new();
 }
 
 // UPDATED — split-payment line in the response

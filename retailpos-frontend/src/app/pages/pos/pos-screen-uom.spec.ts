@@ -199,15 +199,16 @@ describe('PosScreenComponent units of measurement', () => {
     expect(alerts.warning).toHaveBeenCalledWith(expect.stringContaining('20 ml'));
   });
 
-  it('prices an option line by its option and takes only the tax from cart prices, sending a whole quantity', () => {
+  it('prices an option line by its option and takes only the tax when cart prices return no line amount', () => {
     pick(custom, 2.5);
     readyForCheckout();
     saleService.createSale.mockReturnValue(of({ data: { id: 0 } }));
 
     component.completeSale();
 
-    expect(posService.cartPrices).toHaveBeenCalledWith([{ productVariantId: 5, quantity: 1, outletId: 3 }]);
+    expect(posService.cartPrices).toHaveBeenCalledWith([{ productVariantId: 5, quantity: 1, outletId: 3, sellingOptionId: 12, enteredQuantity: 2.5 }]);
     expect(component.cartItems()[0].unitPrice).toBe(40);
+    expect(Object.keys(saleService.createSale.mock.calls[0][0].items[0])).not.toContain('expectedLineGross');
     expect(saleService.createSale.mock.calls[0][0].items[0]).toMatchObject({
       variantId: 5, quantity: 2.5, unitPrice: 40, sellingOptionId: 12, expectedConfigVersionId: 77, includePackaging: false,
     });
@@ -314,6 +315,93 @@ describe('PosScreenComponent units of measurement', () => {
 
     expect(component.checkoutNotice()?.text).toContain('not enough loose stock');
     expect(component.cartItems()).toHaveLength(1);
+  });
+
+  /** Cart prices that return a line amount for option lines, per request index. */
+  const optionPrices = (rows: Array<{ finalPrice: number; lineGross?: number; appliedRuleName?: string; rulesNotApplied?: string[] | null }>) =>
+    posService.cartPrices.mockImplementation((items: Array<{ productVariantId: number; sellingOptionId?: number }>) => of({
+      data: items.map((item, index) => ({
+        productVariantId: item.productVariantId, discountAmount: 0, taxRate: 10, taxClassification: 'standard',
+        taxAmount: 0, finalPriceWithTax: 0, pricesIncludeTax: false, ...(item.sellingOptionId ? rows[index] : { finalPrice: 999 }),
+      })),
+    }));
+
+  it('maps cart prices by index for two option lines of one variant and starts each subtotal from its line amount', () => {
+    optionPrices([
+      { finalPrice: 450, lineGross: 900, appliedRuleName: 'Pack promo' },
+      { finalPrice: 40, lineGross: 90, rulesNotApplied: ['Buy 3 ml get 10%'] },
+    ]);
+    pick(pack12, 2);
+    pick(custom, 2.5);
+
+    const [packLine, customLine] = component.cartItems();
+    expect(posService.cartPrices).toHaveBeenLastCalledWith([
+      { productVariantId: 5, quantity: 1, outletId: 3, sellingOptionId: 10, enteredQuantity: 2 },
+      { productVariantId: 5, quantity: 1, outletId: 3, sellingOptionId: 12, enteredQuantity: 2.5 },
+    ]);
+    expect([packLine.unitPrice, packLine.lineGross, packLine.subtotal, packLine.appliedRuleName]).toEqual([450, 900, 900, 'Pack promo']);
+    expect([customLine.unitPrice, customLine.lineGross, customLine.subtotal]).toEqual([40, 90, 90]);
+    expect(customLine.rulesNotApplied).toEqual(['Buy 3 ml get 10%']);
+    expect(packLine.rulesNotApplied).toBeUndefined();
+  });
+
+  it('applies the manual discount on top of the line amount', () => {
+    optionPrices([{ finalPrice: 450, lineGross: 900 }]);
+    pick(pack12, 2);
+    const line = (component as unknown as { repriceLine: (item: unknown, changes: unknown) => { discountAmount: number; subtotal: number } })
+      .repriceLine(component.cartItems()[0], { discountPercent: 10 });
+    expect(line.discountAmount).toBe(90);
+    expect(line.subtotal).toBe(810);
+  });
+
+  it('drops the line amount when the quantity changes and asks the server again', () => {
+    optionPrices([{ finalPrice: 450, lineGross: 900 }]);
+    pick(pack12, 2);
+    posService.cartPrices.mockReturnValue(of({ data: [] }));
+    const calls = posService.cartPrices.mock.calls.length;
+
+    component.setQuantity(0, '3');
+
+    expect(component.cartItems()[0].lineGross).toBeUndefined();
+    expect(component.cartItems()[0].subtotal).toBe(1350);
+    expect(posService.cartPrices.mock.calls.length).toBe(calls + 1);
+  });
+
+  it('ignores a price result for a line that changed while the request was out', () => {
+    pick(pack12, 2);
+    const [requestItems] = posService.cartPrices.mock.calls.at(-1) as unknown as [unknown[]];
+    component.cartItems.update(lines => [{ ...lines[0], quantity: 5 }]);
+    (component as unknown as { applyCartPrices: (rows: unknown[], requested: unknown[]) => void }).applyCartPrices(
+      [{ productVariantId: 5, finalPrice: 450, lineGross: 900, taxRate: 10, discountAmount: 0, taxAmount: 0, finalPriceWithTax: 0 }], requestItems);
+    expect(component.cartItems()[0].lineGross).toBeUndefined();
+  });
+
+  it('sends expectedLineGross for an option line priced by the server', () => {
+    optionPrices([{ finalPrice: 450, lineGross: 900 }, { finalPrice: 260, lineGross: 260 }]);
+    pick(pack12, 2);
+    pick(pack6, 1);
+    readyForCheckout();
+    saleService.createSale.mockReturnValue(of({ data: { id: 0 } }));
+
+    component.completeSale();
+
+    const items = saleService.createSale.mock.calls[0][0].items;
+    expect(items[0]).toMatchObject({ sellingOptionId: 10, quantity: 2, unitPrice: 450, expectedLineGross: 900 });
+    expect(items[1]).toMatchObject({ sellingOptionId: 11, quantity: 1, unitPrice: 260, expectedLineGross: 260 });
+  });
+
+  it('keeps the pcs cart-prices request and sale line exactly as before', () => {
+    component.addToCart(product({ variantId: 6, price: 999 }));
+    component.setQuantity(0, '2');
+    readyForCheckout();
+    saleService.createSale.mockReturnValue(of({ data: { id: 0 } }));
+
+    component.completeSale();
+
+    expect(posService.cartPrices).toHaveBeenLastCalledWith([{ productVariantId: 6, quantity: 2, outletId: 3 }]);
+    expect(saleService.createSale.mock.calls[0][0].items[0]).toEqual({
+      variantId: 6, quantity: 2, unitPrice: 999, discountAmount: 0, appliedRuleName: undefined,
+    });
   });
 
   it('does not reprice an option line from a per-variant price change', () => {

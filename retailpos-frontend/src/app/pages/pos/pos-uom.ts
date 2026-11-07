@@ -1,4 +1,5 @@
 import { CartItem, SaleLineUomFields } from '../../models/sale.model';
+import { CartPriceRequestItem } from '../../services/pos.service';
 import { PackStateBalanceRow, PackStateKind, PackStateView, SellingOption, VariantUomConfig } from '../../models/uom.model';
 import { roundQuantity } from '../../utils/uom-line.util';
 
@@ -64,6 +65,27 @@ export function uomLineFields(line: SaleLineUomFields): SaleLineUomFields {
     fulfilmentState: line.fulfilmentState,
     includePackaging: !!line.includePackaging,
   };
+}
+
+/**
+ * The cart-prices request line. A pcs line is unchanged; an option line is priced from its option with the entered
+ * quantity (pack count or measured quantity), so `quantity` is 1.
+ */
+export function cartPriceRequestItem(line: CartItem, outletId: number): CartPriceRequestItem {
+  if (!line.sellingOptionId) return { productVariantId: line.variantId, quantity: line.quantity, outletId };
+  return { productVariantId: line.variantId, quantity: 1, outletId, sellingOptionId: line.sellingOptionId, enteredQuantity: line.quantity };
+}
+
+/** Whether a price result still describes the cart line it was requested for (the cart may change meanwhile). */
+export function priceRequestMatches(requested: CartPriceRequestItem, line: CartItem | undefined): boolean {
+  if (!line || requested.productVariantId !== line.variantId) return false;
+  if (!line.sellingOptionId) return !requested.sellingOptionId;
+  return requested.sellingOptionId === line.sellingOptionId && requested.enteredQuantity === line.quantity;
+}
+
+/** `expectedLineGross` for a sale request: only an option line whose amount the server priced. A pcs line adds nothing. */
+export function expectedLineGrossField(line: CartItem): { expectedLineGross?: number } {
+  return line.sellingOptionId && typeof line.lineGross === 'number' ? { expectedLineGross: line.lineGross } : {};
 }
 
 /**

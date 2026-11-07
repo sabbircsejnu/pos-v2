@@ -20,6 +20,7 @@ import {
   standardFactor,
   suggestOptionCode,
   toConfigInput,
+  defaultApplyAutomaticPricingRules,
   toConfigValue,
   validateConfig,
 } from './variant-config.logic';
@@ -50,6 +51,7 @@ type SellingGroup = FormGroup<{
   isDefault: FormControl<boolean>;
   sealedPackCode: FormControl<string>;
   isPreparedEligible: FormControl<boolean>;
+  applyAutomaticPricingRules: FormControl<boolean>;
   components: FormArray<ComponentGroup>;
 }>;
 
@@ -262,11 +264,11 @@ export class VariantUnitsPageComponent implements OnInit {
   }
 
   addPack(): void {
-    this.form.controls.packs.push(this.sellingGroup(this.blankSelling(), false));
+    this.form.controls.packs.push(this.sellingGroup(this.blankSelling('pack'), false));
   }
 
   addCustom(): void {
-    this.form.controls.customs.push(this.sellingGroup({ ...this.blankSelling(), unitId: this.form.controls.baseUnitId.value }, false));
+    this.form.controls.customs.push(this.sellingGroup({ ...this.blankSelling('custom'), unitId: this.form.controls.baseUnitId.value }, false));
   }
 
   removePurchase(index: number): void {
@@ -409,10 +411,12 @@ export class VariantUnitsPageComponent implements OnInit {
     this.saveError.set('');
   }
 
-  private blankSelling(): SellingValue {
+  /** A new pack does not take automatic promotions by default; a new custom quantity does (as on the server). */
+  private blankSelling(kind: 'pack' | 'custom'): SellingValue {
     return {
       code: '', label: '', unitId: null, baseQuantity: null, price: null,
       isDefault: false, sealedPackCode: '', isPreparedEligible: false, components: [],
+      applyAutomaticPricingRules: defaultApplyAutomaticPricingRules(kind),
     };
   }
 
@@ -446,6 +450,7 @@ export class VariantUnitsPageComponent implements OnInit {
       isDefault: new FormControl(value.isDefault, { nonNullable: true }),
       sealedPackCode: new FormControl(value.sealedPackCode, { nonNullable: true }),
       isPreparedEligible: new FormControl(value.isPreparedEligible, { nonNullable: true }),
+      applyAutomaticPricingRules: new FormControl(value.applyAutomaticPricingRules, { nonNullable: true }),
       components: new FormArray<ComponentGroup>(value.components.map(component => this.componentGroup(component))),
     });
   }

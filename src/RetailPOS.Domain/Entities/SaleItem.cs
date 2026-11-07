@@ -27,6 +27,9 @@ public class SaleItem : RetailPOS.Core.Entities.Uom.UomSnapshotColumns
     /// <summary>Packaging cost carried by this line: consumed now, or capitalized in the prepared packs sold. Part of COGS.</summary>
     public decimal PackagingCost { get; set; }
 
+    /// <summary>Base units returned so far across every refund of this line. Never exceeds <see cref="Quantity"/> (database check).</summary>
+    public decimal ReturnedQuantity { get; set; }
+
     /// <summary>The pricing rule that was applied to this line at the time of sale. Null if no rule matched.</summary>
     public long? AppliedRuleId { get; set; }
     /// <summary>Monetary discount applied on this line (post-outlet-price, pre-tax). Captured for audit/reporting.</summary>

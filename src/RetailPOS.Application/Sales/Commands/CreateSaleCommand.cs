@@ -30,7 +30,8 @@ public sealed record CreateSaleLine(
     long? SellingOptionId = null,
     long? ExpectedConfigVersionId = null,
     string? FulfilmentState = null,
-    bool IncludePackaging = false);
+    bool IncludePackaging = false,
+    decimal? ExpectedLineGross = null);
 
 public sealed record CreateSalePayment(
     string Method,
@@ -142,7 +143,13 @@ public sealed class CreateSaleCommandHandler(
             // Prices are re-resolved inside the transaction and never read from the cache.
             var priced = await priceCalculator.CalculateAsync(
                 request.Items
-                    .Select((item, index) => new PosCartPriceLine(item.VariantId, request.OutletId, uomLines[index].BaseQuantity))
+                    .Select((item, index) => uomLines[index].Resolution is { } resolution
+                        ? new PosCartPriceLine(
+                            item.VariantId,
+                            request.OutletId,
+                            uomLines[index].BaseQuantity,
+                            Option: new UnitOptionPricing(resolution.Option.Kind, resolution.Option.Price, item.Quantity, resolution.Option.ApplyAutomaticPricingRules))
+                        : new PosCartPriceLine(item.VariantId, request.OutletId, uomLines[index].BaseQuantity))
                     .ToArray(),
                 readFromCache: false,
                 cancellationToken);
@@ -151,14 +158,23 @@ public sealed class CreateSaleCommandHandler(
                 .Select((item, index) => new SalePriceChange(
                     item.VariantId,
                     item.UnitPrice,
-                    uomLines[index].Resolution?.Option.Price ?? priced[index].FinalPrice))
+                    uomLines[index].Resolution is { } resolution && priced[index].LineGross is null
+                        ? resolution.Option.Price
+                        : priced[index].FinalPrice))
                 .Where(change => Math.Abs(change.SubmittedUnitPrice - change.CurrentUnitPrice) > PriceTolerance)
+                .Concat(request.Items
+                    .Select((item, index) => (Item: item, LineGross: priced[index].LineGross))
+                    .Where(line => line.Item.ExpectedLineGross is { } expected && line.LineGross is { } gross && Math.Abs(expected - gross) > PriceTolerance)
+                    .Select(line => new SalePriceChange(line.Item.VariantId, line.Item.ExpectedLineGross!.Value, line.LineGross!.Value)))
                 .ToArray();
             if (priceChanges.Length > 0)
                 throw new SaleCheckoutConflictException(
                     SaleCheckoutErrorCodes.PriceChanged,
                     "Prices have changed since the cart was priced. Review the updated prices and try again.",
                     priceChanges);
+
+            for (var index = 0; index < uomLines.Length; index++)
+                uomLines[index] = SaleUomLines.WithAppliedRule(uomLines[index], priced[index]);
 
             var taxPolicy = await checkoutSettings.GetTaxPolicyAsync(businessId, cancellationToken);
             var totals = SaleCheckoutCalculator.Calculate(
@@ -292,9 +308,8 @@ public sealed class CreateSaleCommandHandler(
                     UnitPrice = line.UnitPrice,
                     Subtotal = line.Subtotal,
                     DiscountAmount = line.LineDiscount,
-                    // An option's price stands alone, so no pricing rule set it.
-                    AppliedRuleId = uomLines[index].Resolution is null ? priced[index].AppliedRuleId : null,
-                    AppliedRuleName = uomLines[index].Resolution is null ? priced[index].AppliedRuleName : null,
+                    AppliedRuleId = priced[index].AppliedRuleId,
+                    AppliedRuleName = priced[index].AppliedRuleName,
                     TaxableAmount = line.TaxableAmount,
                     VatRate = line.TaxRatePercent,
                     VatAmount = line.VatAmount,
@@ -505,7 +520,9 @@ public sealed class CreateSaleCommandHandler(
         if (original is null || !outletBusinessId.HasValue || original.BusinessId != outletBusinessId)
             throw new KeyNotFoundException($"Original sale with ID {originalSaleId} not found");
 
-        if (!string.Equals(original.Sale.Status, "completed", StringComparison.OrdinalIgnoreCase))
+        // An exchange links the sales and moves no quantity, so it can follow a partial refund; nothing is consumed twice.
+        if (!string.Equals(original.Sale.Status, "completed", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(original.Sale.Status, "partially_refunded", StringComparison.OrdinalIgnoreCase))
             throw new SaleCheckoutValidationException(
                 SaleCheckoutErrorCodes.InvalidExchangeLink,
                 $"Original sale {originalSaleId} is {original.Sale.Status} and cannot be exchanged.");

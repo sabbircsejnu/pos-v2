@@ -34,7 +34,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             .AsNoTracking()
             .Where(sale =>
                 scope.OutletIds.Contains(sale.OutletId)
-                && sale.Status.ToLower() == "refunded"
+                && (sale.Status.ToLower() == "refunded" || sale.Status.ToLower() == "partially_refunded")
                 && (!filter.CashierId.HasValue || sale.CashierId == filter.CashierId.Value))
             .Select(sale => sale.Id)
             .ToListAsync(cancellationToken);
@@ -43,7 +43,18 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
         decimal returnedUnits = 0m;
         if (saleIds.Count > 0)
         {
-            var saleIdReferences = saleIds.Select(id => id.ToString()).ToList();
+            // A refund transaction has its own journal reference. Sales refunded before that keep the sale id.
+            var refundRows = await dbContext.Set<RetailPOS.Core.Entities.Uom.SaleRefund>()
+                .AsNoTracking()
+                .Where(refund => saleIds.Contains(refund.SaleId))
+                .Select(refund => new { refund.SaleId, refund.Sequence })
+                .ToListAsync(cancellationToken);
+            var saleIdReferences = saleIds
+                .Select(id => id.ToString())
+                .Concat(refundRows
+                    .Where(refund => refund.Sequence > 1)
+                    .Select(refund => RetailPOS.Application.Sales.FinancialPostings.SaleFinancialIntentFactory.RefundJournalReference(refund.SaleId, refund.Sequence)))
+                .ToList();
             var postedRefundLines = dbContext.JournalEntryLines
                 .AsNoTracking()
                 .Where(line =>
@@ -320,7 +331,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             .AsNoTracking()
             .Where(sale =>
                 scope.OutletIds.Contains(sale.OutletId)
-                && (sale.Status.ToLower() == "completed" || sale.Status.ToLower() == "refunded")
+                && (sale.Status.ToLower() == "completed" || sale.Status.ToLower() == "refunded" || sale.Status.ToLower() == "partially_refunded")
                 && (sale.SaleDateTime ?? sale.SaleDate) >= filter.StartDate
                 && (sale.SaleDateTime ?? sale.SaleDate) <= filter.EndDate
                 && (!filter.OutletId.HasValue || sale.OutletId == filter.OutletId.Value)

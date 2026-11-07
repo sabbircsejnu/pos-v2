@@ -165,7 +165,41 @@ internal static class UomModelConfiguration
             entity.Property(e => e.CostRestored).HasPrecision(18, 4);
             entity.HasIndex(e => e.SaleId);
             entity.HasIndex(e => e.SaleItemId);
+            entity.Property(e => e.NetAmount).HasPrecision(18, 2);
+            entity.Property(e => e.VatAmount).HasPrecision(18, 2);
+            entity.HasIndex(e => e.SaleRefundId);
             entity.HasOne(e => e.SaleItem).WithMany(i => i.ReturnLines).HasForeignKey(e => e.SaleItemId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.SaleRefund).WithMany(r => r.Lines).HasForeignKey(e => e.SaleRefundId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SaleRefund>(entity =>
+        {
+            entity.ToTable("sale_refunds");
+            entity.Property(e => e.RefundNumber).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(120);
+            entity.Property(e => e.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.NetAmount).HasPrecision(18, 2);
+            entity.Property(e => e.VatAmount).HasPrecision(18, 2);
+            entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
+            entity.Property(e => e.CostRestored).HasPrecision(18, 4);
+            entity.Property(e => e.CashAmount).HasPrecision(18, 2);
+            entity.HasIndex(e => new { e.SaleId, e.Sequence }).IsUnique();
+            entity.HasIndex(e => new { e.SaleId, e.IdempotencyKey }).IsUnique().HasFilter("idempotency_key IS NOT NULL");
+            entity.HasOne(e => e.Sale).WithMany(s => s.Refunds).HasForeignKey(e => e.SaleId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Actor).WithMany().HasForeignKey(e => e.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(t => t.HasCheckConstraint("ck_sale_refunds_amounts", "total_amount = net_amount + vat_amount AND sequence >= 1"));
+        });
+
+        modelBuilder.Entity<SaleRefundPayment>(entity =>
+        {
+            entity.ToTable("sale_refund_payments");
+            entity.Property(e => e.Method).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.HasIndex(e => new { e.SaleRefundId, e.SalePaymentId }).IsUnique();
+            entity.HasIndex(e => e.SalePaymentId);
+            entity.HasOne(e => e.SaleRefund).WithMany(r => r.Payments).HasForeignKey(e => e.SaleRefundId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<RetailPOS.Core.Entities.SalePayment>().WithMany().HasForeignKey(e => e.SalePaymentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StockTransferItemAllocation>(entity =>
@@ -193,6 +227,12 @@ internal static class UomModelConfiguration
         ConfigureSnapshot(modelBuilder.Entity<PurchaseOrderItem>());
         ConfigureSnapshot(modelBuilder.Entity<GrnItem>());
         ConfigureSnapshot(modelBuilder.Entity<SaleItem>());
+        modelBuilder.Entity<SaleItem>(entity =>
+        {
+            entity.Property(e => e.ReturnedQuantity).HasColumnType("numeric").HasDefaultValue(0m);
+            // The database's own guard against returning more than was sold, whatever a request or a race does.
+            entity.ToTable(t => t.HasCheckConstraint("ck_sale_items_returned_quantity", "returned_quantity >= 0 AND returned_quantity <= quantity"));
+        });
         ConfigureSnapshot(modelBuilder.Entity<StockTransferItem>());
         ConfigureSnapshot(modelBuilder.Entity<StockAdjustmentLine>());
 

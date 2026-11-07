@@ -11,7 +11,7 @@ import { SaleService } from '../../services/sale.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { ListStateService } from '../../services/list-state.service';
-import { SaleListDto, SaleSummaryDto } from '../../models/sale.model';
+import { SaleListDto, SaleSummaryDto, saleStatusLabel } from '../../models/sale.model';
 
 @Component({
   selector: 'app-sales-list',
@@ -144,10 +144,17 @@ export class SalesListComponent implements OnInit, OnDestroy {
     return Math.ceil(this.saleService.totalCount() / this.pageSize()) || 1;
   }
 
+  statusLabel(status: string | null | undefined): string {
+    return saleStatusLabel(status);
+  }
+
   getStatusClass(status: string): string {
     switch (status?.toLowerCase()) {
       case 'completed': return 'status-completed';
-      case 'void': return 'status-void';
+      case 'partially_refunded': return 'status-partial';
+      case 'void':
+      case 'voided':
+      case 'refunded': return 'status-void';
       default: return 'status-default';
     }
   }

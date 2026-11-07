@@ -22,7 +22,35 @@ public sealed record SaleItemReadModel(
     string? BaseUnitCode = null,
     string? PackState = null,
     decimal PackagingCost = 0m,
-    decimal? ReturnedQuantity = null);
+    decimal ReturnedQuantity = 0m,
+    decimal RemainingReturnableQuantity = 0m);
+
+public sealed record SaleRefundLineReadModel(
+    long SaleItemId,
+    decimal Quantity,
+    string Condition,
+    decimal RestockedQuantity,
+    bool PackagingReusable,
+    decimal? NetAmount,
+    decimal? VatAmount);
+
+public sealed record SaleRefundPaymentReadModel(string Method, decimal Amount);
+
+/// <summary>One refund of a sale. It carries no cost: this model also reaches users without <c>products.view_cost</c>.</summary>
+public sealed record SaleRefundReadModel(
+    long Id,
+    string RefundNumber,
+    int Sequence,
+    DateTime CreatedAtUtc,
+    string? Reason,
+    long ActorUserId,
+    string? ActorName,
+    decimal NetAmount,
+    decimal VatAmount,
+    decimal TotalAmount,
+    decimal CashAmount,
+    IReadOnlyList<SaleRefundLineReadModel> Lines,
+    IReadOnlyList<SaleRefundPaymentReadModel> Payments);
 
 public sealed record SalePaymentReadModel(
     long Id,
@@ -61,6 +89,9 @@ public sealed record SaleReadModel(
     string? SalespersonName = null)
 {
     public string? CustomerPhone { get; init; }
+
+    /// <summary>Every refund transaction of the sale, oldest first. Refunds from before multiple refunds have no row.</summary>
+    public IReadOnlyList<SaleRefundReadModel> Refunds { get; init; } = [];
 
     /// <summary>The outlet's invoice print settings; only populated for receipt reads.</summary>
     public SaleOutletPrintReadModel? OutletPrint { get; init; }

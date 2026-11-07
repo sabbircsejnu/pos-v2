@@ -415,14 +415,17 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
     public async Task RefundCommand_PartialRefundPostsOneReversalAndInvalidatesCacheAfterCommit()
     {
         await SeedCompletedSaleAsync(9201);
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
+        // A refund reads its amounts back from the intent, so the double returns a real one, as the writer does.
         accounting.Setup(service => service.AppendReversalAsync(
                 It.IsAny<Sale>(),
                 It.IsAny<IReadOnlyList<SaleRefundLine>>(),
                 It.IsAny<string>(),
                 7001,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SaleFinancialPosting());
+                It.IsAny<CancellationToken>(),
+                It.IsAny<SaleRefundPostingContext?>()))
+            .ReturnsAsync((Sale sale, IReadOnlyList<SaleRefundLine> lines, string type, long actor, CancellationToken _, SaleRefundPostingContext? refund) =>
+                SaleFinancialIntentFactory.ForReversal(sale, sale.BusinessId ?? 1, lines, type, actor, DateTime.UtcNow, refund: refund));
         var audit = new Mock<ISaleRefundAuditWriter>();
         audit.Setup(service => service.RecordRefundedAsync(
                 It.IsAny<Sale>(),
@@ -431,14 +434,14 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 1,
                 (long?)null,
                 7001,
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
         var cache = new Mock<ISaleRefundCacheInvalidator>();
         cache.Setup(service => service.InvalidateAsync(3201, 5001, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 await using var observer = CreateContext();
-                Assert.Equal("refunded", await observer.Sales.Where(sale => sale.Id == 9201)
+                Assert.Equal("partially_refunded", await observer.Sales.Where(sale => sale.Id == 9201)
                     .Select(sale => sale.Status).SingleAsync());
                 Assert.Equal(51, (await observer.Inventories.SingleAsync()).Quantity);
                 Assert.Single(await observer.StockLedgers.Where(entry => entry.ReferenceId == 9201).ToListAsync());
@@ -457,7 +460,8 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                     CancellationToken.None);
         }
 
-        Assert.Equal("refunded", result.Status);
+        // A partial refund now leaves the rest returnable (I02).
+        Assert.Equal("partially_refunded", result.Status);
         Assert.Equal("VOID-9201", result.SaleNumber);
         Assert.Equal(5001, result.OutletId);
         Assert.Single(result.Items);
@@ -469,7 +473,8 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 lines[0].VariantId == 3201 && lines[0].Quantity == 1),
             It.IsAny<string>(),
             7001,
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Once);
         audit.Verify(service => service.RecordRefundedAsync(
             It.IsAny<Sale>(),
             "completed",
@@ -477,7 +482,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             1,
             (long?)null,
             7001,
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Once);
         cache.Verify(service => service.InvalidateAsync(3201, 5001, It.IsAny<CancellationToken>()), Times.Once);
 
         await using var verify = CreateContext();
@@ -498,9 +503,9 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 It.IsAny<decimal>(),
                 It.IsAny<long?>(),
                 It.IsAny<long>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ThrowsAsync(new InvalidOperationException("Injected required refund audit failure."));
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var cache = new Mock<ISaleRefundCacheInvalidator>();
 
         await using (var context = CreateContext())
@@ -527,7 +532,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
     public async Task RefundCommand_RejectsSequentialDuplicateWithoutRepeatingEffects()
     {
         await SeedCompletedSaleAsync(9203);
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var audit = new Mock<ISaleRefundAuditWriter>();
         audit.Setup(service => service.RecordRefundedAsync(
                 It.IsAny<Sale>(),
@@ -536,7 +541,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
                 It.IsAny<decimal>(),
                 It.IsAny<long?>(),
                 It.IsAny<long>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
         var cache = new Mock<ISaleRefundCacheInvalidator>();
         cache.Setup(service => service.InvalidateAsync(
@@ -570,7 +575,8 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<IReadOnlyList<SaleRefundLine>>(),
             It.IsAny<string>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Once);
         audit.Verify(service => service.RecordRefundedAsync(
             It.IsAny<Sale>(),
             It.IsAny<string>(),
@@ -578,7 +584,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<decimal>(),
             It.IsAny<long?>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Once);
         cache.Verify(service => service.InvalidateAsync(
             It.IsAny<long>(),
             It.IsAny<long>(),
@@ -589,7 +595,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
     public async Task RefundCommand_RejectsDuplicateVariantOverRefundBeforeMutation()
     {
         await SeedCompletedSaleAsync(9204);
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var audit = new Mock<ISaleRefundAuditWriter>();
         var cache = new Mock<ISaleRefundCacheInvalidator>();
 
@@ -619,7 +625,8 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<IReadOnlyList<SaleRefundLine>>(),
             It.IsAny<string>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Never);
     }
 
     [Fact]
@@ -629,7 +636,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
         var authorizer = new Mock<ISaleMutationOutletAuthorizer>();
         authorizer.Setup(service => service.AuthorizeAsync(5001, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new UnauthorizedAccessException("Outlet access denied."));
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var audit = new Mock<ISaleRefundAuditWriter>();
         var cache = new Mock<ISaleRefundCacheInvalidator>();
 
@@ -652,7 +659,8 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<IReadOnlyList<SaleRefundLine>>(),
             It.IsAny<string>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Never);
         audit.Verify(service => service.RecordRefundedAsync(
             It.IsAny<Sale>(),
             It.IsAny<string>(),
@@ -660,7 +668,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<decimal>(),
             It.IsAny<long?>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Never);
         cache.Verify(service => service.InvalidateAsync(
             It.IsAny<long>(),
             It.IsAny<long>(),
@@ -680,7 +688,7 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
     {
         const long saleId = 9206;
         await SeedCompletedSaleAsync(saleId);
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var audit = new Mock<ISaleRefundAuditWriter>();
         var cache = new Mock<ISaleRefundCacheInvalidator>();
         IReadOnlyList<RefundSaleLine> items = quantity == 0 && variantId == 0
@@ -707,14 +715,15 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             It.IsAny<IReadOnlyList<SaleRefundLine>>(),
             It.IsAny<string>(),
             It.IsAny<long>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Never);
     }
 
     [Fact]
     public async Task RefundCommand_PropagatesCancellationBeforeOpeningTransaction()
     {
         await SeedCompletedSaleAsync(9207);
-        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        var accounting = RefundAccounting();
         var audit = new Mock<ISaleRefundAuditWriter>();
         var cache = new Mock<ISaleRefundCacheInvalidator>();
         using var cancellation = new CancellationTokenSource();
@@ -940,5 +949,20 @@ public sealed class SaleCreationRelationalBaselineTests : IDisposable
             InterceptionResult<int> result,
             CancellationToken cancellationToken = default) =>
             new(SavingChanges(eventData, result));
+    }
+    /// <summary>A refund reads its amounts back from the intent, so the double returns a real one, as the writer does.</summary>
+    private static Mock<ISaleFinancialPostingWriter> RefundAccounting()
+    {
+        var accounting = new Mock<ISaleFinancialPostingWriter>();
+        accounting.Setup(service => service.AppendReversalAsync(
+                It.IsAny<Sale>(),
+                It.IsAny<IReadOnlyList<SaleRefundLine>>(),
+                It.IsAny<string>(),
+                It.IsAny<long>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<SaleRefundPostingContext?>()))
+            .ReturnsAsync((Sale sale, IReadOnlyList<SaleRefundLine> lines, string type, long actor, CancellationToken _, SaleRefundPostingContext? refund) =>
+                SaleFinancialIntentFactory.ForReversal(sale, sale.BusinessId ?? 1, lines, type, actor, DateTime.UtcNow, refund: refund));
+        return accounting;
     }
 }

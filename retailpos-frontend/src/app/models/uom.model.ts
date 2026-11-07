@@ -82,6 +82,8 @@ export interface SellingOption {
   sealedPackCode: string | null;
   isPreparedEligible: boolean;
   components: SellingComponent[];
+  /** Whether automatic pricing rules (promotions) apply to this option's own price. */
+  applyAutomaticPricingRules?: boolean;
 }
 
 /** The current configuration of a variant. A variant without one is plain pcs. */
@@ -140,6 +142,8 @@ export interface SellingOptionInput {
   sealedPackCode: string | null;
   isPreparedEligible: boolean;
   components: SellingComponentInput[];
+  /** Omitted/null keeps the previous value (a new option defaults to false for packs, true for custom). The page always sends it. */
+  applyAutomaticPricingRules?: boolean | null;
 }
 
 export interface VariantUomConfigInput {

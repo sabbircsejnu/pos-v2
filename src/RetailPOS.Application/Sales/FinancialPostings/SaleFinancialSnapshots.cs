@@ -65,7 +65,7 @@ public sealed record SaleReversalLineSnapshot(
 public sealed record SaleReversalPaymentSnapshot(long PaymentId, string Method, decimal Amount);
 
 /// <summary>
-/// Immutable journal intent of the single void/refund reversal of a sale. From v2: <see cref="RefundAmount"/> is the
+/// Immutable journal intent of a void, or of one refund transaction, of a sale. From v2: <see cref="RefundAmount"/> is the
 /// revenue reversed net of VAT, <see cref="RefundTotal"/> = net + VAT is what the payments are credited with, and the
 /// journal is dated <see cref="AccountingDate"/> — the reversal's own date in the effective Outlet/Business time zone
 /// (P3.2-D02). <see cref="BusinessDate"/> and <see cref="TransactionAtUtc"/> stay the original sale's.
@@ -93,7 +93,19 @@ public sealed record SaleReversalJournalSnapshot(
     DateOnly? AccountingDate = null,
     string? TimeZoneId = null,
     decimal RefundTotal = 0m,
-    string? MissingEvidence = null);
+    string? MissingEvidence = null,
+    int? RefundSequence = null,
+    string? RefundNumber = null);
+
+/// <summary>What earlier refunds of the sale already took, so that shares add up exactly over every refund.</summary>
+/// <param name="Sequence">The refund's number within the sale.</param>
+/// <param name="RefundNumber">The refund's reference.</param>
+/// <param name="PreviouslyPaidBack">Sale payment id to the amount earlier refunds already paid back.</param>
+public sealed record SaleRefundPostingContext(
+    long SaleRefundId,
+    int Sequence,
+    string RefundNumber,
+    IReadOnlyDictionary<long, decimal> PreviouslyPaidBack);
 
 /// <summary>Builds the posting intents from the authoritative checkout snapshots persisted on the sale.</summary>
 public static class SaleFinancialIntentFactory
@@ -108,6 +120,30 @@ public static class SaleFinancialIntentFactory
     public static string SaleSourceKey(long saleId) => $"sale:{saleId}:posting:v{SourceKeyVersion}";
 
     public static string ReversalSourceKey(long saleId) => $"sale:{saleId}:reversal:v{SourceKeyVersion}";
+
+    /// <summary>
+    /// Each refund transaction has its own journal identity. A sale's first refund keeps the identity a refund always had
+    /// (<see cref="ReversalSourceKey"/>), so a single refund looks exactly as before to every reader of the journals.
+    /// </summary>
+    public static string RefundSourceKey(long saleId, int sequence) =>
+        sequence <= 1 ? ReversalSourceKey(saleId) : $"sale:{saleId}:refund:{sequence}:v{SourceKeyVersion}";
+
+    /// <summary>The journal reference of a refund transaction, unique among system journals. The first is the sale id, as before.</summary>
+    public static string RefundJournalReference(long saleId, int sequence) =>
+        sequence <= 1 ? saleId.ToString(System.Globalization.CultureInfo.InvariantCulture) : $"{saleId}:R{sequence}";
+
+    /// <summary>The journal source key this snapshot posts under.</summary>
+    public static string SourceKeyOf(SaleReversalJournalSnapshot snapshot) =>
+        RefundSourceKey(snapshot.SaleId, snapshot.RefundSequence ?? 1);
+
+    /// <summary>The share of a line amount belonging to one return, so several returns always add up to the recorded amount.</summary>
+    public static decimal ShareOfReturn(decimal recorded, decimal alreadyReturned, decimal quantity, decimal soldQuantity) =>
+        CumulativeShare(recorded, alreadyReturned + quantity, soldQuantity) - CumulativeShare(recorded, alreadyReturned, soldQuantity);
+
+    private static decimal CumulativeShare(decimal recorded, decimal returned, decimal soldQuantity) =>
+        returned >= soldQuantity ? recorded
+        : returned <= 0m ? 0m
+        : MonetaryRounding.ToCurrency(recorded * returned / soldQuantity);
 
     public static SaleFinancialPosting ForSale(Sale sale, long businessId, DateTime nowUtc)
     {
@@ -159,7 +195,8 @@ public static class SaleFinancialIntentFactory
         string reversalType,
         long actorUserId,
         DateTime occurredAtUtc,
-        string timeZoneId = BusinessPosSettings.DefaultTimeZone)
+        string timeZoneId = BusinessPosSettings.DefaultTimeZone,
+        SaleRefundPostingContext? refund = null)
     {
         RequirePersisted(sale, businessId);
         if (reversalType is not (SaleFinancialPostingReversalTypes.Void or SaleFinancialPostingReversalTypes.Refund))
@@ -180,12 +217,16 @@ public static class SaleFinancialIntentFactory
                     item.VariantId,
                     quantity,
                     item.Quantity,
-                    missing is null ? Share(item.TaxableAmount!.Value, quantity, item.Quantity) : null,
-                    missing is null ? Share(item.VatAmount!.Value, quantity, item.Quantity) : null,
+                    missing is null ? ShareOfReturn(item.TaxableAmount!.Value, item.ReturnedQuantity, quantity, item.Quantity) : null,
+                    missing is null ? ShareOfReturn(item.VatAmount!.Value, item.ReturnedQuantity, quantity, item.Quantity) : null,
                     // A condition decision says what really returned to inventory; only that value leaves COGS.
                     group.Any(line => line.RestoredCost.HasValue)
                         ? MonetaryRounding.ToCurrency(group.Sum(line => line.RestoredCost ?? 0m))
-                        : MonetaryRounding.ToCurrency((item.HistoricalUnitCost ?? 0m) * quantity + Share(item.PackagingCost, quantity, item.Quantity)));
+                        : ShareOfReturn(
+                            MonetaryRounding.ToCurrency((item.HistoricalUnitCost ?? 0m) * item.Quantity + item.PackagingCost),
+                            item.ReturnedQuantity,
+                            quantity,
+                            item.Quantity));
             })
             .OrderBy(line => line.SaleItemId)
             .ToArray();
@@ -194,8 +235,11 @@ public static class SaleFinancialIntentFactory
         var vat = lines.Sum(line => line.Vat ?? 0m);
         var total = net + vat;
         var payments = sale.Payments.OrderBy(payment => payment.Id).ToArray();
+        // Weighted by what each payment still holds: no payment pays back more than it took, and the last refund clears all.
         var allocations = missing is null
-            ? Allocate(total, payments.Select(payment => payment.Amount).ToArray())
+            ? Allocate(total, payments
+                .Select(payment => payment.Amount - (refund?.PreviouslyPaidBack.GetValueOrDefault(payment.Id) ?? 0m))
+                .ToArray())
             : new decimal[payments.Length];
 
         var snapshot = new SaleReversalJournalSnapshot(
@@ -221,9 +265,13 @@ public static class SaleFinancialIntentFactory
             DateOnly.FromDateTime(CashSessionTime.BusinessDateFor(occurred, timeZoneId)),
             timeZoneId,
             total,
-            missing);
-        return Create(sale, businessId, SaleFinancialPostingKinds.Reversal, reversalType, ReversalSourceKey(sale.Id), actorUserId,
+            missing,
+            refund?.Sequence,
+            refund?.RefundNumber);
+        var posting = Create(sale, businessId, SaleFinancialPostingKinds.Reversal, reversalType, SourceKeyOf(snapshot), actorUserId,
             snapshot, occurred);
+        posting.SaleRefundId = refund?.SaleRefundId;
+        return posting;
     }
 
     public static SaleJournalSnapshot ReadSaleSnapshot(SaleFinancialPosting posting) =>
@@ -264,9 +312,6 @@ public static class SaleFinancialIntentFactory
             return $"Payment allocations of sale {sale.Id} do not reconcile to its payable.";
         return null;
     }
-
-    private static decimal Share(decimal recorded, decimal quantity, decimal soldQuantity) =>
-        quantity >= soldQuantity ? recorded : MonetaryRounding.ToCurrency(recorded * quantity / soldQuantity);
 
     /// <summary>Splits <paramref name="total"/> by weight in whole cents (largest remainder): the parts sum exactly.</summary>
     public static decimal[] Allocate(decimal total, IReadOnlyList<decimal> weights)

@@ -35,7 +35,8 @@ public sealed class SaleFinancialPostingWriter(
         IReadOnlyList<SaleRefundLine> refundLines,
         string reversalType,
         long actorUserId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SaleRefundPostingContext? refund = null)
     {
         var businessId = await ResolveBusinessIdAsync(sale, cancellationToken);
         // P3.2-D02: the reversal is dated by its own server time, taken here inside the void/refund transaction, in
@@ -47,7 +48,8 @@ public sealed class SaleFinancialPostingWriter(
             reversalType,
             actorUserId,
             clock.GetUtcNow().UtcDateTime,
-            await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken));
+            await timeZones.GetTimeZoneIdAsync(businessId, cancellationToken),
+            refund);
         return await AddAsync(posting, sale, cancellationToken);
     }
 

@@ -36,9 +36,13 @@ public static class SaleFinancialPostingModelConfiguration
 
             entity.HasIndex(e => new { e.BusinessId, e.SourceKey }).IsUnique()
                 .HasDatabaseName("ux_sale_financial_postings_source_key");
-            // At most one sale journal and one reversal journal per sale.
+            // One sale journal, one void or pre-existing refund reversal, and one journal for each refund transaction.
             entity.HasIndex(e => new { e.SaleId, e.Kind }).IsUnique()
+                .HasFilter("sale_refund_id IS NULL")
                 .HasDatabaseName("ux_sale_financial_postings_sale_kind");
+            entity.HasIndex(e => e.SaleRefundId).IsUnique()
+                .HasFilter("sale_refund_id IS NOT NULL")
+                .HasDatabaseName("ux_sale_financial_postings_sale_refund");
             entity.HasIndex(e => new { e.Status, e.NextAttemptAtUtc })
                 .HasDatabaseName("ix_sale_financial_postings_due");
             entity.HasIndex(e => new { e.BusinessId, e.Status })
@@ -59,6 +63,7 @@ public static class SaleFinancialPostingModelConfiguration
             });
 
             entity.HasOne(e => e.Sale).WithMany().HasForeignKey(e => e.SaleId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<RetailPOS.Core.Entities.Uom.SaleRefund>().WithMany().HasForeignKey(e => e.SaleRefundId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<Business>().WithMany().HasForeignKey(e => e.BusinessId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<JournalEntry>().WithMany().HasForeignKey(e => e.JournalEntryId)
                 .OnDelete(DeleteBehavior.Restrict);

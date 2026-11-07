@@ -19,7 +19,8 @@ public sealed record SaleCashRefundRequest(
     long? DispensingTerminalId,
     bool FullReversal,
     decimal? RequestedAmount,
-    string? Reason);
+    string? Reason,
+    int? RefundSequence = null);
 
 public sealed record SaleCashRefundResult(long MovementId, long DispensingCashSessionId, decimal Amount, bool Created);
 

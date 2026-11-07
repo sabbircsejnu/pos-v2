@@ -279,14 +279,14 @@ public sealed class CashSessionQueryStore(RetailPOSDbContext dbContext) : ICashS
             .ToListAsync(cancellationToken);
 
         var completed = groups.FirstOrDefault(group => group.Status == "completed");
-        var refunded = groups.FirstOrDefault(group => group.Status == "refunded");
+        var refunded = groups.Where(group => group.Status is "refunded" or "partially_refunded").ToList();
         return new BusinessDaySalesTotals(
             completed?.Count ?? 0,
             completed?.Total ?? 0m,
             completed?.Tax ?? 0m,
             completed?.Discount ?? 0m,
             groups.Where(group => group.Status == "voided").Sum(group => group.Count),
-            refunded?.Count ?? 0,
-            refunded?.Total ?? 0m);
+            refunded.Sum(group => group.Count),
+            refunded.Sum(group => group.Total));
     }
 }

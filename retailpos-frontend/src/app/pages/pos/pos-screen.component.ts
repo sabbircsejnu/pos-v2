@@ -15,7 +15,7 @@ import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs'
 import { AuthService } from '../../services/auth.service';
 import { SaleService } from '../../services/sale.service';
 import { PosService } from '../../services/pos.service';
-import { CashSessionDto, CartPriceResultItem, EligibleSalespersonDto, PosTerminalDto } from '../../services/pos.service';
+import { CashSessionDto, CartPriceRequestItem, CartPriceResultItem, EligibleSalespersonDto, PosTerminalDto } from '../../services/pos.service';
 import { CashSessionService } from '../../services/cash-session.service';
 import { Router } from '@angular/router';
 import { PosDiscountAuditRequest, PosCustomerLookupDto } from '../../services/pos.service';
@@ -42,7 +42,17 @@ import { UomService, formatUnitQuantity, fitsPrecision, quantityStep } from '../
 import { VariantUomConfig } from '../../models/uom.model';
 import { apiErrorCode, roundQuantity, uomErrorMessage } from '../../utils/uom-line.util';
 import { PosUomPickerComponent } from './pos-uom-picker.component';
-import { PosUomSelection, cartLineKey, lineNeedsRepick, sellingBaseQuantity, sellingPrecision, uomLineFields } from './pos-uom';
+import {
+  PosUomSelection,
+  cartLineKey,
+  cartPriceRequestItem,
+  expectedLineGrossField,
+  lineNeedsRepick,
+  priceRequestMatches,
+  sellingBaseQuantity,
+  sellingPrecision,
+  uomLineFields
+} from './pos-uom';
 
 type TerminalsState = PosTerminalAvailability | 'loading' | 'error';
 
@@ -65,6 +75,8 @@ interface UomPickerState {
 }
 
 /** Errors that mean the screen's unit setup is out of date, so the cashier has to pick again. */
+/** Changing any of these on an option line makes its server line amount stale. */
+const OPTION_LINE_KEYS: ReadonlyArray<keyof CartItem> = ['quantity', 'sellingOptionId', 'fulfilmentState', 'includePackaging'];
 const UOM_REPICK_ERRORS = new Set(['UOM_CONFIG_CHANGED', 'UOM_OPTION_REQUIRED', 'UOM_OPTION_NOT_FOUND']);
 const UOM_OPTION_REQUIRED_MESSAGE = 'This item is now sold in configured units. Use Re-pick on the line to choose a pack or quantity.';
 
@@ -1056,34 +1068,50 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // The endpoint takes whole quantities for rule evaluation; an option line is priced by its option, not by rules.
-    this.posService.cartPrices(items.map(i => ({ productVariantId: i.variantId, quantity: i.sellingOptionId ? 1 : i.quantity, outletId }))).subscribe({
+    // A pcs line sends its whole quantity for rule evaluation; an option line is priced from its option and entered quantity.
+    const requested = items.map(i => cartPriceRequestItem(i, outletId));
+    this.posService.cartPrices(requested).subscribe({
       next: (res) => {
-        this.applyCartPrices((res?.data ?? []) as CartPriceResultItem[]);
+        this.applyCartPrices((res?.data ?? []) as CartPriceResultItem[], requested);
         onDone?.(true);
       },
       error: () => onDone?.(false)
     });
   }
 
-  private applyCartPrices(rows: CartPriceResultItem[]): void {
-    const byVariant = new Map<number, CartPriceResultItem>();
-    rows.forEach(row => byVariant.set(Number(row.productVariantId), row));
+  /**
+   * Rows come back in request order, and one variant can have several lines, so results are matched by index. A line that
+   * changed while the request was out keeps its state until the next refresh.
+   */
+  private applyCartPrices(rows: CartPriceResultItem[], requested: CartPriceRequestItem[]): void {
 
     const includesTax = rows.find(row => typeof row.pricesIncludeTax === 'boolean')?.pricesIncludeTax;
     if (includesTax !== undefined) {
       this.pricesIncludeTax.set(includesTax);
     }
 
-    this.cartItems.update(items => items.map(item => {
-      const priced = byVariant.get(item.variantId);
-      const unitPrice = Number(priced?.finalPrice);
-      if (!priced || !Number.isFinite(unitPrice)) return item;
-      // An option line keeps its option's price: only the tax details come from here.
+    this.cartItems.update(items => items.map((item, index) => {
+      const priced = rows[index];
+      if (!priced || !priceRequestMatches(requested[index], item) || Number(priced.productVariantId) !== item.variantId) return item;
+      const unitPrice = Number(priced.finalPrice);
+      if (!Number.isFinite(unitPrice)) return item;
       if (item.sellingOptionId) {
+        const lineGross = Number(priced.lineGross);
+        if (priced.lineGross === null || priced.lineGross === undefined || !Number.isFinite(lineGross)) {
+          // No line amount (an older server): the option keeps its own price; only the tax details come from here.
+          return this.repriceLine(item, {
+            taxRate: Number(priced.taxRate ?? 0),
+            taxClassification: priced.taxClassification ?? item.taxClassification,
+          });
+        }
+        // The line starts from the server's line amount (after any automatic rule); the manual discount applies on top.
         return this.repriceLine(item, {
+          unitPrice,
+          lineGross,
+          rulesNotApplied: priced.rulesNotApplied?.length ? [...priced.rulesNotApplied] : undefined,
           taxRate: Number(priced.taxRate ?? 0),
           taxClassification: priced.taxClassification ?? item.taxClassification,
+          appliedRuleName: priced.appliedRuleName ?? undefined,
         });
       }
       return this.repriceLine(item, {
@@ -1095,10 +1123,18 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     }));
   }
 
-  /** Applies changes to a cart line and recalculates its manual (percentage) discount and subtotal. */
+  /**
+   * Applies changes to a cart line and recalculates its manual (percentage) discount and subtotal. An option line priced
+   * by the server starts from its line amount; a change of quantity or option drops that amount until prices are refreshed.
+   */
   private repriceLine(item: CartItem, changes: Partial<CartItem>): CartItem {
-    const next = { ...item, ...changes };
-    const gross = this.roundMoney(next.quantity * next.unitPrice);
+    let next: CartItem = { ...item, ...changes };
+    if (item.lineGross !== undefined && !('lineGross' in changes) && OPTION_LINE_KEYS.some(key => key in changes && changes[key] !== item[key])) {
+      next = { ...next, lineGross: undefined, rulesNotApplied: undefined };
+    }
+    const gross = next.sellingOptionId && typeof next.lineGross === 'number'
+      ? this.roundMoney(next.lineGross)
+      : this.roundMoney(next.quantity * next.unitPrice);
     const percent = Number(next.discountPercent || 0);
     const discountAmount = percent > 0
       ? percentToDiscountAmount(gross, percent, this.discountLimitPercent(), this.canOverrideDiscountLimit())
@@ -1245,6 +1281,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       unitLabel: option.label,
       unitPrice: option.price,
       appliedRuleName: undefined,
+      // The server prices the new choice (and any automatic rule) on the next refresh.
+      lineGross: undefined,
+      rulesNotApplied: undefined,
     };
     const items = this.cartItems();
     const key = cartLineKey({ variantId: picker.product.variantId, sellingOptionId: option.id, fulfilmentState, includePackaging });
@@ -1282,9 +1321,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       }, fields)]);
     }
 
-    if (picker.product.taxRate === undefined) {
-      this.refreshCartPrices();
-    }
+    // An option line's amount (and any automatic rule on it) comes from the server, so it is always priced after a pick.
+    this.refreshCartPrices();
     this.warnIfOverStock(picker.product.variantId);
     this.checkoutNotice.set(null);
     this.focusSmartSearch();
@@ -1389,6 +1427,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const updated = [...items];
     updated[index] = this.repriceLine(line, { quantity });
     this.cartItems.set(updated);
+    // The line amount depends on the quantity (pack minimums, measured quantities): ask the server again.
+    if (quantity !== line.quantity) this.refreshCartPrices();
     this.warnIfOverStock(line.variantId);
   }
 
@@ -1865,6 +1905,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
     const updated = [...items];
     updated[index] = this.repriceLine(updated[index], { quantity: roundQuantity(updated[index].quantity - 1) });
     this.cartItems.set(updated);
+    if (updated[index].sellingOptionId) this.refreshCartPrices();
   }
 
   clearCart(): void {
@@ -2133,7 +2174,9 @@ export class PosScreenComponent implements OnInit, OnDestroy {
       outletId,
       terminalId: this.selectedTerminalId()!,
       customerId: (this.selectedCustomer()?.id ?? 0) > 0 ? this.selectedCustomer()!.id : undefined,
-      items: this.cartItems().map(i => ({ variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, discountAmount: i.discountAmount, ...uomLineFields(i) })),
+      items: this.cartItems().map(i => ({
+        variantId: i.variantId, quantity: i.quantity, unitPrice: i.unitPrice, discountAmount: i.discountAmount, ...uomLineFields(i), ...expectedLineGrossField(i)
+      })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),
       ...this.paymentPayload(),
@@ -2158,7 +2201,8 @@ export class PosScreenComponent implements OnInit, OnDestroy {
         unitPrice: i.unitPrice,
         discountAmount: i.discountAmount,
         appliedRuleName: i.appliedRuleName,
-        ...uomLineFields(i)
+        ...uomLineFields(i),
+        ...expectedLineGrossField(i)
       })),
       discount: this.discountAmount(),
       tax: this.taxAmount(),

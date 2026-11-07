@@ -22,6 +22,12 @@ public class PriceCalculationRequestDto
     /// </summary>
     [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
     public int Quantity { get; set; } = 1;
+
+    /// <summary>A pack or custom option of the variant. It is priced from the option, using <see cref="EnteredQuantity"/>.</summary>
+    public long? SellingOptionId { get; set; }
+
+    /// <summary>The pack count or measured quantity entered for <see cref="SellingOptionId"/>.</summary>
+    public decimal? EnteredQuantity { get; set; }
 }
 
 /// <summary>Batch version for POS — avoids N+1 HTTP calls when building a cart.</summary>
@@ -35,6 +41,12 @@ public class PriceCalculationBatchRequestDto
 
 public class PriceCalculationResultDto
 {
+    /// <summary>The whole line's amount for a pack or custom option, before manual discount. Null for a plain line.</summary>
+    public decimal? LineGross { get; set; }
+
+    /// <summary>Rules that match this option but cannot be applied to a measured quantity without guessing.</summary>
+    public List<string>? RulesNotApplied { get; set; }
+
     public long ProductVariantId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string VariantName { get; set; } = string.Empty;

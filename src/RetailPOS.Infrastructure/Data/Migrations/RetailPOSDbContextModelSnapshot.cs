@@ -15706,6 +15706,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("sale_id");
 
+                    b.Property<long?>("SaleRefundId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_refund_id");
+
                     b.Property<string>("SnapshotHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -15743,6 +15747,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("JournalEntryId")
                         .HasDatabaseName("ix_sale_financial_postings_journal_entry_id");
 
+                    b.HasIndex("SaleRefundId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sale_financial_postings_sale_refund")
+                        .HasFilter("sale_refund_id IS NOT NULL");
+
                     b.HasIndex("BusinessId", "SourceKey")
                         .IsUnique()
                         .HasDatabaseName("ux_sale_financial_postings_source_key");
@@ -15752,7 +15761,8 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("SaleId", "Kind")
                         .IsUnique()
-                        .HasDatabaseName("ux_sale_financial_postings_sale_kind");
+                        .HasDatabaseName("ux_sale_financial_postings_sale_kind")
+                        .HasFilter("sale_refund_id IS NULL");
 
                     b.HasIndex("Status", "NextAttemptAtUtc")
                         .HasDatabaseName("ix_sale_financial_postings_due");
@@ -15845,6 +15855,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric")
                         .HasColumnName("quantity");
+
+                    b.Property<decimal>("ReturnedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("returned_quantity");
 
                     b.Property<long>("SaleId")
                         .HasColumnType("bigint")
@@ -15946,7 +15962,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.HasIndex("VariantId")
                         .HasDatabaseName("i_x_sale_items_variant_id");
 
-                    b.ToTable("sale_items");
+                    b.ToTable("sale_items", t =>
+                        {
+                            t.HasCheckConstraint("ck_sale_items_returned_quantity", "returned_quantity >= 0 AND returned_quantity <= quantity");
+                        });
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.SalePayment", b =>
@@ -18673,6 +18692,148 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.ToTable("sale_item_components");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleRefund", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<decimal>("CashAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cash_amount");
+
+                    b.Property<decimal>("CostRestored")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("cost_restored");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long?>("DispensingTerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("dispensing_terminal_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_amount");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RefundNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("refund_number");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_refunds");
+
+                    b.HasIndex("ActorUserId")
+                        .HasDatabaseName("i_x_sale_refunds_actor_user_id");
+
+                    b.HasIndex("SaleId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_sale_refunds_sale_id_idempotency_key")
+                        .HasFilter("idempotency_key IS NOT NULL");
+
+                    b.HasIndex("SaleId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_sale_refunds_sale_id_sequence");
+
+                    b.ToTable("sale_refunds", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_sale_refunds_amounts", "total_amount = net_amount + vat_amount AND sequence >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleRefundPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("method");
+
+                    b.Property<long>("SalePaymentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_payment_id");
+
+                    b.Property<long>("SaleRefundId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_refund_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_sale_refund_payments");
+
+                    b.HasIndex("SalePaymentId")
+                        .HasDatabaseName("i_x_sale_refund_payments_sale_payment_id");
+
+                    b.HasIndex("SaleRefundId", "SalePaymentId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_sale_refund_payments_sale_refund_id_sale_payment_id");
+
+                    b.ToTable("sale_refund_payments", (string)null);
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleReturnLine", b =>
                 {
                     b.Property<long>("Id")
@@ -18701,6 +18862,11 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<decimal?>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_amount");
+
                     b.Property<bool>("PackagingReusable")
                         .HasColumnType("boolean")
                         .HasColumnName("packaging_reusable");
@@ -18721,6 +18887,15 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("sale_item_id");
 
+                    b.Property<long?>("SaleRefundId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_refund_id");
+
+                    b.Property<decimal?>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
                     b.HasKey("Id")
                         .HasName("p_k_sale_return_lines");
 
@@ -18729,6 +18904,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.HasIndex("SaleItemId")
                         .HasDatabaseName("i_x_sale_return_lines_sale_item_id");
+
+                    b.HasIndex("SaleRefundId")
+                        .HasDatabaseName("i_x_sale_return_lines_sale_refund_id");
 
                     b.ToTable("sale_return_lines");
                 });
@@ -19106,6 +19284,10 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("ApplyAutomaticPricingRules")
+                        .HasColumnType("boolean")
+                        .HasColumnName("apply_automatic_pricing_rules");
 
                     b.Property<decimal?>("BaseQuantity")
                         .HasColumnType("numeric")
@@ -23623,6 +23805,12 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("f_k_sale_financial_postings_sales_sale_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.Uom.SaleRefund", null)
+                        .WithMany()
+                        .HasForeignKey("SaleRefundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_sale_financial_postings_sale_refunds_sale_refund_id");
+
                     b.Navigation("Sale");
                 });
 
@@ -24292,16 +24480,64 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                     b.Navigation("SaleItem");
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleRefund", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.User", "Actor")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_refunds__users_actor_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Sale", "Sale")
+                        .WithMany("Refunds")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_refunds_sales_sale_id");
+
+                    b.Navigation("Actor");
+
+                    b.Navigation("Sale");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleRefundPayment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.SalePayment", null)
+                        .WithMany()
+                        .HasForeignKey("SalePaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_refund_payments_sale_payments_sale_payment_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Uom.SaleRefund", "SaleRefund")
+                        .WithMany("Payments")
+                        .HasForeignKey("SaleRefundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_sale_refund_payments_sale_refunds_sale_refund_id");
+
+                    b.Navigation("SaleRefund");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleReturnLine", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.SaleItem", "SaleItem")
-                        .WithMany()
+                        .WithMany("ReturnLines")
                         .HasForeignKey("SaleItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("f_k_sale_return_lines_sale_items_sale_item_id");
 
+                    b.HasOne("RetailPOS.Core.Entities.Uom.SaleRefund", "SaleRefund")
+                        .WithMany("Lines")
+                        .HasForeignKey("SaleRefundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_sale_return_lines_sale_refunds_sale_refund_id");
+
                     b.Navigation("SaleItem");
+
+                    b.Navigation("SaleRefund");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SellingOptionComponent", b =>
@@ -24931,12 +25167,16 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.Navigation("ReceiptPrintHistories");
 
+                    b.Navigation("Refunds");
+
                     b.Navigation("SaleVoids");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.SaleItem", b =>
                 {
                     b.Navigation("Components");
+
+                    b.Navigation("ReturnLines");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.StockAdjustment", b =>
@@ -24995,6 +25235,13 @@ namespace RetailPOS.Infrastructure.Data.Migrations
             modelBuilder.Entity("RetailPOS.Core.Entities.Uom.RepackJob", b =>
                 {
                     b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Uom.SaleRefund", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Uom.VariantSellingOption", b =>

@@ -91,6 +91,12 @@ public sealed class InventoryReportReadStore(RetailPOSDbContext dbContext)
                 scope,
                 cancellationToken);
         var inventories = await query.ToListAsync(cancellationToken);
+        // Pieces only: adding ml or kg to pieces gives a number that means nothing (UOM gap 4.7).
+        var baseUnits = scope.BusinessId is { } unitBusinessId
+            ? await RetailPOS.Infrastructure.Uom.UomReportTotals.BaseUnitCodesAsync(dbContext, unitBusinessId, cancellationToken)
+            : new Dictionary<long, string>();
+        bool IsPieces(RetailPOS.Core.Entities.Inventory inventory) =>
+            string.Equals(baseUnits.GetValueOrDefault(inventory.VariantId, "pcs"), "pcs", StringComparison.OrdinalIgnoreCase);
 
         var byCategory = inventories
             .GroupBy(inventory => inventory.Variant.Product.Category?.Name ?? "Uncategorized")
@@ -98,7 +104,7 @@ public sealed class InventoryReportReadStore(RetailPOSDbContext dbContext)
                 group.Key,
                 group.Sum(inventory =>
                     (inventory.Variant.Product.CostPrice + inventory.Variant.CostAdjustment) * inventory.Quantity),
-                group.Sum(inventory => inventory.Quantity)))
+                group.Where(IsPieces).Sum(inventory => inventory.Quantity)))
             .OrderByDescending(category => category.Value)
             .ToArray();
 

@@ -46,6 +46,7 @@ internal static class OwnerDashboardSales
                     || (sale.BusinessDate == null && sale.SaleDate >= startUtc && sale.SaleDate < endUtc))
                 && (sale.Status.ToLower() == "completed"
                     || sale.Status.ToLower() == "refunded"
+                    || sale.Status.ToLower() == "partially_refunded"
                     || (sale.Status.ToLower() == "voided"
                         && dbContext.SaleFinancialPostings.Any(posting =>
                             posting.SaleId == sale.Id

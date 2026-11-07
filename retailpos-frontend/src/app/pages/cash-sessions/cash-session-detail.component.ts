@@ -7,6 +7,7 @@ import { ErrorHandlerService } from '../../services/error-handler.service';
 import { CashDifferenceApproval, CashSessionDetail, CashSessionService } from '../../services/cash-session.service';
 import { AppCurrencyPipe } from '../../pipes/app-currency.pipe';
 import { UI_KIT } from '../../components/shared/ui';
+import { saleStatusLabel } from '../../models/sale.model';
 import { formatElapsed, handoverMethodLabel, handoverStatusLabel, movementLabel, stateLabel, stateVariant } from './cash-session.format';
 
 /**
@@ -136,7 +137,7 @@ import { formatElapsed, handoverMethodLabel, handoverStatusLabel, movementLabel,
               <tbody>
                 @for (s of d.sales; track s.saleId) {
                   <tr><td><a [routerLink]="['/sales', s.saleId]">{{ s.saleNumber }}</a></td><td>{{ s.createdAt | appDate:'hh:mm a' }}</td><td>{{ s.cashierName }}</td>
-                    <td>{{ s.status }}</td><td class="num">{{ s.totalAmount | appCurrency }}</td><td class="num">{{ s.cashRetained | appCurrency }}</td></tr>
+                    <td>{{ saleStatusLabel(s.status) }}</td><td class="num">{{ s.totalAmount | appCurrency }}</td><td class="num">{{ s.cashRetained | appCurrency }}</td></tr>
                 }
               </tbody>
             </table></div>
@@ -174,6 +175,7 @@ export class CashSessionDetailComponent implements OnInit {
   private readonly alerts = inject(AlertService);
   private readonly auth = inject(AuthService);
 
+  readonly saleStatusLabel = saleStatusLabel;
   readonly breadcrumbs = [{ label: 'Sales', link: '/cash-sessions' }, { label: 'Cash Sessions', link: '/cash-sessions' }, { label: 'Details' }];
   readonly canClose = this.auth.hasPermission('cash_sessions.close');
   readonly canApprove = this.auth.hasPermission('cash_sessions.variance.approve');

@@ -28,4 +28,7 @@ public class CreateSaleItemDto
     /// <summary>loose, sealed or prepared, for items that track pack state.</summary>
     public string? FulfilmentState { get; set; }
     public bool IncludePackaging { get; set; }
+
+    /// <summary>The line amount the cashier saw. When sent, a promotion that changed since then refuses the sale instead of repricing it.</summary>
+    public decimal? ExpectedLineGross { get; set; }
 }

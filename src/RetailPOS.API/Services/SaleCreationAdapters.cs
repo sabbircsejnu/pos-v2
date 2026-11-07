@@ -255,15 +255,17 @@ public sealed class SaleRefundAuditWriter(IAuditService audit) : ISaleRefundAudi
         decimal refundQuantity,
         long? journalEntryId,
         long actorUserId,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        string? refundNumber = null) =>
         audit.RecordAsync(new AuditEventInput
         {
             ActionType = AuditActionType.Reverse,
             Module = AuditModule.Sales,
-            Summary = $"Sale refunded; accounting reversal queued: {sale.SaleNumber}",
+            Summary = $"Sale refunded; accounting reversal queued: {refundNumber ?? sale.SaleNumber}",
             PrimaryEntity = ("Sale", sale.Id.ToString()),
             Metadata = new Dictionary<string, object?>
             {
+                ["refundNumber"] = refundNumber,
                 ["saleId"] = sale.Id,
                 ["saleNumber"] = sale.SaleNumber,
                 ["originalSaleId"] = sale.OriginalSaleId,

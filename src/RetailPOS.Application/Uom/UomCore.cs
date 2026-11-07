@@ -130,7 +130,8 @@ public sealed record ResolvedSellingOption(
     bool IsDefault,
     string? SealedPackCode,
     bool IsPreparedEligible,
-    IReadOnlyList<ResolvedComponent> Components);
+    IReadOnlyList<ResolvedComponent> Components,
+    bool ApplyAutomaticPricingRules = false);
 
 /// <summary>The current configuration of a variant. A variant with no configuration is plain pcs and has none of these.</summary>
 public sealed record ResolvedVariantUom(

@@ -23,6 +23,9 @@ public sealed class SaleVoidStore(RetailPOSDbContext dbContext) : ISaleVoidStore
             .Include(sale => sale.Items)
                 .ThenInclude(item => item.Components)
             .Include(sale => sale.Payments)
+            .Include(sale => sale.Refunds)
+                .ThenInclude(refund => refund.Payments)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(sale => sale.Id == saleId, cancellationToken);
 
     public Task<string?> FindCurrentSaleStatusAsync(long saleId, CancellationToken cancellationToken) =>
@@ -49,23 +52,18 @@ public sealed class SaleVoidStore(RetailPOSDbContext dbContext) : ISaleVoidStore
                 cancellationToken) == 1;
     }
 
-    public async Task<bool> TryMarkSaleRefundedAsync(
-        long saleId,
-        string expectedStatus,
-        CancellationToken cancellationToken)
+    public async Task LockSaleAsync(long saleId, CancellationToken cancellationToken)
     {
-        if (!dbContext.Database.IsRelational())
-        {
-            var currentStatus = await FindCurrentSaleStatusAsync(saleId, cancellationToken);
-            return string.Equals(currentStatus, expectedStatus, StringComparison.OrdinalIgnoreCase);
-        }
+        if (dbContext.Database.IsNpgsql())
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM sales WHERE id = {saleId} FOR UPDATE",
+                cancellationToken);
+    }
 
-        var normalizedStatus = expectedStatus.ToLower();
-        return await dbContext.Sales
-            .Where(sale => sale.Id == saleId && sale.Status.ToLower() == normalizedStatus)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(sale => sale.Status, "refunded"),
-                cancellationToken) == 1;
+    public async Task AddRefundAsync(RetailPOS.Core.Entities.Uom.SaleRefund refund, CancellationToken cancellationToken)
+    {
+        await dbContext.Set<RetailPOS.Core.Entities.Uom.SaleRefund>().AddAsync(refund, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public Task<Inventory?> FindOutletInventoryAsync(

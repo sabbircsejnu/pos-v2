@@ -1,6 +1,7 @@
 using RetailPOS.Application.Inventory.Abstractions;
 using RetailPOS.Application.Sales.Abstractions;
 using RetailPOS.Application.Sales.Commands;
+using RetailPOS.Application.Sales.FinancialPostings;
 using RetailPOS.Application.Uom;
 using RetailPOS.Core.Entities;
 using RetailPOS.Core.Entities.Uom;
@@ -40,6 +41,23 @@ public static class SaleUomLines
         var resolution = UomLineResolver.ResolveSale(config, item.SellingOptionId.Value, item.Quantity, item.ExpectedConfigVersionId);
         var form = ResolveForm(item, config, resolution);
         return new SaleUomLine(resolution, resolution.BaseQuantity, form, ResolvePackaging(item, resolution, form));
+    }
+
+    /// <summary>Applies the rule the pricing engine chose. Without one the line keeps its option price exactly.</summary>
+    public static SaleUomLine WithAppliedRule(SaleUomLine line, RetailPOS.Application.Pos.ReadModels.PosCartPriceReadModel priced)
+    {
+        if (line.Resolution is not { } resolution || priced.LineGross is not { } gross || gross == resolution.LineGross)
+            return line;
+        var entered = resolution.Snapshot.EnteredQuantity;
+        return line with
+        {
+            Resolution = resolution with
+            {
+                LineGross = gross,
+                BaseUnitPrice = UomQuantityMath.PerBaseAmount(gross, resolution.BaseQuantity),
+                Snapshot = resolution.Snapshot with { EnteredUnitPrice = UomQuantityMath.PerBaseAmount(gross, entered) }
+            }
+        };
     }
 
     private static SalePhysicalForm? ResolveForm(CreateSaleLine item, ResolvedVariantUom config, SaleLineResolution resolution)
@@ -105,11 +123,11 @@ public static class SaleUomReversal
         IStockLedgerWriter? stockLedger,
         Func<long, CancellationToken, Task<Core.Entities.Inventory?>> findInventory,
         CancellationToken cancellationToken,
-        bool variantTracksPackState = false)
+        bool variantTracksPackState = false,
+        decimal alreadyReturned = 0m)
     {
         var restoredValue = 0m;
         var businessId = sale.BusinessId ?? 0;
-        var fullLine = quantity >= item.Quantity;
         if (item.PackState is not null && packState is not null && variantTracksPackState)
         {
             var physicalPack = item.PackState != PackStates.Loose;
@@ -118,8 +136,9 @@ public static class SaleUomReversal
             if (physicalPack && packagingRestored && wholePacks)
             {
                 var packs = (int)(quantity / perPack);
-                var soldPacks = (int)(item.Quantity / perPack);
-                var share = item.PackState == PackStates.Prepared ? CapitalizedValueShare.For(item.PackagingCost, soldPacks, packs) : 0m;
+                var share = item.PackState == PackStates.Prepared
+                    ? SaleFinancialIntentFactory.ShareOfReturn(item.PackagingCost, alreadyReturned, quantity, item.Quantity)
+                    : 0m;
                 await packState.ApplyAsync(
                     new PackStateChange(businessId, item.VariantId, sale.OutletId, "outlet", item.PackState, item.PackCode ?? string.Empty, perPack,
                         packs, quantity, share, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
@@ -144,21 +163,26 @@ public static class SaleUomReversal
                 cancellationToken);
         }
 
-        // Packaging comes back only with the whole line, and only when someone confirmed it can be used again.
-        if (packagingRestored && fullLine && stockLedger is not null)
+        // Packaging comes back only when someone confirmed it can be used again, and only in whole items: half a bottle
+        // cannot go back on a shelf, so a return that does not divide evenly leaves that packaging's cost expensed.
+        if (packagingRestored && stockLedger is not null && item.Quantity > 0m)
         {
             foreach (var component in item.Components)
             {
+                var restoredQuantity = UomQuantityMath.Normalize(component.Quantity * quantity / item.Quantity);
+                if (restoredQuantity % 1m != 0m)
+                    continue;
                 var inventory = await findInventory(component.ComponentVariantId, cancellationToken);
                 if (inventory is null)
                     continue;
-                inventory.Quantity += component.Quantity;
+                var value = SaleFinancialIntentFactory.ShareOfReturn(component.Value, alreadyReturned, quantity, item.Quantity);
+                inventory.Quantity += restoredQuantity;
                 stockLedger.WriteEntryWithValuation(
                     variantId: component.ComponentVariantId,
                     locationId: sale.OutletId,
                     locationType: "outlet",
                     transactionType: StockLedgerTransactionType.Return,
-                    qtyIn: component.Quantity,
+                    qtyIn: restoredQuantity,
                     qtyOut: 0m,
                     balanceAfter: inventory.Quantity,
                     referenceType: StockLedgerReferenceType.Sale,
@@ -166,8 +190,8 @@ public static class SaleUomReversal
                     remarks: $"Packaging restored from sale line {item.Id}",
                     createdBy: actorUserId,
                     unitCost: component.UnitCost,
-                    movementValue: component.Value);
-                restoredValue += component.Value;
+                    movementValue: value);
+                restoredValue += value;
             }
         }
 

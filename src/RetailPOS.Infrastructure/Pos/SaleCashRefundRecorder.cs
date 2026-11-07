@@ -37,8 +37,7 @@ public sealed class SaleCashRefundRecorder(
         }
         else
         {
-            // Line-level return value (tax, discount and rounding reversal) belongs to the Returns/Exchange SRD, which
-            // is not implemented; the dispensed amount must therefore be stated explicitly and is audited as such.
+            // The refund works this out from the sale's own allocations. Only a sale without that evidence must state it.
             amount = request.RequestedAmount
                 ?? throw new CashSessionException(
                     CashSessionErrorCodes.CashRefundPolicyUndefined,
@@ -58,7 +57,9 @@ public sealed class SaleCashRefundRecorder(
                 -amount,
                 $"sale_{kindKey}",
                 sale.Id,
-                $"sale:{sale.Id}:{kindKey}-cash-refund",
+                request.RefundSequence is > 1 and var sequence
+                    ? $"sale:{sale.Id}:{kindKey}-cash-refund:{sequence}"
+                    : $"sale:{sale.Id}:{kindKey}-cash-refund",
                 sale.Id,
                 sale.CashSessionId,
                 request.Reason,

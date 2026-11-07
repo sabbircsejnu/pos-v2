@@ -74,10 +74,17 @@ public sealed class CreateGrnCommandHandler(
                     $"PO item with ID {item.PurchaseOrderItemId} does not belong to purchase order " +
                     $"{request.PurchaseOrderId}");
 
-            if (item.ReceivedQuantity <= 0)
+            // A line where nothing was accepted is still receiving evidence when it records what was damaged or rejected
+            // (PUR-005). It posts no stock, no value and nothing payable.
+            if (item.ReceivedQuantity < 0
+                || (item.ReceivedQuantity == 0 && item.DamagedQuantity + item.RejectedQuantity <= 0))
                 throw new InvalidOperationException(
                     $"Received quantity for PO item {item.PurchaseOrderItemId} must be greater than zero");
         }
+
+        // The GRN's journal needs something accepted; a delivery that was refused entirely is not a goods receipt.
+        if (!items.Any(item => item.ReceivedQuantity > 0))
+            throw new InvalidOperationException("A GRN needs at least one line with an accepted quantity.");
 
         var previouslyReceived = await creationStore.GetCompletedReceivedQuantitiesAsync(
             request.PurchaseOrderId,
@@ -107,13 +114,14 @@ public sealed class CreateGrnCommandHandler(
         {
             var orderLine = purchaseOrderItems[item.PurchaseOrderItemId];
             var config = uomConfigs.GetValueOrDefault(orderLine.VariantId);
-            RetailPOS.Application.Uom.UomLineResolver.EnsureBaseQuantityAllowed(config, item.ReceivedQuantity, "Received quantity");
+            if (item.ReceivedQuantity > 0)
+                RetailPOS.Application.Uom.UomLineResolver.EnsureBaseQuantityAllowed(config, item.ReceivedQuantity, "Received quantity");
             if (item.DamagedQuantity < 0m || item.RejectedQuantity < 0m)
                 throw new RetailPOS.Application.Uom.UomValidationException(
                     RetailPOS.Application.Uom.UomErrorCodes.InvalidQuantity, "Damaged and rejected quantities cannot be negative.");
             RetailPOS.Application.Uom.UomLineResolver.EnsureBaseQuantityAllowed(config, item.DamagedQuantity, "Damaged quantity");
             RetailPOS.Application.Uom.UomLineResolver.EnsureBaseQuantityAllowed(config, item.RejectedQuantity, "Rejected quantity");
-            if (config?.PackStateTrackingEnabled == true)
+            if (config?.PackStateTrackingEnabled == true && item.ReceivedQuantity > 0)
                 RetailPOS.Application.Uom.PurchaseUomRules.Breakdown(
                     item.ReceivedQuantity, item.AcceptedSealedPacks, item.AcceptedLooseQuantity, orderLine.Snapshot,
                     orderLine.Snapshot?.OptionId is { } optionId && sealedOptions.Contains(optionId));

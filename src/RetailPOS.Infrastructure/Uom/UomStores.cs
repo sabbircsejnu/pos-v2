@@ -89,7 +89,8 @@ public sealed class VariantUomReader(RetailPOSDbContext dbContext) : IVariantUom
                 option.SealedPackCode, option.IsPreparedEligible,
                 option.Components.OrderBy(component => component.Id)
                     .Select(component => new ResolvedComponent(component.ComponentVariantId, component.Quantity, component.IsRequired))
-                    .ToList()))
+                    .ToList(),
+                option.ApplyAutomaticPricingRules))
             .ToList());
 
     private static ResolvedUnit Unit(UomUnit unit) =>
@@ -255,9 +256,11 @@ public sealed class VariantUomConfigStore(RetailPOSDbContext dbContext) : IVaria
     }
 
     public Task<VariantUomConfig?> FindCurrentForUpdateAsync(long businessId, long variantId, CancellationToken cancellationToken) =>
-        dbContext.VariantUomConfigs.FirstOrDefaultAsync(
-            config => config.BusinessId == businessId && config.VariantId == variantId && config.EffectiveToUtc == null,
-            cancellationToken);
+        dbContext.VariantUomConfigs
+            .Include(config => config.SellingOptions)
+            .FirstOrDefaultAsync(
+                config => config.BusinessId == businessId && config.VariantId == variantId && config.EffectiveToUtc == null,
+                cancellationToken);
 
     public async Task AddAsync(VariantUomConfig config, CancellationToken cancellationToken) =>
         await dbContext.VariantUomConfigs.AddAsync(config, cancellationToken);

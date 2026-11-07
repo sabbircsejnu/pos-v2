@@ -30,6 +30,8 @@ export interface SellingValue {
   sealedPackCode: string;
   isPreparedEligible: boolean;
   components: ComponentValue[];
+  /** Automatic pricing rules apply to this option's own price. */
+  applyAutomaticPricingRules: boolean;
 }
 
 export interface ConfigValue {
@@ -39,6 +41,11 @@ export interface ConfigValue {
   purchaseOptions: PurchaseValue[];
   packs: SellingValue[];
   customs: SellingValue[];
+}
+
+/** The server's default for a new option: packs do not take automatic promotions, custom quantities do. */
+export function defaultApplyAutomaticPricingRules(kind: 'pack' | 'custom'): boolean {
+  return kind === 'custom';
 }
 
 function toSellingValue(option: SellingOption): SellingValue {
@@ -51,6 +58,7 @@ function toSellingValue(option: SellingOption): SellingValue {
     isDefault: option.isDefault,
     sealedPackCode: option.sealedPackCode ?? '',
     isPreparedEligible: option.isPreparedEligible,
+    applyAutomaticPricingRules: option.applyAutomaticPricingRules ?? defaultApplyAutomaticPricingRules(option.kind),
     components: option.components.map(component => ({
       componentVariantId: component.variantId,
       name: `Item #${component.variantId}`,
@@ -220,6 +228,7 @@ export function toConfigInput(value: ConfigValue): VariantUomConfigInput {
         sealedPackCode: option.sealedPackCode.trim() || null,
         isPreparedEligible: option.isPreparedEligible,
         components: components(option),
+        applyAutomaticPricingRules: option.applyAutomaticPricingRules,
       })),
       ...value.customs.map(option => ({
         kind: 'custom' as const,
@@ -232,6 +241,7 @@ export function toConfigInput(value: ConfigValue): VariantUomConfigInput {
         sealedPackCode: null,
         isPreparedEligible: false,
         components: components(option),
+        applyAutomaticPricingRules: option.applyAutomaticPricingRules,
       })),
     ],
   };

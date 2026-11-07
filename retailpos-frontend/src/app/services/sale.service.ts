@@ -96,7 +96,10 @@ export class SaleService {
     return this.http.post<any>(`${this.apiUrl}/${id}/void`, dto);
   }
 
-  /** Refund a sale. A sale can be refunded only once; a line may be returned in part. */
+  /**
+   * Record a refund of a sale. A sale may be refunded several times until nothing remains to return; the server
+   * computes every amount. Send an idempotency key (required from the second refund on) and repeat it on a retry.
+   */
   refundSale(id: number, dto: RefundSaleDto): Observable<{ data: SaleDto }> {
     return this.http.post<{ data: SaleDto }>(`${this.apiUrl}/${id}/refund`, dto);
   }

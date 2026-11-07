@@ -308,7 +308,7 @@ public class SalesCreateTerminalHttpTests : IClassFixture<RetailPosApiFactory>
                 "id", "saleNumber", "outletId", "outletName", "terminalId", "terminalName",
                 "cashSessionId", "businessDate", "saleDateTime", "customerId", "customerName",
                 "cashierId", "cashierName", "salespersonUserId", "salespersonName", "saleDate", "totalAmount", "discount", "tax",
-                "netTotal", "paymentMethod", "status", "createdAt", "items", "payments"
+                "netTotal", "paymentMethod", "status", "createdAt", "items", "payments", "refunds"
             }.OrderBy(name => name),
             sale.EnumerateObject().Select(property => property.Name).OrderBy(name => name));
         Assert.Equal("SALE-1201", sale.GetProperty("saleNumber").GetString());

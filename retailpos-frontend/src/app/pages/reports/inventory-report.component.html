@@ -19,14 +19,15 @@
     <!-- Valuation Summary -->
     @if (reportService.inventoryValuation()) {
       <div class="card p-4 mb-4">
-        <h2 class="font-semibold text-gray-900 mb-3">Inventory Valuation</h2>
+        <h2 class="font-semibold text-gray-900 mb-1">Estimated Inventory Value</h2>
+        <p class="text-xs text-gray-500 mb-3">Quantity × each item's master cost. This is an estimate, not book value: the inventory book value is under Accounting › Valuation reports.</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <i class="fas fa-boxes text-gray-700"></i>
             </div>
             <div>
-              <p class="text-xs text-gray-500">Total Value</p>
+              <p class="text-xs text-gray-500">Estimated value (master cost)</p>
               <p class="text-xl font-bold text-gray-900">{{ formatCurrency(reportService.inventoryValuation()!.totalValue) }}</p>
             </div>
           </div>
@@ -35,7 +36,7 @@
               <i class="fas fa-list text-gray-700"></i>
             </div>
             <div>
-              <p class="text-xs text-gray-500">Total Items</p>
+              <p class="text-xs text-gray-500">Pieces in stock (pcs items only)</p>
               <p class="text-xl font-bold text-gray-900">{{ reportService.inventoryValuation()!.totalItems }}</p>
             </div>
           </div>

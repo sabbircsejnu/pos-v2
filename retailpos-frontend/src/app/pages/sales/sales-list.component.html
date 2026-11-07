@@ -64,6 +64,8 @@
           <option value="">All</option>
           <option value="completed">Completed</option>
           <option value="void">Void</option>
+          <option value="partially_refunded">Partially refunded</option>
+          <option value="refunded">Refunded</option>
         </select>
       </div>
       <div>
@@ -168,7 +170,7 @@
                 <td class="px-4 py-2.5 text-sm text-gray-600">{{ sale.cashierName }}</td>
                 <td class="px-4 py-2.5 text-center">
                   <span [class]="'status-badge ' + getStatusClass(sale.status)">
-                    {{ sale.status }}
+                    {{ statusLabel(sale.status) }}
                   </span>
                 </td>
                 <td class="px-4 py-2.5">

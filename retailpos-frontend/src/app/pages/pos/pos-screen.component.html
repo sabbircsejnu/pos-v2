@@ -221,6 +221,14 @@
                             {{ item.unitLabel }}@if (item.fulfilmentState) { · <span class="pos-uom-state">{{ item.fulfilmentState }}</span> }@if (item.includePackaging) { · with packaging }
                             @if (cartLineBaseText(item); as baseText) { <span>{{ baseText }}</span> }
                           </small>
+                          @if (item.appliedRuleName && item.lineGross !== undefined) {
+                            <small class="pos-uom-line">Promotion: {{ item.appliedRuleName }}</small>
+                          }
+                          @if (item.rulesNotApplied?.length) {
+                            <small class="pos-uom-line" role="note">
+                              Not applied to a measured quantity: {{ item.rulesNotApplied!.join(', ') }}
+                            </small>
+                          }
                         }
                         @if (lineNeedsRepick(item)) {
                           <small class="pos-uom-stale" role="status">

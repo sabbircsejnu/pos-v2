@@ -1373,7 +1373,8 @@ public sealed class SaleCreationPostgresConcurrencyTests
                 lines[0].Quantity == 2),
             It.IsAny<string>(),
             7001,
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Once);
         Assert.Single(audits);
         Assert.Null(audits.Single().Metadata?["journalEntryId"]);
         cache.Verify(service => service.InvalidateStockAsync(3201, 5001), Times.Once);
@@ -1431,13 +1432,16 @@ public sealed class SaleCreationPostgresConcurrencyTests
         var eligibleReadBarrier = new EligibleRefundReadBarrier();
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var accounting = new Mock<ISaleFinancialPostingWriter>();
+        // A refund reads its amounts back from the intent, so the double returns a real one, as the writer does.
         accounting.Setup(service => service.AppendReversalAsync(
                 It.IsAny<Sale>(),
                 It.IsAny<IReadOnlyList<SaleRefundLine>>(),
                 It.IsAny<string>(),
                 It.IsAny<long>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SaleFinancialPosting());
+                It.IsAny<CancellationToken>(),
+                It.IsAny<SaleRefundPostingContext?>()))
+            .ReturnsAsync((Sale sale, IReadOnlyList<SaleRefundLine> lines, string type, long actor, CancellationToken _, SaleRefundPostingContext? refund) =>
+                SaleFinancialIntentFactory.ForReversal(sale, sale.BusinessId ?? 1, lines, type, actor, DateTime.UtcNow, refund: refund));
         var auditEvents = new System.Collections.Concurrent.ConcurrentBag<AuditEventInput>();
         var audit = new Mock<IAuditService>();
         audit.Setup(service => service.RecordAsync(
@@ -1502,13 +1506,15 @@ public sealed class SaleCreationPostgresConcurrencyTests
                 lines[0].Quantity == 1),
             It.IsAny<string>(),
             7001,
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<SaleRefundPostingContext?>()), Times.Once);
         Assert.Single(auditEvents);
         Assert.Null(auditEvents.Single().Metadata?["journalEntryId"]);
         cache.Verify(service => service.InvalidateStockAsync(3201, 5001), Times.Once);
 
         await using var verify = harness.CreateContext();
-        Assert.Equal("refunded", await verify.Sales.Where(sale => sale.Id == 9910)
+        // One of two units was returned, so the sale stays partly refundable (I02).
+        Assert.Equal("partially_refunded", await verify.Sales.Where(sale => sale.Id == 9910)
             .Select(sale => sale.Status).SingleAsync());
         Assert.Equal(49, (await verify.Inventories.SingleAsync(item => item.VariantId == 3201)).Quantity);
         var ledger = await verify.StockLedgers
@@ -1586,23 +1592,23 @@ public sealed class SaleCreationPostgresConcurrencyTests
         ISaleRefundStore inner,
         EligibleRefundReadBarrier barrier) : ISaleRefundStore
     {
-        public async Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken)
+        public Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken) =>
+            inner.FindSaleForUpdateAsync(saleId, cancellationToken);
+
+        // Both refunds arrive together at the lock, which now comes before the read, and only one holds it at a time.
+        public async Task LockSaleAsync(long saleId, CancellationToken cancellationToken)
         {
-            var sale = await inner.FindSaleForUpdateAsync(saleId, cancellationToken);
-            if (sale?.Status == "completed")
-                await barrier.WaitForBothEligibleReadsAsync();
-            return sale;
+            await barrier.WaitForBothEligibleReadsAsync();
+            await inner.LockSaleAsync(saleId, cancellationToken);
         }
+
+        public Task AddRefundAsync(RetailPOS.Core.Entities.Uom.SaleRefund refund, CancellationToken cancellationToken) =>
+            inner.AddRefundAsync(refund, cancellationToken);
 
         public Task<ISaleVoidTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
             inner.BeginTransactionAsync(cancellationToken);
         public Task<string?> FindCurrentSaleStatusAsync(long saleId, CancellationToken cancellationToken) =>
             inner.FindCurrentSaleStatusAsync(saleId, cancellationToken);
-        public Task<bool> TryMarkSaleRefundedAsync(
-            long saleId,
-            string expectedStatus,
-            CancellationToken cancellationToken) =>
-            inner.TryMarkSaleRefundedAsync(saleId, expectedStatus, cancellationToken);
         public Task<RetailPOS.Core.Entities.Inventory?> FindOutletInventoryAsync(
             long variantId,
             long outletId,

@@ -265,6 +265,11 @@ public sealed class UpdateVariantUnitConfigCommandHandler(
                     IsDefault = option.IsDefault,
                     SealedPackCode = option.SealedPackCode,
                     IsPreparedEligible = option.IsPreparedEligible,
+                    // A request that does not say keeps what the option already had, so nothing becomes eligible by accident.
+                    // A new option starts from its kind's default: packs off, custom quantities on.
+                    ApplyAutomaticPricingRules = option.ApplyAutomaticPricingRules
+                        ?? current?.SellingOptions.FirstOrDefault(existing => existing.Code == option.Code && existing.Kind == option.Kind)?.ApplyAutomaticPricingRules
+                        ?? option.Kind == SellingOptionKinds.Custom,
                     Components = option.Components.Select(component => new SellingOptionComponent
                     {
                         ComponentVariantId = component.ComponentVariantId,
@@ -327,7 +332,8 @@ public sealed record ValidatedPurchaseOption(string Code, long UnitId, string La
 
 public sealed record ValidatedSellingOption(
     string Kind, string Code, string Label, long? UnitId, decimal? BaseQuantity, decimal FactorNumerator, decimal FactorDenominator,
-    decimal Price, bool IsDefault, string? SealedPackCode, bool IsPreparedEligible, IReadOnlyList<SellingComponentInput> Components);
+    decimal Price, bool IsDefault, string? SealedPackCode, bool IsPreparedEligible, IReadOnlyList<SellingComponentInput> Components,
+    bool? ApplyAutomaticPricingRules = null);
 
 public sealed record ValidatedConfigPlan(IReadOnlyList<ValidatedPurchaseOption> Purchase, IReadOnlyList<ValidatedSellingOption> Selling);
 
@@ -390,7 +396,7 @@ public static class VariantUomConfigValidator
                 selling.Add(new ValidatedSellingOption(
                     SellingOptionKinds.Pack, code, Label(option.Label, code), null,
                     UomQuantityMath.Normalize(option.BaseQuantity.Value), 1m, 1m, option.Price, option.IsDefault,
-                    sealedCode, option.IsPreparedEligible, option.Components));
+                    sealedCode, option.IsPreparedEligible, option.Components, option.ApplyAutomaticPricingRules));
             }
             else if (option.Kind == SellingOptionKinds.Custom)
             {
@@ -399,7 +405,7 @@ public static class VariantUomConfigValidator
                 var (numerator, denominator) = UomStandardConverter.Resolve(unit, baseUnit, conversions);
                 selling.Add(new ValidatedSellingOption(
                     SellingOptionKinds.Custom, code, Label(option.Label, code), unit.Id, null, numerator, denominator,
-                    option.Price, option.IsDefault, null, false, option.Components));
+                    option.Price, option.IsDefault, null, false, option.Components, option.ApplyAutomaticPricingRules));
             }
             else
             {

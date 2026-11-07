@@ -133,7 +133,13 @@ public sealed class InStockDayTracker(DateOnly from, DateOnly to)
     }
 }
 
-/// <summary>Rule-based slow-mover classification (LLD §7.3). Showrooms only; warehouses have no demand model.</summary>
+/// <summary>
+/// Rule-based slow-mover classification (LLD §7.3). Showrooms only; warehouses have no demand model.
+/// <para>The velocity and on-hand thresholds are counts of pieces, so they apply to pcs items only. An item stocked in
+/// ml, g, m or any other measured unit is judged by stock cover instead, which has no unit: it is slow when what it holds
+/// would last longer than <see cref="OwnerDashboardPolicy.SourceExcessCoverageDays"/> at its own selling rate. 2 ml a day
+/// is never compared with 0.2 pieces a day (UOM LLD: product/UOM-aware thresholds).</para>
+/// </summary>
 public static class SlowMoverClassifier
 {
     public static SlowClassificationResult Classify(VariantLocationFact fact, OwnerDashboardPolicy policy)
@@ -164,6 +170,21 @@ public static class SlowMoverClassifier
                     0m,
                     $"No recorded sale at this showroom; in stock for {fact.EligibleSellingDays} day(s) in the period.");
 
+        if (!IsPieces(fact))
+        {
+            var unit = fact.BaseUnitCode;
+            var cover = decimal.Round(fact.Available / velocity, 1, MidpointRounding.AwayFromZero);
+            return cover > policy.SourceExcessCoverageDays
+                ? new SlowClassificationResult(
+                    SlowClassifications.LowSales,
+                    velocity,
+                    $"{velocity:0.####} {unit} per in-stock day; the {fact.Available:0.####} {unit} held would last {cover:0.#} days, beyond the {policy.SourceExcessCoverageDays}-day cover threshold.")
+                : new SlowClassificationResult(
+                    SlowClassifications.Normal,
+                    velocity,
+                    $"{velocity:0.####} {unit} per in-stock day; {cover:0.#} days of cover.");
+        }
+
         if (velocity < policy.SlowVelocityPerDay)
             return new SlowClassificationResult(
                 SlowClassifications.LowSales,
@@ -176,8 +197,12 @@ public static class SlowMoverClassifier
             $"{velocity:0.##} units per in-stock day.");
     }
 
+    /// <summary>The minimum on hand is a count of pieces; a measured item only needs some stock.</summary>
     public static bool IsEligible(VariantLocationFact fact, OwnerDashboardPolicy policy) =>
-        fact.IsShowroom && fact.ProductActive && fact.Available >= policy.MinOnHandQty;
+        fact.IsShowroom && fact.ProductActive && (IsPieces(fact) ? fact.Available >= policy.MinOnHandQty : fact.Available > 0m);
+
+    private static bool IsPieces(VariantLocationFact fact) =>
+        string.IsNullOrEmpty(fact.BaseUnitCode) || string.Equals(fact.BaseUnitCode, "pcs", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>

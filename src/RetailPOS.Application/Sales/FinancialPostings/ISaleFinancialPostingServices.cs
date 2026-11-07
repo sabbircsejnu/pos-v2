@@ -50,7 +50,8 @@ public interface ISaleFinancialPostingWriter
         IReadOnlyList<SaleRefundLine> refundLines,
         string reversalType,
         long actorUserId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        SaleRefundPostingContext? refund = null);
 
     /// <summary>Called after the source transaction committed: wakes the posting worker early. Never required.</summary>
     void NotifyCommitted();

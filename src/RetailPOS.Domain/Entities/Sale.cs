@@ -1,5 +1,17 @@
 namespace RetailPOS.Core.Entities;
 
+public static class SaleStatuses
+{
+    public const string Completed = "completed";
+    public const string Voided = "voided";
+
+    /// <summary>Nothing is left to return. Sales refunded before multiple refunds also carry this status and stay closed.</summary>
+    public const string Refunded = "refunded";
+
+    /// <summary>At least one refund has been recorded and some quantity can still be returned.</summary>
+    public const string PartiallyRefunded = "partially_refunded";
+}
+
 public class Sale
 {
     public long Id { get; set; }
@@ -75,6 +87,7 @@ public class Sale
 
     // UPDATED — full split-payment breakdown (1 row per payment method used)
     public virtual ICollection<SalePayment> Payments { get; set; } = new List<SalePayment>();
+    public virtual ICollection<RetailPOS.Core.Entities.Uom.SaleRefund> Refunds { get; set; } = new List<RetailPOS.Core.Entities.Uom.SaleRefund>();
     public virtual ICollection<ReceiptPrintHistory> ReceiptPrintHistories { get; set; } = new List<ReceiptPrintHistory>();
     public virtual ICollection<SaleVoid> SaleVoids { get; set; } = new List<SaleVoid>();
 }
