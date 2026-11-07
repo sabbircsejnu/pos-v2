@@ -313,3 +313,17 @@ These approved decisions refine the requirements above. Where they differ, they 
   - A custom quantity takes only percentage rules without a minimum. Any other rule is not applied and is named to the cashier.
 - **I04 (refines RET-007):** one refund workflow and dialog serves legacy `pcs`, unit and mixed sales, with the same server safeguards.
 - **I05:** Pattern P1 (one Inventory account; packaging value capitalized into prepared packs and released through COGS) is approved, subject to the reconciliation tests passing.
+
+## Addendum — owner decisions I06–I07 (2026-11-07)
+
+- **I06 (refines PACK-006 and REP-008):** an individual prepared pack may be opened.
+  - The content becomes loose stock with no change in quantity.
+  - Reusable packaging returns to packaging stock at its stored capitalized value, and the prepared capitalization falls by the same amount, so total inventory value is unchanged.
+  - Damaged or unusable packaging is never recovered; that opening is refused. So is a pack with several packaging items.
+  - No disposal journal or loss account is authorized.
+- **I07:**
+  - Sale cost is shown only to holders of `products.view_cost`, and the API omits it otherwise.
+  - The VAT report includes posted refunds and voids, each on its own accounting date.
+  - A refund's stock-ledger value equals its journal cost.
+  - Posting intents are immutable, including their refund link.
+  - Every stock and velocity report and dashboard is unit-aware.

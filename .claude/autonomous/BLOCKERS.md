@@ -25,6 +25,8 @@ None of these stop the build. Details: `Docs/Unit_Of_Measurement/IMPLEMENTATION_
 | U-05 | Sign off repack Pattern P1. | Finance | Approved (I05); all twelve proofs pass | resolved |
 | U-06 | Apply the migration to Development. | Tech lead | Approved for Development; gates passed and rehearsed, but this session was not permitted to run it | blocked |
 | U-07 | Update Flutter stock take for fractional quantities before wiring it to the API. | Tech lead | Decimal counts are now refused with a message; decimal mobile counting not built | mitigated |
-| U-08 | Confirm that opening a prepared pack may return a reusable bottle to packaging stock at its capitalized value (SRS PACK-006/REP-008). | Finance | Implemented as the same treatment as the approved repack reversal | open |
-| U-09 | VAT report omits SalesReturnPosting refund VAT (existed before UOM). | Finance, tech lead | Journals correct; report incomplete | open |
+| U-08 | Confirm that opening a prepared pack may return a reusable bottle to packaging stock at its capitalized value (SRS PACK-006/REP-008). | Finance | Approved as I06 Option A (reusable bottle recovery) | resolved |
+| U-09 | VAT report omits SalesReturnPosting refund VAT (existed before UOM). | Finance, tech lead | Fixed under I07: posted refunds and voids are reported | resolved |
 | U-10 | Remove the rehearsal DB uom_restore_check_20261107094240 (test server) and container /tmp files; the session safety check blocked the deletion. | Tech lead | Disposable, harmless | open |
+| U-11 | Independent review of commit dcfcc48f; the review sub-agent was refused by the session permission control. | Tech lead | Checked in session only | open |
+| U-12 | Apply the three UOM migrations to Development; MigrateOnStartup refused twice in session. Script, backup and rehearsal are ready (UOM_RELEASE_READINESS.md section 9). | Tech lead | Development on 20261106173129 | open |

@@ -40,3 +40,5 @@ Spec: `Docs/Unit_Of_Measurement/`. Audit and decisions: `Docs/Unit_Of_Measuremen
 | UOM-15 | Final verification report | Report exists | done |
 | UOM-16 | Apply migration to Development | History shows both migrations; totals match | blocked (U-06) |
 | UOM-17 | Browser walk-through and responsive checks | Real browser | blocked (no browser tool) |
+| UOM-18 | I07 gap closure: cost redaction, refund VAT, exact refund cost, posting guard, transfer opportunities | Final gap tests | done |
+| UOM-19 | Fresh backup and full three-migration rehearsal | Totals identical | done |

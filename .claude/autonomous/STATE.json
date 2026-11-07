@@ -44,27 +44,31 @@
       "UOM-12",
       "UOM-13",
       "UOM-14",
-      "UOM-15"
+      "UOM-15",
+      "UOM-18",
+      "UOM-19"
     ],
     "migrations": [
       "20261106234558_PosV2UomFoundation",
       "20261107084952_PosV2UomRefundsAndPromotionEligibility",
-      "Both: SQL reviewed, rehearsed on a restored copy of Development (1.4 s, totals identical); NOT applied to Development - the session's permission control blocked MigrateOnStartup and dotnet ef database update is denied"
+      "20261107104508_PosV2UomPostingRefundGuard",
+      "All three: fresh backup backups/retailpos_db_pre_uom_20261107T105053Z.dump (sha256 c84ad4ae...74d96) restored and rehearsed (1.0 s, totals identical); NOT applied to Development - MigrateOnStartup refused twice by the session permission control"
     ],
     "tests": {
-      "unit": "1046 passed",
-      "integration": "2710 passed, 3 failed (LiveInfrastructure, as baseline)",
-      "frontend": "1976 passed (138 files)",
-      "build": "ok (existing POS CSS budget warning)",
-      "flutter": "124 passed"
+      "unit": "1047 passed",
+      "integration": "full run 2713 passed, 6 failed (3 LiveInfrastructure; 3 fixed and green on rerun of 431 affected tests)",
+      "frontend": "1976 passed (no change this round)",
+      "flutter": "124 passed (no change this round)",
+      "browser": "not run - no tool"
     },
     "remaining": [
-      "Apply both migrations to Development (owner or an allowed session)",
-      "Browser walk-through of SRS section 20 and I04 refund UI at 390/768/1440",
-      "Finance confirmation of prepared-pack opening (PACK-006/REP-008)",
-      "Delete test-server DB uom_restore_check_20261107094240 and container /tmp files"
+      "Apply the three migrations to Development (owner)",
+      "Browser walk-through, 390/768/1440",
+      "Independent review of dcfcc48f (sub-agent refused in session)",
+      "Production-sized migration rehearsal",
+      "Delete test-server DBs uom_restore_check_20261107094240 and uom_rehearsal_20261107105053"
     ],
-    "nextAction": "Apply the migration to Development, then run the post-migration checks in the verification report section D, then the browser walk-through.",
+    "nextAction": "Owner applies the migration (UOM_RELEASE_READINESS.md section 9), then runs the Development smoke tests and the browser walk-through.",
     "resumeNotes": [
       "Every existing quantity column holds base units; Uom* snapshot columns hold entered values; a null snapshot means legacy pcs",
       "Build with -c Release"
@@ -74,8 +78,11 @@
     "commits": [
       "5ffb06e7 I01-I04 and gaps",
       "f81342ba I01/I05 proofs and mobile guard",
-      "final: review fixes, inventory row lock, verification report"
+      "final: review fixes, inventory row lock, verification report",
+      "dcfcc48f final gaps: cost redaction, refund VAT, exact refund cost, posting guard"
     ],
-    "backup": "backups/retailpos_db_pre_uom_20261107T094240Z.dump (sha256 903d3341...fd9818), restore verified"
+    "backup": "backups/retailpos_db_pre_uom_20261107T094240Z.dump (sha256 903d3341...fd9818), restore verified",
+    "releaseReadiness": "Docs/Unit_Of_Measurement/UOM_RELEASE_READINESS.md",
+    "gapTracker": "Docs/Unit_Of_Measurement/UOM_FINAL_GAP_CLOSURE_TRACKER.md"
   }
 }

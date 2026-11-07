@@ -8,6 +8,8 @@
 > - **Gaps closed:** whole-pack partial transfer receipt, opening prepared packs, and GRN lines with nothing accepted.
 >
 > The status is still IMPLEMENTED — VERIFICATION PENDING, because the Development migration could not be applied from this session and no browser was available.
+>
+> **Later the same day:** I06 and I07 were closed (cost redaction, refund VAT reporting, exact refund ledger value, the posting guard, unit-aware transfer opportunities). See `UOM_FINAL_GAP_CLOSURE_TRACKER.md` and `UOM_RELEASE_READINESS.md`.
 
 **Date:** 2026-11-07. **Branch:** `staging`, local commits `8fe3aaea` to `781ba61b` plus this report; nothing pushed.
 

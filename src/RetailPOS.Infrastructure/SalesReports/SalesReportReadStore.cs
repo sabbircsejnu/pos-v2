@@ -66,8 +66,16 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                     && line.JournalEntry.PostedAt.HasValue
                     && line.JournalEntry.OutletId.HasValue
                     && scope.OutletIds.Contains(line.JournalEntry.OutletId.Value));
-            // A refund's journal posts after it commits, so for a moment it can be unposted. Revenue then counts only
-            // posted refunds, as the books do, instead of failing the whole dashboard.
+            // Deliberately fails closed (tested): net revenue is never shown while a refund's journal is unposted.
+            var postedRefundReferences = await postedRefundLines
+                .Select(line => line.JournalEntry.ReferenceId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            if (saleIdReferences.Except(postedRefundReferences).Any())
+            {
+                throw new InvalidDataException(
+                    "A refunded sale in the authorized Outlet scope has no posted Sales return journal.");
+            }
 
             refundAmount = await postedRefundLines
                 .Where(line =>

@@ -499,3 +499,15 @@ All D01–D12 approved outcomes have automated and real-workflow verification, i
 - **GRN:** a line may carry only damaged or rejected quantity, which posts nothing.
 - **Slow movers:** measured units are judged by stock cover against `SourceExcessCoverageDays`.
 - **Migration:** `20261107084952_PosV2UomRefundsAndPromotionEligibility`.
+
+## Addendum — implementation of I06–I07 (2026-11-07)
+
+- **Prepared packs (I06):** `POST /api/v1/uom/pack-state/open-prepared` requires `packagingReusable=true` and a single packaging component.
+  - Lock order is the packaging inventory row, then pack-state balances.
+  - The packaging ledger entry `prepared_open` is valued at the `CapitalizedValueShare` of the opened packs.
+  - Pack-state movements carry the request's idempotency key.
+- **Cost redaction:** `SalesController.ToDto` sets `historicalUnitCost` to null without `products.view_cost`.
+- **VAT report:** `VatReportReadStore.AddPostedSaleReversalsAsync` reads posted reversal intents (status `posted`, journal posted). It reports their snapshot lines at the original line's `TaxCode`/`VatRate`, dated on the reversal journal's `PostingDate`, and skips sales already reported through a `ReversalOfJournalEntryId` journal.
+- **Refund ledger value:** `ISaleRefundStockLedgerWriter.AppendReturn` takes `movementValue`; the refund passes the cumulative content-cost share.
+- **Posting guard:** migration `20261107104508_PosV2UomPostingRefundGuard` adds `sale_refund_id` to `fn_sale_financial_posting_guard`.
+- **Transfer opportunities:** `MinDemandVelocityPerDay`, `MinimumRetainedUnits`, `MaxSuggestedQty` and `MinRecommendationQty` apply to `pcs` items only.

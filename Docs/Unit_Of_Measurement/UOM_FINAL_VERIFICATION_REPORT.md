@@ -223,3 +223,17 @@ A separate read-only review of `66694088..HEAD` found no Critical issues.
 | Code implementation | Ready for review: all suites pass except the live-infrastructure tests, which fail as before |
 | Development environment | **Not verified**: migration not applied, no browser walk-through |
 | Production deployment | **Not ready**: needs the Development verification, a Production-sized rehearsal and a release review |
+
+## Final gap-closure round (I06, I07)
+
+The latest status, results and blockers are in `UOM_RELEASE_READINESS.md`, and the per-gap evidence is in `UOM_FINAL_GAP_CLOSURE_TRACKER.md`. This round:
+- closed the cost exposure noted under §G "Known since the earlier report";
+- fixed the VAT report gap: refunds and voids are now included;
+- made the refund ledger value cent-exact;
+- added `sale_refund_id` to the posting guard (migration `20261107104508_PosV2UomPostingRefundGuard`);
+- made transfer opportunities unit-aware;
+- made the mobile sales dashboard subtract returned pieces only. Its deliberate fail-closed rule for unposted refund journals stays.
+
+**Migration:** a fresh backup was taken and restored, and all three migrations were rehearsed in 1.0 s with identical totals. A second attempt to apply them was again refused by the session's permission control, so Development is still on `20261106173129`.
+
+**Review:** the independent sub-agent review of this round was also refused by the permission control. The riskiest points were checked in-session instead: VAT business scoping and double counting, the void netting to zero, the guard against the posting worker's updates, and the ledger value on void.
