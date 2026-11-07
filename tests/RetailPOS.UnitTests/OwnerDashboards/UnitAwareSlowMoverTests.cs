@@ -49,4 +49,22 @@ public sealed class UnitAwareSlowMoverTests
 
         Assert.Equal(SlowClassifications.NeverSold, result.Classification);
     }
+
+    [Fact]
+    public void TransferOpportunities_AMeasuredItem_IsNotHeldToPieceThresholds()
+    {
+        // 0.3 ml a day is real demand for Attar, though below the 0.5 pieces-a-day minimum.
+        var source = TestFacts.Outlet(1, 0, 0, 30) with { BaseUnitCode = "ml", OnHand = 1000m, NetUnitsSold = 30m };
+        var destination = TestFacts.Outlet(2, 0, 0, 30) with { BaseUnitCode = "ml", OnHand = 1m, NetUnitsSold = 9m };
+
+        var measured = TransferOpportunityEngine.Build([source, destination], Policy);
+        var pieces = TransferOpportunityEngine.Build(
+            [source with { BaseUnitCode = "pcs" }, destination with { BaseUnitCode = "pcs" }],
+            Policy);
+
+        var suggestion = Assert.Single(measured);
+        // 21 days of cover at 0.3 ml a day is 7 ml; 1 ml is there.
+        Assert.Equal(6m, suggestion.SuggestedQty);
+        Assert.Empty(pieces);
+    }
 }

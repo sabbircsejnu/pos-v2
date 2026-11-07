@@ -29,7 +29,8 @@ public interface ISaleRefundStockLedgerWriter
         decimal balanceAfter,
         long actorUserId,
         string? reason,
-        DateTime createdAt);
+        DateTime createdAt,
+        decimal? movementValue = null);
 }
 
 public interface ISaleRefundAuditWriter

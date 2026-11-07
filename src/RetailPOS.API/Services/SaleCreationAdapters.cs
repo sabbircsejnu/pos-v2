@@ -217,14 +217,16 @@ public sealed class SaleRefundStockLedgerWriter(IStockLedgerWriter stockLedger)
         decimal balanceAfter,
         long actorUserId,
         string? reason,
-        DateTime createdAt)
+        DateTime createdAt,
+        decimal? movementValue = null)
     {
         if (!item.HistoricalUnitCost.HasValue)
             throw new InvalidOperationException(
                 $"Historical unit cost is missing for sale line {item.Id}. Legacy sales without a historical snapshot cannot be reversed using current cost.");
 
         var historicalUnitCost = item.HistoricalUnitCost.Value;
-        var reversalCost = Math.Round(historicalUnitCost * quantity, 4);
+        // The value the refund's journal debits to Inventory, so ledger and GL move by exactly the same amount.
+        var reversalCost = movementValue ?? Math.Round(historicalUnitCost * quantity, 4);
         var remarks = $"Refund reversal using historical unit cost {historicalUnitCost:0.0000} x {quantity} = {reversalCost:0.0000}";
         if (!string.IsNullOrWhiteSpace(reason))
             remarks = $"{remarks}; reason: {reason}";
@@ -242,7 +244,8 @@ public sealed class SaleRefundStockLedgerWriter(IStockLedgerWriter stockLedger)
             remarks: remarks,
             createdBy: actorUserId,
             createdAt: createdAt,
-            unitCost: historicalUnitCost);
+            unitCost: historicalUnitCost,
+            movementValue: movementValue);
     }
 }
 

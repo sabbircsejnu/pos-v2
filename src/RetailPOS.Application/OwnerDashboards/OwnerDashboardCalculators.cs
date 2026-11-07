@@ -201,7 +201,7 @@ public static class SlowMoverClassifier
     public static bool IsEligible(VariantLocationFact fact, OwnerDashboardPolicy policy) =>
         fact.IsShowroom && fact.ProductActive && (IsPieces(fact) ? fact.Available >= policy.MinOnHandQty : fact.Available > 0m);
 
-    private static bool IsPieces(VariantLocationFact fact) =>
+    internal static bool IsPieces(VariantLocationFact fact) =>
         string.IsNullOrEmpty(fact.BaseUnitCode) || string.Equals(fact.BaseUnitCode, "pcs", StringComparison.OrdinalIgnoreCase);
 }
 
@@ -269,13 +269,15 @@ public static class TransferOpportunityEngine
             var need = needLeft.GetValueOrDefault(destinationKey, candidate.DestinationNeed);
             var suggested = Math.Min(spare, need);
             var capped = false;
-            if (policy.MaxSuggestedQty is decimal cap && suggested > cap)
+            // The cap and minimum suggestion are counts of pieces; a measured item is not held to them (UOM gap 4.5).
+            var pieces = SlowMoverClassifier.IsPieces(candidate.Source);
+            if (pieces && policy.MaxSuggestedQty is decimal cap && suggested > cap)
             {
                 suggested = cap;
                 capped = true;
             }
 
-            if (suggested < Math.Max(policy.MinRecommendationQty, 1))
+            if (pieces ? suggested < Math.Max(policy.MinRecommendationQty, 1) : suggested <= 0m)
                 continue;
 
             spareLeft[sourceKey] = spare - suggested;
@@ -295,8 +297,9 @@ public static class TransferOpportunityEngine
             return false;
 
         var velocity = Velocity(fact);
-        return velocity >= policy.MinDemandVelocityPerDay
-            && fact.Available / velocity < policy.DestinationTargetCoverageDays;
+        // The minimum demand is pieces a day; a measured item only needs real demand, then cover decides.
+        var demandMet = SlowMoverClassifier.IsPieces(fact) ? velocity >= policy.MinDemandVelocityPerDay : velocity > 0m;
+        return demandMet && fact.Available / velocity < policy.DestinationTargetCoverageDays;
     }
 
     private static Candidate? TryPair(
@@ -317,7 +320,7 @@ public static class TransferOpportunityEngine
 
         // The safety quantity is subtracted exactly once, here: pending outbound is a separate commitment.
         var protectedQty = Math.Max(
-            policy.MinimumRetainedUnits,
+            SlowMoverClassifier.IsPieces(source) ? policy.MinimumRetainedUnits : 0m,
             decimal.Ceiling(sourceVelocity * policy.SourceRetainedCoverageDays));
         var transferable = Math.Max(0m, source.Available - source.PendingOutbound);
         var spare = Math.Max(0m, transferable - protectedQty);

@@ -67,7 +67,20 @@ public class SalesController : ControllerBase
         return Ok(ApiResponse<SaleDto>.SuccessResponse(ToDto(sale)));
     }
 
-    private static SaleDto ToDto(SaleReadModel sale) => new()
+    /// <summary>
+    /// Cost is left out of the response, not just hidden on screen, for a caller without <c>products.view_cost</c>
+    /// (null, never a misleading 0). Prices and quantities stay visible to everyone who may read the sale.
+    /// </summary>
+    private SaleDto ToDto(SaleReadModel sale)
+    {
+        var dto = MapSale(sale);
+        if (!User.CanViewCost())
+            foreach (var item in dto.Items)
+                item.HistoricalUnitCost = null;
+        return dto;
+    }
+
+    private static SaleDto MapSale(SaleReadModel sale) => new()
     {
         Id = sale.Id,
         SaleNumber = sale.SaleNumber,
@@ -252,9 +265,9 @@ public class SalesController : ControllerBase
         return await _sender.Send(new SearchSalesQuery(criteria), cancellationToken);
     }
 
-    private static SaleListDto ToListDto(SaleSearchReadModel result) => new()
+    private SaleListDto ToListDto(SaleSearchReadModel result) => new()
     {
-        Sales = result.Sales.Select(ToDto).ToList(),
+        Sales = result.Sales.Select(sale => ToDto(sale)).ToList(),
         TotalCount = result.TotalCount,
         PageNumber = result.PageNumber,
         PageSize = result.PageSize

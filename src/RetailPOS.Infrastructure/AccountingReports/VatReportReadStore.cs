@@ -207,6 +207,69 @@ public sealed class VatReportReadStore(
         return (fromUtc!.Value, toExclusiveUtc!.Value);
     }
 
+    /// <summary>
+    /// Voids and refunds post their own reversal journal (<c>SalesReturnPosting</c>), built from the sale's line
+    /// allocations. Each posted one is reported line by line at the original line's rate, on the reversal journal's own
+    /// date, exactly as posted. Several partial refunds of a sale are each reported. An intent that is pending, failed or
+    /// held for review has no posted journal and is left out. A sale whose journal was reversed the older way is already
+    /// reported above, so it is never deducted twice.
+    /// </summary>
+    private async Task AddPostedSaleReversalsAsync(
+        List<VatTransactionReadModel> result,
+        IReadOnlyList<JournalEntry> journalRows,
+        IReadOnlySet<long> reversedByJournal,
+        VatReportFilter filter,
+        long businessId,
+        CancellationToken cancellationToken)
+    {
+        var postings = await dbContext.SaleFinancialPostings
+            .AsNoTracking()
+            .Where(posting =>
+                posting.BusinessId == businessId
+                && posting.Kind == SaleFinancialPostingKinds.Reversal
+                && posting.Status == SaleFinancialPostingStatuses.Posted
+                && posting.JournalEntryId != null
+                && (!filter.OutletId.HasValue || posting.OutletId == filter.OutletId.Value))
+            .ToListAsync(cancellationToken);
+        if (postings.Count == 0)
+            return;
+
+        var postedJournals = journalRows.ToDictionary(entry => entry.Id);
+        var saleIds = postings.Select(posting => posting.SaleId).Distinct().ToList();
+        var items = await dbContext.SaleItems
+            .AsNoTracking()
+            .Where(item => saleIds.Contains(item.SaleId))
+            .Select(item => new { item.Id, item.TaxCode, item.VatRate })
+            .ToDictionaryAsync(item => item.Id, cancellationToken);
+
+        foreach (var posting in postings)
+        {
+            if (reversedByJournal.Contains(posting.SaleId)
+                || !postedJournals.TryGetValue(posting.JournalEntryId!.Value, out var journal))
+                continue;
+            var snapshot = RetailPOS.Application.Sales.FinancialPostings.SaleFinancialIntentFactory.ReadReversalSnapshot(posting);
+            foreach (var line in snapshot.Lines.Where(line => (line.Vat ?? 0m) != 0m))
+            {
+                var item = items.GetValueOrDefault(line.SaleItemId);
+                result.Add(new VatTransactionReadModel(
+                    journal.PostingDate,
+                    posting.ReversalType == SaleFinancialPostingReversalTypes.Void ? "SaleVoid" : "SaleRefund",
+                    snapshot.RefundNumber ?? snapshot.SaleNumber,
+                    journal.Id,
+                    journal.JournalNumber,
+                    posting.OutletId,
+                    null,
+                    item?.TaxCode ?? "VAT",
+                    item?.VatRate,
+                    -(line.NetRevenue ?? 0m),
+                    -(line.Vat ?? 0m),
+                    "Output",
+                    null,
+                    null));
+            }
+        }
+    }
+
     private async Task<List<VatTransactionReadModel>> BuildEventsAsync(
         VatReportFilter filter,
         long businessId,
@@ -271,6 +334,7 @@ public sealed class VatReportReadStore(
             }
         }
 
+        var reversedByJournal = new HashSet<long>();
         foreach (var sale in sales)
         {
             if (!journals.TryGetValue(("Sale", sale.Id.ToString()), out var original))
@@ -279,6 +343,7 @@ public sealed class VatReportReadStore(
             foreach (var reversal in journalRows.Where(entry =>
                          entry.ReversalOfJournalEntryId == original.Id))
             {
+                reversedByJournal.Add(sale.Id);
                 var vat = sale.Tax;
                 if (vat == 0m)
                     continue;
@@ -303,6 +368,8 @@ public sealed class VatReportReadStore(
                 }
             }
         }
+
+        await AddPostedSaleReversalsAsync(result, journalRows, reversedByJournal, filter, businessId, cancellationToken);
 
         var incomes = await dbContext.OtherIncomeEntries
             .AsNoTracking()

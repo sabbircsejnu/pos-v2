@@ -66,15 +66,8 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                     && line.JournalEntry.PostedAt.HasValue
                     && line.JournalEntry.OutletId.HasValue
                     && scope.OutletIds.Contains(line.JournalEntry.OutletId.Value));
-            var postedRefundReferences = await postedRefundLines
-                .Select(line => line.JournalEntry.ReferenceId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-            if (saleIdReferences.Except(postedRefundReferences).Any())
-            {
-                throw new InvalidDataException(
-                    "A refunded sale in the authorized Outlet scope has no posted Sales return journal.");
-            }
+            // A refund's journal posts after it commits, so for a moment it can be unposted. Revenue then counts only
+            // posted refunds, as the books do, instead of failing the whole dashboard.
 
             refundAmount = await postedRefundLines
                 .Where(line =>
@@ -82,10 +75,17 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
                     && line.JournalEntry.PostedAt <= filter.EndDate)
                 .SumAsync(line => (decimal?)line.DebitAmount, cancellationToken) ?? 0m;
 
+            // Units sold count pieces only, so only pieces come off them; ml or kg returned are not pieces.
+            var measuredVariants = await dbContext.VariantUomConfigs
+                .AsNoTracking()
+                .Where(config => config.EffectiveToUtc == null && config.BaseUnit.Code != "pcs")
+                .Select(config => config.VariantId)
+                .ToListAsync(cancellationToken);
             returnedUnits = await dbContext.StockLedgers
                 .AsNoTracking()
                 .Where(movement =>
-                    movement.TransactionType == StockLedgerTransactionType.Return
+                    !measuredVariants.Contains(movement.VariantId)
+                    && movement.TransactionType == StockLedgerTransactionType.Return
                     && movement.ReferenceType == StockLedgerReferenceType.Sale
                     && saleIds.Contains(movement.ReferenceId)
                     && scope.OutletIds.Contains(movement.LocationId)

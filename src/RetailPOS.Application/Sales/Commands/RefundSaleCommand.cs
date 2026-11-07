@@ -124,7 +124,7 @@ public sealed class RefundSaleCommandHandler(
             };
             await store.AddRefundAsync(refund, cancellationToken);
 
-            var inventoryReturns = new List<(SaleRefundLine Line, SaleItem Item, decimal BalanceAfter)>();
+            var inventoryReturns = new List<(SaleRefundLine Line, SaleItem Item, decimal BalanceAfter, decimal Value)>();
             var uomConfigs = uomReader is null || sale.BusinessId is not { } uomBusinessId
                 ? new Dictionary<long, ResolvedVariantUom>()
                 : await uomReader.GetCurrentAsync(uomBusinessId, assessed.Select(line => line.Line.VariantId).ToList(), cancellationToken);
@@ -146,7 +146,7 @@ public sealed class RefundSaleCommandHandler(
                     if (inventory is not null)
                     {
                         inventory.Quantity += line.Quantity;
-                        inventoryReturns.Add((line, saleItem, inventory.Quantity));
+                        inventoryReturns.Add((line, saleItem, inventory.Quantity, ContentShare(saleItem, alreadyReturned, line.Quantity)));
                     }
 
                     var tracksNow = uomConfigs.GetValueOrDefault(line.VariantId)?.PackStateTrackingEnabled == true;
@@ -166,13 +166,7 @@ public sealed class RefundSaleCommandHandler(
                 }
 
                 // The original cost snapshot decides this value, never today's cost or conversion (RET-001).
-                var contentCost = resellable
-                    ? SaleFinancialIntentFactory.ShareOfReturn(
-                        MonetaryRounding.ToCurrency((saleItem.HistoricalUnitCost ?? 0m) * saleItem.Quantity),
-                        alreadyReturned,
-                        line.Quantity,
-                        saleItem.Quantity)
-                    : 0m;
+                var contentCost = resellable ? ContentShare(saleItem, alreadyReturned, line.Quantity) : 0m;
                 var returnLine = new SaleReturnLine
                 {
                     SaleId = sale.Id,
@@ -197,7 +191,7 @@ public sealed class RefundSaleCommandHandler(
                 finalLines.Add(line with { RestoredCost = returnLine.CostRestored });
             }
 
-            foreach (var (line, item, balanceAfter) in inventoryReturns)
+            foreach (var (line, item, balanceAfter, value) in inventoryReturns)
             {
                 stockLedger.AppendReturn(
                     sale,
@@ -206,7 +200,8 @@ public sealed class RefundSaleCommandHandler(
                     balanceAfter,
                     request.ActorUserId,
                     request.Reason,
-                    DateTime.UtcNow);
+                    DateTime.UtcNow,
+                    value);
             }
 
             // D10: the reversal journal intent commits with the refund and is posted asynchronously, exactly once.
@@ -257,7 +252,7 @@ public sealed class RefundSaleCommandHandler(
             committed = true;
             financialPostings.NotifyCommitted();
 
-            foreach (var (line, _, _) in inventoryReturns)
+            foreach (var (line, _, _, _) in inventoryReturns)
                 await cacheInvalidator.InvalidateAsync(line.VariantId, sale.OutletId, cancellationToken);
 
             logger.SaleRefunded(sale.Id, request.Reason);
@@ -270,6 +265,17 @@ public sealed class RefundSaleCommandHandler(
             throw;
         }
     }
+
+    /// <summary>
+    /// This return's share of the line's content cost, taken cumulatively so every partial return together restores
+    /// exactly the cost the sale took. The journal and the stock ledger both use this one figure.
+    /// </summary>
+    private static decimal ContentShare(SaleItem item, decimal alreadyReturned, decimal quantity) =>
+        SaleFinancialIntentFactory.ShareOfReturn(
+            MonetaryRounding.ToCurrency((item.HistoricalUnitCost ?? 0m) * item.Quantity),
+            alreadyReturned,
+            quantity,
+            item.Quantity);
 
     private async Task<SaleReadModel> ReadAsync(long saleId, CancellationToken cancellationToken) =>
         await saleReadStore.FindForReceiptAsync(saleId, cancellationToken)
