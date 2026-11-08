@@ -32,6 +32,8 @@ public sealed class VoidSaleCommandHandler(
         var committed = false;
         try
         {
+            // Same lock order as refunds and exchanges: the sale row first, then session and drawer (inside the recorder).
+            await store.LockSaleAsync(request.SaleId, cancellationToken);
             var sale = await store.FindSaleForUpdateAsync(request.SaleId, cancellationToken);
             if (sale is null)
                 throw new KeyNotFoundException($"Sale with ID {request.SaleId} not found");
@@ -40,7 +42,7 @@ public sealed class VoidSaleCommandHandler(
             EnsureVoidable(sale, request.Reason);
             var previousStatus = sale.Status;
 
-            // Lock order: dispensing session first (inside the recorder), then the sale row. A cash outflow can never
+            // The sale row is already locked; the recorder then locks the dispensing session, so a cash outflow can never
             // commit into a session that a concurrent close already finalised.
             await cashRefunds.RecordAsync(
                 new SaleCashRefundRequest(
@@ -63,6 +65,11 @@ public sealed class VoidSaleCommandHandler(
                 EnsureVoidable(sale, request.Reason);
                 throw new InvalidOperationException("Only completed sales can be voided");
             }
+
+            // D-14: an exchange leaves the sale 'completed' but consumes its returnable quantity. The void's own update
+            // now holds the sale row, so this read sees any exchange that committed first; a void would restock twice.
+            if (await store.HasReturnedQuantityAsync(sale.Id, cancellationToken))
+                throw SaleHasReturns();
             var reason = request.Reason!.Trim();
             var inventoryLedger = new List<(RetailPOS.Core.Entities.Inventory Inventory, SaleItem Item)>();
 
@@ -168,5 +175,13 @@ public sealed class VoidSaleCommandHandler(
 
         if (!string.Equals(sale.Status, "completed", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Only completed sales can be voided");
+
+        if (sale.Items.Any(item => item.ReturnedQuantity > 0m))
+            throw SaleHasReturns();
     }
+
+    private static SaleCheckoutConflictException SaleHasReturns() =>
+        new(
+            SaleCheckoutErrorCodes.SaleHasReturns,
+            "Part of this sale has already been returned or exchanged, so it can no longer be voided.");
 }

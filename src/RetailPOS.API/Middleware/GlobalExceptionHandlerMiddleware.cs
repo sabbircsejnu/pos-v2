@@ -157,6 +157,15 @@ public class GlobalExceptionHandlerMiddleware
                 errorResponse.ErrorCode = uomValidation.Code;
                 break;
 
+            case RetailPOS.Application.Exchanges.ExchangeException exchangeError:
+                response.StatusCode = exchangeError.StatusCode;
+                errorResponse.Success = false;
+                errorResponse.Message = exchangeError.Message;
+                errorResponse.Errors = new List<string> { exchangeError.Message };
+                errorResponse.ErrorCode = exchangeError.Code;
+                errorResponse.Data = exchangeError.Details;
+                break;
+
             case SaleCheckoutConflictException checkoutConflict:
                 response.StatusCode = (int)HttpStatusCode.Conflict;
                 errorResponse.Success = false;

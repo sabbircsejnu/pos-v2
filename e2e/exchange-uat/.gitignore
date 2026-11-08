@@ -1,0 +1,6 @@
+# Local-only Exchange UAT artefacts: synthetic credentials, built web app, browser results.
+.uat/
+node_modules/
+test-results/
+playwright-report/
+evidence/

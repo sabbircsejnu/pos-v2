@@ -333,6 +333,12 @@
             <span class="held-count-badge" [attr.aria-label]="heldSales().length + ' held invoices'">{{ heldSales().length }}</span>
           }
         </button>
+        @if (canExchange()) {
+          <button class="pos-btn" type="button" data-testid="pos-exchange" (click)="startExchange()"
+            [disabled]="!!exchangeDisabledReason()" [title]="exchangeDisabledReason() || 'Exchange items from an earlier invoice'">
+            Exchange
+          </button>
+        }
         <button class="pos-btn pos-btn--danger pos-actions__push" type="button" (click)="requestClearCart()" [disabled]="cartItems().length === 0" title="Clear the whole cart">
           Clear Cart
         </button>

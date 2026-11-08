@@ -9,6 +9,7 @@ import { AuthService } from '../../services/auth.service';
 import { CurrencyService } from '../../services/currency.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
 import { SaleService } from '../../services/sale.service';
+import { ExchangeService } from '../../services/exchange.service';
 import { SaleDetailsComponent } from './sale-details.component';
 
 const unitLine: SaleItemDto = {
@@ -51,6 +52,7 @@ describe('SaleDetailsComponent units and refund', () => {
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: Location, useValue: { back: vi.fn() } },
         { provide: SaleService, useValue: sales },
+        { provide: ExchangeService, useValue: { listBySale: () => of({ data: [] }) } },
         { provide: AlertService, useValue: alerts },
         { provide: ErrorHandlerService, useValue: { extractErrorMessage: () => 'server said no' } },
         { provide: AuthService, useValue: auth },

@@ -9,6 +9,7 @@ import { UiStepDirective, UiStepperComponent } from './ui-stepper.component';
     <app-ui-stepper
       [orientation]="orientation()"
       [canAdvance]="guard"
+      [nextDisabled]="nextDisabled()"
       [allowCompletedNavigation]="true"
       [allowFutureNavigation]="readOnly()"
       (advanceBlocked)="blocked.push($event)"
@@ -30,6 +31,7 @@ class StepperHost {
   readOnly = signal(false);
   canMove = false;
   hasError = signal(false);
+  nextDisabled = signal(false);
   blocked: number[] = [];
   changes: number[] = [];
   guard = (index: number): boolean => index === 0 ? this.canMove : true;
@@ -73,6 +75,26 @@ describe('UiStepperComponent', () => {
     expect(host.changes).toEqual([1]);
     expect(fixture.nativeElement.querySelector('[role="region"]')?.textContent).toContain('Employment fields');
     expect(fixture.nativeElement.querySelector('[data-step-index="0"]')?.getAttribute('data-state')).toBe('completed');
+  });
+
+  it('disables Next when the feature marks the step incomplete, and Next() is then a no-op', async () => {
+    const fixture = await create();
+    const host = fixture.componentInstance;
+    host.canMove = true;
+    host.nextDisabled.set(true);
+    fixture.detectChanges();
+    const next = fixture.nativeElement.querySelector('.ui-stepper__navigation button:last-child') as HTMLButtonElement;
+    expect(next.disabled).toBe(true);
+    next.click();
+    fixture.detectChanges();
+    expect(host.changes).toEqual([]);
+
+    host.nextDisabled.set(false);
+    fixture.detectChanges();
+    expect(next.disabled).toBe(false);
+    next.click();
+    fixture.detectChanges();
+    expect(host.changes).toEqual([1]);
   });
 
   it('supports previous and completed-step navigation and exposes error states accessibly', async () => {

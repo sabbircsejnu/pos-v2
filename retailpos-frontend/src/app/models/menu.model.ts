@@ -174,6 +174,7 @@ export const NAV_SECTIONS: MenuSection[] = [
       { id: 'pos-sales', label: 'POS Sales', icon: 'fas fa-cash-register', route: '/pos', permission: 'sales.create' },
       { id: 'cash-sessions', label: 'Cash Sessions', icon: 'fas fa-wallet', route: '/cash-sessions', permission: 'cash_sessions.view' },
       { id: 'sales', label: 'Sales', icon: 'fas fa-receipt', route: '/sales', permission: 'sales.view' },
+      { id: 'exchanges', label: 'Exchanges', icon: 'fas fa-right-left', route: '/exchanges', permission: 'sales.view' },
       { id: 'customers', label: 'Customers', icon: 'fas fa-user-friends', route: '/customers', permission: 'customers.view' },
     ]
   },
@@ -232,6 +233,7 @@ export const NAV_SECTIONS: MenuSection[] = [
       { id: 'warehouses', label: 'Warehouses', icon: 'fas fa-warehouse', route: '/warehouses', permission: 'warehouses.view' },
       { id: 'settings', label: 'Settings', icon: 'fas fa-cog', route: '/settings', permission: 'settings.edit' },
       { id: 'discount-settings', label: 'Discount Limit', icon: 'fas fa-percent', route: '/settings/discounts', permission: 'sales.discount.configure' },
+      { id: 'exchange-policy', label: 'Exchange Policy', icon: 'fas fa-right-left', route: '/settings/exchange', permission: 'settings.view' },
       { id: 'audit-logs', label: 'Audit Logs', icon: 'fas fa-history', route: '/audit-logs', permission: 'audit.view' },
       { id: 'businesses', label: 'Businesses', icon: 'fas fa-building', route: '/businesses', role: 'Super Admin' },
     ]

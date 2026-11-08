@@ -255,7 +255,7 @@ internal static class UomModelConfiguration
     private static void Xmin(PropertyBuilder<uint> property) =>
         property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
 
-    private static void ConfigureSnapshot<TEntity>(EntityTypeBuilder<TEntity> entity)
+    internal static void ConfigureSnapshot<TEntity>(EntityTypeBuilder<TEntity> entity)
         where TEntity : UomSnapshotColumns
     {
         entity.Property(e => e.UomUnitCode).HasMaxLength(20);

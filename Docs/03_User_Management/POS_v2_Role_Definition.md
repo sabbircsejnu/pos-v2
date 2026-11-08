@@ -144,7 +144,7 @@ Required keys:
 ### Sales
 
 - Hold Sale
-- Return / Exchange
+- Return / Exchange (Exchange permissions `pos.exchange.create`, `.refund`, `.override_window`, `.override_chain`, `.reverse`: see `Docs/08_Sales_And_POS/Exchange/IRANIMART_POS_V2_EXCHANGE_SRS.md` §3)
 - Multiple Payment Methods
 - Customer Due
 - Cash Register

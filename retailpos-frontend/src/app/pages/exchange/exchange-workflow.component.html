@@ -1,0 +1,504 @@
+<div class="ex-page" data-density="compact">
+  <app-ui-page-header
+    title="Product Exchange"
+    description="Exchange items from an original invoice. All amounts are calculated and checked by the server."
+    [breadcrumbs]="breadcrumbs">
+    <div uiPageSecondaryActions>
+      <a appUiButton variant="outline" routerLink="/pos">Back to POS</a>
+    </div>
+  </app-ui-page-header>
+
+  <section class="ex-context" aria-label="Exchange context">
+    <span>Outlet <strong>{{ outletName() || '—' }}</strong></span>
+    <span>Cashier <strong>{{ cashierName() || '—' }}</strong></span>
+    <span>Session
+      <strong>
+        @switch (sessionState()) {
+          @case ('active') { Open · {{ session()?.businessDate | appDate:'dd/MM/yyyy' }} }
+          @case ('loading') { Checking… }
+          @case ('none') { Not open }
+          @case ('error') { Unknown }
+          @default { — }
+        }
+      </strong>
+    </span>
+    <span>Connection <strong data-testid="connection-state">{{ online() ? 'Online' : 'Offline' }}</strong></span>
+  </section>
+
+  @if (terminalAvailability() === 'multiple') {
+    <app-ui-form-field label="POS terminal" [required]="true">
+      <select appUiControl name="terminal" [ngModel]="terminalId()" (ngModelChange)="onTerminalChange($event)">
+        <option [ngValue]="null">Select terminal</option>
+        @for (terminal of terminals(); track terminal.id) {
+          <option [ngValue]="terminal.id">{{ terminal.name }} ({{ terminal.code }})</option>
+        }
+      </select>
+    </app-ui-form-field>
+  }
+
+  @if (!online()) {
+    <app-ui-alert variant="warning" title="Offline" data-testid="offline-alert">{{ blockReason() }}</app-ui-alert>
+  } @else if (blockReason()) {
+    <app-ui-alert variant="danger" title="Exchange not available">
+      {{ blockReason() }}
+      @if (sessionState() === 'none') {
+        <div uiAlertActions><a appUiButton size="sm" variant="outline" routerLink="/pos">Open POS</a></div>
+      }
+    </app-ui-alert>
+  }
+
+  @if (result(); as done) {
+    <app-ui-card title="Exchange completed">
+      <div class="ex-done">
+        <p class="ex-muted">Exchange number</p>
+        <p class="ex-done__number" data-testid="exchange-number">{{ done.exchangeNumber }}</p>
+        @if (done.replayed) {
+          <app-ui-alert variant="info">This exchange had already been completed; the original result is shown.</app-ui-alert>
+        }
+        @if (receiptError()) {
+          <app-ui-alert variant="warning" title="Receipt">{{ receiptError() }}</app-ui-alert>
+        }
+        <div class="ex-actions no-print">
+          <button appUiButton type="button" (click)="printReceipt()" [disabled]="!receipt()">
+            <i class="fas fa-print" aria-hidden="true"></i> Print 80mm
+          </button>
+          <button appUiButton type="button" variant="outline" (click)="downloadPdf()" [loading]="pdfBusy()">
+            <i class="fas fa-file-pdf" aria-hidden="true"></i> Download PDF
+          </button>
+          <a appUiButton variant="outline" [routerLink]="['/exchanges', done.exchangeId]">View details</a>
+          <button appUiButton type="button" variant="secondary" (click)="newExchange()">New exchange</button>
+        </div>
+        @if (receipt(); as doc) {
+          <div class="ex-receipt-preview">
+            <div id="receipt-print"><app-exchange-receipt [data]="doc" /></div>
+          </div>
+        } @else if (!receiptError()) {
+          <app-ui-state kind="loading" title="Loading receipt…" [compact]="true" />
+        }
+      </div>
+    </app-ui-card>
+  } @else {
+    <app-ui-card>
+      <app-ui-stepper
+        ariaLabel="Exchange steps"
+        [(activeIndex)]="activeStep"
+        [canAdvance]="canAdvance"
+        [nextDisabled]="!!stepPending()"
+        [allowCompletedNavigation]="true"
+        (stepChange)="onStepChange($event)">
+
+        <!-- 1. Invoice -->
+        <ng-template appUiStep="Invoice" description="Original receipt" [completed]="invoices().length > 0">
+          <div class="ex-stack">
+            <form class="ex-lookup" (ngSubmit)="addInvoice()" novalidate data-testid="invoice-lookup">
+              <label class="ex-lookup__label" for="exchange-invoice-number">Invoice number</label>
+              <div class="ex-lookup__bar">
+                <input #invoiceField appUiControl id="exchange-invoice-number" type="text" name="invoiceNumber" autocomplete="off" autofocus
+                  placeholder="Scan or type the receipt's invoice number"
+                  [attr.aria-invalid]="invoiceError() ? true : null"
+                  [attr.aria-describedby]="invoiceError() ? 'exchange-invoice-error exchange-invoice-help' : 'exchange-invoice-help'"
+                  [disabled]="!online()" [ngModel]="invoiceInput()" (ngModelChange)="invoiceInput.set($event ?? '')" />
+                <button appUiButton type="submit" class="ex-lookup__action" [loading]="invoiceLoading()" [disabled]="!online() || !invoiceInput().trim()">
+                  <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                  {{ invoices().length > 0 ? 'Add invoice' : 'Find invoice' }}
+                </button>
+              </div>
+              @if (invoiceError()) {
+                <p class="ex-lookup__error" id="exchange-invoice-error" role="alert">{{ invoiceError() }}</p>
+              }
+              <p class="ex-muted" id="exchange-invoice-help">
+                Enter the exact number printed on the receipt. Several invoices can be combined only when all belong to the same
+                registered customer; walk-in invoices are exchanged one at a time.
+              </p>
+            </form>
+
+            @if (invoices().length > 0) {
+            <ul class="ex-list" aria-label="Selected invoices">
+            @for (invoice of invoices(); track sourceKey(invoice)) {
+                <li>
+                  <div>
+                    <strong>{{ invoice.invoiceNumber }}</strong>
+                    <span class="ex-sub">
+                      {{ invoice.purchaseLocalDate }} · {{ invoice.outletName || 'Outlet' }} ·
+                      {{ invoice.isWalkIn ? 'Walk-in customer' : (invoice.customerName || 'Customer') }}
+                      @if (invoice.customerPhoneMasked) { · {{ invoice.customerPhoneMasked }} }
+                    </span>
+                    @if (invoice.windowExpired) {
+                      <app-ui-badge variant="warning">Window expired {{ invoice.lastEligibleDate }}: supervisor override needed</app-ui-badge>
+                    } @else if (invoice.lastEligibleDate) {
+                      <span class="ex-sub">Exchangeable until {{ invoice.lastEligibleDate }}</span>
+                    }
+                  </div>
+                  <button appUiButton type="button" size="sm" variant="ghost" (click)="removeInvoice(invoice)"
+                    [attr.aria-label]="'Remove invoice ' + invoice.invoiceNumber">Remove</button>
+                </li>
+            }
+            </ul>
+            } @else {
+              <app-ui-state kind="empty" title="No invoice yet" message="Scan the invoice number from the customer's receipt." [compact]="true" />
+            }
+          </div>
+        </ng-template>
+
+        <!-- 2. Returned items -->
+        <ng-template appUiStep="Returned items" description="Condition check" [completed]="!returnsProblem()">
+          <div class="ex-stack">
+            <form class="ex-row" (ngSubmit)="scanReturn()" novalidate>
+              <app-ui-form-field class="ex-grow" label="Scan returned item" hint="Barcode or SKU of the item handed back." [error]="returnError()">
+                <input #returnScanField appUiControl type="text" name="returnScan" autocomplete="off"
+                  [ngModel]="returnScan()" (ngModelChange)="returnScan.set($event ?? '')" />
+              </app-ui-form-field>
+              <button appUiButton type="submit" variant="outline">Match</button>
+            </form>
+
+            @for (invoice of invoices(); track sourceKey(invoice)) {
+              <div class="ex-table-wrap">
+                <table class="ex-table">
+                  <caption class="sr-only">Lines of invoice {{ invoice.invoiceNumber }}</caption>
+                  <thead>
+                    <tr><th scope="col">{{ invoice.invoiceNumber }} item</th><th scope="col" class="ex-num">Sold</th><th scope="col" class="ex-num">Remaining</th><th scope="col"><span class="sr-only">Action</span></th></tr>
+                  </thead>
+                  <tbody>
+                    @for (line of invoice.lines; track line.saleItemId) {
+                      <tr>
+                        <td>{{ lineLabel(line) }}<span class="ex-sub">{{ line.sku }}@if (line.unitLabel) { · {{ line.enteredQuantity }} {{ line.unitLabel }} }</span>
+                          @if (!line.evidenceAvailable) { <span class="ex-sub">Not exchangeable: original price evidence missing</span> }
+                        </td>
+                        <td class="ex-num">{{ line.quantity }}</td>
+                        <td class="ex-num">{{ line.remainingQuantity }}</td>
+                        <td class="ex-num">
+                          <button appUiButton type="button" size="sm" variant="outline" (click)="addReturn(invoice, line)"
+                            [disabled]="line.remainingQuantity <= 0 || !line.evidenceAvailable || isReturned(invoice, line)"
+                            [attr.aria-label]="'Return ' + lineLabel(line)">
+                            {{ isReturned(invoice, line) ? 'Added' : 'Return' }}
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (returns().length > 0) {
+              <h3 class="ex-sub">Items being returned</h3>
+              <ul class="ex-list" aria-label="Returned items">
+                @for (draft of returns(); track draft.key) {
+                  <li [attr.data-testid]="'return-' + draft.key">
+                    <div class="ex-stack">
+                      <strong>{{ lineLabel(draft.line) }}</strong>
+                      <span class="ex-sub">Invoice {{ draft.invoice.invoiceNumber }} · remaining {{ draft.line.remainingQuantity }}</span>
+                      <div class="ex-row">
+                        <app-ui-form-field label="Quantity" class="ex-qty">
+                          <input appUiControl type="number" min="0" [max]="draft.line.remainingQuantity" step="any" inputmode="decimal" name="returnQty"
+                            [ngModel]="draft.quantity" (ngModelChange)="updateReturn(draft.key, { quantity: toNumber($event) })" />
+                        </app-ui-form-field>
+                        <label class="ex-check">
+                          <input appUiControl type="checkbox" name="conditionSellable" [checked]="draft.conditionSellable"
+                            (change)="updateReturn(draft.key, { conditionSellable: $any($event.target).checked })" />
+                          Good, sellable condition
+                        </label>
+                        <label class="ex-check">
+                          <input appUiControl type="checkbox" name="packagingReusable" [checked]="draft.packagingReusable"
+                            (change)="updateReturn(draft.key, { packagingReusable: $any($event.target).checked })" />
+                          Packaging reusable
+                        </label>
+                      </div>
+                    </div>
+                    <button appUiButton type="button" size="sm" variant="ghost" (click)="removeReturn(draft.key)"
+                      [attr.aria-label]="'Remove ' + lineLabel(draft.line)">Remove</button>
+                  </li>
+                }
+              </ul>
+            }
+            <p class="ex-muted">Only items in good, sellable condition can be exchanged. They go straight back into this outlet's sellable stock.</p>
+          </div>
+        </ng-template>
+
+        <!-- 3. Replacements -->
+        <ng-template appUiStep="Replacements" description="New items" [completed]="!replacementsProblem()">
+          <div class="ex-stack">
+            <app-exchange-product-search [outletId]="outletId()" [disabled]="!online()" (picked)="onReplacementPicked($event)" />
+            @if (replacementError()) {
+              <p class="ex-lookup__error" role="alert">{{ replacementError() }}</p>
+            }
+
+            @if (canDiscount()) {
+              <fieldset class="ex-fieldset">
+                <legend>Replacement discount (product-wise or invoice, never both)</legend>
+                <div class="ex-radio-row">
+                  <label class="ex-radio"><input appUiControl type="radio" name="discountMode" [checked]="discountMode() === 'none'" (change)="setDiscountMode('none')" /> None</label>
+                  <label class="ex-radio"><input appUiControl type="radio" name="discountMode" [checked]="discountMode() === 'line'" (change)="setDiscountMode('line')" /> Product-wise</label>
+                  <label class="ex-radio"><input appUiControl type="radio" name="discountMode" [checked]="discountMode() === 'invoice'" (change)="setDiscountMode('invoice')" /> Invoice discount</label>
+                </div>
+              </fieldset>
+              @if (discountMode() === 'invoice') {
+                <app-ui-form-field label="Invoice discount amount">
+                  <input appUiControl type="number" min="0" step="0.01" inputmode="decimal" name="invoiceDiscount"
+                    [ngModel]="invoiceDiscount()" (ngModelChange)="setInvoiceDiscount($event)" />
+                </app-ui-form-field>
+              }
+            }
+
+            @if (replacements().length > 0) {
+              <ul class="ex-list" aria-label="Replacement items">
+                @for (line of replacements(); track line.key) {
+                  <li [attr.data-testid]="'replacement-line-' + line.variantId">
+                    <div class="ex-stack">
+                      <strong>{{ line.productName }}</strong>
+                      @if (line.variantLabel) { <span class="ex-sub">{{ line.variantLabel }}</span> }
+                      <span class="ex-chips">
+                        @if (line.productCode) { <span>Code <strong>{{ line.productCode }}</strong></span> }
+                        <span>SKU <strong>{{ line.sku }}</strong></span>
+                        @if (line.unitLabel) { <span>Unit <strong>{{ line.unitLabel }}</strong></span> }
+                        @if (line.listPrice !== null) { <span>Price <strong>{{ line.listPrice | appCurrency }}</strong></span> }
+                        @if (line.stockQty !== null) { <span>Stock here <strong>{{ line.stockQty }}</strong></span> }
+                      </span>
+                      <div class="ex-row">
+                        <app-ui-form-field [label]="line.unitLabel ? 'Quantity (' + line.unitLabel + ')' : 'Quantity'" class="ex-qty">
+                          <input appUiControl type="number" min="0" step="any" inputmode="decimal" name="replacementQty"
+                            [ngModel]="line.quantity" (ngModelChange)="updateReplacement(line.key, { quantity: toNumber($event) })" />
+                        </app-ui-form-field>
+                        @if (discountMode() === 'line') {
+                          <app-ui-form-field label="Discount amount" class="ex-qty">
+                            <input appUiControl type="number" min="0" step="0.01" inputmode="decimal" name="replacementDiscount"
+                              [ngModel]="line.discount" (ngModelChange)="updateReplacement(line.key, { discount: toNumber($event) })" />
+                          </app-ui-form-field>
+                        }
+                      </div>
+                    </div>
+                    <button appUiButton type="button" size="sm" variant="ghost" (click)="removeReplacement(line.key)"
+                      [attr.aria-label]="'Remove ' + line.productName">Remove</button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <app-ui-state kind="empty" title="No replacement yet" message="Scan the item the customer takes instead." [compact]="true" />
+            }
+
+            <app-ui-form-field label="Salesperson" hint="Exchange attribution goes to this salesperson.">
+              <select appUiControl name="salesperson" [ngModel]="salespersonId()" (ngModelChange)="onSalespersonChange($event)">
+                <option [ngValue]="null">Not selected</option>
+                @for (person of salespersons(); track person.userId) {
+                  <option [ngValue]="person.userId">{{ person.name }}</option>
+                }
+              </select>
+            </app-ui-form-field>
+          </div>
+        </ng-template>
+
+        <!-- 4. Reason -->
+        <ng-template appUiStep="Reason" description="Why" [completed]="!reasonError()">
+          <form class="ui-form-stack" [formGroup]="reasonForm" novalidate>
+            <app-ui-form-field label="Exchange reason" [required]="true">
+              <select appUiControl formControlName="reasonCode" (change)="onReasonChanged()">
+                <option value="">Select a reason</option>
+                @for (reason of reasons; track reason.code) {
+                  <option [value]="reason.code">{{ reason.label }}</option>
+                }
+              </select>
+            </app-ui-form-field>
+            @if (reasonForm.controls.reasonCode.value === 'other') {
+              <app-ui-form-field label="Reason details" [required]="true" [messages]="{ required: 'Describe the reason when Other is selected.' }">
+                <textarea appUiControl formControlName="reasonOtherText" rows="2" maxlength="500" (input)="onReasonChanged()"></textarea>
+              </app-ui-form-field>
+            }
+            <app-ui-form-field label="Internal note" hint="For staff only. Never printed on the receipt.">
+              <textarea appUiControl formControlName="internalNote" rows="2" maxlength="1000" (input)="onReasonChanged()"></textarea>
+            </app-ui-form-field>
+          </form>
+        </ng-template>
+
+        <!-- 5. Review -->
+        <ng-template appUiStep="Review" description="Server totals" [completed]="previewIsCurrent()">
+          <div class="ex-stack">
+            @if (previewLoading()) {
+              <app-ui-state kind="loading" title="Checking the exchange with the server…" [compact]="true" />
+            } @else if (previewError()) {
+              <app-ui-state kind="error" title="The exchange could not be reviewed" [message]="previewError()" [compact]="true">
+                <button appUiButton type="button" variant="outline" (click)="runPreview()" [disabled]="!online()">Review again</button>
+              </app-ui-state>
+            } @else if (preview(); as p) {
+              <div class="ex-split">
+                <div class="ex-stack">
+                  <div class="ex-table-wrap">
+                    <table class="ex-table">
+                      <caption class="sr-only">Returned items</caption>
+                      <thead><tr><th scope="col">Returned</th><th scope="col" class="ex-num">Qty</th><th scope="col" class="ex-num">VAT</th><th scope="col" class="ex-num">Credit</th></tr></thead>
+                      <tbody>
+                        @for (line of p.returns; track line.sourceLineId) {
+                          <tr>
+                            <td>{{ returnName(line.sourceLineId, line.sourceKind) }}<span class="ex-sub">Invoice {{ returnInvoice(line.sourceLineId, line.sourceKind) }}@if (line.windowExpired) { · window expired }@if (line.chainExceeded) { · chain limit exceeded }</span></td>
+                            <td class="ex-num">{{ line.quantity }}</td>
+                            <td class="ex-num">{{ line.creditVat | appCurrency }}</td>
+                            <td class="ex-num">{{ line.creditGross | appCurrency }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="ex-table-wrap">
+                    <table class="ex-table">
+                      <caption class="sr-only">Replacement items</caption>
+                      <thead><tr><th scope="col">Replacement</th><th scope="col" class="ex-num">Qty</th><th scope="col" class="ex-num">Unit price</th><th scope="col" class="ex-num">Discount</th><th scope="col" class="ex-num">VAT</th><th scope="col" class="ex-num">Amount</th></tr></thead>
+                      <tbody>
+                        @for (line of p.replacements; track $index) {
+                          <tr>
+                            <td>{{ replacementName($index, line.variantId) }}<span class="ex-sub">Stock {{ line.availableStock }} · VAT {{ line.vatRate }}%</span></td>
+                            <td class="ex-num">{{ line.baseQuantity }}</td>
+                            <td class="ex-num">{{ line.unitPrice | appCurrency }}</td>
+                            <td class="ex-num">{{ (line.lineDiscount + line.invoiceDiscountShare) | appCurrency }}</td>
+                            <td class="ex-num">{{ line.vatAmount | appCurrency }}</td>
+                            <td class="ex-num">{{ line.gross | appCurrency }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <app-ui-card title="Summary" [headingLevel]="3">
+                  <dl class="ex-totals" data-testid="preview-totals">
+                    <div><dt>Returned credit</dt><dd>{{ p.returnGross | appCurrency }}</dd></div>
+                    <div><dt>Return VAT</dt><dd>{{ p.returnVat | appCurrency }}</dd></div>
+                    <div><dt>Replacements</dt><dd>{{ p.replacementGross | appCurrency }}</dd></div>
+                    <div><dt>Replacement VAT</dt><dd>{{ p.replacementVat | appCurrency }}</dd></div>
+                    <div><dt>Replacement discounts</dt><dd>{{ p.replacementDiscount | appCurrency }}</dd></div>
+                    <div class="ex-totals__strong"><dt>Difference</dt><dd>{{ p.netAdjustmentGross > 0 ? '+' : '' }}{{ p.netAdjustmentGross | appCurrency }}</dd></div>
+                    <div><dt>{{ directionLabel(p.settlementDirection) }}</dt><dd>{{ p.settlementAmount | appCurrency }}</dd></div>
+                    <div><dt>Eligibility date</dt><dd>{{ p.eligibilityLocalDate }}</dd></div>
+                    <div><dt>Phone verification</dt><dd>{{ phoneVerificationLabel(p.phoneVerificationResult) }}</dd></div>
+                    <div><dt>Loyalty</dt><dd data-testid="loyalty-status">Loyalty: not active</dd></div>
+                  </dl>
+                  @if (p.requiredApprovals.length > 0) {
+                    <app-ui-alert variant="warning" title="Supervisor approval required">
+                      @for (type of p.requiredApprovals; track type) { <div>{{ approvalLabel(type) }}</div> }
+                    </app-ui-alert>
+                  }
+                </app-ui-card>
+              </div>
+            } @else {
+              <button appUiButton type="button" (click)="runPreview()" [disabled]="!online()">Review exchange</button>
+            }
+          </div>
+        </ng-template>
+
+        <!-- 6. Settle and confirm -->
+        <ng-template appUiStep="Settle & confirm" description="Payment">
+          @if (preview(); as p) {
+            <div class="ex-split">
+              <div class="ex-stack">
+                @if (requiredApprovals().length > 0) {
+                  <app-ui-card title="Supervisor approvals" [headingLevel]="3">
+                    <ul class="ex-list" aria-label="Required approvals">
+                      @for (type of requiredApprovals(); track type) {
+                        <li>
+                          <span>{{ approvalLabel(type) }}</span>
+                          @if (missingApprovals().includes(type)) {
+                            <app-ui-badge variant="warning">Pending</app-ui-badge>
+                          } @else {
+                            <app-ui-badge variant="success">Approved</app-ui-badge>
+                          }
+                        </li>
+                      }
+                    </ul>
+                    @if (missingApprovals().includes('refund') && !settlement().refundMethod) {
+                      <p class="ex-muted">Choose the refund method first; the refund approval is bound to the method and amount.</p>
+                    }
+                    @if (approvalError() && !approvalOpen()) { <p class="ex-error" role="status">{{ approvalError() }}</p> }
+                    <div uiCardFooter>
+                      <button appUiButton type="button" variant="outline" (click)="openApprovals()"
+                        [disabled]="!online() || approvalTypesToRequest().length === 0" data-testid="open-approvals">
+                        Supervisor approval
+                      </button>
+                    </div>
+                  </app-ui-card>
+                }
+                <app-exchange-settlement-panel
+                  [direction]="p.settlementDirection"
+                  [amount]="p.settlementAmount"
+                  [disabled]="confirmBusy()"
+                  [(draft)]="settlement" />
+              </div>
+
+              <div class="ex-stack">
+                <dl class="ex-totals">
+                  <div><dt>Returned credit</dt><dd>{{ p.returnGross | appCurrency }}</dd></div>
+                  <div><dt>Replacements</dt><dd>{{ p.replacementGross | appCurrency }}</dd></div>
+                  <div class="ex-totals__strong"><dt>{{ directionLabel(p.settlementDirection) }}</dt><dd>{{ p.settlementAmount | appCurrency }}</dd></div>
+                </dl>
+                @if (confirmError()) {
+                  <app-ui-alert variant="danger" title="Exchange not completed" data-testid="confirm-error">{{ confirmError() }}</app-ui-alert>
+                }
+                <button appUiButton type="button" size="lg" [block]="true" data-testid="confirm-exchange"
+                  [disabled]="!canConfirm()" [loading]="confirmBusy()" [attr.title]="confirmDisabledReason() || null"
+                  (click)="confirm()">
+                  Confirm exchange
+                </button>
+                @if (!canConfirm() && !confirmBusy() && confirmDisabledReason(); as why) {
+                  <p class="ex-muted" role="status">{{ why }}</p>
+                }
+              </div>
+            </div>
+          } @else {
+            <app-ui-state kind="empty" title="Review first" message="Go back to Review so the server can calculate the exchange." [compact]="true" />
+          }
+        </ng-template>
+      </app-ui-stepper>
+
+      @if (stepMessage()) {
+        <p class="ex-error" role="alert" data-testid="step-message">{{ stepMessage() }}</p>
+      } @else if (stepPending(); as pending) {
+        <p class="ex-muted ex-step-hint" role="status" data-testid="step-pending">{{ pending }}</p>
+      }
+    </app-ui-card>
+  }
+</div>
+
+<app-ui-dialog [(open)]="lineChoiceOpen" title="Which invoice line?" size="md">
+  <p class="ex-muted">This item appears on more than one line. Choose the line the customer is returning.</p>
+  <ul class="ex-list">
+    @for (choice of lineChoices(); track sourceKey(choice.invoice) + ':' + choice.line.saleItemId) {
+      <li>
+        <span>{{ lineLabel(choice.line) }}<span class="ex-sub">Invoice {{ choice.invoice.invoiceNumber }} · remaining {{ choice.line.remainingQuantity }}</span></span>
+        <button appUiButton type="button" size="sm" (click)="chooseLine(choice.invoice, choice.line)">Choose</button>
+      </li>
+    }
+  </ul>
+</app-ui-dialog>
+
+<app-ui-dialog [open]="approvalOpen()" (openChange)="$event ? null : closeApprovals()" title="Supervisor approval" size="md">
+  <form id="exchange-approval-form" class="ui-form-stack" (ngSubmit)="submitApprovals()" novalidate autocomplete="off">
+    <p class="ex-muted">A different user with the required permission and access to this outlet signs in here. Your POS session is not switched.</p>
+    <app-ui-form-field label="Supervisor email" [required]="true">
+      <input appUiControl type="email" name="supervisorLogin" autocomplete="off"
+        [ngModel]="supervisorLogin()" (ngModelChange)="supervisorLogin.set($event ?? '')" />
+    </app-ui-form-field>
+    <app-ui-form-field label="Supervisor password" [required]="true">
+      <input appUiControl type="password" name="supervisorPassword" autocomplete="new-password"
+        [ngModel]="supervisorPassword()" (ngModelChange)="supervisorPassword.set($event ?? '')" />
+    </app-ui-form-field>
+    @for (type of approvalTypesToRequest(); track type) {
+      <app-ui-form-field [label]="'Reason: ' + approvalLabel(type)" [required]="true">
+        <textarea appUiControl rows="2" maxlength="500" [name]="'reason-' + type"
+          [ngModel]="approvalReasons()[type]" (ngModelChange)="setApprovalReason(type, $event ?? '')"></textarea>
+      </app-ui-form-field>
+    }
+    @if (approvalError()) {
+      <app-ui-alert variant="danger" data-testid="approval-error">{{ approvalError() }}</app-ui-alert>
+    }
+  </form>
+  <button uiDialogFooter appUiButton type="button" variant="outline" (click)="closeApprovals()">Cancel</button>
+  <button uiDialogFooter appUiButton type="submit" form="exchange-approval-form" [loading]="approvalBusy()" [disabled]="!online()">Approve</button>
+</app-ui-dialog>
+
+@if (uomPicker(); as picker) {
+  <app-pos-uom-picker
+    [config]="picker.config"
+    [productName]="picker.product.productName"
+    [outletId]="outletId()"
+    [knownStock]="picker.product.stockQty ?? null"
+    (picked)="onUomPicked($event)"
+    (cancelled)="onUomPickerCancelled()"
+    (configChanged)="onUomConfigChanged($event)" />
+}

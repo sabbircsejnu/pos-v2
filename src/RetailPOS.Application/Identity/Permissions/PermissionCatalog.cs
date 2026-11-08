@@ -38,8 +38,30 @@ public static class PermissionCatalog
     /// <summary>Create, execute, cancel and reverse repack jobs at an authorized location.</summary>
     public const string RepackingExecute = "inventory.repacking.execute";
 
+    /// <summary>Start, look up, preview and confirm a product exchange (Exchange EX-16).</summary>
+    public const string ExchangeCreate = "pos.exchange.create";
+
+    /// <summary>Confirm an exchange that pays a refund, or approve such a refund as supervisor (EX-16, OC-03).</summary>
+    public const string ExchangeRefund = "pos.exchange.refund";
+
+    /// <summary>Supervisor approval of an expired exchange window, and of a high-value exchange (EX-16, C-10).</summary>
+    public const string ExchangeOverrideWindow = "pos.exchange.override_window";
+
+    /// <summary>Supervisor approval of a replacement-chain window or count exception (EX-16, OC-02).</summary>
+    public const string ExchangeOverrideChain = "pos.exchange.override_chain";
+
+    /// <summary>Reverse a completed exchange with compensating effects (EX-16, EX-14).</summary>
+    public const string ExchangeReverse = "pos.exchange.reverse";
+
+    /// <summary>Exactly the five approved exchange permissions (EX-16, C-01); there is no sixth.</summary>
+    public static readonly string[] ExchangePermissions =
+    {
+        ExchangeCreate, ExchangeRefund, ExchangeOverrideWindow, ExchangeOverrideChain, ExchangeReverse
+    };
+
     public static readonly string[] All = new[]
     {
+        ExchangeCreate, ExchangeRefund, ExchangeOverrideWindow, ExchangeOverrideChain, ExchangeReverse,
         UomView, UomManage, PackStateView, PackStateManage, RepackingView, RepackingExecute,
         "users.view", "users.create", "users.edit", "users.delete",
         UserContextAccessManage, UserContextAccessGrantAll,

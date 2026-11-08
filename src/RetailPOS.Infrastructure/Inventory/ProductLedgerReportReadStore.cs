@@ -299,6 +299,7 @@ public sealed class ProductLedgerReportReadStore(RetailPOSDbContext dbContext)
         StockLedgerTransactionType.TransferIn => "Transfer In",
         StockLedgerTransactionType.TransferOut => "Transfer Out",
         StockLedgerTransactionType.Exchange => "Exchange",
+        StockLedgerTransactionType.ExchangeReversal => "Exchange Reversal",
         StockLedgerTransactionType.ReturnTransferIn => "Return Transfer In",
         StockLedgerTransactionType.ReturnTransferOut => "Return Transfer Out",
         StockLedgerTransactionType.TransferRejection => "Transfer Rejected",

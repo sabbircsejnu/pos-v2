@@ -237,6 +237,22 @@ export class PosService {
     });
   }
 
+  /**
+   * Server-side product search over the business's sellable variants (product name, variant name, SKU, barcode and
+   * main product code; partial, case-insensitive), with stock at the given outlet. Same endpoint and authorization as
+   * the catalogue; selling price only, never cost.
+   */
+  searchCatalogue(query: string, outletId: number, limit: number = 30): Observable<PosApiResponse<PosCatalogueItemDto[]>> {
+    const params = new HttpParams()
+      .set('q', query.trim())
+      .set('outletId', outletId.toString())
+      .set('limit', limit.toString());
+    return this.http.get<PosApiResponse<PosCatalogueItemDto[]>>(`${this.posUrl}/catalogue`, {
+      params,
+      context: new HttpContext().set(SUPPRESS_ERROR_NOTICE, true)
+    });
+  }
+
   /** Active categories for the POS filter, authorized by the POS sale permission (not categories.view). */
   getCategories(): Observable<PosApiResponse<PosCategoryDto[]>> {
     return this.http.get<PosApiResponse<PosCategoryDto[]>>(`${this.posUrl}/categories`, {

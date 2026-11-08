@@ -192,6 +192,18 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             };
         }
 
+        foreach (var fact in await ReadExchangeFactsAsync(scope.BusinessId, outletIds, from, to, cancellationToken))
+        {
+            (long Outlet, DateOnly Date) key = (fact.OutletId, fact.Date);
+            var day = Merge(days, key);
+            days[key] = day with
+            {
+                NetSales = day.NetSales + fact.NetSales,
+                NetUnits = day.NetUnits + fact.Units,
+                Cogs = day.Cogs + fact.Cogs
+            };
+        }
+
         var refundedWithoutRecord = await sales.CountAsync(
             sale => sale.Status.ToLower() == "refunded"
                 && !dbContext.SaleFinancialPostings.Any(posting =>
@@ -205,6 +217,88 @@ public sealed class SalesFinanceReadStore(RetailPOSDbContext dbContext) : ISales
             days.Values.OrderBy(day => day.BusinessDate).ThenBy(day => day.OutletId).ToList(),
             reversals.Count(reversal => !reversal.Trusted) + refundedWithoutRecord,
             unreversedExchanges);
+    }
+
+    private sealed record ExchangeDayFact(long OutletId, DateOnly Date, decimal NetSales, decimal Cogs, decimal Units);
+
+    /// <summary>
+    /// Product exchanges (EX-01, EX-20, D-06, D-12), net of VAT like every other sales figure here. An exchange counts on
+    /// its cash-session business date at its receiving outlet whatever its current status (a reversed exchange still
+    /// happened that day); its reversal offsets it on the reversal's own business date and outlet, as the journals do.
+    /// The original sale is untouched by an exchange (D-14), so the exchange's net adjustment is the only change to sales.
+    /// Units follow the pcs-only rule used for sale lines.
+    /// </summary>
+    private async Task<IReadOnlyList<ExchangeDayFact>> ReadExchangeFactsAsync(
+        long businessId,
+        List<long> outletIds,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
+
+        var exchanges = await dbContext.Exchanges
+            .AsNoTracking()
+            .Where(exchange =>
+                exchange.BusinessId == businessId
+                && outletIds.Contains(exchange.ReceivingOutletId)
+                && exchange.BusinessDate >= fromDate
+                && exchange.BusinessDate <= toDate)
+            .Select(exchange => new
+            {
+                exchange.Id,
+                OutletId = exchange.ReceivingOutletId,
+                Date = exchange.BusinessDate,
+                exchange.NetAdjustmentNet,
+                Cogs = exchange.ReplacementCost - exchange.ReturnCost
+            })
+            .ToListAsync(cancellationToken);
+
+        var reversals = await dbContext.ExchangeReversals
+            .AsNoTracking()
+            .Where(reversal =>
+                reversal.BusinessId == businessId
+                && outletIds.Contains(reversal.ReceivingOutletId)
+                && reversal.BusinessDate >= fromDate
+                && reversal.BusinessDate <= toDate)
+            .Join(
+                dbContext.Exchanges.Where(exchange => exchange.BusinessId == businessId),
+                reversal => reversal.ExchangeId,
+                exchange => exchange.Id,
+                (reversal, exchange) => new
+                {
+                    exchange.Id,
+                    OutletId = reversal.ReceivingOutletId,
+                    Date = reversal.BusinessDate,
+                    exchange.NetAdjustmentNet,
+                    // Fractional packaging that could not come back stays expensed, exactly as the reversal journal leaves it.
+                    Cogs = exchange.ReplacementCost - reversal.RetainedPackagingCost - exchange.ReturnCost
+                })
+            .ToListAsync(cancellationToken);
+        if (exchanges.Count == 0 && reversals.Count == 0)
+            return [];
+
+        var exchangeIds = exchanges.Select(row => row.Id).Concat(reversals.Select(row => row.Id)).Distinct().ToList();
+        var issued = await dbContext.ExchangeReplacementLines
+            .AsNoTracking()
+            .Where(line => exchangeIds.Contains(line.ExchangeId) && (line.UomBaseUnitCode == null || line.UomBaseUnitCode == "pcs"))
+            .GroupBy(line => line.ExchangeId)
+            .Select(group => new { ExchangeId = group.Key, Quantity = group.Sum(line => line.IssuedQuantity) })
+            .ToDictionaryAsync(row => row.ExchangeId, row => row.Quantity, cancellationToken);
+        var returned = await dbContext.ExchangeReturnLines
+            .AsNoTracking()
+            .Where(line => exchangeIds.Contains(line.ExchangeId) && (line.UomBaseUnitCode == null || line.UomBaseUnitCode == "pcs"))
+            .GroupBy(line => line.ExchangeId)
+            .Select(group => new { ExchangeId = group.Key, Quantity = group.Sum(line => line.ReturnedQuantity) })
+            .ToDictionaryAsync(row => row.ExchangeId, row => row.Quantity, cancellationToken);
+        decimal Units(long exchangeId) => issued.GetValueOrDefault(exchangeId) - returned.GetValueOrDefault(exchangeId);
+
+        return exchanges
+            .Select(row => new ExchangeDayFact(row.OutletId, DateOnly.FromDateTime(row.Date), row.NetAdjustmentNet, row.Cogs, Units(row.Id)))
+            .Concat(reversals.Select(row => new ExchangeDayFact(
+                row.OutletId, DateOnly.FromDateTime(row.Date), -row.NetAdjustmentNet, -row.Cogs, -Units(row.Id))))
+            .ToList();
     }
 
     private static SalesDayFact Merge(

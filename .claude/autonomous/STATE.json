@@ -22,7 +22,7 @@
     "No migration, no seeding, no new package.",
     "Use List<long>, never arrays, in EF Contains. Build with -c Release if bin/Debug is locked."
   ],
-  "activeFeature": "uom-d01-d12",
+  "activeFeature": "exchange",
   "uom": {
     "updated": "2026-11-07",
     "spec": "Docs/Unit_Of_Measurement/",
@@ -88,5 +88,97 @@
     "backup": "backups/retailpos_db_pre_uom_20261107T094240Z.dump (sha256 903d3341...fd9818), restore verified",
     "releaseReadiness": "Docs/Unit_Of_Measurement/UOM_RELEASE_READINESS.md",
     "gapTracker": "Docs/Unit_Of_Measurement/UOM_FINAL_GAP_CLOSURE_TRACKER.md"
+  },
+  "exchange": {
+    "updated": "2026-11-08",
+    "spec": "Docs/08_Sales_And_POS/Exchange/",
+    "phase": "browser-uat-automated-awaiting-signoff",
+    "completed": [
+      "EXC-00",
+      "EXC-02",
+      "EXC-03",
+      "EXC-04",
+      "EXC-05",
+      "EXC-06",
+      "EXC-07",
+      "EXC-08",
+      "EXC-09",
+      "EXC-10",
+      "EXC-11",
+      "EXC-12",
+      "EXC-13",
+      "EXC-14",
+      "EXC-15",
+      "EXC-16",
+      "EXC-17",
+      "EXC-18",
+      "EXC-19",
+      "EXC-20",
+      "EXC-21",
+      "EXC-22",
+      "EXC-23",
+      "EXC-24"
+    ],
+    "inProgress": [],
+    "pending": [],
+    "testDb": "A2 isolated Postgres 127.0.0.1:55432 (iranimart-test-postgres-1), template clones only",
+    "migrations": [
+      "20261107221022_PosV2ExchangeFoundation",
+      "20261108093416_PosV2ExchangeReversalRetainedCost (L4)",
+      "20261108094509_PosV2ExchangeApprovalFailures (L1b)",
+      "All generated; tested only via fixture-created disposable A2 databases (MigrationChainValidationTests + template clones); NOT applied to any shared DB"
+    ],
+    "databaseActions": [
+      "2026-11-07 MigrationChainValidationTests on A2 55432: disposable fresh DB created+dropped by fixture; passed",
+      "2026-11-07 Exchange PG HTTP tests + regression subset on A2 55432 disposable template clones (fixture-created/dropped)"
+    ],
+    "baseline": {
+      "unit": "1054 passed",
+      "build": "0 errors"
+    },
+    "nextAction": "Owner/Finance: human UAT sign-off (checklist §9), EXB-01..03 Finance/data audit, EXB-04 migrations for shared envs, EXB-08 role update decision",
+    "notes": [
+      "Never use RequiredAuditTransaction in Exchange tx; use AppendSourceChangeAsync",
+      "Build with -c Release",
+      "EXC-03 void guard: VoidSaleCommand + ISaleVoidStore.HasReturnedQuantityAsync (SALE_HAS_RETURNS 409)",
+      "EXC-04: CreateSaleCommand rejects OriginalSaleId (SALE_EXCHANGE_LINK_DEPRECATED 400); controller link block removed; legacy tests must be updated",
+      "EXC-02: PermissionCatalog Exchange* + BusinessRolePermissions OutletManager/SalesPerson (templates only; DbSeeder untouched)",
+      "EXC-06: Application/Exchanges/ExchangeRules.cs + UnitTests/Exchanges/ExchangeRulesTests.cs (38 passed)",
+      "Cash: exchange_cash_in/out added (domain, CHECKs in migration, calculator folds into cashRetained/cashRefunds; unknown type now throws)",
+      "Application/Exchanges: ExchangeRules, ExchangeEvaluator (shared preview/approval/confirm + preview hash), ExchangeCommands (policy w/ DN-01, preview, supervisor approvals), ConfirmExchangeCommand (atomic; reserves exchanges.id via sequence, inserts header once), ExchangeReceiptComposer, Abstractions/ExchangePorts",
+      "SaleUomReversal.RestoreAsync gained optional location/reference params (defaults unchanged)",
+      "Remaining for EXC-07..10: Infrastructure ExchangeStore (incl ReserveExchangeIdAsync nextval, LockOutletInventories ORDER BY id FOR UPDATE, period FOR SHARE, drawer advisory lock), API controller+DTOs, ExchangeJournalPoster/AuditWriter/EventWriter in API/Services, middleware mapping ExchangeException, DI in Program.cs, drawer lock in CashSessionMovementRecorder, PG tests T-01..T-05",
+      "Backend core compiles (solution Release 0 errors): Infrastructure/Exchanges/ExchangeStore.cs, API/Services/ExchangeAdapters.cs (journal poster/audit/outbox), API/Controllers/ExchangesController.cs (policy, source-invoice, preview, approvals, confirm), Program.cs DI + 'exchange-approval' rate limit, middleware ExchangeException mapping, CashSessionMovementRecorder drawer lock",
+      "Legacy exchange-link tests updated to assert D-01 rejection (5 tests); btrim->trim in exchange CHECKs for SQLite legacy tests",
+      "Done: T-01 (commit+fault-injected rollback), T-03 subset (refund vs exchange), T-04 calculator unit; NOT yet: T-02 period race test, T-05 inventory-row race test, cash-out vs payout race",
+      "EXC-14 Angular done: routes /pos/exchange, /exchanges, /exchanges/:id, /settings/exchange; role-form group; POS + Sale Details entry points. Gap: UI cannot re-exchange replacement lines (needs backend lookup of exchange replacement lines by exchange number)",
+      "VI-20 confirmed: provisioner maps vat_payable to SupplierPayableCode; no VAT payable default code; pre-existing; Finance release blocker (not changed)",
+      "EXC-11/12 done by subagent: ReverseExchangeCommand.cs, ExchangeHistoryQueries.cs, ExchangeReadPorts.cs, ExchangeReadStore.cs, ExchangeReceiptPdfRenderer.cs, UomPostgresHttpTests.ExchangeReversal.cs; reversal mirrors original ledger rows; prepared packs restored as prepared",
+      "EXC-13 + re-exchange lookup delegated (in progress)",
+      "2026-11-08 review fixes: M1 idempotency re-check after lock (confirm+reverse), M2 void locks sale first (ISaleVoidStore.LockSaleAsync), L1 dummy hash via IPasswordHasher, L2 business filter in replacement-line lock SQL, L5 ensure only used journal slots. Not fixed (documented Plan 12.2): L1b, L3, L4, L6",
+      "EXC-13 done by agent: SalesFinanceReadStore exchange facts by business date, SalesReportReadStore signed gross, ledger labels, metrics endpoint; re-exchange lookup by exchange number (EX-04) done",
+      "M2 made the void barrier test deadlock (barrier waited while holding sale lock); barrier moved to LockSaleAsync like the refund test",
+      "2026-11-08 hardening: L4 retained_packaging_cost; L6 terminal revalidation+lock+hash; L1b DB lockout (hashed keys, 5/login, 10/cashier, 15 min) + limiter is per-IP only (runs before auth); L3 by-sale 404 for unseen outlet; I-12 resolved (Plan 12.4); VI-20/VI-03 analysis (Plan 12.5); UAT checklist doc",
+      "2026-11-08 browser UAT defects: DEF-01 onboarding templates OutletManager/SalesPerson lacked cash_sessions.view/open/close (rule from migration PosV2P3CashSessionManagement) -> fixed in BusinessRolePermissions + RBAC test; existing shared DB roles NOT changed (owner decision). DEF-02 raw session date -> appDate. DEF-03 global 403 modal over approval dialog -> SUPPRESS_ERROR_NOTICE on approvals/confirm/reverse. DEF-04 generic SOURCE_INELIGIBLE text hid reversed reason -> server message first.",
+      "2026-11-08 UX round (Plan 12.7): invoice lookup layout; ExchangeProductSearchComponent reusing /api/pos/catalogue?q= + /api/pos/lookup fallback; shared pos-variant-attributes.ts; ui-stepper nextDisabled + Next trailing edge; synthetic ABA852P product in UAT DB; browser 33/33; frontend 2064; owner applied Exchange migrations to Dev DB themselves (EXB-04 partly resolved for Dev)"
+    ],
+    "tests": {
+      "unit": "1097 passed",
+      "integrationFull": "2733 passed / 0 failed (Category!=LiveInfrastructure; 15 live tests not run, test stack down)",
+      "frontend": "2064 passed; prod build ok",
+      "build": "Release 0 errors",
+      "browser": "33/33 passed (incl. 05-replacement-search) 2026-11-08 ~12:55Z",
+      "flake": "DurableDelivery inbox test: 1 failure 2026-11-07, not reproduced in 5 runs",
+      "uatReconcile": "RECONCILIATION OK: 54 exchanges (4 reversed), 58 journals"
+    },
+    "uatEnvironment": {
+      "database": "iranimart_pos_v2_exchange_uat on Test PostgreSQL 127.0.0.1:55432 (persistent, synthetic, marker comment iranimart-exchange-uat:synthetic:persistent; never auto-reset)",
+      "tool": "tools/RetailPOS.ExchangeUat (provision|api|status|ids|reconcile|stock)",
+      "api": "http://127.0.0.1:5105 (Release build; Redis in-memory; broker/ES off)",
+      "web": "http://127.0.0.1:4200 via e2e/exchange-uat/uat-web.mjs (Angular development build in .uat/web)",
+      "browser": "Playwright 1.52.0 + installed Microsoft Edge (channel msedge), headless",
+      "doc": "Docs/08_Sales_And_POS/Exchange/IRANIMART_POS_V2_EXCHANGE_UAT_ENVIRONMENT.md",
+      "secrets": "synthetic password in e2e/exchange-uat/.uat/credentials.json (git-ignored); Test-server credentials read from IntegrationTests user-secrets at run time only"
+    }
   }
 }

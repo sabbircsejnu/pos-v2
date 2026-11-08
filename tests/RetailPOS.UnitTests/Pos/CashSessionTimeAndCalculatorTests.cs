@@ -143,6 +143,27 @@ public sealed class CashSessionExpectedCashCalculatorTests
             Opened.AddHours(8));
 
     [Fact]
+    public void Exchange_cash_in_and_out_are_part_of_the_expected_drawer_and_its_components()
+    {
+        var summary = Calculate(Session(100m), [Sale(1, "completed", Cash(40m))],
+        [
+            Movement(CashSessionMovementTypes.ExchangeCashIn, 22m, 1),
+            Movement(CashSessionMovementTypes.ExchangeCashOut, -33m, 2),
+            Movement(CashSessionMovementTypes.CashRefund, -5m, 3)
+        ]);
+
+        Assert.Equal(124m, summary.ExpectedClosingCash);    // 100 + 40 + 22 − 33 − 5
+        Assert.Equal(62m, summary.CashSales);        // exchange collections are cash received
+        Assert.Equal(38m, summary.CashRefunds);              // exchange refunds are cash refunds
+    }
+
+    [Fact]
+    public void An_unknown_movement_type_never_silently_vanishes_from_the_drawer()
+    {
+        Assert.Throws<InvalidOperationException>(() => Calculate(Session(100m), movements: [Movement("mystery", 10m)]));
+    }
+
+    [Fact]
     public void Opening_plus_cash_sales()
     {
         var summary = Calculate(Session(100m), [Sale(1, "completed", Cash(40m)), Sale(2, "completed", Cash(60.50m))]);

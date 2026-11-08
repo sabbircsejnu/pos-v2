@@ -70,6 +70,18 @@ public static class CashSessionExpectedCashCalculator
                 case CashSessionMovementTypes.Correction:
                     corrections += movement.CashEffect;
                     break;
+                // Exchange cash is reported inside the existing totals so the close snapshot keeps its shape and its
+                // components still add up to the expected cash: money collected is cash received, money paid back is a
+                // cash refund to a customer.
+                case CashSessionMovementTypes.ExchangeCashIn:
+                    cashRetained += movement.CashEffect;
+                    break;
+                case CashSessionMovementTypes.ExchangeCashOut:
+                    cashRefunds += -movement.CashEffect;
+                    break;
+                default:
+                    // A movement this calculator does not know would silently vanish from the drawer total.
+                    throw new InvalidOperationException($"Cash movement type '{movement.MovementType}' is not supported by the drawer calculation.");
             }
         }
 

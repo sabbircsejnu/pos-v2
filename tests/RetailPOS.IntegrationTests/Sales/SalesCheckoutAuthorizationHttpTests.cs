@@ -110,7 +110,9 @@ public sealed class SalesCheckoutAuthorizationHttpTests : IClassFixture<RetailPo
     [Theory]
     [InlineData(5002L)] // another outlet of the same business the cashier is not assigned to
     [InlineData(5003L)] // an outlet of another business
-    public async Task ExchangeLink_ToASaleOutsideTheCallersOutletScope_IsForbidden(long originalOutletId)
+    // Exchange D-01: new exchange links are refused outright (400) before the original sale is even looked up, so a
+    // sale outside the caller's scope is neither disclosed nor mutated.
+    public async Task ExchangeLink_ToAnyOriginalSale_IsRejectedAsDeprecated_WithoutTouchingIt(long originalOutletId)
     {
         await SeedAsync();
         using var client = CreateClient();
@@ -120,7 +122,8 @@ public sealed class SalesCheckoutAuthorizationHttpTests : IClassFixture<RetailPo
 
         var response = await client.PostAsJsonAsync("/api/sales", request);
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("SALE_EXCHANGE_LINK_DEPRECATED", await response.Content.ReadAsStringAsync());
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RetailPOSDbContext>();
         Assert.Null((await db.Sales.SingleAsync(sale => sale.Id == originalId)).ReplacementSaleId);

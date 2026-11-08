@@ -37,6 +37,12 @@ public sealed class CashSessionMovementRecorder(
             var lockKey = $"cash-movement:{businessId}:{request.SourceKey}";
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
+
+            // Every cash outflow of one drawer is serialised, always as the last lock, so an exchange's drawer-cash check
+            // (EX-31, D-02) cannot be outrun by a concurrent refund payout or drawer expense. Locking only; no new rule.
+            if (request.CashEffect < 0)
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT pg_advisory_xact_lock(hashtextextended({DrawerLockKey(businessId, request.CashSessionId)}, 0))", cancellationToken);
         }
 
         var existing = await dbContext.CashSessionMovements.AsNoTracking().FirstOrDefaultAsync(
@@ -101,4 +107,7 @@ public sealed class CashSessionMovementRecorder(
         await dbContext.SaveChangesAsync(cancellationToken);
         return new CashSessionMovementResult(movement, true);
     }
+
+    /// <summary>The advisory key shared by every cash outflow of one drawer (and by the exchange drawer check).</summary>
+    public static string DrawerLockKey(long businessId, long cashSessionId) => $"cash-drawer:{businessId}:{cashSessionId}";
 }

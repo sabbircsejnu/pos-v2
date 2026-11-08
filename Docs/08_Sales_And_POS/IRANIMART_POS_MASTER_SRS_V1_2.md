@@ -43,6 +43,8 @@ This SRS consolidates the uploaded `PHASE_01_IMPLEMENTATION(1).md`, `PHASE_01_IM
 
 ### 2.2 Related modules and specification boundaries
 
+> **Cross-reference (2026-11-07):** the Product Exchange part of the "separate SRD" is now `Docs/08_Sales_And_POS/Exchange/IRANIMART_POS_V2_EXCHANGE_SRS.md` (with LLD, Gap Analysis and Implementation Plan). Standalone return/refund policy items (deferred void/refund payout, line-level partial-refund cash policy) are not covered by it and remain open dependencies. This note adds no POS requirement.
+
 This blueprint covers the complete POS checkout, terminals, cash-session and closing experience, plus the contracts needed to integrate approved adjacent modules. **Returns/exchanges** have a separate SRD but must integrate with sale reversal, stock, session cash, and reporting. **The Loyalty Programme** has its own 40-decision SRS/LLD and must be integrated for real tier, earning, redemption, OTP, and ledger behavior when the in-process Loyalty Module is enabled. **Promotions/coupons** require an existing or separately approved campaign/offer engine; do not invent policy. **Desktop offline POS** has a separate offline-first specification; retain idempotent checkout and sync-compatible contracts but do not imply an online browser implements offline sales. **Dashboard visualization**, bespoke receipt designer, and advanced analytics are separate experiences, although data projections and event contracts are required here. Layaway, reservation, quotation conversion, sales-order conversion, ecommerce pickup, click-and-collect, and mobile POS are deliberately **not required**. A prototype-only interaction must never post fake points or payments.
 
 

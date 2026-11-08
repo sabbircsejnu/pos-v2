@@ -1,0 +1,197 @@
+<div class="ex-page" data-density="compact">
+  <app-ui-page-header [title]="detail()?.exchangeNumber ?? 'Exchange'" description="Product exchange details" [breadcrumbs]="breadcrumbs()">
+    @if (detail()) {
+      <div uiPageSecondaryActions>
+        <button appUiButton type="button" variant="outline" (click)="reprint()" [loading]="receiptBusy()">
+          <i class="fas fa-print" aria-hidden="true"></i> Reprint 80mm
+        </button>
+        <button appUiButton type="button" variant="outline" (click)="downloadPdf('thermal')" [disabled]="receiptBusy()">
+          <i class="fas fa-file-pdf" aria-hidden="true"></i> PDF
+        </button>
+        <button appUiButton type="button" variant="outline" (click)="downloadPdf('a4')" [disabled]="receiptBusy()">A4 PDF</button>
+      </div>
+    }
+    @if (canReverse()) {
+        <div uiPagePrimaryActions>
+          <button appUiButton type="button" variant="danger" (click)="openReverse()" [disabled]="!online()"
+            [attr.title]="online() ? null : 'Offline: reversal needs a live connection'">
+            <i class="fas fa-rotate-left" aria-hidden="true"></i> Reverse exchange
+          </button>
+        </div>
+    }
+  </app-ui-page-header>
+
+  @if (loading()) {
+    <app-ui-state kind="loading" title="Loading exchange…" />
+  } @else if (loadError()) {
+    <app-ui-state kind="error" title="Exchange could not be loaded" [message]="loadError()!">
+      <button appUiButton type="button" variant="outline" (click)="load()">Retry</button>
+    </app-ui-state>
+  } @else if (detail(); as d) {
+    @if (receiptError()) {
+      <app-ui-alert variant="warning" title="Receipt" [dismissible]="true" (dismissed)="receiptError.set('')">{{ receiptError() }}</app-ui-alert>
+    }
+    @if (d.reversal; as reversal) {
+      <app-ui-alert variant="warning" title="Reversed">
+        Reversed by {{ reversal.actorName }} as {{ reversal.reversalNumber }} on {{ reversal.businessDate }}. Reason: {{ reversal.reason }}
+      </app-ui-alert>
+    }
+
+    <app-ui-card title="Summary">
+      <dl class="ex-meta">
+        <div><dt>Status</dt><dd><app-ui-badge [variant]="d.status === 'completed' ? 'success' : 'warning'">{{ d.status }}</app-ui-badge></dd></div>
+        <div><dt>Business date</dt><dd>{{ d.businessDate }}</dd></div>
+        <div><dt>Eligibility date</dt><dd>{{ d.eligibilityLocalDate }}</dd></div>
+        <div><dt>Completed</dt><dd>{{ d.completedAtUtc | appDate:'medium' }}</dd></div>
+        <div><dt>Receiving outlet</dt><dd>{{ d.receivingOutletName || '—' }}</dd></div>
+        <div><dt>Cashier</dt><dd>{{ d.cashierName || '—' }}</dd></div>
+        <div><dt>Salesperson</dt><dd>{{ d.salespersonName || '—' }}</dd></div>
+        <div><dt>Customer</dt><dd>{{ d.customerName || 'Walk-in' }}</dd></div>
+        <div><dt>Reason</dt><dd>{{ reasonLabel(d.reasonCode) }}@if (d.reasonOtherText) { : {{ d.reasonOtherText }} }</dd></div>
+        @if (d.internalNote) { <div><dt>Internal note (not printed)</dt><dd>{{ d.internalNote }}</dd></div> }
+        <div><dt>Phone verification</dt><dd>{{ d.phoneVerificationResult || '—' }}</dd></div>
+        <div><dt>Loyalty</dt><dd>Loyalty: not active</dd></div>
+        @if (d.journalEntryId) { <div><dt>Journal entry</dt><dd>#{{ d.journalEntryId }}</dd></div> }
+      </dl>
+    </app-ui-card>
+
+    <div class="ex-split">
+      <div class="ex-stack">
+        <app-ui-card title="Original invoices" [headingLevel]="2">
+          <ul class="ex-list">
+            @for (invoice of d.originalInvoices; track invoice.saleId) {
+              <li><a [routerLink]="['/sales', invoice.saleId]">{{ invoice.invoiceNumber }}</a><span class="ex-sub">Purchased {{ invoice.purchaseLocalDate }}</span></li>
+            }
+          </ul>
+        </app-ui-card>
+
+        <app-ui-card title="Returned items" [padded]="false">
+          <div class="ex-table-wrap">
+            <table class="ex-table">
+              <thead><tr><th scope="col">Item</th><th scope="col">Source</th><th scope="col" class="ex-num">Qty</th><th scope="col" class="ex-num">VAT</th><th scope="col" class="ex-num">Credit</th></tr></thead>
+              <tbody>
+                @for (line of d.returns; track line.id) {
+                  <tr>
+                    <td>{{ line.productName }}@if (line.variantName) { · {{ line.variantName }} }<span class="ex-sub">{{ line.sku }}</span></td>
+                    <td>{{ line.sourceKind === 'sale_item' ? ('Invoice ' + (line.invoiceNumber ?? '')) : 'Earlier exchange replacement' }}</td>
+                    <td class="ex-num">{{ line.quantity }} {{ line.unitLabel ?? '' }}</td>
+                    <td class="ex-num">{{ line.creditVat | appCurrency }}</td>
+                    <td class="ex-num">{{ line.creditGross | appCurrency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-ui-card>
+
+        <app-ui-card title="Replacement items" [padded]="false">
+          <div class="ex-table-wrap">
+            <table class="ex-table">
+              <thead><tr><th scope="col">Item</th><th scope="col" class="ex-num">Qty</th><th scope="col" class="ex-num">Unit price</th><th scope="col" class="ex-num">Discount</th><th scope="col" class="ex-num">VAT</th><th scope="col" class="ex-num">Amount</th></tr></thead>
+              <tbody>
+                @for (line of d.replacements; track line.id) {
+                  <tr>
+                    <td>{{ line.productName }}@if (line.variantName) { · {{ line.variantName }} }<span class="ex-sub">{{ line.sku }}@if (line.returnedQuantity > 0) { · re-exchanged {{ line.returnedQuantity }} }</span></td>
+                    <td class="ex-num">{{ line.quantity }} {{ line.unitLabel ?? '' }}</td>
+                    <td class="ex-num">{{ line.unitPrice | appCurrency }}</td>
+                    <td class="ex-num">{{ (line.lineDiscount + line.invoiceDiscountShare) | appCurrency }}</td>
+                    <td class="ex-num">{{ line.vatAmount | appCurrency }}</td>
+                    <td class="ex-num">{{ line.gross | appCurrency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </app-ui-card>
+      </div>
+
+      <div class="ex-stack">
+        <app-ui-card title="Totals" [headingLevel]="2">
+          <dl class="ex-totals">
+            <div><dt>Returned credit</dt><dd>{{ d.returnGross | appCurrency }}</dd></div>
+            <div><dt>Return VAT</dt><dd>{{ d.returnVat | appCurrency }}</dd></div>
+            <div><dt>Replacements</dt><dd>{{ d.replacementGross | appCurrency }}</dd></div>
+            <div><dt>Replacement VAT</dt><dd>{{ d.replacementVat | appCurrency }}</dd></div>
+            <div><dt>Replacement discounts</dt><dd>{{ d.replacementDiscount | appCurrency }}</dd></div>
+            <div class="ex-totals__strong"><dt>Difference</dt><dd>{{ signed(d.netAdjustmentGross) }}{{ d.netAdjustmentGross | appCurrency }}</dd></div>
+            <div><dt>{{ directionLabel(d.settlementDirection) }}</dt><dd>{{ d.settlementAmount | appCurrency }}</dd></div>
+            <div><dt>High-value amount</dt><dd>{{ d.highValueAmount | appCurrency }}</dd></div>
+          </dl>
+        </app-ui-card>
+
+        <app-ui-card title="Settlements" [headingLevel]="2">
+          <ul class="ex-list">
+            @for (settlement of d.settlements; track $index) {
+              <li>
+                <span>{{ settlement.isReversal ? 'Reversal · ' : '' }}{{ settlement.direction === 'refund' ? 'Refund' : 'Collect' }} · {{ methodLabel(settlement.method) }}
+                  @if (settlement.referenceLastFour) { <span class="ex-sub">Ref ****{{ settlement.referenceLastFour }}</span> }
+                  @if (settlement.tendered) { <span class="ex-sub">Tendered {{ settlement.tendered | appCurrency }} · change {{ (settlement.changeGiven ?? 0) | appCurrency }}</span> }
+                </span>
+                <strong>{{ settlement.amount | appCurrency }}</strong>
+              </li>
+            } @empty {
+              <li>No money moved.</li>
+            }
+          </ul>
+        </app-ui-card>
+
+        <app-ui-card title="Approvals" [headingLevel]="2">
+          <ul class="ex-list">
+            @for (approval of d.approvals; track $index) {
+              <li><span>{{ approvalLabel(approval.type) }}<span class="ex-sub">{{ approval.supervisorName }} · {{ approval.createdAtUtc | appDate:'medium' }}</span><span class="ex-sub">{{ approval.reason }}</span></span></li>
+            } @empty {
+              <li>No supervisor approval was needed.</li>
+            }
+          </ul>
+        </app-ui-card>
+      </div>
+    </div>
+
+    @if (receipt(); as doc) {
+      <app-ui-card title="Receipt" class="no-print-card">
+        <div class="ex-receipt-preview"><div id="receipt-print"><app-exchange-receipt [data]="doc" /></div></div>
+      </app-ui-card>
+    }
+  }
+</div>
+
+<app-ui-dialog [(open)]="reverseOpen" title="Reverse exchange" size="md" [dismissible]="!reverseBusy()">
+  <div class="ui-form-stack">
+    <p class="ex-muted">The whole exchange is reversed with compensating stock, settlement and accounting on today's business date. The original exchange and receipts are kept and marked reversed. The customer must hand back the replacement goods.</p>
+    @if (eligibilityLoading()) {
+      <app-ui-state kind="loading" title="Checking reversal eligibility…" [compact]="true" />
+    } @else if (eligibility(); as e) {
+      @if (!e.canReverse) {
+        <app-ui-alert variant="danger" title="This exchange cannot be reversed" data-testid="reversal-blocked">
+          <ul>
+            @for (reason of e.blockingReasons; track $index) { <li>{{ reason }}</li> }
+          </ul>
+        </app-ui-alert>
+      } @else {
+        @if (terminals().length > 1) {
+          <app-ui-form-field label="POS terminal" [required]="true">
+            <select appUiControl name="reverseTerminal" [ngModel]="terminalId()" (ngModelChange)="onTerminalChange($event)">
+              <option [ngValue]="null">Select terminal</option>
+              @for (terminal of terminals(); track terminal.id) { <option [ngValue]="terminal.id">{{ terminal.name }} ({{ terminal.code }})</option> }
+            </select>
+          </app-ui-form-field>
+        }
+        <app-ui-form-field label="Reversal reason" [required]="true">
+          <textarea appUiControl name="reverseReason" rows="2" maxlength="500"
+            [ngModel]="reverseReason()" (ngModelChange)="reverseReason.set($event ?? '')"></textarea>
+        </app-ui-form-field>
+        <app-exchange-settlement-panel
+          [direction]="e.settlementDirection"
+          [amount]="e.settlementAmount"
+          [disabled]="reverseBusy()"
+          [(draft)]="reverseSettlement" />
+      }
+    }
+    @if (reverseError()) {
+      <app-ui-alert variant="danger">{{ reverseError() }}</app-ui-alert>
+    }
+  </div>
+  <button uiDialogFooter appUiButton type="button" variant="outline" (click)="reverseOpen.set(false)" [disabled]="reverseBusy()">Cancel</button>
+  <button uiDialogFooter appUiButton type="button" variant="danger" (click)="submitReverse()" [loading]="reverseBusy()"
+    [disabled]="!!reverseProblem() || !online()" [attr.title]="reverseProblem() || null">Reverse exchange</button>
+</app-ui-dialog>

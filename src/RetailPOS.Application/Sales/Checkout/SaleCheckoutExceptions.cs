@@ -19,6 +19,10 @@ public static class SaleCheckoutErrorCodes
     public const string NoActiveTerminal = "SALE_NO_ACTIVE_TERMINAL";
     public const string OutletInvoicePrefixMissing = "SALE_OUTLET_INVOICE_PREFIX_MISSING";
     public const string SalespersonNotEligible = "SALE_SALESPERSON_NOT_ELIGIBLE";
+    /// <summary>A sale with any returned quantity (refund or exchange) can no longer be voided (Exchange D-14).</summary>
+    public const string SaleHasReturns = "SALE_HAS_RETURNS";
+    /// <summary>New exchange links through ordinary checkout are no longer accepted (Exchange D-01).</summary>
+    public const string ExchangeLinkDeprecated = "SALE_EXCHANGE_LINK_DEPRECATED";
 }
 
 /// <summary>A checkout request the caller is not allowed to make; maps to HTTP 403 with a stable code.</summary>

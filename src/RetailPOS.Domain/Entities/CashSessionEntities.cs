@@ -20,8 +20,14 @@ public static class CashSessionMovementTypes
     /// <summary>An authorised correction explicitly classified by the SRS; signed.</summary>
     public const string Correction = "correction";
 
+    /// <summary>Cash collected for a product exchange's positive difference (Exchange EX-07). Always an inflow.</summary>
+    public const string ExchangeCashIn = "exchange_cash_in";
+
+    /// <summary>Cash paid back for a product exchange's negative difference (Exchange EX-31, D-02). Always an outflow.</summary>
+    public const string ExchangeCashOut = "exchange_cash_out";
+
     public static readonly string[] All =
-        [CashRefund, DrawerExpense, DrawerExpenseReversal, Correction];
+        [CashRefund, DrawerExpense, DrawerExpenseReversal, Correction, ExchangeCashIn, ExchangeCashOut];
 }
 
 /// <summary>

@@ -1239,6 +1239,9 @@ Allow limited POS operation during temporary connectivity issues.
 - [ ] Out-of-stock conflict handled visibly
 
 ### ⬜ Priority 5.5: Return & Exchange Module (NEW)
+
+> **Superseded for Exchange (2026-11-07):** Product Exchange is specified in `Docs/08_Sales_And_POS/Exchange/` (SRS, LLD, Gap Analysis and Implementation Plan v2.0; decisions EX-01–EX-31, D-01–D-19, C-01–C-10). The exchange items below (`POST /api/sales/{id}/exchange`, store credit, restocking fee) are historical planning notes and are **not** approved scope. Line-level partial refunds already exist (`RefundSaleCommand`).
+
 **Status:** Not Started  
 **Duration:** 1 week  
 **Priority:** 🔴 Critical

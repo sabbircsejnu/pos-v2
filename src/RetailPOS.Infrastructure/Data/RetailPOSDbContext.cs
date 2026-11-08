@@ -71,6 +71,20 @@ public class RetailPOSDbContext : DbContext
     public DbSet<FinancialPostingWorkerHeartbeat> FinancialPostingWorkerHeartbeats => Set<FinancialPostingWorkerHeartbeat>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangePolicyVersion> ExchangePolicyVersions => Set<RetailPOS.Core.Entities.Exchanges.ExchangePolicyVersion>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeNumberCounter> ExchangeNumberCounters => Set<RetailPOS.Core.Entities.Exchanges.ExchangeNumberCounter>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.Exchange> Exchanges => Set<RetailPOS.Core.Entities.Exchanges.Exchange>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeSourceInvoice> ExchangeSourceInvoices => Set<RetailPOS.Core.Entities.Exchanges.ExchangeSourceInvoice>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeReturnLine> ExchangeReturnLines => Set<RetailPOS.Core.Entities.Exchanges.ExchangeReturnLine>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine> ExchangeReplacementLines => Set<RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeLineageLink> ExchangeLineageLinks => Set<RetailPOS.Core.Entities.Exchanges.ExchangeLineageLink>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeSettlement> ExchangeSettlements => Set<RetailPOS.Core.Entities.Exchanges.ExchangeSettlement>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeApproval> ExchangeApprovals => Set<RetailPOS.Core.Entities.Exchanges.ExchangeApproval>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeApprovalFailure> ExchangeApprovalFailures => Set<RetailPOS.Core.Entities.Exchanges.ExchangeApprovalFailure>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeSalespersonAdjustment> ExchangeSalespersonAdjustments => Set<RetailPOS.Core.Entities.Exchanges.ExchangeSalespersonAdjustment>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeReceiptSnapshot> ExchangeReceiptSnapshots => Set<RetailPOS.Core.Entities.Exchanges.ExchangeReceiptSnapshot>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeReceiptPrintHistory> ExchangeReceiptPrintHistory => Set<RetailPOS.Core.Entities.Exchanges.ExchangeReceiptPrintHistory>();
+    public DbSet<RetailPOS.Core.Entities.Exchanges.ExchangeReversal> ExchangeReversals => Set<RetailPOS.Core.Entities.Exchanges.ExchangeReversal>();
     public DbSet<SalePayment> SalePayments => Set<SalePayment>(); // NEW — split-payment rows
     public DbSet<ReceiptPrintHistory> ReceiptPrintHistories => Set<ReceiptPrintHistory>();
     public DbSet<SaleVoid> SaleVoids => Set<SaleVoid>();
@@ -263,6 +277,7 @@ public class RetailPOSDbContext : DbContext
         RetailPOS.Infrastructure.Integration.IntegrationModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.Pos.CashSessionModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.Sales.SaleFinancialPostingModelConfiguration.Configure(modelBuilder);
+        RetailPOS.Infrastructure.Exchanges.ExchangeModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.AccountingJournals.FrozenSystemJournalModelConfiguration.Configure(modelBuilder);
         RetailPOS.Infrastructure.HR.Approvals.ApprovalKernelModelConfiguration.Configure(
             modelBuilder, Database.ProviderName);

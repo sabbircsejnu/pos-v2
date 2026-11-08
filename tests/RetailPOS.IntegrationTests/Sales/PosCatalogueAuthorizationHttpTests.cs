@@ -82,6 +82,26 @@ public sealed class PosCatalogueAuthorizationHttpTests : IClassFixture<RetailPos
         Assert.Equal(HttpStatusCode.BadRequest, badLimit.StatusCode);
     }
 
+    /// <summary>
+    /// Exchange replacement search (browser UAT): the main product code finds every active variant of that product,
+    /// partially and case-insensitively, with stock at the requested outlet; the same code in another Business never shows.
+    /// </summary>
+    [Fact]
+    public async Task CatalogueSearch_ByMainProductCode_ReturnsEveryVariantOfOwnBusinessOnly()
+    {
+        await ResetAndSeedAsync();
+        using var client = CreateClient(SellerPermissions);
+
+        Assert.Equal(new long[] { 9812, 9811 }, await CatalogueVariantIdsAsync(client, "/api/pos/catalogue?outletId=5001&q=ABA852P"));
+        Assert.Equal(new long[] { 9812, 9811 }, await CatalogueVariantIdsAsync(client, "/api/pos/catalogue?outletId=5001&q=aba852"));
+        Assert.Equal(new long[] { 9811 }, await CatalogueVariantIdsAsync(client, "/api/pos/catalogue?outletId=5001&q=shirt-red"));
+
+        using var response = await client.GetAsync("/api/pos/catalogue?outletId=5001&q=ABA852P");
+        var text = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("costPrice", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"productCode\":\"ABA852P\"", text);
+    }
+
     [Fact]
     public async Task PosCatalogueAndCategories_RequireSalesCreate()
     {
@@ -262,10 +282,10 @@ public sealed class PosCatalogueAuthorizationHttpTests : IClassFixture<RetailPos
         // A non-owner's acting outlet is only honoured while it is still assigned.
         db.UserOutletAssignments.Add(new UserOutletAssignment { UserId = 7101, OutletId = 5002, BusinessId = 1 });
         db.Products.AddRange(
-            new Product { Id = 9111, BusinessId = 1, Name = "Catalogue shirt", CategoryId = 9011, BasePrice = 10m, CostPrice = 4m, HasVariants = true, Status = ProductStatus.Active },
+            new Product { Id = 9111, BusinessId = 1, Name = "Catalogue shirt", ProductCode = "ABA852P", CategoryId = 9011, BasePrice = 10m, CostPrice = 4m, HasVariants = true, Status = ProductStatus.Active },
             new Product { Id = 9112, BusinessId = 1, Name = "Catalogue sourdough", CategoryId = 9012, BasePrice = 5m, CostPrice = 2m, Status = ProductStatus.Active },
             new Product { Id = 9113, BusinessId = 1, Name = "Retired product", CategoryId = 9011, BasePrice = 9m, Status = ProductStatus.Inactive },
-            new Product { Id = 9191, BusinessId = 2, Name = "Foreign shirt", CategoryId = 9091, BasePrice = 99m, Status = ProductStatus.Active });
+            new Product { Id = 9191, BusinessId = 2, Name = "Foreign shirt", ProductCode = "ABA852P", CategoryId = 9091, BasePrice = 99m, Status = ProductStatus.Active });
         db.ProductVariants.AddRange(
             new ProductVariant { Id = 9811, BusinessId = 1, ProductId = 9111, Name = "Red", Sku = "CAT-SHIRT-RED", Barcode = "CAT-BC-RED", PriceAdjustment = 2m },
             new ProductVariant { Id = 9812, BusinessId = 1, ProductId = 9111, Name = "Blue", Sku = "CAT-SHIRT-BLUE", Barcode = "CAT-BC-BLUE" },

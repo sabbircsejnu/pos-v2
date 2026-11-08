@@ -22,11 +22,13 @@ import { PosDiscountAuditRequest, PosCustomerLookupDto } from '../../services/po
 import { SettingsService } from '../../services/settings.service';
 import { AlertService } from '../../services/alert.service';
 import { ErrorHandlerService } from '../../services/error-handler.service';
+import { ConnectivityService } from '../../services/connectivity.service';
 import {
   CartItem, CreateSaleDto, CreateSalePaymentDto, HeldSaleDto, PosBusinessSettingsDto, PosProduct, ReceiptDocumentDto, ReceiptPrintAttemptDto
 } from '../../models/sale.model';
 import { CustomerDto } from '../../models/customer.model';
 import { ProductImageService } from '../../services/product-image.service';
+import { formatVariantAttributes } from './pos-variant-attributes';
 import { ReceiptSettings } from '../../models/settings.model';
 import { ThermalReceiptComponent } from './thermal-receipt.component';
 import { applyReceiptPrintPage, clearReceiptPrintPage } from './receipt-print-page';
@@ -111,6 +113,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private cashSessions = inject(CashSessionService);
   private uomService = inject(UomService);
+  private connectivity = inject(ConnectivityService);
 
   /** What is known about each variant: a configuration, `null` for plain pcs, or missing when not checked yet. */
   uomConfigs = signal<Record<number, VariantUomConfig | null>>({});
@@ -468,6 +471,31 @@ export class PosScreenComponent implements OnInit, OnDestroy {
 
   // POS Quick Customer is authorized by the POS sale permission (POST /api/pos/customers); the server enforces it.
   canCreateCustomers = computed(() => this.authService.hasPermission('sales.create'));
+
+  // Product Exchange entry point (EX-19). Exchange is online-only (EX-28) and needs the active cash session (EX-15).
+  canExchange = computed(() => this.authService.hasPermission('pos.exchange.create'));
+  exchangeDisabledReason = computed(() => {
+    if (!this.connectivity.online()) return 'Offline: exchange needs a live connection.';
+    if (!this.activeCashSession()) return 'Open a cash session before starting an exchange.';
+    return '';
+  });
+
+  /** Opens the exchange screen; a cart in progress is held first so it can be recalled afterwards. */
+  startExchange(): void {
+    if (this.exchangeDisabledReason()) return;
+    const go = () => this.router.navigate(['/pos/exchange']);
+    if (this.cartItems().length === 0) {
+      go();
+      return;
+    }
+    this.alertService.confirm(
+      `The cart has ${this.cartItems().length} item(s). It will be held so you can recall it after the exchange.`,
+      () => this.holdSale(go),
+      'Product Exchange',
+      'Hold Cart & Continue',
+      'Cancel'
+    );
+  }
 
   canBackdateSale = computed(() =>
     this.authService.hasPermission('sales.backdate')
@@ -1661,81 +1689,7 @@ export class PosScreenComponent implements OnInit, OnDestroy {
   }
 
   private formatVariantAttributes(raw?: string): string {
-    if (!raw || !raw.trim()) {
-      return '';
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((row: any) => this.isAttributeRowActive(row))
-          .map((row: any) => {
-            const label = this.humanizeLabel(String(row.displayName || row.attributeName || row.name || row.key || '').trim());
-            const value = String(row.displayValue ?? row.value ?? '').trim();
-            return label && value ? `${label}: ${value}` : '';
-          })
-          .filter(Boolean)
-          .join(' | ');
-      }
-
-      if (parsed && typeof parsed === 'object') {
-        return Object.entries(parsed)
-          .filter(([key, value]) => this.isAttributeEntryActive(key, value))
-          .map(([key, value]) => `${this.humanizeLabel(key)}: ${String(value).trim()}`)
-          .join(' | ');
-      }
-    } catch {
-      // Keep graceful fallback for older plain-text stored attributes.
-    }
-
-    return raw
-      .replace(/[{}"]+/g, '')
-      .replace(/\s*,\s*/g, ' | ')
-      .replace(/\s*\/\s*/g, ' | ')
-      .trim();
-  }
-
-  private isAttributeRowActive(row: any): boolean {
-    if (!row) return false;
-
-    const status = String(row.status ?? '').toLowerCase();
-    if (status === 'inactive' || status === 'deleted') return false;
-
-    if (row.isDeleted === true || row.deleted === true) return false;
-    if (row.isActive === false || row.active === false) return false;
-
-    const value = String(row.displayValue ?? row.value ?? '').trim();
-    return !!value;
-  }
-
-  private isAttributeEntryActive(key: string, value: unknown): boolean {
-    if (value === null || value === undefined) return false;
-
-    const normalizedKey = key.trim().toLowerCase();
-    if (['isactive', 'active', 'isdeleted', 'deleted', 'status'].includes(normalizedKey)) {
-      return false;
-    }
-
-    const text = String(value).trim();
-    if (!text) return false;
-
-    const normalizedValue = text.toLowerCase();
-    if (['inactive', 'deleted', 'false', 'null', 'undefined'].includes(normalizedValue)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private humanizeLabel(value: string): string {
-    return value
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/^./, (c) => c.toUpperCase());
+    return formatVariantAttributes(raw);
   }
 
   quickAddCustomer(): void {

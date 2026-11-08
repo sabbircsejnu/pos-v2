@@ -1125,7 +1125,7 @@ public sealed class SaleCreationPostgresConcurrencyTests
     }
 
     [Fact]
-    public async Task ConcurrentExchangesOfTheSameOriginalSale_CommitOnlyOneReplacement()
+    public async Task ConcurrentLegacyExchangeLinks_AreBothRejected_AndNothingMoves()
     {
         await using var harness = await PostgresHarness.CreateAsync();
         await using (var seed = harness.CreateContext())
@@ -1193,14 +1193,17 @@ public sealed class SaleCreationPostgresConcurrencyTests
         start.SetResult();
         var outcomes = await Task.WhenAll(attempts);
 
-        var winner = Assert.Single(outcomes, outcome => outcome.SaleId.HasValue);
-        var loser = Assert.Single(outcomes, outcome => outcome.Error is not null);
-        Assert.IsType<SaleCheckoutValidationException>(loser.Error);
+        // Exchange D-01: checkout refuses new exchange links, so neither attempt sells, links or moves stock.
+        Assert.All(outcomes, outcome =>
+        {
+            Assert.Null(outcome.SaleId);
+            Assert.Equal(SaleCheckoutErrorCodes.ExchangeLinkDeprecated, Assert.IsType<SaleCheckoutValidationException>(outcome.Error).Code);
+        });
 
         await using var verify = harness.CreateContext();
-        Assert.Equal(winner.SaleId, (await verify.Sales.SingleAsync(sale => sale.Id == 7001)).ReplacementSaleId);
-        Assert.Equal(1, await verify.Sales.CountAsync(sale => sale.OriginalSaleId == 7001));
-        Assert.Equal(48, (await verify.Inventories.SingleAsync()).Quantity);
+        Assert.Null((await verify.Sales.SingleAsync(sale => sale.Id == 7001)).ReplacementSaleId);
+        Assert.Equal(0, await verify.Sales.CountAsync(sale => sale.OriginalSaleId == 7001));
+        Assert.Equal(50, (await verify.Inventories.SingleAsync()).Quantity);
     }
 
     [Fact]
@@ -1547,13 +1550,8 @@ public sealed class SaleCreationPostgresConcurrencyTests
         ISaleVoidStore inner,
         EligibleVoidReadBarrier barrier) : ISaleVoidStore
     {
-        public async Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken)
-        {
-            var sale = await inner.FindSaleForUpdateAsync(saleId, cancellationToken);
-            if (sale?.Status == "completed")
-                await barrier.WaitForBothEligibleReadsAsync();
-            return sale;
-        }
+        public Task<Sale?> FindSaleForUpdateAsync(long saleId, CancellationToken cancellationToken) =>
+            inner.FindSaleForUpdateAsync(saleId, cancellationToken);
 
         public Task<ISaleVoidTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
             inner.BeginTransactionAsync(cancellationToken);
@@ -1561,6 +1559,15 @@ public sealed class SaleCreationPostgresConcurrencyTests
             inner.FindCurrentSaleStatusAsync(saleId, cancellationToken);
         public Task<bool> TryMarkCompletedSaleVoidedAsync(long saleId, CancellationToken cancellationToken) =>
             inner.TryMarkCompletedSaleVoidedAsync(saleId, cancellationToken);
+
+        public Task<bool> HasReturnedQuantityAsync(long saleId, CancellationToken cancellationToken) =>
+            inner.HasReturnedQuantityAsync(saleId, cancellationToken);
+        // Both voids arrive together at the lock, which now comes before the read, and only one holds it at a time.
+        public async Task LockSaleAsync(long saleId, CancellationToken cancellationToken)
+        {
+            await barrier.WaitForBothEligibleReadsAsync();
+            await inner.LockSaleAsync(saleId, cancellationToken);
+        }
         public Task<RetailPOS.Core.Entities.Inventory?> FindOutletInventoryAsync(
             long variantId, long outletId, CancellationToken cancellationToken) =>
             inner.FindOutletInventoryAsync(variantId, outletId, cancellationToken);

@@ -1,0 +1,98 @@
+<div class="container mx-auto px-4 py-4 ui-form-stack" data-density="compact">
+  <app-ui-page-header
+    title="Exchange policy"
+    description="Business rules for product exchange at the POS. Every save creates a new policy version; completed exchanges keep the version they used."
+    [breadcrumbs]="breadcrumbs" />
+
+  @if (loadError()) {
+    <app-ui-state kind="error" title="Exchange policy could not be loaded" [message]="loadError()!">
+      <button appUiButton type="button" variant="outline" (click)="load()">Retry</button>
+    </app-ui-state>
+  } @else {
+    @if (policy(); as p) {
+      @if (!p.isConfigured) {
+        <app-ui-alert variant="warning" title="Not configured: exchange unavailable" data-testid="not-configured">
+          Product exchange is unavailable for this business until a policy is saved. Suggested starting values: a 7-day
+          exchange window, a 7-day replacement window and a chain limit of 2. Nothing is applied until you save.
+        </app-ui-alert>
+      } @else {
+        <p class="text-sm" data-testid="policy-version">Version {{ p.versionNo }}@if (p.updatedAtUtc) { · updated {{ p.updatedAtUtc | appDate:'medium' }} }@if (!p.isEnabled) { · exchange is turned off }</p>
+      }
+    }
+    @if (!canEdit) {
+      <app-ui-alert variant="info">You can view this policy. Changing it needs the settings.edit permission.</app-ui-alert>
+    }
+
+    <app-ui-card title="Exchange rules" [loading]="loading()">
+      @if (saveError()) {
+        <app-ui-alert variant="danger" title="Policy not saved">{{ saveError() }}</app-ui-alert>
+      }
+
+      <form id="exchange-policy-form" class="ui-form-stack" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <label class="ui-check">
+          <input appUiControl type="checkbox" formControlName="isEnabled" />
+          <span>Exchange enabled</span>
+        </label>
+
+        <app-ui-form-field label="Exchange window (days)" hint="Day 0 is the purchase date in the business time zone. 0 allows same-day exchange only."
+          [required]="true" [error]="fieldError('exchangeWindowDays')">
+          <input appUiControl type="number" min="0" max="3650" step="1" formControlName="exchangeWindowDays" />
+        </app-ui-form-field>
+
+        <label class="ui-check">
+          <input appUiControl type="checkbox" formControlName="allowLowerPriceExchange" />
+          <span>Allow lower-price exchange (refund the difference)</span>
+        </label>
+
+        <label class="ui-check">
+          <input appUiControl type="checkbox" formControlName="allowReplacementReExchange" />
+          <span>Allow a replacement item to be exchanged again</span>
+        </label>
+
+        @if (form.controls.allowReplacementReExchange.value) {
+          <app-ui-form-field label="Replacement window (days)" hint="Counted from the date of the exchange that issued the replacement."
+            [required]="true" [error]="fieldError('replacementWindowDays')">
+            <input appUiControl type="number" min="1" max="50" step="1" formControlName="replacementWindowDays" />
+          </app-ui-form-field>
+          <app-ui-form-field label="Maximum exchanges per lineage" [required]="true" [error]="fieldError('maxExchangeCountPerLineage')">
+            <input appUiControl type="number" min="1" max="50" step="1" formControlName="maxExchangeCountPerLineage" />
+          </app-ui-form-field>
+        }
+
+        <fieldset class="ui-form-stack">
+          <legend class="text-sm font-medium">Phone verification</legend>
+          <label class="ui-check">
+            <input appUiControl type="radio" formControlName="phoneVerificationMode" value="optional" />
+            <span>Optional</span>
+          </label>
+          <label class="ui-check" [attr.title]="phoneRequiredMessage">
+            <input appUiControl type="radio" value="required" disabled data-testid="phone-required" aria-describedby="phone-required-help" />
+            <span>Required</span>
+          </label>
+          <p id="phone-required-help" class="text-sm">{{ phoneRequiredMessage }}</p>
+        </fieldset>
+
+        <app-ui-form-field label="High-value approval threshold" hint="Leave empty to disable. Exchanges whose returned credit or replacement value reaches it need a supervisor."
+          [error]="fieldError('highValueApprovalThreshold')">
+          <input appUiControl type="number" min="0.01" step="0.01" inputmode="decimal" formControlName="highValueApprovalThreshold" />
+        </app-ui-form-field>
+
+        <app-ui-form-field label="Negative difference and salesperson targets">
+          <select appUiControl formControlName="negativeTargetAdjustmentMode">
+            <option value="track_only">Track only (default): does not reduce the salesperson's target achievement</option>
+            <option value="deduct_from_exchange_salesperson">Deduct from the exchange salesperson's target achievement</option>
+          </select>
+        </app-ui-form-field>
+      </form>
+
+      @if (canEdit) {
+        <div uiCardFooter>
+          <button appUiButton type="submit" form="exchange-policy-form" [loading]="saving()" [disabled]="loading()">
+            <i class="fas fa-save" aria-hidden="true"></i>
+            <span>{{ saving() ? 'Saving...' : 'Save exchange policy' }}</span>
+          </button>
+        </div>
+      }
+    </app-ui-card>
+  }
+</div>

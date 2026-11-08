@@ -456,13 +456,6 @@ public class SalesController : ControllerBase
                 ApiResponse<SaleDto>.ErrorResponse("Cashier identity must match the authenticated user."));
         }
 
-        if (dto.OriginalSaleId.HasValue)
-        {
-            // Exchange links may only point at a sale the caller is allowed to see.
-            var original = await _sender.Send(new GetSaleByIdQuery(dto.OriginalSaleId.Value), cancellationToken);
-            await _outletAccess.ResolveAndAuthorizeLocationAsync(original.OutletId, "outlet");
-        }
-
         var sale = await _sender.Send(
             new CreateSaleCommand(
                 dto.OutletId,

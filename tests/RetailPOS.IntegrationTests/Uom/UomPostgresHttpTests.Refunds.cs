@@ -249,34 +249,25 @@ public sealed partial class UomPostgresHttpTests
     }
 
     [Fact]
-    public async Task Refunds_AndExchange_ShareOneSafeguard()
+    public async Task LegacyExchangeLink_IsRejected_AndTheRefundEntitlementIsUntouched()
     {
+        // Exchange D-01: the checkout link is refused; refund/exchange sharing is covered by the dedicated Exchange tests.
         var owner = Owner();
         var (attar, config) = await StockedAttarAsync(owner, "REX");
         var version = config.GetProperty("configId").GetInt64();
         var line = new SaleLine(attar, 1m, 100m, Option(config, "P12"), version);
 
-        // Exchange, then refund: the link moves no quantity, so what remains is still all 12 ml, and only once.
-        var exchanged = await SellAsync(owner, line);
-        var exchangedId = exchanged.GetProperty("id").GetInt64();
-        var exchangedItem = exchanged.GetProperty("items")[0].GetProperty("id").GetInt64();
-        await Send(owner, HttpMethod.Post, "/api/sales", ExchangeBody(exchangedId, line));
-        var closed = await RefundAsync(owner, exchangedId, RefundBody(attar, exchangedItem, 12m, Unique("r")));
+        var sold = await SellAsync(owner, line);
+        var soldId = sold.GetProperty("id").GetInt64();
+        var soldItem = sold.GetProperty("items")[0].GetProperty("id").GetInt64();
+        using (var linked = await owner.PostAsJsonAsync("/api/sales", ExchangeBody(soldId, line)))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, linked.StatusCode);
+            Assert.Contains("SALE_EXCHANGE_LINK_DEPRECATED", await linked.Content.ReadAsStringAsync());
+        }
+
+        var closed = await RefundAsync(owner, soldId, RefundBody(attar, soldItem, 12m, Unique("r")));
         Assert.Equal("refunded", closed.GetProperty("status").GetString());
-        using (var again = await owner.PostAsJsonAsync($"/api/sales/{exchangedId}/refund", RefundBody(attar, exchangedItem, 1m, Unique("r"))))
-            Assert.Equal(HttpStatusCode.BadRequest, again.StatusCode);
-
-        // Partial refund, then exchange of the rest: allowed once. A second exchange is not.
-        var partial = await SellAsync(owner, line);
-        var partialId = partial.GetProperty("id").GetInt64();
-        await RefundAsync(owner, partialId, RefundBody(attar, partial.GetProperty("items")[0].GetProperty("id").GetInt64(), 6m, Unique("r")));
-        await Send(owner, HttpMethod.Post, "/api/sales", ExchangeBody(partialId, line));
-        using (var twice = await owner.PostAsJsonAsync("/api/sales", ExchangeBody(partialId, line)))
-            Assert.Equal(HttpStatusCode.BadRequest, twice.StatusCode);
-
-        // Fully refunded: nothing is left to exchange.
-        using (var noExchange = await owner.PostAsJsonAsync("/api/sales", ExchangeBody(exchangedId, line)))
-            Assert.Equal(HttpStatusCode.BadRequest, noExchange.StatusCode);
     }
 
     [Fact]

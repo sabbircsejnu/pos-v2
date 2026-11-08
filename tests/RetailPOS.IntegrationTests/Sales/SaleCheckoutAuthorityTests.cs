@@ -233,39 +233,21 @@ public sealed class SaleCheckoutAuthorityTests
     }
 
     [Fact]
-    public async Task ExchangeLink_MustReferenceACompletedUnreplacedSaleOfTheSameBusiness()
+    public async Task ExchangeLink_IsRejectedForEveryOriginal_AndNoOriginalChanges()
     {
+        // Exchange D-01: checkout no longer creates exchange links. Every kind of original (foreign, missing, voided,
+        // replaced, valid) gets the same answer before any lookup, so nothing is disclosed and nothing is mutated.
         using var scenario = Scenario.Create();
+        foreach (var (key, originalId) in new[] { ("exchange-other-business", 90L), ("exchange-missing", 9999L), ("exchange-voided", 91L), ("exchange-replaced", 92L), ("exchange-valid", 93L) })
+        {
+            var request = Request(key, cashTendered: 200m);
+            request.OriginalSaleId = originalId;
+            Assert.Equal(
+                SaleCheckoutErrorCodes.ExchangeLinkDeprecated,
+                (await Assert.ThrowsAsync<SaleCheckoutValidationException>(() => scenario.CompleteAsync(request))).Code);
+        }
 
-        var crossBusiness = Request("exchange-other-business", cashTendered: 200m);
-        crossBusiness.OriginalSaleId = 90;
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => scenario.CompleteAsync(crossBusiness));
-
-        var missing = Request("exchange-missing", cashTendered: 200m);
-        missing.OriginalSaleId = 9999;
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => scenario.CompleteAsync(missing));
-
-        var voided = Request("exchange-voided", cashTendered: 200m);
-        voided.OriginalSaleId = 91;
-        Assert.Equal(
-            SaleCheckoutErrorCodes.InvalidExchangeLink,
-            (await Assert.ThrowsAsync<SaleCheckoutValidationException>(() => scenario.CompleteAsync(voided))).Code);
-
-        var replaced = Request("exchange-replaced", cashTendered: 200m);
-        replaced.OriginalSaleId = 92;
-        Assert.Equal(
-            SaleCheckoutErrorCodes.InvalidExchangeLink,
-            (await Assert.ThrowsAsync<SaleCheckoutValidationException>(() => scenario.CompleteAsync(replaced))).Code);
-
-        var valid = Request("exchange-valid", cashTendered: 200m);
-        valid.OriginalSaleId = 93;
-        var sale = await scenario.CompleteAsync(valid);
-        Assert.Equal(sale.Id, (await scenario.Db.Sales.FindAsync(93L))!.ReplacementSaleId);
-
-        // The same original can only be replaced once.
-        var second = Request("exchange-second", cashTendered: 200m);
-        second.OriginalSaleId = 93;
-        await Assert.ThrowsAsync<SaleCheckoutValidationException>(() => scenario.CompleteAsync(second));
+        Assert.Null((await scenario.Db.Sales.FindAsync(93L))!.ReplacementSaleId);
     }
 
     private static CreateSaleDto Request(

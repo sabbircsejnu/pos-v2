@@ -25,10 +25,10 @@ public static class CashSessionModelConfiguration
             entity.ToTable(t =>
             {
                 t.HasCheckConstraint("ck_cash_session_movements_type",
-                    "movement_type IN ('cash_refund','drawer_expense','drawer_expense_reversal','correction')");
+                    "movement_type IN ('cash_refund','drawer_expense','drawer_expense_reversal','correction','exchange_cash_in','exchange_cash_out')");
                 t.HasCheckConstraint("ck_cash_session_movements_effect",
-                    "(movement_type IN ('cash_refund','drawer_expense') AND cash_effect < 0)"
-                    + " OR (movement_type = 'drawer_expense_reversal' AND cash_effect > 0)"
+                    "(movement_type IN ('cash_refund','drawer_expense','exchange_cash_out') AND cash_effect < 0)"
+                    + " OR (movement_type IN ('drawer_expense_reversal','exchange_cash_in') AND cash_effect > 0)"
                     + " OR (movement_type = 'correction' AND cash_effect <> 0)");
             });
             entity.HasOne(e => e.CashSession).WithMany().HasForeignKey(e => e.CashSessionId)

@@ -105,7 +105,7 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             .AsNoTracking()
             .Where(item => eligibleSaleIds.Contains(item.SaleId))
             .SumAsync(item => (decimal?)(item.UomBaseUnitCode == null || item.UomBaseUnitCode == "pcs" ? item.Quantity : 0m), cancellationToken) ?? 0m;
-        var netRevenue = totalRevenue - refundAmount;
+        var netRevenue = totalRevenue - refundAmount + await ExchangeGrossAdjustmentAsync(scope, filter, cancellationToken);
 
         return new MobileSalesDashboardReadModel(
             filter.StartDate,
@@ -116,6 +116,46 @@ public sealed class SalesReportReadStore(RetailPOSDbContext dbContext) : ISalesR
             // Normalized: a SQL COALESCE(..., 0.0) carries a scale that mobile clients would read as a non-integer.
             RetailPOS.Application.Uom.UomQuantityMath.Normalize(unitsSold - returnedUnits),
             invoiceCount > 0 ? netRevenue / invoiceCount : 0m);
+    }
+
+    /// <summary>
+    /// Product exchanges in this report (Stage 0 VI-19). An exchange journal also carries a "Sales return" debit for its
+    /// return leg, but the refund netting above only reads journals with ReferenceType "SaleRefund", so "Exchange" and
+    /// "ExchangeReversal" journals never reach it and nothing is counted twice; an exchange never changes the original
+    /// sale's status or returned-stock ledger rows either (D-14). Instead of reading the exchange journal lines (one
+    /// debit leg among several), the exchange's own signed gross net adjustment (replacement gross − return gross) is
+    /// added at its completion instant, and taken off again at its reversal's completion instant — the same gross,
+    /// instant-based basis as the sales and refunds of this report. The cashier filter applies to the exchange's cashier.
+    /// </summary>
+    private async Task<decimal> ExchangeGrossAdjustmentAsync(
+        SalesReportReadScope scope,
+        SalesReportFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var outletIds = scope.OutletIds.ToList();
+        var exchanges = dbContext.Set<RetailPOS.Core.Entities.Exchanges.Exchange>()
+            .AsNoTracking()
+            .Where(exchange =>
+                outletIds.Contains(exchange.ReceivingOutletId)
+                && (!filter.OutletId.HasValue || exchange.ReceivingOutletId == filter.OutletId.Value)
+                && (!filter.CashierId.HasValue || exchange.CashierUserId == filter.CashierId.Value));
+
+        var completed = await exchanges
+            .Where(exchange => exchange.CompletedAtUtc >= filter.StartDate && exchange.CompletedAtUtc <= filter.EndDate)
+            .SumAsync(exchange => (decimal?)exchange.NetAdjustmentGross, cancellationToken) ?? 0m;
+        var reversed = await dbContext.Set<RetailPOS.Core.Entities.Exchanges.ExchangeReversal>()
+            .AsNoTracking()
+            .Where(reversal =>
+                outletIds.Contains(reversal.ReceivingOutletId)
+                && (!filter.OutletId.HasValue || reversal.ReceivingOutletId == filter.OutletId.Value)
+                && reversal.CompletedAtUtc >= filter.StartDate
+                && reversal.CompletedAtUtc <= filter.EndDate)
+            .Join(exchanges.Select(exchange => new { exchange.Id, exchange.BusinessId, exchange.NetAdjustmentGross }),
+                reversal => new { Id = reversal.ExchangeId, reversal.BusinessId },
+                exchange => new { exchange.Id, exchange.BusinessId },
+                (reversal, exchange) => exchange.NetAdjustmentGross)
+            .SumAsync(amount => (decimal?)amount, cancellationToken) ?? 0m;
+        return completed - reversed;
     }
 
     public async Task<IReadOnlyList<MobileDailySalesActivityReadModel>> GetMobileDailySalesActivityAsync(

@@ -42,3 +42,35 @@ Spec: `Docs/Unit_Of_Measurement/`. Audit and decisions: `Docs/Unit_Of_Measuremen
 | UOM-17 | Browser walk-through and responsive checks | Real browser | blocked (no browser tool) |
 | UOM-18 | I07 gap closure: cost redaction, refund VAT, exact refund cost, posting guard, transfer opportunities | Final gap tests | done |
 | UOM-19 | Fresh backup and full three-migration rehearsal | Totals identical | done |
+
+# Product Exchange (EX-01–EX-31, D-01–D-19, C-01–C-10, OC-01–OC-07, DN-01)
+
+Spec: `Docs/08_Sales_And_POS/Exchange/` (SRS v2.1, LLD v2.2, Gap v2.2, Plan v2.2, Stage 0 audit). Test DB: isolated A2 Postgres 55432 via `RETAILPOS_TEST_POSTGRES` (disposable template clones only).
+
+| ID | Task | Verify with | Status |
+|---|---|---|---|
+| EXC-00 | Stage 0 audit | Stage 0 report | done |
+| EXC-01 | DN-01 decision recorded; policy contract | Docs, unit | done |
+| EXC-02 | Permissions (5), role-form group, template definitions (no seeding of existing roles) | Unit, Vitest | done |
+| EXC-03 | D-14 void guard (`SALE_HAS_RETURNS`) | Void PG tests | done |
+| EXC-04 | D-01 legacy link rejection | Sale contract tests | done |
+| EXC-05 | Domain entities, EF config, migration `PosV2ExchangeFoundation` (incl. cash CHECKs) | MigrationChainValidationTests | done |
+| EXC-06 | Pure calculators: return credit, high value, eligibility dates, chain, phone classification, settlement plan, journal composition | Unit | done |
+| EXC-07 | Exchange policy API (versions, disabled until saved) | Unit, PG HTTP | done |
+| EXC-08 | Source-invoice lookup + preview | Unit, PG HTTP | done |
+| EXC-09 | Supervisor approval endpoint | Unit, PG HTTP | done |
+| EXC-10 | Confirm (atomic), cash, stock, journal, outbox, receipt snapshot | PG T-01..T-05 | done |
+| EXC-11 | Reversal | PG | done |
+| EXC-12 | History, detail, receipt document/PDF | PG HTTP | done |
+| EXC-13 | Reporting: owner dashboard, mobile report, metrics | PG | done |
+| EXC-14 | Angular: service, workflow, approval dialog, receipt, history, settings, entry points | Vitest, build | done |
+| EXC-15 | Security/code review, full regression, docs | verify-build | done |
+| EXC-16 | Hardening L4 (dashboard COGS vs retained packaging) and L6 (terminal at Confirm/Reverse) | PG repro + tests | done |
+| EXC-17 | Hardening L1b (per-login/per-cashier lockout) and L3 (by-sale non-leaking 404) | PG + unit | done |
+| EXC-18 | I-12 resolution, VI-20/VI-03 analysis, UAT checklist, docs | Plan §12.3–12.5 | done |
+| EXC-19 | Final regression: unit, frontend, builds, full PG integration (no LiveInfrastructure) | verify-build | done |
+| EXC-20 | Browser UAT environment: persistent synthetic DB, provisioning tool, UAT API/web, Playwright + Edge | Provision twice (idempotent) | done |
+| EXC-21 | Browser E2E specs for the 40-case checklist | Playwright | done |
+| EXC-22 | Fix browser defects DEF-01..04 with regression tests | Vitest, xUnit, Playwright | done |
+| EXC-23 | Full browser run + DB reconciliation + docs | Playwright report, reconcile | done |
+| EXC-24 | UX: invoice lookup layout, replacement product search (product code/SKU/name/barcode), wizard polish | Vitest, Playwright 05 | done |

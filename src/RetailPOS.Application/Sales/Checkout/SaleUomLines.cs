@@ -124,8 +124,17 @@ public static class SaleUomReversal
         Func<long, CancellationToken, Task<Core.Entities.Inventory?>> findInventory,
         CancellationToken cancellationToken,
         bool variantTracksPackState = false,
-        decimal alreadyReturned = 0m)
+        decimal alreadyReturned = 0m,
+        long? locationId = null,
+        string? referenceType = null,
+        long? referenceId = null,
+        string? ledgerTransactionType = null)
     {
+        // Defaults keep refunds and voids exactly as before; an exchange restores at its receiving outlet under its own reference.
+        var location = locationId ?? sale.OutletId;
+        var reference = referenceType ?? StockLedgerReferenceType.Sale;
+        var referenceKey = referenceId ?? sale.Id;
+        var ledgerType = ledgerTransactionType ?? StockLedgerTransactionType.Return;
         var restoredValue = 0m;
         var businessId = sale.BusinessId ?? 0;
         if (item.PackState is not null && packState is not null && variantTracksPackState)
@@ -140,16 +149,16 @@ public static class SaleUomReversal
                     ? SaleFinancialIntentFactory.ShareOfReturn(item.PackagingCost, alreadyReturned, quantity, item.Quantity)
                     : 0m;
                 await packState.ApplyAsync(
-                    new PackStateChange(businessId, item.VariantId, sale.OutletId, "outlet", item.PackState, item.PackCode ?? string.Empty, perPack,
-                        packs, quantity, share, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
+                    new PackStateChange(businessId, item.VariantId, location, "outlet", item.PackState, item.PackCode ?? string.Empty, perPack,
+                        packs, quantity, share, PackStateOperations.SaleReversal, reference, referenceKey, actorUserId),
                     cancellationToken);
                 restoredValue += share;
             }
             else
             {
                 await packState.ApplyAsync(
-                    new PackStateChange(businessId, item.VariantId, sale.OutletId, "outlet", PackStates.Loose, string.Empty, 0m,
-                        0, quantity, 0m, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
+                    new PackStateChange(businessId, item.VariantId, location, "outlet", PackStates.Loose, string.Empty, 0m,
+                        0, quantity, 0m, PackStateOperations.SaleReversal, reference, referenceKey, actorUserId),
                     cancellationToken);
             }
         }
@@ -158,8 +167,8 @@ public static class SaleUomReversal
         {
             // Sold before tracking was switched on: it has no recorded form, so it returns as loose stock.
             await packState.ApplyAsync(
-                new PackStateChange(businessId, item.VariantId, sale.OutletId, "outlet", PackStates.Loose, string.Empty, 0m,
-                    0, quantity, 0m, PackStateOperations.SaleReversal, StockLedgerReferenceType.Sale, sale.Id, actorUserId),
+                new PackStateChange(businessId, item.VariantId, location, "outlet", PackStates.Loose, string.Empty, 0m,
+                    0, quantity, 0m, PackStateOperations.SaleReversal, reference, referenceKey, actorUserId),
                 cancellationToken);
         }
 
@@ -179,14 +188,14 @@ public static class SaleUomReversal
                 inventory.Quantity += restoredQuantity;
                 stockLedger.WriteEntryWithValuation(
                     variantId: component.ComponentVariantId,
-                    locationId: sale.OutletId,
+                    locationId: location,
                     locationType: "outlet",
-                    transactionType: StockLedgerTransactionType.Return,
+                    transactionType: ledgerType,
                     qtyIn: restoredQuantity,
                     qtyOut: 0m,
                     balanceAfter: inventory.Quantity,
-                    referenceType: StockLedgerReferenceType.Sale,
-                    referenceId: sale.Id,
+                    referenceType: reference,
+                    referenceId: referenceKey,
                     remarks: $"Packaging restored from sale line {item.Id}",
                     createdBy: actorUserId,
                     unitCost: component.UnitCost,

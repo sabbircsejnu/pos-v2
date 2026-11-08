@@ -21,6 +21,26 @@ export const PERMISSION_DETAILS: Record<string, { label: string; description: st
     label: 'View Inventory Intelligence Dashboard',
     description: 'See all stock, stock value and transfer recommendations of the business, for every location. Creating a transfer still needs the Stock Transfer permissions.'
   },
+  'pos.exchange.create': {
+    label: 'Create Product Exchanges',
+    description: 'Look up an invoice by its exact number, preview and confirm a product exchange at the POS.'
+  },
+  'pos.exchange.refund': {
+    label: 'Refund Exchange Differences',
+    description: 'Confirm an exchange that refunds money to the customer, or approve such a refund as a supervisor.'
+  },
+  'pos.exchange.override_window': {
+    label: 'Approve expired windows and high-value exchanges',
+    description: 'As a supervisor, approve an exchange after the exchange window has passed, and high-value exchanges.'
+  },
+  'pos.exchange.override_chain': {
+    label: 'Approve Replacement Chain Overrides',
+    description: 'As a supervisor, approve re-exchanging a replacement beyond its window or the chain limit.'
+  },
+  'pos.exchange.reverse': {
+    label: 'Reverse Exchanges',
+    description: 'Reverse a completed exchange as a whole with compensating stock, settlement and accounting.'
+  },
   'sales.discount.apply': {
     label: 'Apply Manual Discounts',
     description: 'Apply discounts at the POS, up to the maximum manual discount percentage.'
@@ -182,6 +202,10 @@ export class RoleFormComponent implements OnInit {
     {
       name: 'Sales Management',
       permissions: ['sales.view', 'sales.create', 'sales.backdate', 'sales.void', 'sales.refund', 'sales.discount.apply', 'sales.discount.override_limit', 'sales.discount.configure', 'sales.financial_postings.view', 'sales.financial_postings.retry']
+    },
+    {
+      name: 'Product Exchange',
+      permissions: ['pos.exchange.create', 'pos.exchange.refund', 'pos.exchange.override_window', 'pos.exchange.override_chain', 'pos.exchange.reverse']
     },
     {
       name: 'Cash Sessions',

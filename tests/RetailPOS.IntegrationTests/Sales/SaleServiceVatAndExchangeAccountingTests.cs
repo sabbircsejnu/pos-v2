@@ -183,7 +183,7 @@ public class SaleServiceVatAndExchangeAccountingTests
     }
 
     [Fact]
-    public async Task CreateAsync_PersistsExchangeLinkage_ForReplacementSale()
+    public async Task CreateAsync_RejectsNewExchangeLinkage_AndLeavesTheOriginalUntouched()
     {
         var db = CreateDbContext();
         var originalSale = new Sale { Id = 77, OutletId = 11, Status = "completed", TotalAmount = 100m, Items = new List<SaleItem>(), Payments = new List<SalePayment>() };
@@ -245,27 +245,25 @@ public class SaleServiceVatAndExchangeAccountingTests
             posCache.Object,
             eventPublisher.Object);
 
-        var result = await SaleCreationCommandTestFactory.ExecuteAsync(handler, new CreateSaleDto
-        {
-            OutletId = 11,
-            TerminalId = 1,
-            CashierId = 5,
-            PaymentMethod = "cash",
-            Payments = new List<CreateSalePaymentDto> { new() { Method = "cash", Amount = 100m, Tendered = 100m } },
-            Items = new List<CreateSaleItemDto> { new() { VariantId = 100, Quantity = 1, UnitPrice = 100m, DiscountAmount = 0m } },
-            OriginalSaleId = 77,
-            IdempotencyKey = "exchange-1"
-        });
+        // Exchange D-01: exchanges are dedicated Exchange transactions; checkout refuses a new link before any effect.
+        var error = await Assert.ThrowsAsync<RetailPOS.Application.Sales.Checkout.SaleCheckoutValidationException>(() =>
+            SaleCreationCommandTestFactory.ExecuteAsync(handler, new CreateSaleDto
+            {
+                OutletId = 11,
+                TerminalId = 1,
+                CashierId = 5,
+                PaymentMethod = "cash",
+                Payments = new List<CreateSalePaymentDto> { new() { Method = "cash", Amount = 100m, Tendered = 100m } },
+                Items = new List<CreateSaleItemDto> { new() { VariantId = 100, Quantity = 1, UnitPrice = 100m, DiscountAmount = 0m } },
+                OriginalSaleId = 77,
+                IdempotencyKey = "exchange-1"
+            }));
+        Assert.Equal("SALE_EXCHANGE_LINK_DEPRECATED", error.Code);
 
-        var replacementSale = await db.Sales.FindAsync(result.Id);
         var originalSaleFromDb = await db.Sales.FindAsync(77L);
-
-        Assert.Equal(77L, GetPropertyValue<long?>(replacementSale!, "OriginalSaleId"));
-        Assert.Equal(result.Id, GetPropertyValue<long?>(originalSaleFromDb!, "ReplacementSaleId"));
-
-        var auditEvent = Assert.Single(auditEvents, x => x.PrimaryEntity?.Type == "Sale" && x.PrimaryEntity?.Id == result.Id.ToString() && x.ActionType == AuditActionType.Create);
-        Assert.Equal(77L, auditEvent.Metadata?["originalSaleId"]);
-        Assert.Contains(auditEvent.Entities.Single().Fields, x => x.FieldName == "OriginalSaleId" && Equals(x.NewValue, 77L));
+        Assert.Null(GetPropertyValue<long?>(originalSaleFromDb!, "ReplacementSaleId"));
+        Assert.Equal(1, await db.Sales.CountAsync());
+        Assert.DoesNotContain(auditEvents, x => x.PrimaryEntity?.Type == "Sale" && x.ActionType == AuditActionType.Create);
     }
 
     private static T? GetPropertyValue<T>(object instance, string propertyName)

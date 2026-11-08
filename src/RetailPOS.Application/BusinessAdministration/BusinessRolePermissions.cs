@@ -13,6 +13,10 @@ public static class BusinessRolePermissions
         "stock_transfers.view", "stock_transfers.create", "stock_transfers.approve", "stock_transfers.dispatch", "stock_transfers.receive", "stock_transfers.reject_receive", "stock_transfers.return_create",
         "stock_adjustments.view", "stock_adjustments.create",
         "sales.view", "sales.create",
+        // POS v2 cash-session rule (migration PosV2P3CashSessionManagement): a role that sells can view/open/close its session.
+        "cash_sessions.view", "cash_sessions.open", "cash_sessions.close",
+        // Exchange D-17: full outlet exchange authority except nothing beyond the five approved keys.
+        "pos.exchange.create", "pos.exchange.refund", "pos.exchange.override_window", "pos.exchange.override_chain", "pos.exchange.reverse",
         "reports.sales"
     ];
 
@@ -22,6 +26,10 @@ public static class BusinessRolePermissions
         "stock_requisitions.view",
         "stock_transfers.view",
         "sales.view", "sales.create",
+        // POS v2 cash-session rule (migration PosV2P3CashSessionManagement): a role that sells can view/open/close its session.
+        "cash_sessions.view", "cash_sessions.open", "cash_sessions.close",
+        // Exchange D-17: a salesperson may start and confirm ordinary exchanges only.
+        "pos.exchange.create",
         "customers.view", "customers.create"
     ];
 

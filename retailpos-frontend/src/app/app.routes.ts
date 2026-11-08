@@ -459,6 +459,10 @@ export const routes: Routes = [
 
       // POS & Sales Routes
       { path: 'pos', component: PosScreenComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.create'] } },
+      // Product Exchange (Exchange SRS): workflow, history and policy. The API re-checks every permission and scope.
+      { path: 'pos/exchange', loadComponent: () => import('./pages/exchange/exchange-workflow.component').then(m => m.ExchangeWorkflowComponent), canActivate: [routePermissionGuard], data: { permissions: ['pos.exchange.create'], title: 'Product Exchange' } },
+      { path: 'exchanges', loadComponent: () => import('./pages/exchange/exchange-history-list.component').then(m => m.ExchangeHistoryListComponent), canActivate: [routePermissionGuard], data: { permissions: ['sales.view'], title: 'Exchanges' } },
+      { path: 'exchanges/:id', loadComponent: () => import('./pages/exchange/exchange-history-detail.component').then(m => m.ExchangeHistoryDetailComponent), canActivate: [routePermissionGuard], data: { permissions: ['sales.view'], title: 'Exchange' } },
   // Cash Sessions (Phase 3): dedicated routes; the API re-checks every permission and the Business/Outlet scope.
   { path: 'cash-sessions', component: CashSessionListComponent, canActivate: [routePermissionGuard], data: { permissions: ['cash_sessions.view'] } },
   { path: 'cash-sessions/open', component: CashSessionOpenComponent, canActivate: [routePermissionGuard], data: { permissions: ['cash_sessions.open'] } },
@@ -506,6 +510,7 @@ export const routes: Routes = [
       { path: 'settings', component: SettingsPageComponent, canActivate: [routePermissionGuard], data: { permissions: ['settings.edit'] } },
       { path: 'settings/company', component: SettingsPageComponent, canActivate: [routePermissionGuard], data: { permissions: ['settings.edit'] } },
       { path: 'settings/discounts', component: PosDiscountSettingsComponent, canActivate: [routePermissionGuard], data: { permissions: ['sales.discount.configure'], title: 'Discount Limit' } },
+      { path: 'settings/exchange', loadComponent: () => import('./pages/settings/exchange-policy-settings.component').then(m => m.ExchangePolicySettingsComponent), canActivate: [routePermissionGuard], data: { permissions: ['settings.view'], title: 'Exchange Policy' } },
 
       // Accounting Routes
       { path: 'accounts', component: AccountsListComponent, canActivate: [routePermissionGuard], data: { permissions: ['accounting.chart_accounts.view'] } },

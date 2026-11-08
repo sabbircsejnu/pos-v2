@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Exchange browser-UAT environment tool (local only). Provisions the persistent, isolated, synthetic database
+    `iranimart_pos_v2_exchange_uat` on the A2 Test PostgreSQL server (127.0.0.1:55432) and starts the API against it.
+    It reads the Test-server credentials from the IntegrationTests user-secrets at run time and never prints or stores them.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>RetailPOS.IntegrationTests.LocalInfrastructure</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\src\RetailPOS.Application\RetailPOS.Application.csproj" />
+    <ProjectReference Include="..\..\src\RetailPOS.Infrastructure\RetailPOS.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

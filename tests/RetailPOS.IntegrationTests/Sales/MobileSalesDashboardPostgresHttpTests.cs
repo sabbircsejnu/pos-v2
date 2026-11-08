@@ -1010,6 +1010,26 @@ internal sealed class MobileSalesDashboardPostgresApiFactory(string connectionSt
                 options
                     .UseNpgsql(connectionString)
                     .AddInterceptors(serviceProvider.GetRequiredService<AuditChangeTrackerInterceptor>()));
+            services.AddSingleton<Microsoft.AspNetCore.Hosting.IStartupFilter, TestRemoteIpStartupFilter>();
         });
     }
+}
+
+/// <summary>
+/// Test-only: a request carrying <c>X-Test-RemoteIp</c> appears to come from that address, so a test can act as several
+/// network sources (per-IP rate limits). Requests without the header are untouched.
+/// </summary>
+internal sealed class TestRemoteIpStartupFilter : Microsoft.AspNetCore.Hosting.IStartupFilter
+{
+    public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next) => app =>
+    {
+        Microsoft.AspNetCore.Builder.UseExtensions.Use(app, async (Microsoft.AspNetCore.Http.HttpContext context, Func<Task> nextMiddleware) =>
+        {
+            if (context.Request.Headers.TryGetValue("X-Test-RemoteIp", out var value)
+                && System.Net.IPAddress.TryParse(value.ToString(), out var address))
+                context.Connection.RemoteIpAddress = address;
+            await nextMiddleware();
+        });
+        next(app);
+    };
 }

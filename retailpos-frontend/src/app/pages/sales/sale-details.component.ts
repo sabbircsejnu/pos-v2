@@ -23,6 +23,7 @@ import { fitsPrecision, formatUnitQuantity, newIdempotencyKey } from '../../serv
 import { apiErrorCode } from '../../utils/uom-line.util';
 import { UiAlertComponent, UiButtonComponent, UiCardComponent, UiControlDirective, UiFormFieldComponent } from '../../components/shared/ui';
 import { UiDialogComponent } from '../../components/shared/ui/ui-dialog.component';
+import { SaleLinkedExchangesComponent } from '../exchange/sale-linked-exchanges.component';
 
 /** One sale line in the refund dialog. A line left at zero is not returned. */
 export interface RefundLineDraft {
@@ -48,7 +49,7 @@ export const CASH_REFUND_POLICY_UNDEFINED = 'CASH_REFUND_POLICY_UNDEFINED';
 @Component({
   selector: 'app-sale-details',
   standalone: true,
-  imports: [AppDatePipe, CommonModule, FormsModule, AppCurrencyPipe, UiDialogComponent, UiButtonComponent, UiControlDirective, UiFormFieldComponent, UiAlertComponent, UiCardComponent],
+  imports: [AppDatePipe, CommonModule, FormsModule, AppCurrencyPipe, UiDialogComponent, UiButtonComponent, UiControlDirective, UiFormFieldComponent, UiAlertComponent, UiCardComponent, SaleLinkedExchangesComponent],
   templateUrl: './sale-details.component.html',
   styleUrls: ['./sale-details.component.css']
 })
@@ -179,6 +180,24 @@ export class SaleDetailsComponent implements OnInit {
     if (!s || (status !== 'completed' && status !== 'partially_refunded')) return false;
     if (!this.authService.hasPermission('sales.refund')) return false;
     return (s.items ?? []).some(item => remainingOf(item) > 0);
+  }
+
+  /**
+   * Exchange (EX-19) is offered for a completed or partially refunded sale with something left to return, when the user
+   * holds `pos.exchange.create`. The exchange screen re-checks the invoice with the server.
+   */
+  canExchange(): boolean {
+    const s = this.sale();
+    const status = s?.status?.toLowerCase();
+    if (!s || (status !== 'completed' && status !== 'partially_refunded')) return false;
+    if (!this.authService.hasPermission('pos.exchange.create')) return false;
+    return (s.items ?? []).some(item => remainingOf(item) > 0);
+  }
+
+  startExchange(): void {
+    const s = this.sale();
+    if (!s) return;
+    this.router.navigate(['/pos/exchange'], { queryParams: { saleId: s.id, invoice: s.saleNumber } });
   }
 
   remaining(item: SaleItemDto): number {

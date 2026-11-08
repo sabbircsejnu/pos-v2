@@ -171,6 +171,28 @@ public class RbacPermissionConsistencyTests
         Assert.All(PermissionCatalog.All, permission => Assert.True(PermissionCatalog.IsGranted(BusinessRolePermissions.BusinessOwner, permission), permission));
     }
 
+    /// <summary>
+    /// The POS v2 cash-session rule (migration PosV2P3CashSessionManagement): every role that can create sales can also
+    /// view, open and close its cash session. Found in browser UAT: onboarding templates broke it, so a new business's
+    /// SalesPerson and OutletManager could not check the session on the POS or Exchange screens (403).
+    /// </summary>
+    [Fact]
+    public void DefaultRoleTemplates_ThatCreateSales_CanViewOpenAndCloseTheCashSession()
+    {
+        var templates = new Dictionary<string, IReadOnlyList<string>>
+        {
+            [nameof(BusinessRolePermissions.OutletManager)] = BusinessRolePermissions.OutletManager,
+            [nameof(BusinessRolePermissions.SalesPerson)] = BusinessRolePermissions.SalesPerson,
+            [nameof(BusinessRolePermissions.AccountsAdmin)] = BusinessRolePermissions.AccountsAdmin,
+            [nameof(BusinessRolePermissions.WarehouseManager)] = BusinessRolePermissions.WarehouseManager,
+            [AccountingManagerPermissions.RoleName] = AccountingManagerPermissions.All
+        };
+
+        foreach (var (name, permissions) in templates.Where(entry => entry.Value.Contains("sales.create")))
+            foreach (var required in new[] { "cash_sessions.view", "cash_sessions.open", "cash_sessions.close" })
+                Assert.True(permissions.Contains(required), $"{name} template has sales.create but not {required}");
+    }
+
     [Fact]
     public void PermissionCatalog_HasNoDuplicateCodes()
     {

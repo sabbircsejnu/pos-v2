@@ -85,7 +85,7 @@ export type UiStepState = 'active' | 'completed' | 'pending' | 'error';
           <button appUiButton variant="outline" type="button" (click)="previous()">Previous</button>
         }
         @if (activeIndex() < steps().length - 1) {
-          <button appUiButton variant="primary" type="button" (click)="next()">Next</button>
+          <button appUiButton variant="primary" type="button" class="ui-stepper__next" [disabled]="nextDisabled()" (click)="next()">Next</button>
         }
       </nav>
     }
@@ -249,6 +249,11 @@ export type UiStepState = 'active' | 'completed' | 'pending' | 'error';
       gap: var(--rp-space-2);
     }
 
+    /* Next keeps the trailing edge on every step, including the first one (no Previous). */
+    .ui-stepper__next {
+      margin-inline-start: auto;
+    }
+
     @media (max-width: 48rem) {
       .ui-stepper[data-orientation='horizontal'] {
         flex-direction: column;
@@ -273,6 +278,8 @@ export class UiStepperComponent {
   readonly allowCompletedNavigation = input(false);
   readonly allowFutureNavigation = input(false);
   readonly canAdvance = input<((currentIndex: number) => boolean) | null>(null);
+  /** Optional: disables Next while the feature knows the current step is incomplete (the guard still runs on Next). */
+  readonly nextDisabled = input(false);
   readonly activeIndex = model(0);
   readonly stepChange = output<number>();
   readonly advanceBlocked = output<number>();
@@ -307,7 +314,7 @@ export class UiStepperComponent {
 
   next(): void {
     const current = this.activeIndex();
-    if (current >= this.steps().length - 1) {
+    if (current >= this.steps().length - 1 || this.nextDisabled()) {
       return;
     }
     const guard = this.canAdvance();

@@ -82,6 +82,12 @@ public sealed class CreateSaleCommandHandler(
 
     public async Task<SaleReadModel> Handle(CreateSaleCommand request, CancellationToken cancellationToken)
     {
+        // D-01: exchanges are dedicated Exchange transactions now. Historical links stay readable; new ones are refused.
+        if (request.OriginalSaleId.HasValue)
+            throw new SaleCheckoutValidationException(
+                SaleCheckoutErrorCodes.ExchangeLinkDeprecated,
+                "Linking a new sale to an original sale is no longer supported. Use the Exchange workflow instead.");
+
         if (request.Items.Count == 0)
             throw new InvalidOperationException("Sale must have at least one item");
 
@@ -222,9 +228,6 @@ public sealed class CreateSaleCommandHandler(
                 request.CashTendered,
                 totals.TotalAmount);
 
-            ExchangeOriginalSale? exchangeOriginal = null;
-            if (request.OriginalSaleId.HasValue)
-                exchangeOriginal = await LoadExchangeOriginalAsync(request, cancellationToken);
 
             var inventoryLines = new List<(RetailPOS.Core.Entities.Inventory Inventory, long VariantId, decimal Quantity, decimal BalanceAfter)>();
             var touchedVariants = new HashSet<long>();
@@ -413,11 +416,6 @@ public sealed class CreateSaleCommandHandler(
             }
 
             await store.SaveChangesAsync(cancellationToken);
-            if (exchangeOriginal is not null)
-            {
-                exchangeOriginal.Sale.ReplacementSaleId = sale.Id;
-                await store.SaveChangesAsync(cancellationToken);
-            }
 
             // D10: the journal intent and its outbox event commit with the sale; the GL journal is posted afterwards.
             await financialPostings.AppendSaleAsync(sale, cancellationToken);
@@ -517,33 +515,6 @@ public sealed class CreateSaleCommandHandler(
 
         logger.DuplicateRequest(request.IdempotencyKey!, existing.Sale.Id);
         return existing.Sale;
-    }
-
-    private async Task<ExchangeOriginalSale> LoadExchangeOriginalAsync(
-        CreateSaleCommand request,
-        CancellationToken cancellationToken)
-    {
-        var originalSaleId = request.OriginalSaleId!.Value;
-        var outletBusinessId = await store.GetOutletBusinessIdAsync(request.OutletId, cancellationToken);
-        var original = await store.FindExchangeOriginalSaleForUpdateAsync(originalSaleId, cancellationToken);
-
-        // A sale of another business is reported as missing so its existence is not disclosed.
-        if (original is null || !outletBusinessId.HasValue || original.BusinessId != outletBusinessId)
-            throw new KeyNotFoundException($"Original sale with ID {originalSaleId} not found");
-
-        // An exchange links the sales and moves no quantity, so it can follow a partial refund; nothing is consumed twice.
-        if (!string.Equals(original.Sale.Status, "completed", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(original.Sale.Status, "partially_refunded", StringComparison.OrdinalIgnoreCase))
-            throw new SaleCheckoutValidationException(
-                SaleCheckoutErrorCodes.InvalidExchangeLink,
-                $"Original sale {originalSaleId} is {original.Sale.Status} and cannot be exchanged.");
-
-        if (original.Sale.ReplacementSaleId.HasValue)
-            throw new SaleCheckoutValidationException(
-                SaleCheckoutErrorCodes.InvalidExchangeLink,
-                $"Original sale {originalSaleId} has already been replaced.");
-
-        return original;
     }
 
     private async Task<Customer> EnsureWalkInCustomerAsync(long businessId, CancellationToken cancellationToken)

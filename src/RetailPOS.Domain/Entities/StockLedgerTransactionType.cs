@@ -21,6 +21,9 @@ public static class StockLedgerTransactionType
     /// <summary>Stock exchanged (reserved for future exchange flow).</summary>
     public const string Exchange = "exchange";
 
+    /// <summary>The compensating movements of a reversed product exchange (EX-14).</summary>
+    public const string ExchangeReversal = "exchange_reversal";
+
     /// <summary>Manual stock adjustment (damage, loss, count correction, etc.).</summary>
     public const string Adjustment = "adjustment";
 
@@ -56,6 +59,10 @@ public static class StockLedgerReferenceType
     public const string StockAdjustment = "stock_adjustment";
     public const string StockTransfer = "stock_transfer";
     public const string StockCostCorrection = "stock_cost_correction";
+    /// <summary>A product exchange (both its return-in and replacement-out movements).</summary>
+    public const string Exchange = "exchange";
+    /// <summary>The compensating movements of a reversed product exchange.</summary>
+    public const string ExchangeReversal = "exchange_reversal";
 }
 
 /// <summary>Stock ledger values added by UOM v1.</summary>

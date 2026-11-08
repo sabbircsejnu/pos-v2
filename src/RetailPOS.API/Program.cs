@@ -417,6 +417,14 @@ builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleReadSto
     RetailPOS.Infrastructure.Sales.SaleReadStore>();
 builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleCreationStore,
     RetailPOS.Infrastructure.Sales.SaleCreationStore>();
+// Product Exchange (Exchange SRS/LLD).
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.Abstractions.IExchangeStore, RetailPOS.Infrastructure.Exchanges.ExchangeStore>();
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.Abstractions.IExchangeJournalPoster, RetailPOS.API.Services.ExchangeJournalPoster>();
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.Abstractions.IExchangeAuditWriter, RetailPOS.API.Services.ExchangeAuditWriter>();
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.Abstractions.IExchangeEventWriter, RetailPOS.API.Services.ExchangeEventWriter>();
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.ExchangeEvaluator>();
+builder.Services.AddScoped<RetailPOS.Application.Exchanges.Abstractions.IExchangeReadStore, RetailPOS.Infrastructure.Exchanges.ExchangeReadStore>();
+builder.Services.AddSingleton<RetailPOS.Application.Exchanges.Abstractions.IExchangeReceiptPdfRenderer, RetailPOS.Infrastructure.Exchanges.ExchangeReceiptPdfRenderer>();
 builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleVoidStore,
     RetailPOS.Infrastructure.Sales.SaleVoidStore>();
 builder.Services.AddScoped<RetailPOS.Application.Sales.Abstractions.ISaleRefundStore,
@@ -1173,6 +1181,20 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = 3,
                 Window = TimeSpan.FromMinutes(10),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Exchange supervisor credential approval (C-02): attempts are limited per remote IP (the per-source control). The
+    // limiter runs before authentication, so the user is not known here; per-supervisor-login and per-cashier lockout is
+    // enforced in the use case (GrantExchangeApprovalsCommandHandler, L1b).
+    options.AddPolicy("exchange-approval", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
             }));

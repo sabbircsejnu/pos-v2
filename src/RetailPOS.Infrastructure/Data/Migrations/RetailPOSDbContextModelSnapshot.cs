@@ -3206,9 +3206,9 @@ namespace RetailPOS.Infrastructure.Data.Migrations
 
                     b.ToTable("cash_session_movements", null, t =>
                         {
-                            t.HasCheckConstraint("ck_cash_session_movements_effect", "(movement_type IN ('cash_refund','drawer_expense') AND cash_effect < 0) OR (movement_type = 'drawer_expense_reversal' AND cash_effect > 0) OR (movement_type = 'correction' AND cash_effect <> 0)");
+                            t.HasCheckConstraint("ck_cash_session_movements_effect", "(movement_type IN ('cash_refund','drawer_expense','exchange_cash_out') AND cash_effect < 0) OR (movement_type IN ('drawer_expense_reversal','exchange_cash_in') AND cash_effect > 0) OR (movement_type = 'correction' AND cash_effect <> 0)");
 
-                            t.HasCheckConstraint("ck_cash_session_movements_type", "movement_type IN ('cash_refund','drawer_expense','drawer_expense_reversal','correction')");
+                            t.HasCheckConstraint("ck_cash_session_movements_type", "movement_type IN ('cash_refund','drawer_expense','drawer_expense_reversal','correction','exchange_cash_in','exchange_cash_out')");
                         });
                 });
 
@@ -3443,6 +3443,1395 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .HasFilter("phone_normalized IS NOT NULL");
 
                     b.ToTable("customers");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.Exchange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<long>("CashierUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cashier_user_id");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateTime>("EligibilityLocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("eligibility_local_date");
+
+                    b.Property<string>("ExchangeNumber")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("exchange_number");
+
+                    b.Property<decimal>("HighValueAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("high_value_amount");
+
+                    b.Property<decimal?>("HighValueThresholdApplied")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("high_value_threshold_applied");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("InternalNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("internal_note");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<string>("LoyaltyStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("loyalty_status");
+
+                    b.Property<decimal>("NetAdjustmentGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_adjustment_gross");
+
+                    b.Property<decimal>("NetAdjustmentNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_adjustment_net");
+
+                    b.Property<decimal>("NetAdjustmentVat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_adjustment_vat");
+
+                    b.Property<string>("PhoneVerificationResult")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone_verification_result");
+
+                    b.Property<string>("PolicySnapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("policy_snapshot");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<string>("PreviewHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("preview_hash");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("reason_code");
+
+                    b.Property<string>("ReasonOtherText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason_other_text");
+
+                    b.Property<long>("ReceivingOutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("receiving_outlet_id");
+
+                    b.Property<decimal>("ReplacementCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("replacement_cost");
+
+                    b.Property<decimal>("ReplacementDiscount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("replacement_discount");
+
+                    b.Property<decimal>("ReplacementGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("replacement_gross");
+
+                    b.Property<decimal>("ReplacementNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("replacement_net");
+
+                    b.Property<decimal>("ReplacementVat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("replacement_vat");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<decimal>("ReturnCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("return_cost");
+
+                    b.Property<decimal>("ReturnGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("return_gross");
+
+                    b.Property<decimal>("ReturnNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("return_net");
+
+                    b.Property<decimal>("ReturnVat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("return_vat");
+
+                    b.Property<long?>("ReversalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reversal_id");
+
+                    b.Property<long?>("SalespersonUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salesperson_user_id");
+
+                    b.Property<decimal>("SettlementAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("settlement_amount");
+
+                    b.Property<string>("SettlementDirection")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("settlement_direction");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchanges");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_exchanges_cash_session_id");
+
+                    b.HasIndex("CashierUserId")
+                        .HasDatabaseName("i_x_exchanges_cashier_user_id");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("i_x_exchanges_customer_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_exchanges_journal_entry_id");
+
+                    b.HasIndex("PolicyVersionId")
+                        .HasDatabaseName("i_x_exchanges_policy_version_id");
+
+                    b.HasIndex("ReceivingOutletId")
+                        .HasDatabaseName("i_x_exchanges_receiving_outlet_id");
+
+                    b.HasIndex("ReversalId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchanges_reversal_id");
+
+                    b.HasIndex("SalespersonUserId")
+                        .HasDatabaseName("i_x_exchanges_salesperson_user_id");
+
+                    b.HasIndex("TerminalId")
+                        .HasDatabaseName("i_x_exchanges_terminal_id");
+
+                    b.HasIndex("BusinessId", "ExchangeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchanges_business_id_exchange_number");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchanges_business_id_idempotency_key");
+
+                    b.HasIndex("BusinessId", "BusinessDate", "ReceivingOutletId")
+                        .HasDatabaseName("i_x_exchanges_business_id_business_date_receiving_outlet_id");
+
+                    b.HasIndex("BusinessId", "CustomerId", "CompletedAtUtc")
+                        .HasDatabaseName("i_x_exchanges_business_id_customer_id_completed_at_utc");
+
+                    b.HasIndex("BusinessId", "SalespersonUserId", "BusinessDate")
+                        .HasDatabaseName("i_x_exchanges_business_id_salesperson_user_id_business_date");
+
+                    b.ToTable("exchanges", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchanges_loyalty_status", "loyalty_status IN ('module_inactive','applied','pending_reconciliation','not_eligible')");
+
+                            t.HasCheckConstraint("ck_exchanges_phone_result", "phone_verification_result IN ('not_required','skipped_walkin','matched_customer_record')");
+
+                            t.HasCheckConstraint("ck_exchanges_reason", "reason_code IN ('size_fitting','colour_design','wrong_product_purchased','customer_preference_changed','other') AND (reason_code <> 'other' OR (reason_other_text IS NOT NULL AND length(trim(reason_other_text)) > 0))");
+
+                            t.HasCheckConstraint("ck_exchanges_settlement", "settlement_direction IN ('collect','refund','none') AND settlement_amount = abs(net_adjustment_gross) AND ((settlement_direction = 'none') = (net_adjustment_gross = 0)) AND ((settlement_direction = 'collect') = (net_adjustment_gross > 0))");
+
+                            t.HasCheckConstraint("ck_exchanges_status", "status IN ('completed','reversed')");
+
+                            t.HasCheckConstraint("ck_exchanges_totals", "return_gross = return_net + return_vat AND replacement_gross = replacement_net + replacement_vat AND net_adjustment_gross = replacement_gross - return_gross AND net_adjustment_net = replacement_net - return_net AND net_adjustment_vat = replacement_vat - return_vat");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeApproval", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ApprovalType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("approval_type");
+
+                    b.Property<Guid>("AuthenticationGroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("authentication_group_id");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashierUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cashier_user_id");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at_utc");
+
+                    b.Property<long?>("ConsumedByExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("consumed_by_exchange_id");
+
+                    b.Property<long?>("ConsumedByReversalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("consumed_by_reversal_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("payload_hash");
+
+                    b.Property<string>("PermissionUsed")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("permission_used");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("ReceivingOutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("receiving_outlet_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SupervisorOutletAccessBasis")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("supervisor_outlet_access_basis");
+
+                    b.Property<long>("SupervisorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("supervisor_user_id");
+
+                    b.Property<long?>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_approvals");
+
+                    b.HasIndex("CashierUserId")
+                        .HasDatabaseName("i_x_exchange_approvals_cashier_user_id");
+
+                    b.HasIndex("ConsumedByExchangeId")
+                        .HasDatabaseName("i_x_exchange_approvals_consumed_by_exchange_id");
+
+                    b.HasIndex("ConsumedByReversalId")
+                        .HasDatabaseName("i_x_exchange_approvals_consumed_by_reversal_id");
+
+                    b.HasIndex("SupervisorUserId")
+                        .HasDatabaseName("i_x_exchange_approvals_supervisor_user_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_approvals_token_hash");
+
+                    b.HasIndex("BusinessId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_exchange_approvals_business_id_created_at_utc");
+
+                    b.ToTable("exchange_approvals", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_approvals_basis", "supervisor_outlet_access_basis IN ('assignment','global_entitlement')");
+
+                            t.HasCheckConstraint("ck_exchange_approvals_independent", "supervisor_user_id <> cashier_user_id");
+
+                            t.HasCheckConstraint("ck_exchange_approvals_reason", "length(trim(reason)) > 0");
+
+                            t.HasCheckConstraint("ck_exchange_approvals_status", "status IN ('granted','consumed','expired','revoked')");
+
+                            t.HasCheckConstraint("ck_exchange_approvals_type", "approval_type IN ('window','chain','high_value','refund')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeApprovalFailure", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AttemptedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("attempted_at_utc");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("SubjectHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("subject_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("SubjectKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("subject_kind");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_approval_failures");
+
+                    b.HasIndex("BusinessId", "SubjectKind", "SubjectHash", "AttemptedAtUtc")
+                        .HasDatabaseName("i_x_exchange_approval_failures_business_id_subject_kind_subject~");
+
+                    b.ToTable("exchange_approval_failures", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_approval_failures_kind", "subject_kind IN ('supervisor','cashier')");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeLineageLink", b =>
+                {
+                    b.Property<long>("ReturnLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("return_line_id");
+
+                    b.Property<long>("ReplacementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("replacement_line_id");
+
+                    b.HasKey("ReturnLineId", "ReplacementLineId")
+                        .HasName("p_k_exchange_lineage_links");
+
+                    b.HasIndex("ReplacementLineId")
+                        .HasDatabaseName("i_x_exchange_lineage_links_replacement_line_id");
+
+                    b.ToTable("exchange_lineage_links", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeNumberCounter", b =>
+                {
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("OutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("outlet_id");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("LastSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_sequence");
+
+                    b.HasKey("BusinessId", "OutletId", "BusinessDate")
+                        .HasName("p_k_exchange_number_counters");
+
+                    b.HasIndex("OutletId")
+                        .HasDatabaseName("i_x_exchange_number_counters_outlet_id");
+
+                    b.ToTable("exchange_number_counters", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_number_counters_sequence", "last_sequence >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangePolicyVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowLowerPriceExchange")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_lower_price_exchange");
+
+                    b.Property<bool>("AllowReplacementReExchange")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_replacement_re_exchange");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<int>("ExchangeWindowDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("exchange_window_days");
+
+                    b.Property<decimal?>("HighValueApprovalThreshold")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("high_value_approval_threshold");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<int?>("MaxExchangeCountPerLineage")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_exchange_count_per_lineage");
+
+                    b.Property<string>("NegativeTargetAdjustmentMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("negative_target_adjustment_mode");
+
+                    b.Property<string>("PhoneVerificationMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone_verification_mode");
+
+                    b.Property<int?>("ReplacementWindowDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("replacement_window_days");
+
+                    b.Property<int>("VersionNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_no");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_policy_versions");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("i_x_exchange_policy_versions_created_by_user_id");
+
+                    b.HasIndex("BusinessId", "VersionNo")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_policy_versions_business_id_version_no");
+
+                    b.ToTable("exchange_policy_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_policy_versions_negative_mode", "negative_target_adjustment_mode IN ('track_only','deduct_from_exchange_salesperson')");
+
+                            t.HasCheckConstraint("ck_exchange_policy_versions_phone_mode", "phone_verification_mode IN ('optional','required')");
+
+                            t.HasCheckConstraint("ck_exchange_policy_versions_values", "version_no >= 1 AND exchange_window_days >= 0 AND (replacement_window_days IS NULL OR replacement_window_days >= 0) AND (max_exchange_count_per_lineage IS NULL OR max_exchange_count_per_lineage >= 1) AND (high_value_approval_threshold IS NULL OR high_value_approval_threshold > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReceiptPrintHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("action_type");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<DateTime>("PrintedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("printed_at_utc");
+
+                    b.Property<long?>("PrintedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("printed_by_user_id");
+
+                    b.Property<long?>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_receipt_print_history");
+
+                    b.HasIndex("ExchangeId")
+                        .HasDatabaseName("i_x_exchange_receipt_print_history_exchange_id");
+
+                    b.HasIndex("PrintedByUserId")
+                        .HasDatabaseName("i_x_exchange_receipt_print_history_printed_by_user_id");
+
+                    b.HasIndex("TerminalId")
+                        .HasDatabaseName("i_x_exchange_receipt_print_history_terminal_id");
+
+                    b.ToTable("exchange_receipt_print_history", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReceiptSnapshot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("document");
+
+                    b.Property<int>("DocumentVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("document_version");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<long?>("ExchangeReversalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_reversal_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_receipt_snapshots");
+
+                    b.HasIndex("ExchangeReversalId")
+                        .HasDatabaseName("i_x_exchange_receipt_snapshots_exchange_reversal_id");
+
+                    b.HasIndex("ExchangeId", "ExchangeReversalId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_receipt_snapshots_exchange_id_exchange_reversal_id");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ExchangeId", "ExchangeReversalId"), false);
+
+                    b.ToTable("exchange_receipt_snapshots", (string)null);
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AppliedRuleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("applied_rule_id");
+
+                    b.Property<string>("AppliedRuleName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("applied_rule_name");
+
+                    b.Property<decimal?>("BaseQtyPerPack")
+                        .HasColumnType("numeric")
+                        .HasColumnName("base_qty_per_pack");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<decimal>("HistoricalUnitCost")
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("historical_unit_cost");
+
+                    b.Property<decimal>("InvoiceDiscountShare")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("invoice_discount_share");
+
+                    b.Property<decimal>("IssuedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("issued_quantity");
+
+                    b.Property<decimal>("LineDiscount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_discount");
+
+                    b.Property<int>("LineageDepth")
+                        .HasColumnType("integer")
+                        .HasColumnName("lineage_depth");
+
+                    b.Property<string>("PackCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("pack_code");
+
+                    b.Property<string>("PackState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pack_state");
+
+                    b.Property<decimal>("PackagingCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("packaging_cost");
+
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("returned_quantity");
+
+                    b.Property<string>("TaxClassification")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("tax_classification");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<bool>("TaxInclusive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tax_inclusive");
+
+                    b.Property<decimal>("TaxableAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable_amount");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
+
+                    b.Property<long>("VariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variant_id");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal>("VatRate")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)")
+                        .HasColumnName("vat_rate");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_replacement_lines");
+
+                    b.HasIndex("ExchangeId")
+                        .HasDatabaseName("i_x_exchange_replacement_lines_exchange_id");
+
+                    b.HasIndex("VariantId")
+                        .HasDatabaseName("i_x_exchange_replacement_lines_variant_id");
+
+                    b.ToTable("exchange_replacement_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_replacement_lines_returned_quantity", "issued_quantity > 0 AND returned_quantity >= 0 AND returned_quantity <= issued_quantity");
+
+                            t.HasCheckConstraint("ck_exchange_replacement_lines_values", "taxable_amount >= 0 AND vat_amount >= 0 AND historical_unit_cost >= 0 AND lineage_depth >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLineComponent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ComponentVariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("component_variant_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("quantity");
+
+                    b.Property<long>("ReplacementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("replacement_line_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_replacement_line_components");
+
+                    b.HasIndex("ComponentVariantId")
+                        .HasDatabaseName("i_x_exchange_replacement_line_components_component_variant_id");
+
+                    b.HasIndex("ReplacementLineId")
+                        .HasDatabaseName("i_x_exchange_replacement_line_components_replacement_line_id");
+
+                    b.ToTable("exchange_replacement_line_components", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_replacement_line_components_values", "quantity > 0 AND value >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReturnLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("condition");
+
+                    b.Property<decimal>("CostRestored")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("cost_restored");
+
+                    b.Property<decimal>("CreditGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_gross");
+
+                    b.Property<decimal>("CreditNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_net");
+
+                    b.Property<decimal>("CreditVat")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_vat");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<int>("LineageDepth")
+                        .HasColumnType("integer")
+                        .HasColumnName("lineage_depth");
+
+                    b.Property<bool>("PackagingReusable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("packaging_reusable");
+
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("returned_quantity");
+
+                    b.Property<long>("RootSaleItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("root_sale_item_id");
+
+                    b.Property<long?>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.Property<long?>("SaleItemId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_item_id");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_kind");
+
+                    b.Property<long?>("SourceReplacementLineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_replacement_line_id");
+
+                    b.Property<string>("UomBaseUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_base_unit_code");
+
+                    b.Property<long?>("UomConfigVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_config_version_id");
+
+                    b.Property<decimal?>("UomEnteredQuantity")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_entered_quantity");
+
+                    b.Property<decimal?>("UomEnteredUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("uom_entered_unit_price");
+
+                    b.Property<decimal?>("UomFactorDenominator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_denominator");
+
+                    b.Property<decimal?>("UomFactorNumerator")
+                        .HasColumnType("numeric")
+                        .HasColumnName("uom_factor_numerator");
+
+                    b.Property<string>("UomLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("uom_label");
+
+                    b.Property<string>("UomOptionCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("uom_option_code");
+
+                    b.Property<long?>("UomOptionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("uom_option_id");
+
+                    b.Property<string>("UomUnitCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_unit_code");
+
+                    b.Property<long>("VariantId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_return_lines");
+
+                    b.HasIndex("ExchangeId")
+                        .HasDatabaseName("i_x_exchange_return_lines_exchange_id");
+
+                    b.HasIndex("SaleId")
+                        .HasDatabaseName("i_x_exchange_return_lines_sale_id");
+
+                    b.HasIndex("SaleItemId")
+                        .HasDatabaseName("i_x_exchange_return_lines_sale_item_id");
+
+                    b.HasIndex("SourceReplacementLineId")
+                        .HasDatabaseName("i_x_exchange_return_lines_source_replacement_line_id");
+
+                    b.HasIndex("VariantId")
+                        .HasDatabaseName("i_x_exchange_return_lines_variant_id");
+
+                    b.ToTable("exchange_return_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_return_lines_condition", "condition = 'resellable'");
+
+                            t.HasCheckConstraint("ck_exchange_return_lines_source", "(source_kind = 'sale_item' AND sale_item_id IS NOT NULL AND sale_id IS NOT NULL AND source_replacement_line_id IS NULL) OR (source_kind = 'exchange_replacement_line' AND source_replacement_line_id IS NOT NULL AND sale_item_id IS NULL)");
+
+                            t.HasCheckConstraint("ck_exchange_return_lines_values", "returned_quantity > 0 AND credit_gross = credit_net + credit_vat AND cost_restored >= 0 AND lineage_depth >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<long?>("JournalEntryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("journal_entry_id");
+
+                    b.Property<decimal>("NetAdjustmentGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net_adjustment_gross");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<long>("ReceivingOutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("receiving_outlet_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<decimal>("RetainedPackagingCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("retained_packaging_cost");
+
+                    b.Property<string>("ReversalNumber")
+                        .IsRequired()
+                        .HasMaxLength(70)
+                        .HasColumnType("character varying(70)")
+                        .HasColumnName("reversal_number");
+
+                    b.Property<long>("TerminalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("terminal_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_reversals");
+
+                    b.HasIndex("ActorUserId")
+                        .HasDatabaseName("i_x_exchange_reversals_actor_user_id");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_exchange_reversals_cash_session_id");
+
+                    b.HasIndex("ExchangeId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_reversals_exchange_id");
+
+                    b.HasIndex("JournalEntryId")
+                        .HasDatabaseName("i_x_exchange_reversals_journal_entry_id");
+
+                    b.HasIndex("BusinessId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_reversals_business_id_idempotency_key");
+
+                    b.ToTable("exchange_reversals", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_reversals_reason", "length(trim(reason)) > 0");
+
+                            t.HasCheckConstraint("ck_exchange_reversals_retained_packaging_cost", "retained_packaging_cost >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSalespersonAdjustment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("business_id");
+
+                    b.Property<long>("CashierUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cashier_user_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<long?>("ExchangeReversalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_reversal_id");
+
+                    b.Property<decimal>("NegativeAmountNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("negative_amount_net");
+
+                    b.Property<string>("NegativeMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("negative_mode");
+
+                    b.Property<long>("PolicyVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("policy_version_id");
+
+                    b.Property<decimal>("PositiveAmountNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("positive_amount_net");
+
+                    b.Property<long>("ReceivingOutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("receiving_outlet_id");
+
+                    b.Property<long?>("SalespersonUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("salesperson_user_id");
+
+                    b.Property<decimal>("SignedAmountNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("signed_amount_net");
+
+                    b.Property<decimal>("TargetEffectAmountNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("target_effect_amount_net");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_salesperson_adjustments");
+
+                    b.HasIndex("ExchangeReversalId")
+                        .HasDatabaseName("i_x_exchange_salesperson_adjustments_exchange_reversal_id");
+
+                    b.HasIndex("ExchangeId", "ExchangeReversalId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_salesperson_adjustments_exchange_id_exchange_rever~");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ExchangeId", "ExchangeReversalId"), false);
+
+                    b.HasIndex("BusinessId", "BusinessDate", "ReceivingOutletId")
+                        .HasDatabaseName("i_x_exchange_salesperson_adjustments_business_id_business_date_~");
+
+                    b.HasIndex("BusinessId", "SalespersonUserId", "BusinessDate")
+                        .HasDatabaseName("i_x_exchange_salesperson_adjustments_business_id_salesperson_us~");
+
+                    b.ToTable("exchange_salesperson_adjustments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_salesperson_adjustments_values", "positive_amount_net >= 0 AND negative_amount_net <= 0 AND signed_amount_net = positive_amount_net + negative_amount_net");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSettlement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("CashSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_id");
+
+                    b.Property<long?>("CashSessionMovementId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_session_movement_id");
+
+                    b.Property<decimal?>("ChangeGiven")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("change_given");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("direction");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<long?>("ExchangeReversalId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_reversal_id");
+
+                    b.Property<DateTime?>("ExternalConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("external_confirmed_at_utc");
+
+                    b.Property<long?>("ExternalConfirmedByUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("external_confirmed_by_user_id");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("external_reference");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("method");
+
+                    b.Property<decimal?>("Tendered")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tendered");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_settlements");
+
+                    b.HasIndex("CashSessionId")
+                        .HasDatabaseName("i_x_exchange_settlements_cash_session_id");
+
+                    b.HasIndex("CashSessionMovementId")
+                        .HasDatabaseName("i_x_exchange_settlements_cash_session_movement_id");
+
+                    b.HasIndex("ExchangeId")
+                        .HasDatabaseName("i_x_exchange_settlements_exchange_id");
+
+                    b.HasIndex("ExchangeReversalId")
+                        .HasDatabaseName("i_x_exchange_settlements_exchange_reversal_id");
+
+                    b.ToTable("exchange_settlements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_settlements_refund_evidence", "NOT (direction = 'refund' AND method <> 'cash') OR (external_reference IS NOT NULL AND external_confirmed_by_user_id IS NOT NULL AND external_confirmed_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_exchange_settlements_values", "direction IN ('collect','refund') AND method IN ('cash','card','mobile') AND amount > 0 AND (tendered IS NULL OR (method = 'cash' AND direction = 'collect' AND tendered >= amount))");
+                        });
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSourceInvoice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<long>("ExchangeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("exchange_id");
+
+                    b.Property<string>("InvoiceNumberSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("invoice_number_snapshot");
+
+                    b.Property<long>("OriginalOutletId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_outlet_id");
+
+                    b.Property<DateTime>("PurchaseLocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("purchase_local_date");
+
+                    b.Property<DateTime?>("SaleBusinessDateSnapshot")
+                        .HasColumnType("date")
+                        .HasColumnName("sale_business_date_snapshot");
+
+                    b.Property<long>("SaleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sale_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_exchange_source_invoices");
+
+                    b.HasIndex("InvoiceNumberSnapshot")
+                        .HasDatabaseName("i_x_exchange_source_invoices_invoice_number_snapshot");
+
+                    b.HasIndex("SaleId")
+                        .HasDatabaseName("i_x_exchange_source_invoices_sale_id");
+
+                    b.HasIndex("ExchangeId", "SaleId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_exchange_source_invoices_exchange_id_sale_id");
+
+                    b.ToTable("exchange_source_invoices", (string)null);
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Expense", b =>
@@ -20919,6 +22308,374 @@ namespace RetailPOS.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.Exchange", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", null)
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges_cash_sessions_cash_session_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges__users_cashier_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges_customers_customer_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchanges__journal_entries_journal_entry_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangePolicyVersion", null)
+                        .WithMany()
+                        .HasForeignKey("PolicyVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges_exchange_policy_versions_policy_version_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivingOutletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges__outlets_receiving_outlet_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", null)
+                        .WithOne()
+                        .HasForeignKey("RetailPOS.Core.Entities.Exchanges.Exchange", "ReversalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchanges_exchange_reversals_reversal_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SalespersonUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchanges__users_salesperson_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.PosTerminal", null)
+                        .WithMany()
+                        .HasForeignKey("TerminalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchanges__pos_terminals_terminal_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeApproval", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_approvals_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_approvals__users_cashier_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany("Approvals")
+                        .HasForeignKey("ConsumedByExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_approvals_exchanges_consumed_by_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", null)
+                        .WithMany()
+                        .HasForeignKey("ConsumedByReversalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_approvals_exchange_reversals_consumed_by_reversal_~");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SupervisorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_approvals__users_supervisor_user_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeApprovalFailure", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_approval_failures_businesses_business_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeLineageLink", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_lineage_links_exchange_replacement_lines_replaceme~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReturnLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_lineage_links_exchange_return_lines_return_line_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeNumberCounter", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_number_counters_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Outlet", null)
+                        .WithMany()
+                        .HasForeignKey("OutletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_number_counters__outlets_outlet_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangePolicyVersion", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_policy_versions_businesses_business_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_policy_versions__users_created_by_user_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReceiptPrintHistory", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_receipt_print_history_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("PrintedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_exchange_receipt_print_history__users_printed_by_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.PosTerminal", null)
+                        .WithMany()
+                        .HasForeignKey("TerminalId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_exchange_receipt_print_history__pos_terminals_terminal_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReceiptSnapshot", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_receipt_snapshots_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeReversalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_receipt_snapshots_exchange_reversals_exchange_reve~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", "Exchange")
+                        .WithMany("ReplacementLines")
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_replacement_lines_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", null)
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_replacement_lines__product_variants_variant_id");
+
+                    b.Navigation("Exchange");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLineComponent", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_replacement_line_components__product_variants_compon~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", null)
+                        .WithMany("Components")
+                        .HasForeignKey("ReplacementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_replacement_line_components_exchange_replacement_l~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReturnLine", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany("ReturnLines")
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_return_lines_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_return_lines__sales_sale_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.SaleItem", null)
+                        .WithMany()
+                        .HasForeignKey("SaleItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_return_lines__sale_items_sale_item_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", null)
+                        .WithMany()
+                        .HasForeignKey("SourceReplacementLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_return_lines_exchange_replacement_lines_source_rep~");
+
+                    b.HasOne("RetailPOS.Core.Entities.ProductVariant", null)
+                        .WithMany()
+                        .HasForeignKey("VariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_return_lines__product_variants_variant_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_reversals__users_actor_user_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", null)
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_reversals_cash_sessions_cash_session_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_reversals_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_reversals__journal_entries_journal_entry_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSalespersonAdjustment", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_salesperson_adjustments_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeReversalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_salesperson_adjustments_exchange_reversals_exchang~");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSettlement", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.CashSession", null)
+                        .WithMany()
+                        .HasForeignKey("CashSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_settlements_cash_sessions_cash_session_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.CashSessionMovement", null)
+                        .WithMany()
+                        .HasForeignKey("CashSessionMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_settlements_cash_session_movements_cash_session_mo~");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany("Settlements")
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_settlements_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.ExchangeReversal", null)
+                        .WithMany()
+                        .HasForeignKey("ExchangeReversalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_exchange_settlements_exchange_reversals_exchange_reversal_id");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeSourceInvoice", b =>
+                {
+                    b.HasOne("RetailPOS.Core.Entities.Exchanges.Exchange", null)
+                        .WithMany("SourceInvoices")
+                        .HasForeignKey("ExchangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_source_invoices_exchanges_exchange_id");
+
+                    b.HasOne("RetailPOS.Core.Entities.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_exchange_source_invoices__sales_sale_id");
+                });
+
             modelBuilder.Entity("RetailPOS.Core.Entities.Expense", b =>
                 {
                     b.HasOne("RetailPOS.Core.Entities.Business", "Business")
@@ -24962,6 +26719,24 @@ namespace RetailPOS.Infrastructure.Data.Migrations
             modelBuilder.Entity("RetailPOS.Core.Entities.Customer", b =>
                 {
                     b.Navigation("Sales");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.Exchange", b =>
+                {
+                    b.Navigation("Approvals");
+
+                    b.Navigation("ReplacementLines");
+
+                    b.Navigation("ReturnLines");
+
+                    b.Navigation("Settlements");
+
+                    b.Navigation("SourceInvoices");
+                });
+
+            modelBuilder.Entity("RetailPOS.Core.Entities.Exchanges.ExchangeReplacementLine", b =>
+                {
+                    b.Navigation("Components");
                 });
 
             modelBuilder.Entity("RetailPOS.Core.Entities.Expense", b =>

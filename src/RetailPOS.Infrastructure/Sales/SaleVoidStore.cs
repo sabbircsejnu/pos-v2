@@ -52,6 +52,11 @@ public sealed class SaleVoidStore(RetailPOSDbContext dbContext) : ISaleVoidStore
                 cancellationToken) == 1;
     }
 
+    public Task<bool> HasReturnedQuantityAsync(long saleId, CancellationToken cancellationToken) =>
+        dbContext.SaleItems
+            .AsNoTracking()
+            .AnyAsync(item => item.SaleId == saleId && item.ReturnedQuantity > 0m, cancellationToken);
+
     public async Task LockSaleAsync(long saleId, CancellationToken cancellationToken)
     {
         if (dbContext.Database.IsNpgsql())
